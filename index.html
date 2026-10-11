@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>רפובליקת סבבה</title>
+<meta name="description" content="כל עוקב = אזרח. מצאו את תעודת הזהות שלכם ברפובליקת סבבה.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sea:#1f6f8b; --sea-deep:#123f52; --sand:#fbf3e4; --sun:#ffb627;
+  --coral:#ef5b5b; --ink:#1b1b1b; --muted:#6b6458; --card:#ffffff; --line:#1b1b1b;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Rubik,system-ui,sans-serif;background:var(--sand);color:var(--ink);line-height:1.5}
+a{color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px}
+
+header{background:var(--sea);color:#fff;padding:36px 0 56px;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;inset:auto 0 -1px 0;height:40px;
+  background:radial-gradient(40px 22px at 20px 40px,var(--sand) 98%,transparent) 0 0/40px 40px repeat-x}
+.flag{font-size:40px}
+h1{margin:4px 0 6px;font-size:clamp(34px,8vw,52px);font-weight:900;letter-spacing:-.5px}
+.tag{margin:0;opacity:.9;font-size:18px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.pill{background:#fff;color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:6px 16px;font-weight:800;box-shadow:0 3px 0 var(--line)}
+
+section{margin:28px 0}
+h2{font-size:22px;font-weight:900;margin:0 0 12px}
+.box{background:var(--card);border:2.5px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 5px 0 var(--line)}
+
+.search{display:flex;gap:8px}
+.search input{flex:1;min-width:0;font:inherit;font-size:18px;padding:12px 14px;border:2.5px solid var(--line);border-radius:12px;direction:ltr;text-align:left}
+button{font:inherit;font-weight:800;font-size:17px;cursor:pointer;border:2.5px solid var(--line);border-radius:12px;padding:12px 18px;background:var(--sun);box-shadow:0 3px 0 var(--line)}
+button:active{transform:translateY(3px);box-shadow:none}
+.msg{margin:12px 0 0;color:var(--muted)}
+
+.idcard{margin-top:16px;border-radius:18px;border:2.5px solid var(--line);overflow:hidden;background:linear-gradient(135deg,#fff 0%,#fff6e0 100%)}
+.idcard .top{background:var(--sea-deep);color:#fff;padding:10px 16px;display:flex;justify-content:space-between;font-weight:800}
+.idcard .body{padding:16px;display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.avatar{width:84px;height:84px;border-radius:14px;border:2.5px solid var(--line);background:var(--sun);display:grid;place-items:center;font-size:40px;font-weight:900}
+.field{font-size:13px;color:var(--muted)}
+.val{font-size:18px;font-weight:800;margin-bottom:6px;word-break:break-all}
+.num{font-size:30px;font-weight:900;color:var(--coral);direction:ltr;text-align:right}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.secondary{background:#fff}
+
+.list{list-style:none;margin:0;padding:0}
+.list li{padding:10px 0;border-bottom:1.5px dashed #d8cfbd}
+.list li:last-child{border-bottom:0}
+.list .meta{color:var(--muted);font-size:14px}
+.empty{color:var(--muted)}
+
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;padding:8px 0 8px 0;display:flex;gap:12px;align-items:flex-start}
+.steps li::before{content:counter(s);flex:none;width:30px;height:30px;border-radius:50%;background:var(--coral);color:#fff;font-weight:900;display:grid;place-items:center;border:2px solid var(--line)}
+code{background:#fff3cd;padding:1px 6px;border-radius:6px;font-weight:800}
+
+footer{text-align:center;color:var(--muted);padding:30px 0 50px;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="flag">🏳️</div>
+    <h1>רפובליקת סבבה</h1>
+    <p class="tag">כל עוקב = אזרח. כל יום מחליטים יחד איך המדינה נראית.</p>
+    <div class="stats">
+      <span class="pill">👥 <span id="sCitizens">…</span> אזרחים</span>
+      <span class="pill">🏙️ <span id="sCities">…</span> ערים</span>
+      <span class="pill">📜 <span id="sLaws">…</span> חוקים</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="find">
+    <h2>🔎 מצאו את תעודת הזהות שלכם</h2>
+    <div class="box">
+      <form class="search" id="searchForm">
+        <input id="q" placeholder="@username" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button type="submit">חפש</button>
+      </form>
+      <p class="msg" id="msg"></p>
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <section id="cities">
+    <h2>🏙️ הערים</h2>
+    <div class="box"><ul class="list" id="citiesList"><li class="empty">טוען…</li></ul></div>
+  </section>
+
+  <section id="laws">
+    <h2>📜 ספר החוקים</h2>
+    <div class="box"><ul class="list" id="lawsList"><li class="empty">טוען…</li></ul></div>
+  </section>
+
+  <section id="gov">
+    <h2>🏛️ הממשלה</h2>
+    <div class="box"><ul class="list" id="govList"><li class="empty">טוען…</li></ul></div>
+  </section>
+
+  <section id="how">
+    <h2>🛂 איך מתאזרחים?</h2>
+    <div class="box">
+      <ol class="steps">
+        <li><span>עוקבים אחרי <a href="https://instagram.com/sababastate" target="_blank" rel="noopener"><b>@sababastate</b></a> באינסטגרם</span></li>
+        <li><span>שולחים לנו הודעה פרטית עם המילה <code>אזרחות</code></span></li>
+        <li><span>מקבלים מספר אזרח ועיר, ומוצאים את התעודה כאן</span></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>רפובליקת סבבה · מדינה דמיונית לגמרי, אזרחים אמיתיים לגמרי</footer>
+
+<script>
+const SUPABASE_URL = "https://herjiivecdrwkzudzbap.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zhrnwgsOlYlM6gm_77tGlg_ktWHGaZT";
+
+async function api(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, ...(opts.headers || {}) },
+    method: opts.method || "GET"
+  });
+  if (!res.ok) throw new Error(res.status);
+  return { data: opts.method === "HEAD" ? null : await res.json(), res };
+}
+async function count(table) {
+  const { res } = await api(`${table}?select=id`, { method: "HEAD", headers: { Prefer: "count=exact", Range: "0-0" } });
+  const r = res.headers.get("content-range") || "";
+  return r.split("/")[1] || "0";
+}
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = d => new Date(d).toLocaleDateString("he-IL");
+const pad = n => String(n).padStart(6, "0");
+const clean = u => u.trim().replace(/^@/, "").toLowerCase();
+
+async function loadStats() {
+  try {
+    const [a, b, c] = await Promise.all([count("citizens"), count("cities"), count("laws")]);
+    sCitizens.textContent = Number(a).toLocaleString("he-IL");
+    sCities.textContent = b; sLaws.textContent = c;
+  } catch { [sCitizens, sCities, sLaws].forEach(e => e.textContent = "—"); }
+}
+
+async function loadCities() {
+  try {
+    const { data } = await api("cities?select=name,opens_at,founder_username&order=opens_at");
+    citiesList.innerHTML = data.length ? data.map(c => `
+      <li><b>${esc(c.name)}</b>
+      <div class="meta">נפתחה באזרח מס' ${c.opens_at.toLocaleString("he-IL")}${c.founder_username ? ` · מייסד/ת: @${esc(c.founder_username)}` : ""}</div></li>`).join("")
+      : `<li class="empty">עוד אין ערים.</li>`;
+  } catch { citiesList.innerHTML = `<li class="empty">לא הצלחנו לטעון.</li>`; }
+}
+
+async function loadLaws() {
+  try {
+    const { data } = await api("laws?select=title,description,enacted_at&order=enacted_at.desc,id.desc");
+    lawsList.innerHTML = data.length ? data.map((l, i) => `
+      <li><b>חוק ${data.length - i}: ${esc(l.title)}</b>
+      ${l.description ? `<div>${esc(l.description)}</div>` : ""}
+      <div class="meta">נכנס לתוקף ${fmtDate(l.enacted_at)}</div></li>`).join("")
+      : `<li class="empty">ספר החוקים עדיין ריק. החוק הראשון ייקבע בתגובות 👀</li>`;
+  } catch { lawsList.innerHTML = `<li class="empty">לא הצלחנו לטעון.</li>`; }
+}
+
+async function loadGov() {
+  try {
+    const { data } = await api("ministers?select=ministry,appointed_at,citizens(ig_username)&order=appointed_at.desc");
+    govList.innerHTML = data.length ? data.map(m => `
+      <li><b>${esc(m.ministry)}</b>
+      <div class="meta">@${esc(m.citizens?.ig_username)} · מונה ב־${fmtDate(m.appointed_at)}</div></li>`).join("")
+      : `<li class="empty">עוד לא מונו שרים. אולי השר הבא זה את/ה?</li>`;
+  } catch { govList.innerHTML = `<li class="empty">לא הצלחנו לטעון.</li>`; }
+}
+
+let current = null;
+async function search(u) {
+  result.innerHTML = ""; msg.textContent = "מחפש במשרד הפנים…";
+  try {
+    const { data } = await api(`citizens?select=id,ig_username,created_at,cities(name)&ig_username=eq.${encodeURIComponent(u)}`);
+    if (!data.length) { msg.innerHTML = `לא מצאנו את <b>@${esc(u)}</b> במרשם. עוד לא התאזרחת? ראו "איך מתאזרחים" למטה 👇`; return; }
+    current = data[0]; msg.textContent = "";
+    history.replaceState(null, "", `?u=${encodeURIComponent(u)}`);
+    renderCard(current);
+  } catch { msg.textContent = "משהו השתבש. נסו שוב בעוד רגע."; }
+}
+
+function renderCard(c) {
+  result.innerHTML = `
+    <div class="idcard">
+      <div class="top"><span>🏳️ רפובליקת סבבה</span><span>תעודת זהות</span></div>
+      <div class="body">
+        <div class="avatar">${esc(c.ig_username[0] || "?").toUpperCase()}</div>
+        <div>
+          <div class="field">מספר אזרח</div><div class="num">#${pad(c.id)}</div>
+          <div class="field">שם משתמש</div><div class="val" dir="ltr" style="text-align:right">@${esc(c.ig_username)}</div>
+          <div class="field">עיר מגורים</div><div class="val">${esc(c.cities?.name || "—")}</div>
+          <div class="field">תאריך התאזרחות</div><div class="val">${fmtDate(c.created_at)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="dl">📲 תמונה לסטורי</button>
+      <button class="secondary" id="cp">🔗 העתק קישור</button>
+    </div>`;
+  dl.onclick = () => storyImage(c);
+  cp.onclick = async () => { try { await navigator.clipboard.writeText(location.href); cp.textContent = "✓ הועתק"; } catch {} };
+}
+
+async function storyImage(c) {
+  await document.fonts.ready;
+  const W = 1080, H = 1920, cv = document.createElement("canvas");
+  cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  x.fillStyle = "#1f6f8b"; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#fbf3e4";
+  for (let i = 0; i < W; i += 80) { x.beginPath(); x.arc(i + 40, 1500, 44, 0, Math.PI * 2); x.fill(); }
+  x.fillRect(0, 1500, W, H);
+  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#fff";
+  x.font = "900 96px Rubik"; x.fillText("רפובליקת סבבה", W / 2, 260);
+  x.font = "600 46px Rubik"; x.fillText("אזרח/ית רשמי/ת 🏳️", W / 2, 340);
+  // card
+  const cx = 90, cy = 450, cw = W - 180, ch = 900;
+  x.fillStyle = "#1b1b1b"; roundRect(x, cx, cy + 14, cw, ch, 40); x.fill();
+  x.fillStyle = "#fff"; roundRect(x, cx, cy, cw, ch, 40); x.fill();
+  x.fillStyle = "#123f52"; roundRect(x, cx, cy, cw, 130, 40); x.fill(); x.fillRect(cx, cy + 80, cw, 50);
+  x.fillStyle = "#fff"; x.font = "800 52px Rubik"; x.fillText("תעודת זהות", W / 2, cy + 85);
+  x.fillStyle = "#6b6458"; x.font = "600 40px Rubik";
+  const rows = [["מספר אזרח", `#${pad(c.id)}`, "#ef5b5b", 110], ["שם משתמש", `@${c.ig_username}`, "#1b1b1b", 64],
+                ["עיר מגורים", c.cities?.name || "—", "#1b1b1b", 64], ["תאריך התאזרחות", fmtDate(c.created_at), "#1b1b1b", 64]];
+  let y = cy + 240;
+  for (const [k, v, col, sz] of rows) {
+    x.fillStyle = "#6b6458"; x.font = "600 40px Rubik"; x.fillText(k, W / 2, y);
+    x.fillStyle = col; x.font = `900 ${sz}px Rubik`; x.fillText(v, W / 2, y + sz + 10, cw - 80);
+    y += sz + 110;
+  }
+  x.fillStyle = "#1b1b1b"; x.font = "800 54px Rubik"; x.fillText("עקבו והתאזרחו 👇", W / 2, 1700);
+  x.fillStyle = "#ef5b5b"; x.font = "900 70px Rubik"; x.fillText("@sababastate", W / 2, 1800);
+  cv.toBlob(async blob => {
+    const file = new File([blob], `sababa-${c.ig_username}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; } catch {}
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+  }, "image/png");
+}
+function roundRect(x, l, t, w, h, r) {
+  x.beginPath(); x.moveTo(l + r, t); x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r);
+  x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r); x.closePath();
+}
+
+searchForm.onsubmit = e => { e.preventDefault(); const u = clean(q.value); if (u) search(u); };
+const pre = new URLSearchParams(location.search).get("u");
+if (pre) { q.value = "@" + clean(pre); search(clean(pre)); }
+loadStats(); loadCities(); loadLaws(); loadGov();
+</script>
+</body>
+</html>
