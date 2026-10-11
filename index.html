@@ -106,7 +106,7 @@ footer{text-align:center;color:var(--muted);padding:30px 0 50px;font-size:14px}
     <h2>🛂 איך מתאזרחים?</h2>
     <div class="box">
       <ol class="steps">
-        <li><span>עוקבים אחרי <a href="https://instagram.com/sababastate" target="_blank" rel="noopener"><b>@sababastate</b></a> באינסטגרם</span></li>
+        <li><span>עוקבים אחרי <a href="https://instagram.com/sababa.state" target="_blank" rel="noopener"><b>@sababa.state</b></a> באינסטגרם</span></li>
         <li><span>שולחים לנו הודעה פרטית עם המילה <code>אזרחות</code></span></li>
         <li><span>מקבלים מספר אזרח ועיר, ומוצאים את התעודה כאן</span></li>
       </ol>
@@ -238,7 +238,7 @@ async function storyImage(c) {
     y += sz + 110;
   }
   x.fillStyle = "#1b1b1b"; x.font = "800 54px Rubik"; x.fillText("עקבו והתאזרחו 👇", W / 2, 1700);
-  x.fillStyle = "#ef5b5b"; x.font = "900 70px Rubik"; x.fillText("@sababastate", W / 2, 1800);
+  x.fillStyle = "#ef5b5b"; x.font = "900 70px Rubik"; x.fillText("@sababa.state", W / 2, 1800);
   cv.toBlob(async blob => {
     const file = new File([blob], `sababa-${c.ig_username}.png`, { type: "image/png" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
