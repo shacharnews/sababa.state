@@ -981,16 +981,24 @@ function buildIsletMonument(p, k) {
   p.x = sp.x; p.z = sp.z;
   const G = "#cfc8b8", G2 = "#b9b19f", star = [];
   for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2; star.push(box(14, 9, 14, G2, Math.sin(a) * 22, 0, Math.cos(a) * 22, { y: a + Math.PI / 4 })); }
+  const isModel = M === MONUMENTS.model;
+  // the granite pedestal: a fixed size for the built-in statues, sized to the feet for a model
+  const pedestal = (w, d) => [box(w + 6, 3, d + 6, G, 0, 9, 0), box(w, 22, d, G, 0, 12, 0), box(w + 2, 2, d + 2, G2, 0, 34, 0), box(w - 3, 6, d - 3, G, 0, 36, 0), box(w - 2, 1, d - 2, G2, 0, 42, 0),
+    ...[-1, 1].flatMap(sx => [box(.2, 14, 6, "*#fff1c2", sx * (w / 2 + .1), 16, 0), box(6, 14, .2, "*#fff1c2", 0, 16, sx * (d / 2 + .1))])];
   const base = solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), cyl(26, 28, 9, 11, G2, 0, 0, 0), ...star,
-    box(30, 3, 30, G, 0, 9, 0), box(24, 22, 24, G, 0, 12, 0), box(26, 2, 26, G2, 0, 34, 0), box(21, 6, 21, G, 0, 36, 0), box(22, 1, 22, G2, 0, 42, 0),
-    ...[-1, 1].flatMap(sx => [box(.2, 14, 6, "*#fff1c2", sx * 12.1, 16, 0), box(6, 14, .2, "*#fff1c2", 0, 16, sx * 12.1)]),
+    ...(isModel ? [] : pedestal(24, 24)),
     ...Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return box(.6, 3.4, .6, "#4a5056", Math.sin(a) * 36, .6, Math.cos(a) * 36); }),
     ...Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return box(1, .4, 1, "*#fff1c2", Math.sin(a) * 36, 4, Math.cos(a) * 36); })], sp.x, sp.z, sp.face, { type: "project", p });
   const look = Math.atan2(VIEW_DIR.x, VIEW_DIR.z) + .25;   // looks at the map's camera
-  if (M === MONUMENTS.model) placeModel(p, sp.x, sp.z, 43, 125, look);
+  if (isModel) placeModel(p, sp.x, sp.z, 43, 125, look, (fw, fd) => {
+    // turn the feet box into the pedestal's frame (the statue is turned, the pedestal faces the camera like the base)
+    const t = look - sp.face, w = Math.max(24, Math.abs(fw * Math.cos(t)) + Math.abs(fd * Math.sin(t)) + 6), d = Math.max(24, Math.abs(fw * Math.sin(t)) + Math.abs(fd * Math.cos(t)) + 6);
+    plates(solid(pedestal(w, d), sp.x, sp.z, sp.face, { type: "project", p }), d);
+  });
   else solid(o.finish === "patina" ? patinate(parts) : parts, sp.x, sp.z, look, { type: "project", p }, 43).scale.setScalar(scale * 2.9);
-  const plate = sign(p.name || M.name, 18, 3, { bg: "#3a3428", fg: "#f2e4c4" }); mountSign(base, plate, 0, 28, 12.12);
-  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 14, 1.6, { bg: "#3a3428", fg: "#e2c48a", font: "600" }), 0, 24.6, 12.12);
+  const plates = (grp, d) => { mountSign(grp, sign(p.name || M.name, 18, 3, { bg: "#3a3428", fg: "#f2e4c4" }), 0, 28, d / 2 + .12);
+    if (p.requested_by) mountSign(grp, sign(`לבקשת ‎@${p.requested_by}`, 14, 1.6, { bg: "#3a3428", fg: "#e2c48a", font: "600" }), 0, 24.6, d / 2 + .12); };
+  if (!isModel) plates(base, 24);
   // a little ferry pier pointing at the island
   instanced(P.plane, [0], (_, q) => { q.position.set(sp.x * .955, -2.75, sp.z * .955); q.rotation.y = sp.face; q.scale.set(6, 1, 34); return "#9a7348"; }, { shadow: false });
 }
@@ -1003,7 +1011,7 @@ function modelLoader() {
   const draco = new DRACOLoader(); draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/");
   GLTF = new GLTFLoader(); GLTF.setDRACOLoader(draco); return GLTF;
 }
-function placeModel(p, x, z, y, height, ry) {
+function placeModel(p, x, z, y, height, ry, onFeet) {
   const o = p.params || {}, url = String(o.url || "").trim(), build = BUILD_NO; if (!url) return;
   if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
   MODEL_CACHE.get(url).then(src => {
@@ -1011,7 +1019,13 @@ function placeModel(p, x, z, y, height, ry) {
     // the same model object is reused (cloning would break rigged models); reset it and measure it at its own scale
     const m = src; m.removeFromParent(); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); m.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(m, true), size = bb.getSize(new THREE.Vector3()), k = height / (size.y || 1);
-    m.position.set(-(bb.min.x + size.x / 2) * k, -bb.min.y * k, -(bb.min.z + size.z / 2) * k); m.scale.setScalar(k);
+    // where the feet are: everything in the lowest 6% of the model
+    const feet = new THREE.Box3(), v = new THREE.Vector3(), floor = bb.min.y + size.y * .06;
+    m.traverse(n => { if (!n.isMesh) return; const a = n.geometry.attributes.position; for (let i = 0; i < a.count; i += 3) { v.fromBufferAttribute(a, i).applyMatrix4(n.matrixWorld); if (v.y <= floor) feet.expandByPoint(v); } });
+    if (feet.isEmpty()) feet.copy(bb);
+    const cx0 = (feet.min.x + feet.max.x) / 2, cz0 = (feet.min.z + feet.max.z) / 2;
+    m.position.set(-cx0 * k, -bb.min.y * k, -cz0 * k); m.scale.setScalar(k);   // centered on the feet, standing on the top
+    if (onFeet) onFeet((feet.max.x - feet.min.x) * k, (feet.max.z - feet.min.z) * k);
     const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry + (+o.turn || 0) * Math.PI / 180;
     m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (o.finish === "patina") n.material = PATINA_MAT; n.userData = { type: "project", p }; S.picks.push(n); });
     world.add(grp);
@@ -1022,7 +1036,8 @@ function buildMonument(p, cx, cz) {
   // a stone plaza with a pedestal in the middle of the lot
   const base = solid([box(38, .12, 19, "#d8cfbd"), box(30, .1, 2, "#c7bba2", 0, .02, 0), box(2, .1, 17, "#c7bba2", 0, .02, 0), box(9, 2.6, 7, "#cbbfa6", 0, 0, -1.5), box(9.6, .4, 7.6, "#b9ac90", 0, 2.6, -1.5),
     ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.3, 3.6, .3, "#4a5056", x, 0, z)), ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.6, .3, .6, "*#fff1c2", x, 3.6, z))], cx, cz, 0, { type: "project", p }, Y0);
-  if (M === MONUMENTS.model) placeModel(p, cx, cz - 1.5, Y0 + 3, 34, -.45);
+  if (M === MONUMENTS.model) placeModel(p, cx, cz - 1.5, Y0 + 3.6, 34, -.45, (fw, fd) => {
+    const w = Math.max(9.6, Math.max(fw, fd) + 2); solid([box(w, .6, w, "#b9ac90")], cx, cz - 1.5, -.45, { type: "project", p }, Y0 + 3); });
   else solid(o.finish === "patina" ? patinate(parts) : parts, cx, cz - 1.5, o.type?.startsWith("person") ? -.45 : 0, { type: "project", p }, Y0 + 3).scale.setScalar(scale);   // turned toward the camera
   mountSign(base, sign(p.name || M.name, 8.6, 1.4, { bg: "#3a2f22", fg: "#f6e7c8" }), 0, 1.75, 2.02);
   if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 7, .7, { bg: "#3a2f22", fg: "#e2c48a", font: "600" }), 0, .75, 2.02);
