@@ -329,7 +329,7 @@ const KIND_NAMES = { bakery: "מאפייה", cafe: "בית קפה", market: "ס�
 const LEVEL = ["", "", "ראש/ת צוות", "מנהל/ת", 'מנכ"ל/ית'];
 const PRIZES = { luxury_house: ["🏡", "וילה עם בריכה"], luxury_car: ["🏎️", "רכב יוקרה"], minister: ["🏛️", "שר/ה ליום"], promotion: ["📈", "קידום בעבודה"], job_change: ["🔄", "עבודה חדשה"], cash: ["💰", "מענק כספי"] };
 const PROJECT_KINDS = { park: ["🌳", "גינה ציבורית"], playground: ["🛝", "גן שעשועים"], community: ["🎭", "מתנ״ס"], pool: ["🏊", "בריכה עירונית"],
-  football: ["⚽", "מגרש כדורגל"], basketball: ["🏀", "מגרש כדורסל"], library: ["📚", "ספרייה"], mall: ["🛍️", "קניון"], dogpark: ["🐕", "גינת כלבים"] };
+  football: ["⚽", "מגרש כדורגל"], basketball: ["🏀", "מגרש כדורסל"], library: ["📚", "ספרייה"], mall: ["🛍️", "קניון"], dogpark: ["🐕", "גינת כלבים"], monument: ["🗽", "פסל"] };
 const jobTitle = h => !h.wp ? "מחפש/ת עבודה" : (h.level <= 1 ? `${ROLE[h.wp.kind] || "עובד/ת"} ב${h.wp.name}` : `${LEVEL[Math.min(4, h.level)]} ב${h.wp.name}`);
 const addressOf = h => h.lot ? `${h.lot.street} ${h.lot.num}, ${h.city.name}` : `${h.city.name} (הבית בבנייה)`;
 
@@ -838,11 +838,18 @@ function workBuilding(w, x, z, ry) {
   // [width, height, y, z, background, text color] of the sign on each kind of building
   const SG = { tech: [9, 1.4, 22.3, 5.66, "#1b2a3a", "#e8f4ff"], school: [8, 1.2, 5.8, 1.1, "#ffffff", "#7a3a22"], fuel: [10, .8, 5.3, 6.13, "#c0392b", "#ffffff"],
     clinic: [8, 1.2, 3.5, 5.12, "#ffffff", "#c0392b"], garage: [10, 1, 4.4, 5.3, "#e2b33a", "#1b1b1b"], police: [9, 1, 5.15, 5.17, "#1f4e9e", "#ffffff"],
-    market: [14, 1.2, 4.75, 5.32, "#d9762b", "#ffffff"], office: [9, 1.4, (w.floors || 7) * 3.2 - 2, 5.06, "#1b2a3a", "#e8f4ff"], hotel: [12, 1.6, (w.floors || 8) * 2.8 - 1.4, 1.62, "#7a2a20", "#fff4dc"],
-    gym: [12, 1, 5.2, 4.67, w.color || "#e5484d", "#ffffff"], bank: [10, 1.1, 8.1, 3.07, "#1f3a5a", "#f1e6cf"], pharmacy: [8, 1, 3.3, 4.1, "#2fae6a", "#ffffff"], factory: [10, 1.4, 5.6, 5.08, "#2b2b2b", "#f2c230"],
+    market: [14, 1.2, 4.75, 5.32, "#d9762b", "#ffffff"], office: [11, 2, (w.floors || 7) * 3.2 - 2.4, 5.06, "#1b2a3a", "#e8f4ff"], hotel: [14, 2.2, (w.floors || 8) * 2.8 - 1.8, 1.62, "#7a2a20", "#fff4dc"],
+    gym: [13, 1.1, 5.25, 4.67, w.color || "#e5484d", "#ffffff"], bank: [10, 1.1, 8.1, 3.07, "#1f3a5a", "#f1e6cf"], pharmacy: [9, 1.2, 3.2, 4.1, "#2fae6a", "#ffffff"], factory: [12, 1.8, 5.2, 5.08, "#2b2b2b", "#f2c230"],
     restaurant: [9, .9, 4.05, 4.07, "#7a2a3a", "#fff4dc"], shop: [9, .9, 4.05, 4.07, "#1f6f8b", "#ffffff"], bakery: [9, .9, 4.05, 4.07, "#5a2a1a", "#f6e7c8"], cafe: [9, .9, 4.05, 4.07, "#1f3d2b", "#f1e6cf"], hummus: [9, .9, 4.05, 4.07, "#3a2a10", "#ffd75a"] }[k] || [9, .9, 4, 4.1, "#ffffff", "#1b2430"];
+  // the newer kinds also carry their name on a big lit rooftop sign, readable from far away and at night
+  const ROOF = { office: [(w.floors || 7) * 3.2 + .35, 0], hotel: [(w.floors || 8) * 2.8 + .6, -2.5], gym: [6.4, -.5], bank: [11.8, -1], pharmacy: [5, -.5], factory: [9.2, -1], restaurant: [5, -.5], shop: [5, -.5] }[k];
+  const RW_ = ROOF ? Math.min(14, Math.max(8, w.name.length * .9)) : 0;
+  if (ROOF) Q.push(box(.3, 3.4, .3, "#4a5056", -RW_ / 2 + .8, ROOF[0], ROOF[1]), box(.3, 3.4, .3, "#4a5056", RW_ / 2 - .8, ROOF[0], ROOF[1]), box(RW_ + .4, 2.9, .3, "#2b2f34", 0, ROOF[0] + .8, ROOF[1]));
   const grp = solid(Q, x, z, ry, { type: "work", w }, CURB);
   mountSign(grp, sign(w.name, SG[0], SG[1], { bg: SG[4], fg: SG[5] }), 0, SG[2], SG[3]);
+  if (ROOF) { // the building's color on the sign, unless it's too pale to carry white letters
+    const light = c => { const q = C(c); return .2126 * q.r + .7152 * q.g + .0722 * q.b > .35; }, bg = w.color && !light(w.color) ? w.color : SG[4];
+    mountSign(grp, sign(w.name, RW_, 2.5, { bg, fg: light(bg) ? "#1b2430" : "#ffffff" }), 0, ROOF[0] + 2.25, ROOF[1] + .16); }
 }
 function buildCivic() {
   const parks = [], lots = [], parked = [];
@@ -902,6 +909,57 @@ function projectModel(kind) {
   }
   return Q;
 }
+/* ---------- giant statues and landmarks (projects of kind "monument") ---------- */
+// a stylized figure, built at human size (1.8m) and scaled up into a landmark; the look comes from params
+function personParts(o = {}) {
+  const skin = o.skin || "#c58c63", shirt = o.shirt || "#1b1b1b", pants = o.pants || "#3b3f46", cap = o.hat === "cap" || (!o.hat && o.cap) ? o.cap || "#6b4a2f" : null, beard = o.beard, shoes = "#2a211b", Q = [];
+  Q.push(box(.26, .12, .4, shoes, -.14, 0, .04), box(.26, .12, .4, shoes, .14, 0, .04), box(.24, .82, .28, pants, -.14, .1, 0), box(.24, .82, .28, pants, .14, .1, 0), box(.6, .14, .34, pants, 0, .85, 0));
+  Q.push(box(.66, .72, .36, shirt, 0, .96, 0), sph(.3, shirt, 0, 1.22, .06, 1.15, 1, .9), box(.7, .14, .38, shirt, 0, 1.6, 0));
+  if (o.logo) Q.push(cyl(.09, .09, .02, 14, o.logo, -.16, 0, 0, { x: Math.PI / 2 }).translate(0, 1.45, .2));
+  // arms crossed over the chest, like a proud monument
+  Q.push(box(.17, .48, .22, shirt, -.42, 1.18, 0), box(.17, .48, .22, shirt, .42, 1.18, 0), box(.72, .15, .2, skin, 0, 1.32, .27, { y: .12 }), box(.72, .15, .2, skin, 0, 1.4, .3, { y: -.12 }));
+  Q.push(cyl(.08, .09, .12, 10, skin, 0, 1.68, 0), sph(.17, skin, 0, 1.92, 0, 1, 1.12, 1), sph(.04, skin, 0, 1.9, .17));
+  if (beard) Q.push(sph(.16, beard, 0, 1.82, .05, 1.05, .75, .95), box(.2, .04, .05, beard, 0, 1.88, .16));
+  Q.push(box(.12, .025, .02, "#5a2a20", 0, 1.84, .17));   // a smile
+  if (o.hat === "tiger") {   // a plush tiger lying on the head, front paws hanging down to the shoulders
+    const Y = "#e9b43a", K = "#3a3020", W = "#fbf3e3";
+    Q.push(sph(.2, Y, 0, 2.02, -.01, 1.02, .7, 1.05), sph(.15, Y, 0, 2.22, .04, 1.1, .95, 1), sph(.08, W, 0, 2.19, .17, 1.2, .8, .7), sph(.03, K, 0, 2.22, .23),
+      sph(.045, Y, -.11, 2.34, .02), sph(.045, Y, .11, 2.34, .02), sph(.018, K, -.05, 2.27, .17), sph(.018, K, .05, 2.27, .17));
+    for (const sx of [-1, 1]) { Q.push(box(.09, .42, .1, Y, sx * .2, 1.66, .02, { z: sx * .12 }), sph(.065, Y, sx * .23, 1.66, .04));
+      for (const y of [1.78, 1.9, 2.0]) Q.push(box(.1, .025, .11, K, sx * .2, y, .02, { z: sx * .12 })); }
+    for (const z of [-.12, .0]) Q.push(box(.3, .03, .04, K, 0, 2.26, z));
+  }
+  if (cap) Q.push(cyl(.185, .19, .14, 16, cap, 0, 2.02, 0), sph(.18, cap, 0, 2.15, 0, 1, .45, 1), box(.3, .03, .2, cap, 0, 2.03, .2), box(.08, .07, .02, "#e6dcc8", 0, 2.08, .18));
+  return Q;
+}
+function tigerParts() {
+  const O = "#e8862a", K = "#1a1a1a", W = "#f4ead8", Q = [];
+  Q.push(box(.5, .5, 1.2, O, 0, .45, -.1), box(.46, .4, .5, O, 0, .5, .55, { x: -.3 }));                     // body, chest
+  for (const z of [-.5, -.2, .1]) Q.push(box(.52, .06, .1, K, 0, .78, z), box(.06, .3, .1, K, .26, .5, z), box(.06, .3, .1, K, -.26, .5, z));
+  for (const [x, z] of [[-.17, .55], [.17, .55], [-.17, -.55], [.17, -.55]]) Q.push(box(.14, .5, .16, O, x, 0, z), box(.15, .06, .2, W, x, 0, z + .03));
+  Q.push(box(.38, .34, .36, O, 0, .95, .78), box(.24, .14, .14, W, 0, .95, .99), box(.06, .06, .04, K, 0, 1.06, 1.06), box(.07, .07, .02, "#2f7a2f", -.09, 1.13, .96), box(.07, .07, .02, "#2f7a2f", .09, 1.13, .96),
+    box(.1, .1, .06, O, -.14, 1.29, .72), box(.1, .1, .06, O, .14, 1.29, .72), box(.4, .05, .06, K, 0, 1.2, .97));
+  Q.push(cyl(.04, .05, .7, 8, O, 0, .6, -.75, { x: -1.0 }), box(.1, .06, .06, K, 0, .72, -.95));
+  return Q;
+}
+const MONUMENTS = {
+  person: { name: "פסל דמות", build: o => ({ parts: personParts(o), scale: 15 }) },
+  person_tiger: { name: "פסל דמות עם נמר", build: o => ({ parts: [...personParts(o), ...tigerParts().map(g => g.scale(.62, .62, .62).translate(.62, 0, .32))], scale: 15 }) },
+  tiger: { name: "פסל נמר", build: () => ({ parts: tigerParts(), scale: 17 }) },
+  obelisk: { name: "אובליסק", build: o => ({ parts: [box(1.2, .3, 1.2, "#d8d1c2"), part(new THREE.CylinderGeometry(.18, .38, 5, 4), o.color || "#e6dcc8", 0, 2.8, 0, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.26, .5, 4), "#c9a24a", 0, 5.55, 0, { y: Math.PI / 4 })], scale: 6 }) },
+  clock: { name: "מגדל שעון", build: o => ({ parts: [box(1.2, 4.6, 1.2, o.color || "#d9c39a"), box(1.4, .2, 1.4, "#b9a47a", 0, 4.6, 0), ...[0, 1, 2, 3].map(i => cyl(.4, .4, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * .62, 3.9, Math.cos(i * Math.PI / 2) * .62)),
+    part(new THREE.ConeGeometry(.95, 1.3, 4), "#7a2a20", 0, 5.45, 0, { y: Math.PI / 4 })], scale: 6 }) }
+};
+function buildMonument(p, cx, cz) {
+  const o = p.params || {}, M = MONUMENTS[o.type] || MONUMENTS.tiger, { parts, scale } = M.build(o);
+  // a stone plaza with a pedestal in the middle of the lot
+  const base = solid([box(38, .12, 19, "#d8cfbd"), box(30, .1, 2, "#c7bba2", 0, .02, 0), box(2, .1, 17, "#c7bba2", 0, .02, 0), box(9, 2.6, 7, "#cbbfa6", 0, 0, -1.5), box(9.6, .4, 7.6, "#b9ac90", 0, 2.6, -1.5),
+    ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.3, 3.6, .3, "#4a5056", x, 0, z)), ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.6, .3, .6, "*#fff1c2", x, 3.6, z))], cx, cz, 0, { type: "project", p }, Y0);
+  const st = solid(parts, cx, cz - 1.5, 0, { type: "project", p }, Y0 + 3);
+  st.scale.setScalar(scale);
+  mountSign(base, sign(p.name || M.name, 8.6, 1.4, { bg: "#3a2f22", fg: "#f6e7c8" }), 0, 1.75, 2.02);
+  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 7, .7, { bg: "#3a2f22", fg: "#e2c48a", font: "600" }), 0, .75, 2.02);
+}
 const Y0 = CURB + .01; // public lots sit on top of the city's paving
 function buildPublic() {
   const trees = [];
@@ -923,6 +981,7 @@ function buildPublic() {
         mountSign(g, sign(`בבנייה: ${name}`, 12, 1.8, { bg: "#f2b440", fg: "#1b1b1b" }), 0, .9, 10.12);
         return;
       }
+      if (p.kind === "monument") return buildMonument(p, cx, cz);
       const open = ["park", "playground", "dogpark", "football", "basketball"].includes(p.kind);
       const g = solid([...projectModel(p.kind), ...(open ? [box(.2, 2.9, .2, "#6e4c30", -3.2, 0, 9.5), box(.2, 2.9, .2, "#6e4c30", 3.2, 0, 9.5)] : [])], cx, cz, 0, { type: "project", p }, Y0);
       if (open) {
@@ -1756,6 +1815,17 @@ GO.admin = () => {
       <button class="btn" id="pAdd">🏗️ להתחיל</button>
       ${building.length ? `<div class="sec">בבנייה עכשיו</div><div class="list">${building.map(p => `<div class="li"><span class="ic">${PROJECT_KINDS[p.kind]?.[0] || "🏗️"}</span><span class="tx"><b>${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}</b><small>${esc(cityName(p.city_id))}</small></span><button class="mini" data-done="${p.id}">🎉 לחנוך</button></div>`).join("")}</div>` : ""}
     </details>
+    <details class="adm"><summary>🗽 פסל / מונומנט ענק</summary>
+      <div class="row2"><label>סוג<select id="mType">${opt(Object.entries(MONUMENTS).map(([k, m]) => [k, m.name]), "person_tiger")}</select></label><label>עיר<select id="mCity">${cityOpts}</select></label></div>
+      <label>שם (על השלט)<input id="mName" placeholder="פסל הנמר"></label><label>מי ביקש (לא חובה)<input id="mBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
+      <div id="mLook"><div class="row2"><label>צבע עור<select id="mSkin">${opt([["#f1c9a5", "בהיר"], ["#d9a67c", "שזוף"], ["#c58c63", "חום"], ["#8d5a3b", "כהה"]], "#d9a67c")}</select></label><label>זקן<select id="mBeard">${opt([["", "בלי"], ["#2a2420", "שחור"], ["#7a7068", "אפור"], ["#d8d4cf", "לבן"]], "")}</select></label></div>
+        <div class="row2"><label>חולצה<input type="color" id="mShirt" value="#7cc6e6"></label><label>מכנסיים<input type="color" id="mPants" value="#3b3f46"></label></div>
+        <div class="row2"><label>על הראש<select id="mHat">${opt([["tiger", "🐯 כובע נמר"], ["cap", "🧢 כובע מצחייה"], ["", "בלי"]], "tiger")}</select></label><label>צבע כובע מצחייה<input type="color" id="mCap" value="#6b4a2f"></label></div></div>
+      <label>צבע (לאובליסק / מגדל שעון)<input type="color" id="mColor" value="#e6dcc8"></label>
+      <label>איך זה נבנה<select id="mStatus">${opt([["done", "🎉 מיד, חנוכה"], ["building", "🏗️ קודם עגורן, חונכים אחר כך"]], "done")}</select></label>
+      <button class="btn" id="mAdd">🗽 להקים</button>
+      <p class="note">הפסל עומד על אחד המגרשים הציבוריים הפנויים בעיר</p>
+    </details>
     <details class="adm"><summary>🏙️ שם לעיר (בלי בחירות)</summary>
       <label>העיר<select id="cAt">${opt(sites)}</select></label><label>השם<input id="cName"></label><label>מי הציע (לא חובה)<input id="cBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
       <button class="btn" id="cSet">🏙️ לקרוא לעיר בשם הזה</button>
@@ -1781,6 +1851,18 @@ GO.admin = () => {
     $("lAdd").onclick = e => { if (!v("lTitle")) return toast("מה החוק?"); run(e.target, "law_add", { title: v("lTitle"), description: v("lDesc"), by: v("lBy") }, "📜 החוק בתוקף"); };
     $("pAdd").onclick = e => run(e.target, "project_add", { kind: v("pKind"), city_id: +v("pCity"), name: v("pName") || PROJECT_KINDS[v("pKind")][1], by: v("pBy"), status: v("pStatus") }, "🏗️ הפרויקט על המפה");
     $("dBody").querySelectorAll("[data-done]").forEach(b => b.onclick = () => run(b, "project_done", { id: +b.dataset.done }, "🎉 נחנך!"));
+    const mLook = () => $("mLook").style.display = v("mType").startsWith("person") ? "" : "none"; $("mType").onchange = mLook; mLook();
+    $("mAdd").onclick = async e => {
+      const city = S.slots.find(s => s.city?.id === +v("mCity")), used = S.projects.filter(p => p.city_id === +v("mCity")).length;
+      if (city && used >= (city.publicSpots?.length || 0)) return toast("אין מגרש ציבורי פנוי בעיר הזו");
+      const params = { type: v("mType"), skin: v("mSkin"), beard: v("mBeard") || null, shirt: v("mShirt"), pants: v("mPants"), hat: v("mHat") || "none", cap: v("mCap"), color: v("mColor") };
+      const b = e.target; b.disabled = true; b.textContent = "רגע…";
+      try { const r = await rpc("admin_monument", { secret: pref("sababa_admin", ""), args: { city_id: +v("mCity"), name: v("mName") || MONUMENTS[params.type].name, by: v("mBy"), status: v("mStatus"), params } });
+        if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "לא הצליח: " + (r.detail || r.error), 5000); b.disabled = false; b.textContent = "🗽 להקים"; return; }
+        await loadProjects(); buildWorld(); const p = S.projects.find(q => q.id === r.id); close();
+        if (p?.x != null) { flyTo(p.x, p.z, 3.2, 1600); setTimeout(() => showProject(p), 1700); } toast("🗽 הפסל עומד!", 4000);
+      } catch { toast("אין חיבור כרגע"); b.disabled = false; b.textContent = "🗽 להקים"; }
+    };
     $("cSet").onclick = e => { if (!v("cName")) return toast("מה השם?"); run(e.target, "city_name", { opens_at: +v("cAt"), name: v("cName"), by: v("cBy") }, "🏙️ לעיר יש שם"); };
     $("dRun").onclick = e => run(e.target, "draw", {}, r => "🎟️ " + (r.winners || []).map(w => "@" + w.winner).join(", "));
     $("bGive").onclick = e => run(e.target, "bonus", { username: v("bUser"), amount: +v("bAmt"), reason: v("bWhy") }, r => r.count ? `💸 ${fmtN(r.count)} תושבים קיבלו מענק` : "💸 המענק הועבר");
@@ -2456,7 +2538,9 @@ function loadExtras() {
     api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d)].map(p => p.catch(() => {})));
 }
 const projSig = list => list.map(p => p.id + p.status).join(",");
-async function loadProjects() { try { S.projects = await api("projects?select=id,city_id,kind,name,requested_by,status,created_at&order=id"); } catch { S.projects = []; }
+async function loadProjects() {
+  try { S.projects = await api("projects?select=id,city_id,kind,name,requested_by,status,created_at,params&order=id"); }
+  catch { try { S.projects = await api("projects?select=id,city_id,kind,name,requested_by,status,created_at&order=id"); } catch { S.projects = []; } }
 }
 // live updates: once a minute, look for new citizens or a new draw and rebuild the island in place
 async function refresh() {
