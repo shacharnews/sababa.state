@@ -62,7 +62,8 @@ body.night .lbl.tag.gov{color:#1b1406}
 .search input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:16px;font-weight:500;color:var(--fg);padding:11px 0}
 .search input::placeholder{color:var(--fg2)}
 .search button{color:var(--accent);font-weight:800;font-size:15px}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);margin-top:6px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);margin-top:6px}
+.tabs button{position:relative}.tabs button[data-badge]:not([data-badge=""])::after{content:attr(data-badge);position:absolute;top:2px;left:calc(50% - 20px);background:#e5484d;color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px}
 .tabs button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 2px;font-size:21px;border-radius:12px}
 .tabs button span{font-size:11.5px;font-weight:600;color:var(--fg2)}
 .tabs button:active{background:var(--tint)}
@@ -136,11 +137,40 @@ body.rec #recBar{display:flex}
 .tpl button{background:var(--tint);border-radius:18px;padding:14px 12px;text-align:right}
 .tpl button b{display:block;font-size:15px;margin-top:6px}.tpl button small{display:block;color:var(--fg2);font-size:12.5px;margin-top:2px}
 .tpl button span{font-size:26px}
-.tpl button:disabled{opacity:.4}
+.tpl button:disabled,.tpl button.off{opacity:.45}
+.ballot{background:var(--tint);border-radius:18px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.ballot.closed{opacity:.9}.bhead{display:flex;gap:10px;align-items:center}.bhead span{font-size:26px}.bhead b{display:block;font-size:16px}.bhead small{color:var(--fg2);font-size:12.5px}
+.opt{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg-strong);border-radius:14px;padding:12px 14px;text-align:right;min-height:50px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.opt i{position:absolute;inset:0 0 0 auto;background:var(--tint);border-radius:14px;transition:width .5s}
+.opt .ol,.opt .op{position:relative;font-weight:700}.opt .ol small{display:block;font-weight:500;color:var(--fg2);font-size:11.5px}.opt .op{font-variant-numeric:tabular-nums;color:var(--fg2)}
+.opt.mine{box-shadow:inset 0 0 0 2px var(--accent)}.opt.win{box-shadow:inset 0 0 0 2px #e2b33a}.opt:disabled{cursor:default}
+details.adm{background:var(--tint);border-radius:18px;padding:4px 12px;margin-top:10px}details.adm[open]{padding-bottom:12px}
+details.adm summary{font-weight:800;font-size:15.5px;padding:10px 0;cursor:pointer}
+details.adm label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--fg2);margin-top:8px}
+details.adm input,details.adm select,details.adm textarea{width:100%;font:inherit;font-size:15px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:8px 10px}
+details.adm input[type=color]{height:42px;padding:2px}details.adm .btn{width:100%;margin-top:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini{background:var(--bg-strong);border-radius:10px;padding:6px 9px;font-size:12.5px;font-weight:700;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{background:var(--tint);border-radius:999px;padding:8px 12px;font-weight:700;font-size:13.5px}
+.scene{background:var(--tint);border-radius:18px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.shead{display:flex;align-items:center;justify-content:space-between}.shead b{font-size:15px}
+.shead span{display:flex;gap:4px}.shead button{width:32px;height:32px;border-radius:10px;background:var(--bg-strong)}.shead button:disabled{opacity:.3}
+.scene label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--fg2)}
+.scene select,.scene input{width:100%;font:inherit;font-size:15px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:8px 10px}
+.row3{display:grid;grid-template-columns:1.3fr 1fr .8fr;gap:6px}
+.tpl .hero-tpl{grid-column:1/-1;background:linear-gradient(135deg,rgba(255,182,39,.25),var(--tint))}
 .reelprev{height:min(100vh,177.8vw);width:auto;max-width:100vw;display:block}
 body.rec #gl canvas:not(.reelprev){position:absolute;left:-99999px}
 select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:6px 8px}
 input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.vlist{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.vrow{background:var(--tint);border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.vrow.done{box-shadow:inset 0 0 0 2px rgba(15,139,141,.35)}
+.vtx{flex:1;min-width:0}.vtx small{display:block;color:var(--fg2);font-size:11.5px}.vtx b{display:block;font-size:15px;line-height:1.35}
+.vbtn{display:flex;align-items:center;gap:6px;flex:none}
+.vbtn button{background:var(--bg-strong);border-radius:12px;padding:8px 10px;font-weight:700;font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.vbtn button.rec{background:#e5484d;color:#fff}.vbtn button.rec.on{animation:blink 1s infinite}
+.vbtn button:disabled{opacity:.4}.vdur{font-size:12px;color:var(--fg2);font-variant-numeric:tabular-nums}
 .note{font-size:12.5px;color:var(--fg2);text-align:center;margin:8px 0 0}
 .hero.warn{background:rgba(224,122,79,.16)}
 code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;direction:ltr;unicode-bidi:embed;white-space:normal}
@@ -213,6 +243,7 @@ body.inside #intUI{display:block}
   <form class="search" id="findForm"><span>🔍</span><input id="q" placeholder="@שם משתמש או כתובת" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"><button type="submit">חפש</button></form>
   <div class="tabs">
     <button data-tab="mine">🏠<span>הבית שלי</span></button>
+    <button data-tab="ballot">🗳️<span>קלפי</span></button>
     <button data-tab="draws">🎟️<span>הגרלה</span></button>
     <button data-tab="jobs">💼<span>עבודה</span></button>
     <button data-tab="state">🏛️<span>המדינה</span></button>
@@ -283,14 +314,18 @@ const COLORS = { white: ["#f2f2ef", "לבן פיתה"], black: ["#17191c", "שח
   teal: ["#138a8a", "טורקיז מפרץ"], pink: ["#e88aa8", "ורוד מסטיק"] };
 const COLOR_KEYS = Object.keys(COLORS);
 // daily pay, must match daily_salary() in upgrade-5.sql
-const PAY = { tech: 220, clinic: 180, police: 170, school: 160, garage: 150, hummus: 130, market: 120 }, PAY_LV = [1, 1, 1.4, 1.9, 2.6];
+const PAY = { tech: 220, office: 210, bank: 200, clinic: 180, pharmacy: 170, police: 170, school: 160, hotel: 150, factory: 150, garage: 150, gym: 140, restaurant: 140, hummus: 130, shop: 120, market: 120 }, PAY_LV = [1, 1, 1.4, 1.9, 2.6];
 const salaryOf = h => Math.round((h.wp ? PAY[h.wp.kind] || 110 : 60) * PAY_LV[Math.min(4, Math.max(1, h.level))]);
 const COIN = "🪙";
 const CAR_NAMES = { 1: "רכב עירוני קטן", 2: "רכב משפחתי", 3: "רכב ספורט יוקרתי" };
 const TIER_NAMES = { 1: "עירוני", 2: "משפחתי", 3: "יוקרה" };
 const ROLE = { bakery: "אופה", cafe: "בריסטה", market: "קופאי/ת", school: "מורה", clinic: "אח/ות", garage: "מכונאי/ת",
-  hummus: "מגיש/ת חומוס", tech: "מפתח/ת תוכנה", police: "שוטר/ת", fuel: "מתדלק/ת" };
-const KIND_IC = { bakery: "🥖", cafe: "☕", market: "🛒", school: "🏫", clinic: "🏥", garage: "🔧", hummus: "🥙", tech: "💻", police: "🚓", fuel: "⛽" };
+  hummus: "מגיש/ת חומוס", tech: "מפתח/ת תוכנה", police: "שוטר/ת", fuel: "מתדלק/ת", restaurant: "מלצר/ית", shop: "מוכר/ת", hotel: "פקיד/ת קבלה",
+  office: "עובד/ת משרד", gym: "מאמן/ת כושר", bank: "פקיד/ת בנק", pharmacy: "רוקח/ת", factory: "עובד/ת ייצור" };
+const KIND_IC = { bakery: "🥖", cafe: "☕", market: "🛒", school: "🏫", clinic: "🏥", garage: "🔧", hummus: "🥙", tech: "💻", police: "🚓", fuel: "⛽",
+  restaurant: "🍽️", shop: "🛍️", hotel: "🏨", office: "🏢", gym: "🏋️", bank: "🏦", pharmacy: "💊", factory: "🏭" };
+const KIND_NAMES = { bakery: "מאפייה", cafe: "בית קפה", market: "סופרמרקט", school: "בית ספר", clinic: "מרפאה", garage: "מוסך", hummus: "חומוסייה", tech: "חברת הייטק", police: "תחנת משטרה", fuel: "תחנת דלק",
+  restaurant: "מסעדה", shop: "חנות", hotel: "מלון", office: "בניין משרדים", gym: "חדר כושר", bank: "בנק", pharmacy: "בית מרקחת", factory: "מפעל" };
 const LEVEL = ["", "", "ראש/ת צוות", "מנהל/ת", 'מנכ"ל/ית'];
 const PRIZES = { luxury_house: ["🏡", "וילה עם בריכה"], luxury_car: ["🏎️", "רכב יוקרה"], minister: ["🏛️", "שר/ה ליום"], promotion: ["📈", "קידום בעבודה"], job_change: ["🔄", "עבודה חדשה"], cash: ["💰", "מענק כספי"] };
 const PROJECT_KINDS = { park: ["🌳", "גינה ציבורית"], playground: ["🛝", "גן שעשועים"], community: ["🎭", "מתנ״ס"], pool: ["🏊", "בריכה עירונית"],
@@ -336,13 +371,31 @@ function reservedBlocks(slot, si) {
   }
   return out;
 }
+// a business district further out: room for buildings the admin adds later (beyond the first 10 per city).
+// fixed from day one and never given to houses, so no address ever moves
+const N_EXTRA = 14, EXTRA_CACHE = new Map();
+function extraBlocks(slot, si) {
+  const key = slot.at; if (EXTRA_CACHE.has(key)) return EXTRA_CACHE.get(key);
+  const res = new Set(reservedBlocks(slot, si).map(b => b.join(","))), cand = [];
+  for (let bx = -12; bx <= 12; bx++) for (let bz = -18; bz <= 18; bz++) {
+    const d = Math.hypot(bx * BX, bz * BZ); if (d < 150 || res.has(bx + "," + bz)) continue;
+    const cx = slot.x + bx * BX, cz = slot.z + bz * BZ;
+    if (nearestSlot(cx, cz).at !== slot.at) continue;
+    if (![[-22, -12], [22, -12], [-22, 12], [22, 12]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
+    cand.push({ bx, bz, d });
+  }
+  cand.sort((a, b) => a.d - b.d || a.bx - b.bx || a.bz - b.bz);
+  const out = [];
+  for (const c of cand) { if (out.length === N_EXTRA) break; if (out.some(o => Math.max(Math.abs(o[0] - c.bx), Math.abs(o[1] - c.bz)) < 2)) continue; out.push([c.bx, c.bz]); }
+  EXTRA_CACHE.set(key, out); return out;
+}
 const COAST = [{ id: "harbor", ic: "⚓", name: "נמל העולים", t: Math.PI / 2 }, { id: "light", ic: "🗼", name: "המגדלור", t: -.35 }, { id: "beach", ic: "🏖️", name: "חוף יהיה בסדר", t: Math.PI }];
 const nearestSlot = (x, z) => { let b = SLOTS[0], bd = Infinity; for (const s of SLOTS) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; b = s; } } return b; };
 
 function cityLots(slot, si, need) {
   // all lots of the city sorted by distance from its plaza; generated in growing rings so the order is stable
   for (let R = 260; ; R *= 1.6) {
-    const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set(reservedBlocks(slot, si).map(b => b.join(",")));
+    const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
     for (let bx = -nb; bx <= nb; bx++) for (let bz = -nz; bz <= nz; bz++) {
       if ((bx === 0 && bz === 0) || res.has(bx + "," + bz)) continue;
       for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) {
@@ -600,7 +653,14 @@ function layout() {
       for (let x = Math.sign(bx); x !== bx + Math.sign(bx) && bx; x += Math.sign(bx)) if (!slot.blocks.has(`${x},0`)) slot.blocks.set(`${x},0`, { bx: x, bz: 0 });
       for (let z = Math.sign(bz); z !== bz && bz; z += Math.sign(bz)) if (!slot.blocks.has(`${bx},${z}`)) slot.blocks.set(`${bx},${z}`, { bx, bz: z });
     }
-    for (const [bx, bz] of slot.reserved) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "work" });
+    // business-district blocks are paved only once the admin puts a building on them
+    const nW = S.workplaces.filter(w => w.city_id === slot.city.id).length;
+    slot.extraUsed = extraBlocks(slot, si).slice(0, Math.max(0, nW - N_WORK));
+    for (const [bx, bz] of slot.extraUsed) {
+      for (let x = Math.sign(bx); x !== bx + Math.sign(bx) && bx; x += Math.sign(bx)) if (!slot.blocks.has(`${x},0`)) slot.blocks.set(`${x},0`, { bx: x, bz: 0 });
+      for (let z = Math.sign(bz); z !== bz && bz; z += Math.sign(bz)) if (!slot.blocks.has(`${bx},${z}`)) slot.blocks.set(`${bx},${z}`, { bx, bz: z });
+    }
+    for (const [bx, bz] of [...slot.reserved, ...slot.extraUsed]) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "work" });
     // the island must cover every block of this city
     for (const b of slot.blocks.values()) for (const [dx, dz] of [[-26, -16], [26, -16], [-26, 16], [26, 16]]) {
       const x = slot.x + b.bx * BX + dx, z = slot.z + b.bz * BZ + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0);
@@ -724,7 +784,7 @@ function buildCities() {
     const hit = new THREE.Mesh(new THREE.CircleGeometry(26, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.copy(ring.position); hit.userData = { type: "slot", slot }; world.add(hit); S.picks.push(hit);
     const sg = solid([box(.25, 4.2, .25, "#6e4c30", -3.6, 0, 0), box(.25, 4.2, .25, "#6e4c30", 3.6, 0, 0), box(8, 2.8, .2, "#f4efe4", 0, 1.6, 0)], slot.x, slot.z, .5, { type: "slot", slot });
-    mountSign(sg, sign(`עיר חדשה ב־${fmtN(slot.at)} תושבים`, 7.6, 2.4, { bg: "#f4efe4", fg: "#3a3a3a", font: "700" }), 0, 3, .11);
+    mountSign(sg, sign(slot.named ? `${slot.named.name} · תקום ב־${fmtN(slot.at)} תושבים` : `עיר חדשה ב־${fmtN(slot.at)} תושבים`, 7.6, 2.4, { bg: "#f4efe4", fg: "#3a3a3a", font: "700" }), 0, 3, .11);
   });
 }
 
@@ -761,13 +821,26 @@ function workBuilding(w, x, z, ry) {
   else if (k === "garage") Q.push(box(14, 5, 10, "#9aa2a7"), box(14.3, .4, 10.3, "#646d75", 0, 5, 0), box(4.2, 3.6, .12, "#56636f", -3.5, 0, 5.05), box(4.2, 3.6, .12, "#56636f", 3.5, 0, 5.05), box(10.2, 1.2, .25, "#3a3a3a", 0, 3.8, 5.12));
   else if (k === "police") Q.push(box(14, 7, 10, "#ffffff"), box(14.1, 1.1, 10.1, "#1f4e9e", 0, 4.6, 0), box(14.3, .4, 10.3, "#cad3de", 0, 7, 0), ...wins([-4.5, 0, 4.5], 2, 5.05, 2.2, 1.6), box(1.4, .5, .5, "*#e74c3c", -.8, 7.4, 0), box(1.4, .5, .5, "*#2e86de", .8, 7.4, 0));
   else if (k === "market") Q.push(box(16, 5.5, 11, "#f3f3f3", 0, 0, -.5), box(16.3, .4, 11.3, "#cccccc", 0, 5.5, -.5), box(12, 2.6, .14, GLASS, 0, 0, 5.07), box(14.4, 1.4, .3, "#3a3a3a", 0, 4.05, 5.15));
-  else { const wall = { bakery: "#efe0c3", cafe: "#e6d3ab", hummus: "#f4e4c1" }[k] || "#eeeeee", aw = { bakery: "#a8382c", cafe: "#2d6e4a", hummus: "#d9a91a" }[k] || "#999999";
+  else if (k === "office") { const f = w.floors || 7, H = f * 3.2, c = w.color || "#3c556b"; Q.push(box(12, H, 11, "*#6f97b0", 0, 0, -.5)); for (let y = 0; y <= f; y++) Q.push(box(12.2, .35, 11.2, c, 0, y * 3.2, -.5));
+    for (const x of [-6, 6]) Q.push(box(.4, H, 11.2, c, x, 0, -.5)); Q.push(box(5, 3, 1, c, 0, 0, 5.4), box(4, 2.6, .12, GLASS, 0, 0, 5.95)); }
+  else if (k === "hotel") { const f = w.floors || 8, H = f * 2.8, c = w.color || "#f1e3c8"; Q.push(box(17, H, 8, c, 0, 0, -2.5), box(17.4, .6, 8.4, "#c9b48c", 0, H, -2.5));
+    for (let y = 1; y < f; y++) for (let x = -6; x <= 6; x += 3) Q.push(box(2, 1.4, .12, WIN, x, y * 2.8 + .6, 1.55), box(2.4, .15, 1, "#ffffff", x, y * 2.8 + .3, 2));
+    Q.push(box(9, 3.2, 4, "#e9e2d3", 0, 0, 3.4), box(6, 2.6, .12, GLASS, 0, 0, 5.45), box(10, .3, 5, "#b5563a", 0, 3.2, 3.4), box(6, .25, 3.2, "#2fb5dc", -4.5, .05, -8.5), box(7, .15, 4.2, "#e6dfd0", -4.5, 0, -8.5)); }
+  else if (k === "gym") { const c = w.color || "#e5484d"; Q.push(box(15, 6, 10, "#2b2f34", 0, 0, -.5), box(15.3, 1.2, 10.3, c, 0, 4.8, -.5), box(12, 3.6, .12, "*#bfe3f2", 0, .5, 4.56), box(15.4, .4, 10.4, "#1d2024", 0, 6, -.5)); }
+  else if (k === "bank") { const c = w.color || "#e8e1d0"; Q.push(box(16, .8, 10, "#cfc7b4"), box(15, 8, 8, c, 0, .8, -1), box(16, 1, 9, "#d6ccb5", 0, 8.8, -1), ...Array.from({ length: 6 }, (_, i) => cyl(.45, .5, 8, 12, "#faf8f2", -6.2 + i * 2.5, .8, 3.6)),
+    gable(16, 2, 4.6, "#d6ccb5", 0, 9.8, 2.6), box(3, 3.4, .12, "#3b2a1a", 0, .8, 3.05)); }
+  else if (k === "pharmacy") { const c = w.color || "#ffffff"; Q.push(box(12, 4.6, 9, c, 0, 0, -.5), box(12.3, .4, 9.3, "#cfd8dc", 0, 4.6, -.5), box(8, 2.4, .14, GLASS, 0, 0, 4.07), box(.8, 2.4, .25, "*#2fae6a", 4.8, 4.9, 4.1), box(2.4, .8, .25, "*#2fae6a", 4.8, 5.7, 4.1)); }
+  else if (k === "factory") { const c = w.color || "#9aa2a7"; Q.push(box(18, 7, 12, c, 0, 0, -1)); for (let i = 0; i < 4; i++) Q.push(box(4.5, 2.2, 12, "#7d858b", -6.75 + i * 4.5, 7, -1, { z: -.45 }), box(4.4, 1.6, .1, "*#cfe6f2", -6.75 + i * 4.5, 7.4, 5));
+    Q.push(cyl(.9, 1.1, 16, 12, "#b5563a", 7, 0, -5), cyl(1, 1, .6, 12, "#ffffff", 7, 12, -5), box(6, 5, .12, "#56636f", -4, 0, 5.05)); }
+  else { const wall = w.color || { bakery: "#efe0c3", cafe: "#e6d3ab", hummus: "#f4e4c1", restaurant: "#f1e6d2", shop: "#f4f1ea" }[k] || "#eeeeee", aw = { bakery: "#a8382c", cafe: "#2d6e4a", hummus: "#d9a91a", restaurant: "#7a2a3a", shop: "#1f6f8b" }[k] || "#999999";
     Q.push(box(13, 4.6, 9, wall, 0, 0, -.5), box(13.3, .4, 9.3, "#d1c1a0", 0, 4.6, -.5), box(9, 2.3, .14, GLASS, 0, 0, 4.07), box(13, .25, 2.6, aw, 0, 3.1, 5.2, { x: .25 }));
     for (const a of [-4, 0, 4]) Q.push(cyl(.6, .6, .1, 12, "#ffffff", a, .9, 7.3), cyl(.08, .08, .9, 6, "#666666", a, 0, 7.3), cyl(.04, .04, 2.4, 6, "#dddddd", a, 0, 7.3), part(new THREE.ConeGeometry(1.4, .6, 8), aw, a, 2.5, 7.3)); }
   // [width, height, y, z, background, text color] of the sign on each kind of building
   const SG = { tech: [9, 1.4, 22.3, 5.66, "#1b2a3a", "#e8f4ff"], school: [8, 1.2, 5.8, 1.1, "#ffffff", "#7a3a22"], fuel: [10, .8, 5.3, 6.13, "#c0392b", "#ffffff"],
     clinic: [8, 1.2, 3.5, 5.12, "#ffffff", "#c0392b"], garage: [10, 1, 4.4, 5.3, "#e2b33a", "#1b1b1b"], police: [9, 1, 5.15, 5.17, "#1f4e9e", "#ffffff"],
-    market: [14, 1.2, 4.75, 5.32, "#d9762b", "#ffffff"], bakery: [9, .9, 4.05, 4.07, "#5a2a1a", "#f6e7c8"], cafe: [9, .9, 4.05, 4.07, "#1f3d2b", "#f1e6cf"], hummus: [9, .9, 4.05, 4.07, "#3a2a10", "#ffd75a"] }[k] || [9, .9, 4, 4.1, "#ffffff", "#1b2430"];
+    market: [14, 1.2, 4.75, 5.32, "#d9762b", "#ffffff"], office: [9, 1.4, (w.floors || 7) * 3.2 - 2, 5.06, "#1b2a3a", "#e8f4ff"], hotel: [12, 1.6, (w.floors || 8) * 2.8 - 1.4, 1.62, "#7a2a20", "#fff4dc"],
+    gym: [12, 1, 5.2, 4.67, w.color || "#e5484d", "#ffffff"], bank: [10, 1.1, 8.1, 3.07, "#1f3a5a", "#f1e6cf"], pharmacy: [8, 1, 3.3, 4.1, "#2fae6a", "#ffffff"], factory: [10, 1.4, 5.6, 5.08, "#2b2b2b", "#f2c230"],
+    restaurant: [9, .9, 4.05, 4.07, "#7a2a3a", "#fff4dc"], shop: [9, .9, 4.05, 4.07, "#1f6f8b", "#ffffff"], bakery: [9, .9, 4.05, 4.07, "#5a2a1a", "#f6e7c8"], cafe: [9, .9, 4.05, 4.07, "#1f3d2b", "#f1e6cf"], hummus: [9, .9, 4.05, 4.07, "#3a2a10", "#ffd75a"] }[k] || [9, .9, 4, 4.1, "#ffffff", "#1b2430"];
   const grp = solid(Q, x, z, ry, { type: "work", w }, CURB);
   mountSign(grp, sign(w.name, SG[0], SG[1], { bg: SG[4], fg: SG[5] }), 0, SG[2], SG[3]);
 }
@@ -775,7 +848,7 @@ function buildCivic() {
   const parks = [], lots = [], parked = [];
   S.slots.filter(s => s.city).forEach((slot, si) => {
     const all = slot.reserved.map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ]), nGov = si === 0 ? GOV.length : 0;
-    const spots = all.slice(nGov, nGov + N_WORK); slot.publicSpots = all.slice(nGov + N_WORK);
+    const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ])]; slot.publicSpots = all.slice(nGov + N_WORK);
     if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; govBuilding(g.id, sp[0], sp[1]); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
       const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; workBuilding(w, w.x, w.z, 0);
@@ -1077,7 +1150,7 @@ function render() {
   $("dBody").querySelectorAll("[data-go]").forEach(b => b.onclick = () => GO[b.dataset.go](b.dataset.arg));
   top.after && top.after();
 }
-function close() { document.body.classList.remove("open"); stack.length = 0; }
+function close() { document.body.classList.remove("open"); stack.length = 0; if (VREC.resolve) { const r = VREC.resolve; VREC.resolve = null; stopMic(); r(null); } }
 $("dX").onclick = close; $("scrim").onclick = close; $("dBack").onclick = () => { stack.pop(); render(); };
 addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 const li = (go, ic, t, sub = "", arg = "") => `<button class="li" data-go="${go}" data-arg="${esc(arg)}"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="chev">‹</span></button>`;
@@ -1089,7 +1162,7 @@ const sub = () => stack.length > 0;
 
 const GO = {
   state: () => open("המדינה", `
-    <div class="stats"><div class="stat"><b>${fmtN(S.total)}</b><small>תושבים</small></div><div class="stat"><b>${fmtN(S.cities.length)}</b><small>ערים</small></div><div class="stat"><b>${fmtN(S.workplaces.length)}</b><small>עסקים</small></div></div>
+    <div class="stats"><div class="stat"><b>${fmtN(S.total)}</b><small>תושבים</small></div><div class="stat"><b>${fmtN(S.slots.filter(s => s.city).length)}</b><small>ערים</small></div><div class="stat"><b>${fmtN(S.workplaces.length)}</b><small>עסקים</small></div></div>
     <div class="hero" style="margin-top:8px"><p><b>האי גדל יחד איתכם.</b> כל תושב חדש מוסיף שטח למדינה, ובכל מיילסטון קמה עיר חדשה.</p>${progress()}</div>
     <div class="sec">שירותים</div><div class="list">
       ${li("how", "🛂", "איך מתאזרחים?", "ולמה הבית שלי עוד לא מופיע")}
@@ -1099,6 +1172,8 @@ const GO = {
       ${li("ideas", "🏗️", "נבנה לפי בקשתכם", `${fmtN(S.projects.filter(p => p.status === "done").length)} נחנכו · ${fmtN(S.projects.filter(p => p.status !== "done").length)} בבנייה`)}
       ${li("people", "👋", "התושבים", "החדשים והמייסדים")}
       ${li("top", "🏆", "טבלאות המדינה", "העשירים ובעלי ההישגים")}
+      ${ADMIN ? li("admin", "👑", "לוח בקרה", "בחירות, בניינים, חוקים, הגרלה ומענקים") : ""}
+      ${li("ballot", "🗳️", "הקלפי", "בחירות פתוחות ותוצאות")}
       ${li("studio", "🎬", "סטודיו רילים", ADMIN ? "👑 כל התבניות" : "ריל אישי של הבית שלך")}
       ${li("time", "🕐", "השעה במדינה", "יום ולילה לפי שעון ישראל")}
       ${li("symbols", "🏳️", "סמלי המדינה", "הדגל והמוטו")}</div>
@@ -1121,7 +1196,7 @@ const GO = {
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
-      : li("slot", "🔒", "שטח עתידי", `עיר חדשה ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
+      : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
   slot: i => { const sl = S.slots[+i]; if (!sl.city && !onGrass(sl.x, sl.z, S.s, .02)) return toast("השטח הזה עוד מתחת למים 🌊 האי יגיע אליו כשיהיו עוד תושבים"); goTo(sl.x, sl.z, sl.city ? 2.4 : 1.2, () => showSlot(sl)); },
   laws: () => open("ספר החוקים", S.laws.length ? `<div class="list">${S.laws.map((l, i) => info("📜", `חוק ${S.laws.length - i}: ${esc(l.title)}`, `${l.description ? esc(l.description) + " · " : ""}${fmtDate(l.enacted_at)}`)).join("")}</div>` : `<div class="hero"><p>ספר החוקים עדיין ריק. החוק הראשון ייקבע בתגובות לריל 👀</p></div>`, null, sub()),
   govlist: () => open("הממשלה", S.gov.length ? `<div class="list">${S.gov.map(m => { const h = S.byUser.get(m.citizens?.ig_username); return h ? person(h, `${esc(m.ministry)} · ${fmtDate(m.appointed_at)}`) : info("🏛️", esc(m.ministry)); }).join("")}</div>` : `<div class="hero"><p>עוד לא מונו שרים. כל יום מוגרל שר חדש מבין התושבים.</p></div>`, null, sub()),
@@ -1178,12 +1253,13 @@ function openPlace(id) {
   }[id]);
 }
 function progress() {
-  const openAts = S.cities.map(c => c.opens_at), nxt = MILESTONES.find(a => !openAts.includes(a)); if (nxt == null) return "";
+  const openAts = S.slots.filter(s => s.city).map(s => s.at), nxt = MILESTONES.find(a => !openAts.includes(a)); if (nxt == null) return "";
   const base = Math.max(0, ...openAts.filter(a => a <= S.total)), pct = Math.max(3, Math.min(100, (S.total - base) / (nxt - base) * 100));
   return `<div class="bar"><i style="width:${pct}%"></i></div><div class="barl"><span>${fmtN(S.total)}</span><span>עיר חדשה ב־${fmtN(nxt)}</span></div>`;
 }
 function showSlot(sl) {
-  if (!sl.city) return open("שטח עתידי", `<div class="hero"><p>כאן תקום עיר חדשה כשהמדינה תגיע ל־<b>${fmtN(sl.at)}</b> תושבים. התושבים הראשונים שלה יבחרו לה שם.</p>${progress()}</div>`);
+  if (!sl.city) return open(sl.named ? `🔜 ${sl.named.name}` : "שטח עתידי", `<div class="hero"><p>${sl.named ? `<b>${esc(sl.named.name)}</b> תקום כאן` : "כאן תקום עיר חדשה"} כשהמדינה תגיע ל־<b>${fmtN(sl.at)}</b> תושבים.${sl.named ? "" : " התושבים יבחרו לה שם בתגובות."}</p>${progress()}</div>
+    ${sl.named?.founder_username ? `<div class="list" style="margin-top:10px">${info("🏅", `‎@${esc(sl.named.founder_username)}`, "נתנ/ה לעיר את השם")}</div>` : ""}`);
   const c = sl.city, ws = S.workplaces.filter(w => w.city_id === c.id);
   open(c.name, `<div class="stats"><div class="stat"><b>${fmtN(sl.pop)}</b><small>תושבים</small></div><div class="stat"><b>${fmtN(ws.length)}</b><small>עסקים</small></div><div class="stat"><b>${sl.at === 0 ? "בירה" : fmtN(sl.at)}</b><small>${sl.at === 0 ? "מעמד" : "נוסדה בתושב"}</small></div></div>
     <div class="list" style="margin-top:10px">${c.founder_username ? info("🏅", `‎@${esc(c.founder_username)}`, "נתנ/ה לעיר את השם") : info("🗳️", "השם עוד ייבחר", "התושבים יבחרו בתגובות לריל")}${S.mine?.city.id === c.id ? info("📍", "זו העיר שלך") : ""}</div>
@@ -1374,8 +1450,9 @@ GO.top = () => {
 // Every kind of business has its own furnished 3D interior (a cut-away "doll house" room). Employees come in once a day for a shift bonus.
 const INT = { on: false };
 const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
+const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", hotel: "cafe", factory: "garage" };
 function interiorOf(w) {
-  const k = w.kind, Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
+  const k = INTERIOR_OF[w.kind] || w.kind, Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
   const add = (...p) => Q.push(...p);
   // room shell: floor, back wall (z=-6.5) and left wall (x=-9), open towards the camera
   const room = (floor, wall, band, { tiles, planks } = {}) => {
@@ -1503,6 +1580,15 @@ function interiorOf(w) {
     for (let i = 0; i < 4; i++) chair(-8.3, -2.6 + i * 1, Math.PI / 2, "#1f4e9e");
     sgn(name, 4.8, .9, -3.5, 4.2, -6.48, 0, "#1f4e9e", "#ffffff"); sgn("מפת רפובליקת סבבה", 4.6, 2.2, 4, 1.55, -6.39, 0, "#e9f2f7", "#1f4e9e"); sgn("קבלת קהל", 2.6, .6, -3, 1.6, 3.62, 0, "#ffffff", "#1f4e9e");
     staff.push([-2.4, 2, 0], [1, -1.2, Math.PI], [3.6, -1.2, Math.PI], [6.2, 1.5, -Math.PI / 2]);
+  } else if (k === "gym") {
+    room("#3a3f46", "#f2f2f2", w.color || "#e5484d");
+    for (let i = 0; i < 4; i++) add(box(.9, .3, 2, "#2b2b2b", -6 + i * 1.8, 0, -4.8), box(.8, .05, 1.7, "#555555", -6 + i * 1.8, .3, -4.8), box(.1, 1.3, .1, "#9aa0a6", -6.35 + i * 1.8, .3, -5.6), box(.1, 1.3, .1, "#9aa0a6", -5.65 + i * 1.8, .3, -5.6), box(.9, .3, .1, "#2b2b2b", -6 + i * 1.8, 1.5, -5.6), box(.6, .35, .05, "*#7fd1a0", -6 + i * 1.8, 1.55, -5.55));
+    add(box(5, 1.6, .5, "#555555", 4.5, 0, -6.1)); for (let i = 0; i < 8; i++) add(cyl(.12, .12, .5, 10, "#1a1a1a", 2.5 + i * .55, .4 + (i % 2) * .7, -5.9, { z: Math.PI / 2 }));
+    for (const [x, z] of [[3, -1], [6, -1]]) add(box(1.2, .45, 2.2, "#2b2b2b", x, 0, z), box(.12, 2, .12, "#9aa0a6", x - .9, 0, z - .8), box(.12, 2, .12, "#9aa0a6", x + .9, 0, z - .8), cyl(.04, .04, 2.6, 8, "#cccccc", x, 1.9, z - .8, { z: Math.PI / 2 }), cyl(.35, .35, .1, 14, "#1a1a1a", x - 1.2, 1.9, z - .8, { z: Math.PI / 2 }), cyl(.35, .35, .1, 14, "#1a1a1a", x + 1.2, 1.9, z - .8, { z: Math.PI / 2 }));
+    add(box(6, .04, 4, "#3f8f6a", -4, 0, 3), box(.08, 4, 6, "*#e6f2f7", -8.98, .5, 2));
+    for (let i = 0; i < 3; i++) add(sph(.4, ["#e5484d", "#2f7fa8", "#f2b440"][i], -6 + i * 2, .4, 4.5));
+    sgn(w.name, 5, 1, 0, 4, -6.48, 0, w.color || "#e5484d", "#ffffff"); sgn("אין כאב, אין סבבה", 4.2, .8, -8.98, 3.9, -3.2, Math.PI / 2, "#2b2b2b", "#ffffff");
+    staff.push([-6, -4, Math.PI], [4.5, -.2, 0], [-3.5, 3, Math.PI / 2], [6, 3, -Math.PI / 2]);
   } else {   // fuel station shop
     room("#eef0f2", "#ffffff", "#c0392b", { tiles: "#e3e7ea" });
     for (let i = 0; i < 4; i++) add(box(2.4, 3, 1.1, "#d9dde1", -5.4 + i * 2.6, 0, -6), box(2.2, 2.6, .05, "*#d8eef6", -5.4 + i * 2.6, .2, -5.42), ...Array.from({ length: 18 }, (_, j) => cyl(.09, .09, .34, 8, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#222222"][(i + j) % 6], -6.2 + i * 2.6 + (j % 6) * .32, .3 + Math.floor(j / 6) * .85, -5.7)));
@@ -1579,6 +1665,128 @@ function exitWork() {
   const w = INT.w; if (w) setTimeout(() => showWork(w), 50);
 }
 GO.enter = id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
+
+/* ============================ BALLOT BOX ============================ */
+// elections: the admin opens a vote (a city name, a law, what to build...), citizens vote with their personal link, the winner applies itself
+S.ballot = []; S.myVotes = [];
+const EKIND = { city: ["🏙️", "שם לעיר"], law: ["📜", "חוק"], project: ["🏗️", "מה לבנות"], other: ["🗳️", "הצבעה"] };
+async function loadBallot() {
+  try { S.ballot = await rpc("ballot", {}); } catch { S.ballot = []; }
+  const me = S.mine, k = me && keyOf(me.u);
+  try { S.myVotes = k ? await rpc("my_votes", { username: me.u, key: k }) : []; } catch { S.myVotes = []; }
+  const n = S.ballot.filter(e => e.status === "open").length, t = document.querySelector('[data-tab="ballot"]');
+  if (t) t.dataset.badge = n ? String(n) : "";
+}
+function timeLeft(d) {
+  const ms = new Date(d).getTime() - Date.now(); if (ms <= 0) return "נסגרת עכשיו";
+  const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+  return h >= 24 ? `נסגרת בעוד ${Math.round(h / 24)} ימים` : h ? `נסגרת בעוד ${h} שעות${m ? " ו־" + m + " דק׳" : ""}` : `נסגרת בעוד ${m} דקות`;
+}
+GO.ballot = async () => {
+  open("🗳️ הקלפי", `<div class="hero"><p>טוען את הקלפי…</p></div>`);
+  await loadBallot();
+  const me = S.mine, k = me && keyOf(me.u), list = S.ballot;
+  const card = e => {
+    const [ic, kn] = EKIND[e.kind] || EKIND.other, open_ = e.status === "open", tot = e.total || 0, max = Math.max(0, ...e.options.map(o => o.votes));
+    return `<div class="ballot${open_ ? "" : " closed"}"><div class="bhead"><span>${ic}</span><div><b>${esc(e.title)}</b><small>${kn} · ${open_ ? timeLeft(e.ends_at) : "ההצבעה נסגרה"} · ${fmtN(tot)} מצביעים</small></div></div>
+      ${e.options.map(o => { const pct = tot ? Math.round(o.votes / tot * 100) : 0, mine = S.myVotes.includes(o.id), win = !open_ && e.winner_option === o.id;
+        return `<button class="opt${mine ? " mine" : ""}${win ? " win" : ""}" ${open_ && k ? `data-vote="${o.id}"` : "disabled"}><i style="width:${pct}%"></i><span class="ol">${win ? "🏆 " : mine ? "✓ " : ""}${esc(o.label)}${o.by ? `<small>הצעה של ‎@${esc(o.by)}</small>` : ""}</span><span class="op">${open_ || tot ? pct + "%" : ""}</span></button>`; }).join("")}
+      ${!open_ && e.winner_option ? `<p class="note">${e.kind === "city" ? "🎉 זה השם החדש של העיר!" : e.kind === "law" ? "🎉 החוק נכנס לספר החוקים" : e.kind === "project" ? "🏗️ מתחילים לבנות!" : "🎉 זו ההחלטה"}</p>` : ""}</div>`;
+  };
+  const opened = list.filter(e => e.status === "open"), closed = list.filter(e => e.status !== "open");
+  open("🗳️ הקלפי", `<div class="hero"><p><b>כל תושב, קול אחד.</b> בוחרים אפשרות, ואפשר להתחרט עד שהקלפי נסגרת. בסוף הזמן האפשרות עם הכי הרבה קולות נכנסת לתוקף במדינה.</p></div>
+    ${!k ? `<div class="hero warn" style="margin-top:8px"><p><b>כדי להצביע</b> צריך להיכנס מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>` : ""}
+    ${opened.length ? `<div class="sec">פתוחות להצבעה</div>${opened.map(card).join("")}` : `<div class="sec">פתוחות להצבעה</div><div class="hero"><p>אין כרגע בחירות פתוחות. הבחירות הבאות יוכרזו בריל 🎬</p></div>`}
+    ${closed.length ? `<div class="sec">תוצאות אחרונות</div>${closed.map(card).join("")}` : ""}`, () => {
+    $("dBody").querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try { const r = await rpc("vote", { username: me.u, key: k, option_id: +b.dataset.vote });
+        if (!r.ok) toast({ closed: "הקלפי כבר נסגרה", unauthorized: ERR.unauthorized }[r.error] || "משהו השתבש"); else toast("🗳️ הקול שלך נספר!");
+      } catch { toast("אין חיבור כרגע. נסו שוב"); }
+      stack.pop(); GO.ballot();
+    });
+  });
+};
+
+/* ============================ ADMIN PANEL ============================ */
+// everything the admin used to do in Supabase, from the site: elections, buildings, laws, projects, city names, the draw, bonuses
+async function adminDo(action, args = {}) {
+  const r = await rpc("admin_action", { secret: pref("sababa_admin", ""), action, args });
+  if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "לא הצליח: " + (r.detail || r.error), 5000); return null; }
+  await loadData(); await loadExtras(); await loadProjects(); await loadBallot(); buildWorld();
+  return r;
+}
+const PROJECT_WORDS = [["בריכה", "pool"], ["גן שעשועים", "playground"], ["גינת כלבים", "dogpark"], ["כלבים", "dogpark"], ["גינה", "park"], ["פארק", "park"], ["מתנ", "community"], ["כדורגל", "football"], ["כדורסל", "basketball"], ["ספרי", "library"], ["קניון", "mall"]];
+const guessProject = t => (PROJECT_WORDS.find(([w]) => t.includes(w)) || [, "park"])[1];
+// one option per line; "@user" anywhere in the line = whoever suggested it
+const parseOptions = (txt, kind) => txt.split("\n").map(l => l.trim()).filter(Boolean).map(l => { const by = (l.match(/@([\w.]+)/) || [])[1] || ""; const label = l.replace(/@[\w.]+/g, "").trim();
+  return { label, by, extra: kind === "project" ? guessProject(label) : "" }; }).filter(o => o.label);
+GO.admin = () => {
+  if (!ADMIN) return;
+  const cities = S.slots.filter(s => s.city), sites = S.slots.map(s => [s.at, s.city ? s.city.name : s.named ? `${s.named.name} (עתידית)` : `עיר עתידית ב־${fmtN(s.at)} תושבים`]);
+  const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${esc(k)}" ${String(k) === String(v) ? "selected" : ""}>${esc(n)}</option>`).join("");
+  const cityOpts = opt(cities.map(s => [s.city.id, s.city.name]));
+  const openE = S.ballot.filter(e => e.status === "open"), building = S.projects.filter(p => p.status !== "done");
+  open("👑 לוח בקרה", `<div class="hero"><p>כל מה שעשית ב־Supabase, מכאן. כל פעולה נכנסת לתוקף באתר מיד.</p></div>
+    <details class="adm" open><summary>🗳️ בחירות בקלפי</summary>
+      <label>שאלה<input id="eTitle" placeholder="איך נקרא לעיר החדשה?"></label>
+      <div class="row2"><label>סוג<select id="eKind">${opt([["city", "🏙️ שם לעיר"], ["law", "📜 חוק"], ["project", "🏗️ מה לבנות"], ["other", "🗳️ אחר"]])}</select></label>
+        <label>משך<select id="eHours">${opt([[6, "6 שעות"], [12, "12 שעות"], [24, "יום"], [48, "יומיים"], [72, "3 ימים"]], 24)}</select></label></div>
+      <label id="eTargetL">העיר<select id="eTarget"></select></label>
+      <label>האפשרויות, אחת בכל שורה (אם מישהו הציע, כתבו @ ושם המשתמש שלו)<textarea id="eOpts" rows="4" placeholder="נווה סבבה @dana_k&#10;חומוס סיטי @omer.b&#10;כפר יאללה"></textarea></label>
+      <button class="btn" id="eCreate">🗳️ לפתוח את הקלפי</button>
+      ${openE.length ? `<div class="sec">פתוחות עכשיו</div><div class="list">${openE.map(e => `<div class="li"><span class="ic">${(EKIND[e.kind] || EKIND.other)[0]}</span><span class="tx"><b>${esc(e.title)}</b><small>${fmtN(e.total)} מצביעים · ${timeLeft(e.ends_at)}</small></span><button class="mini" data-close="${e.id}">לסגור עכשיו</button><button class="mini" data-del="${e.id}">🗑</button></div>`).join("")}</div>` : ""}
+    </details>
+    <details class="adm"><summary>🏢 בניין חדש (מקום עבודה)</summary>
+      <div class="row2"><label>סוג<select id="wKind">${opt(Object.keys(KIND_NAMES).map(k => [k, `${KIND_IC[k]} ${KIND_NAMES[k]}`]), "office")}</select></label><label>עיר<select id="wCity">${cityOpts}</select></label></div>
+      <label>שם (יופיע על השלט)<input id="wName" placeholder="מגדל סבבה"></label>
+      <div class="row2"><label>צבע<input type="color" id="wColor" value="#3c556b"></label><label>קומות (למגדל/מלון)<input type="number" id="wFloors" min="2" max="30" value="8"></label></div>
+      <button class="btn" id="wAdd">🏗️ לבנות</button>
+      <div class="sec">שיבוץ תושב לעבודה</div>
+      <div class="row2"><label>שם משתמש<input id="jUser" dir="ltr" autocapitalize="off" placeholder="username"></label><label>מקום עבודה<select id="jWp">${opt(S.workplaces.map(w => [w.id, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]))}</select></label></div>
+      <button class="btn ghost" id="jSet">💼 לשבץ</button>
+    </details>
+    <details class="adm"><summary>📜 חוק חדש</summary>
+      <label>החוק<input id="lTitle" placeholder="חובת חומוס בימי שלישי"></label><label>הסבר (לא חובה)<input id="lDesc"></label><label>מי הציע (לא חובה)<input id="lBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
+      <button class="btn" id="lAdd">📜 להכניס לספר החוקים</button>
+    </details>
+    <details class="adm"><summary>🏗️ פרויקט במגרש ציבורי</summary>
+      <div class="row2"><label>מה בונים<select id="pKind">${opt(Object.entries(PROJECT_KINDS).map(([k, v]) => [k, `${v[0]} ${v[1]}`]))}</select></label><label>עיר<select id="pCity">${cityOpts}</select></label></div>
+      <label>שם<input id="pName" placeholder="גינת הדגל"></label><div class="row2"><label>מי ביקש (לא חובה)<input id="pBy" dir="ltr" autocapitalize="off" placeholder="username"></label><label>מצב<select id="pStatus">${opt([["building", "🏗️ בבנייה"], ["done", "🎉 נחנך"]])}</select></label></div>
+      <button class="btn" id="pAdd">🏗️ להתחיל</button>
+      ${building.length ? `<div class="sec">בבנייה עכשיו</div><div class="list">${building.map(p => `<div class="li"><span class="ic">${PROJECT_KINDS[p.kind]?.[0] || "🏗️"}</span><span class="tx"><b>${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}</b><small>${esc(cityName(p.city_id))}</small></span><button class="mini" data-done="${p.id}">🎉 לחנוך</button></div>`).join("")}</div>` : ""}
+    </details>
+    <details class="adm"><summary>🏙️ שם לעיר (בלי בחירות)</summary>
+      <label>העיר<select id="cAt">${opt(sites)}</select></label><label>השם<input id="cName"></label><label>מי הציע (לא חובה)<input id="cBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
+      <button class="btn" id="cSet">🏙️ לקרוא לעיר בשם הזה</button>
+    </details>
+    <details class="adm"><summary>🎟️ הגרלה, 💸 מענקים, 👑 ראש ממשלה</summary>
+      <button class="btn" id="dRun">🎟️ להריץ את ההגרלה היומית</button>
+      <div class="sec">מענק</div><div class="row2"><label>שם משתמש (ריק = כל המדינה)<input id="bUser" dir="ltr" autocapitalize="off"></label><label>סכום<input type="number" id="bAmt" value="500"></label></div>
+      <label>סיבה<input id="bWhy" placeholder="הציע/ה את רעיון השבוע"></label><button class="btn ghost" id="bGive">💸 לתת מענק</button>
+      <div class="sec">ראש ממשלה</div><div class="row2"><label>שם משתמש<input id="pmUser" dir="ltr" autocapitalize="off"></label><label>&nbsp;<button class="btn ghost" id="pmSet">👑 למנות</button></label></div>
+    </details>`, () => {
+    const v = id => $(id).value.trim(), run = async (b, action, args, msg) => { b.disabled = true; const t = b.textContent; b.textContent = "רגע…"; const r = await adminDo(action, args); b.disabled = false; b.textContent = t; if (r) { toast(typeof msg === "function" ? msg(r) : msg, 4500); stack.pop(); GO.admin(); } };
+    const setTarget = () => { const k = $("eKind").value; $("eTargetL").style.display = k === "city" || k === "project" ? "" : "none";
+      $("eTarget").innerHTML = k === "city" ? opt(sites, S.slots.find(s => !s.city)?.at) : cityOpts; };
+    $("eKind").onchange = setTarget; setTarget();
+    $("eCreate").onclick = e => { const kind = v("eKind"), options = parseOptions($("eOpts").value, kind);
+      if (!v("eTitle") || options.length < 2) return toast("צריך שאלה ולפחות 2 אפשרויות");
+      run(e.target, "election_create", { title: v("eTitle"), kind, target: kind === "city" || kind === "project" ? v("eTarget") : null, hours: +v("eHours"), options }, "🗳️ הקלפי נפתחה! עכשיו ריל שמזמין להצביע");
+    };
+    $("dBody").querySelectorAll("[data-close]").forEach(b => b.onclick = () => run(b, "election_close", { id: +b.dataset.close }, "הקלפי נסגרה והתוצאה נכנסה לתוקף"));
+    $("dBody").querySelectorAll("[data-del]").forEach(b => b.onclick = () => confirm("למחוק את הבחירות האלה בלי תוצאה?") && run(b, "election_delete", { id: +b.dataset.del }, "נמחק"));
+    $("wAdd").onclick = e => { if (!v("wName")) return toast("איך קוראים לבניין?"); run(e.target, "workplace_add", { name: v("wName"), kind: v("wKind"), city_id: +v("wCity"), color: v("wColor"), floors: v("wFloors") }, "🏗️ הבניין עומד! מצאו אותו ב״עבודה״"); };
+    $("jSet").onclick = e => run(e.target, "citizen_job", { username: v("jUser"), workplace_id: +v("jWp") }, "💼 שובץ/ה");
+    $("lAdd").onclick = e => { if (!v("lTitle")) return toast("מה החוק?"); run(e.target, "law_add", { title: v("lTitle"), description: v("lDesc"), by: v("lBy") }, "📜 החוק בתוקף"); };
+    $("pAdd").onclick = e => run(e.target, "project_add", { kind: v("pKind"), city_id: +v("pCity"), name: v("pName") || PROJECT_KINDS[v("pKind")][1], by: v("pBy"), status: v("pStatus") }, "🏗️ הפרויקט על המפה");
+    $("dBody").querySelectorAll("[data-done]").forEach(b => b.onclick = () => run(b, "project_done", { id: +b.dataset.done }, "🎉 נחנך!"));
+    $("cSet").onclick = e => { if (!v("cName")) return toast("מה השם?"); run(e.target, "city_name", { opens_at: +v("cAt"), name: v("cName"), by: v("cBy") }, "🏙️ לעיר יש שם"); };
+    $("dRun").onclick = e => run(e.target, "draw", {}, r => "🎟️ " + (r.winners || []).map(w => "@" + w.winner).join(", "));
+    $("bGive").onclick = e => run(e.target, "bonus", { username: v("bUser"), amount: +v("bAmt"), reason: v("bWhy") }, r => r.count ? `💸 ${fmtN(r.count)} תושבים קיבלו מענק` : "💸 המענק הועבר");
+    $("pmSet").onclick = e => run(e.target, "pm", { username: v("pmUser") }, "👑 מונה/תה + 3,000 סבבונים");
+  }, sub());
+};
 
 /* ============================ SEARCH ============================ */
 function find(qs) {
@@ -1730,7 +1938,7 @@ const TEMPLATES = {
   } },
   tour: { ic: "🚗", name: "סיור בעיר", sub: "מצלמה בגובה הרחוב, מקום אחרי מקום", ok: () => !!S.slots[0]?.city, shots: () => tourShots(false) },
   night: { ic: "🌙", name: "המדינה בלילה", sub: "הסיור באורות הלילה", ok: () => !!S.slots[0]?.city, shots: () => tourShots(true) },
-  growth: { ic: "📈", name: "איך גדלנו", sub: "טיימלאפס: האי גדל עם כל תושב", ok: () => S.total >= 20, shots() {
+  growth: { ic: "📈", name: "איך גדלנו", sub: "טיימלאפס: האי גדל עם כל תושב", ok: () => S.total >= 8, why: "צריך לפחות 8 תושבים", shots() {
     const zf = reelFit(), stages = [.06, .18, .38, .65, 1].map(f => Math.max(1, Math.round(S.raw.length * f)));
     const list = stages.map((n, i) => { const last = S.raw[n - 1];
       return { d: i === stages.length - 1 ? 3.6 : 2.8, a: at(ORIGIN, zf * 1.05, -.8 + i * .45), b: at(ORIGIN, zf * 1.1, -.35 + i * .45), build: n,
@@ -1738,14 +1946,14 @@ const TEMPLATES = {
     list.push({ d: 3, a: list.at(-1).b, b: at(S.slots[0], 2.4, 2, .45), cap: "רוצים להיות הבאים?", sub: "תגיבו ״אזרחות״ 👇" });
     return hours(list, 9, 19);
   } },
-  rich: { ic: "💰", name: "עשירי המדינה", sub: "5 התושבים עם הכי הרבה סבבונים", ok: () => richest().length >= 3, shots() {
+  rich: { ic: "💰", name: "עשירי המדינה", sub: "5 התושבים עם הכי הרבה סבבונים", ok: () => richest().length >= 3, why: "צריך לפחות 3 תושבים עם ארנק", shots() {
     const zf = reelFit(), top = richest().slice(0, 5).reverse();
     const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(top[0], 3, 0, .5), cap: "💰 עשירי המדינה", sub: "מי צבר הכי הרבה סבבונים?" }];
     top.forEach((h, i) => list.push({ d: 2.7, b: at(h, 9, .3 + i * .35, .5), cap: `#${top.length - i} ‎@${h.u}`, sub: `${fmtN(h.coins)} ${COIN} · ${CARS[h.cm].name}`, mark: h }));
     list.push({ d: 3, b: at(ORIGIN, zf, 2.2), cap: "כל יום עבודה = משכורת", sub: "תגיבו ״אזרחות״ ותתחילו להרוויח 👇" });
     return hours(chain(list), 10, 18.5);
   } },
-  law: { ic: "📜", name: "חוק חדש", sub: "החוק האחרון שנכנס לספר החוקים", ok: () => S.laws.length > 0 && GOV[0].x != null, shots() {
+  law: { ic: "📜", name: "חוק חדש", sub: "החוק האחרון שנכנס לספר החוקים", ok: () => S.laws.length > 0 && GOV[0].x != null, why: "ספר החוקים עדיין ריק. מוסיפים חוק בטבלה laws ב־Supabase", shots() {
     const zf = reelFit(), l = S.laws[0], kn = GOV[0], by = l.proposed_by && S.byUser.get(l.proposed_by);
     const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(kn, 3.2, -.2, .5), cap: "📜 חוק חדש במדינה", sub: `חוק מספר ${fmtN(S.laws.length)}` },
       { d: 4.2, b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }];
@@ -1769,14 +1977,14 @@ const TEMPLATES = {
     shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
     return chain(shots);
   } },
-  draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, shots() {
+  draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, why: "עוד לא נערכה הגרלה. מריצים ב־Supabase: select * from run_daily_draw();", shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
     const shots = [{ d: 3, a: at(ORIGIN, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
     list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, b: at(h, 9.5, .25 * i + .3, .5), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${h.u}${d.details ? " · " + d.details : ""}`, mark: h }); });
     shots.push({ d: 3.2, b: at(ORIGIN, zf, 1.2), h: [20.5, 21.5], cap: "מחר זה יכול להיות את/ה", sub: "רק תושבים משתתפים · תגיבו ״אזרחות״" });
     return chain(shots);
   } },
-  project: { ic: "🏗️", name: "ביקשתם, בנינו", sub: "חנוכה או התחלת בנייה של פרויקט", ok: () => S.projects.some(p => p.x != null), shots() {
+  project: { ic: "🏗️", name: "ביקשתם, בנינו", sub: "חנוכה או התחלת בנייה של פרויקט", ok: () => S.projects.some(p => p.x != null), why: "עוד אין פרויקטים. מוסיפים פרויקט בטבלה projects ב־Supabase", shots() {
     const p = [...S.projects].filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0], zf = reelFit();
     const name = p.name || PROJECT_KINDS[p.kind]?.[1], who = p.requested_by ? `לבקשת ‎@${p.requested_by}` : "לבקשת התושבים";
     return chain([
@@ -1861,7 +2069,8 @@ function reelLive(now, dt) {
 const VOICES = { Kore: "קורה · אישה", Leda: "לדה · אישה", Aoede: "אאודה · אישה", Charon: "כרון · גבר", Puck: "פאק · גבר", Orus: "אורוס · גבר" };
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
-const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), on: pref("sababa_voice_on", "1") === "1" };
+// mode: "rec" = you record the narration yourself, "tts" = automatic Google voice (needs a key in Supabase), "off"
+const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), mode: pref("sababa_voice_mode2", "off") };
 // what the narrator says: the caption without emojis, handles read as words, "תושב/ת" read as "תושב"
 const spoken = s => (s.say ?? [s.cap, s.sub].filter(Boolean).join(". ")).replaceAll(COIN, " סבבונים")
   .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{200E}\u{200F}]/gu, "").replace(/@([\w.]+)/g, (m, u) => u.replace(/[._]+/g, " "))
@@ -1878,16 +2087,76 @@ async function voiceLine(line, auth) {
 }
 const VOICE_ERR = { no_key: "חסר מפתח Google בהגדרות (ראו הוראות)", unauthorized: "צריך קישור אישי או קוד מנהל", quota: "נגמרה מכסת הדיבוב להיום", tts: "שירות הדיבוב החזיר שגיאה", timeout: "הדיבוב לקח יותר מדי זמן", bad_text: "משפט ארוך מדי" };
 // fetch all lines, stretch shots so every sentence fits, then mix one soundtrack
-async function prepareVoice(shots, auth) {
-  const lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
-  $("recT").textContent = "מקליט דיבוב…";
-  const clips = await Promise.all(lines.map(async l => l ? dec.decodeAudioData(b64buf(await voiceLine(l, auth))) : null));
+async function prepareVoice(shots, auth, clips) {
+  if (!clips) {
+    const lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
+    $("recT").textContent = "מקליט דיבוב…";
+    clips = await Promise.all(lines.map(async l => l ? dec.decodeAudioData(b64buf(await voiceLine(l, auth))) : null));
+  }
   let t = 0;
   shots.forEach((s, i) => { const c = clips[i]; if (c) s.d = Math.max(s.d, c.duration + .75); s.t0 = t; t += s.d; });
   const total = t, mix = new OfflineAudioContext(1, Math.ceil(total * 48000), 48000);
   clips.forEach((c, i) => { if (!c) return; const src = mix.createBufferSource(); src.buffer = c; src.connect(mix.destination); src.start(shots[i].t0 + .3); });
   return { buffer: await mix.startRendering(), total };
 }
+/* ---------- record the narration yourself: one short clip per caption ---------- */
+const VREC = { resolve: null, stream: null, rec: null };
+// cut the silence before and after the voice, and lift quiet recordings a little
+function tidyClip(buf) {
+  const d = buf.getChannelData(0), thr = .025, pad = Math.round(.08 * buf.sampleRate);
+  let a = 0, b = d.length - 1, peak = 0;
+  while (a < d.length && Math.abs(d[a]) < thr) a++;
+  while (b > a && Math.abs(d[b]) < thr) b--;
+  if (b <= a) return null;
+  a = Math.max(0, a - pad); b = Math.min(d.length - 1, b + pad);
+  for (let i = a; i <= b; i++) peak = Math.max(peak, Math.abs(d[i]));
+  const gain = Math.min(4, .9 / (peak || 1)), out = new AudioBuffer({ length: b - a + 1, numberOfChannels: 1, sampleRate: buf.sampleRate }), o = out.getChannelData(0);
+  for (let i = a; i <= b; i++) o[i - a] = d[i] * gain;
+  return out;
+}
+function stopMic() { try { VREC.rec?.state === "recording" && VREC.rec.stop(); } catch {} VREC.stream?.getTracks().forEach(t => t.stop()); VREC.stream = null; }
+function recordClips(shots) {
+  return new Promise(resolve => {
+    VREC.resolve = resolve;
+    const clips = shots.map(() => null), lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
+    let busy = -1, timer = null, player = null;
+    const row = i => `<div class="vrow" id="vr${i}"><div class="vtx"><small>קטע ${i + 1} · מה להקריא:</small><b>${esc(lines[i] || "(בלי טקסט)")}</b></div><div class="vbtn" id="vb${i}"></div></div>`;
+    open("🎙️ הקלטת קריינות", `<div class="hero"><p><b>מקריאים כל כתובית בקול שלכם.</b> לוחצים ⏺, מקריאים, ולוחצים ⏹. האתר חותך את השקט ומסנכרן כל משפט לקטע שלו בריל. כדאי להקליט במקום שקט, עם הטלפון קרוב לפה.</p></div>
+      <div class="vlist">${shots.map((_, i) => row(i)).join("")}</div>
+      <div class="btns"><button class="btn" id="vGo" disabled>🎬 ליצור את הריל</button><button class="btn ghost" id="vSkip">בלי קריינות</button></div>${inApp ? inAppHint() : ""}`, () => {
+      const paint = () => shots.forEach((_, i) => {
+        const el = $("vb" + i); if (!el) return;
+        el.innerHTML = busy === i ? `<button class="rec on" data-a="stop">⏹ <span id="vt">0.0</span></button>`
+          : clips[i] ? `<button data-a="play">▶︎</button><button data-a="rec" ${busy >= 0 ? "disabled" : ""}>↺</button><span class="vdur">${clips[i].duration.toFixed(1)}״</span>`
+          : `<button class="rec" data-a="rec" ${busy >= 0 || !lines[i] ? "disabled" : ""}>⏺ הקלטה</button>`;
+        el.querySelectorAll("button").forEach(b => b.onclick = () => act(i, b.dataset.a));
+        $("vr" + i).classList.toggle("done", !!clips[i]);
+      });
+      const finish = () => { $("vGo").disabled = busy >= 0 || !clips.some(Boolean); paint(); };
+      async function act(i, a) {
+        if (a === "play") { try { player?.stop(); const ctx = new AudioContext(); player = ctx.createBufferSource(); player.buffer = clips[i]; player.connect(ctx.destination); player.start(); } catch {} return; }
+        if (a === "stop") { VREC.rec?.state === "recording" && VREC.rec.stop(); return; }
+        try { VREC.stream ||= await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+        catch { toast(inApp ? "אינסטגרם לא נותן גישה למיקרופון. פתחו את האתר בספארי או בכרום" : "צריך לאשר גישה למיקרופון כדי להקליט", 4500); return; }
+        const chunks = [], rec = new MediaRecorder(VREC.stream); VREC.rec = rec; busy = i; finish();
+        const t0 = performance.now(); timer = setInterval(() => { const t = (performance.now() - t0) / 1000; if ($("vt")) $("vt").textContent = t.toFixed(1); if (t > 14) rec.state === "recording" && rec.stop(); }, 100);
+        rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+        rec.onstop = async () => {
+          clearInterval(timer); busy = -1;
+          try { const buf = await dec.decodeAudioData(await new Blob(chunks, { type: rec.mimeType }).arrayBuffer()), c = tidyClip(buf);
+            if (c) clips[i] = c; else toast("לא שמענו כלום. נסו שוב קרוב יותר למיקרופון"); }
+          catch { toast("ההקלטה לא נקלטה. נסו שוב"); }
+          finish();
+        };
+        rec.start();
+      }
+      $("vGo").onclick = () => { const r = VREC.resolve; VREC.resolve = null; stopMic(); close(); r(clips); };
+      $("vSkip").onclick = () => { const r = VREC.resolve; VREC.resolve = null; stopMic(); close(); r("skip"); };
+      finish();
+    });
+  });
+}
+
 async function pickAudioEncoder() {
   if (!window.AudioEncoder) return null;
   const list = [["mp4a.40.2", "aac"]]; if (OPUS_TEST) list.push(["opus", "opus"]);
@@ -1924,7 +2193,13 @@ async function startReel(key, u) {
   const enc = await pickEncoder(), mime = enc ? null : pickMime();
   if (!enc && !mime) return toast("הדפדפן הזה לא יכול ליצור וידאו. נסו בכרום או בספארי מעודכן");
   const auth = ADMIN ? { secret: pref("sababa_admin", "") } : { u: h?.u, k: h && keyOf(h.u) };
-  const aenc = enc && VOICE_CFG.on ? await pickAudioEncoder() : null;
+  const aenc = enc && VOICE_CFG.mode !== "off" ? await pickAudioEncoder() : null;
+  let clips = null;
+  if (aenc && VOICE_CFG.mode === "rec") {
+    clips = await recordClips(shots);
+    if (clips === null) return toast("הצילום בוטל");
+    if (clips === "skip") clips = null;
+  }
   const comp = document.createElement("canvas"); comp.width = RW; comp.height = RH; comp.className = "reelprev";
   const flag = await loadImg(FLAG_URI).catch(() => null);
   Object.assign(REEL, { on: true, key, shots, total: t, comp, cx: comp.getContext("2d"), flag, prevMine: S.mine, prevSel: S.sel, cancelled: false, shot: null, full: null, t0: 0,
@@ -1935,9 +2210,9 @@ async function startReel(key, u) {
   $("recT").textContent = "מכין את הריל…";
   await sleep(60);
   let blob = null, ext = "mp4", note = "", voice = null;
-  if (VOICE_CFG.on && enc && !aenc) note = "noaudio";
-  if (aenc) {
-    try { voice = await prepareVoice(shots, auth); REEL.total = voice.total; }
+  if (VOICE_CFG.mode !== "off" && enc && !aenc) note = "noaudio";
+  if (aenc && (clips || VOICE_CFG.mode === "tts")) {
+    try { voice = await prepareVoice(shots, auth, clips); REEL.total = voice.total; }
     catch (e) { console.warn(e); voice = null; for (const s of shots) s.t0 = null; let tt = 0; for (const s of shots) { s.t0 = tt; tt += s.d; } REEL.total = tt; toast("🎙️ בלי דיבוב: " + (VOICE_ERR[e.message] || "הדיבוב לא זמין כרגע"), 4500); }
   }
   try {
@@ -2030,22 +2305,122 @@ GO.studio = () => {
   const mine = S.mine?.lot ? S.mine : null;
   if (!ADMIN) return open("סטודיו רילים", `<div class="hero"><p><b>האתר מצלם ועורך בשבילכם.</b> ריל אישי של הבית שלכם: המצלמה טסה מעל המדינה, נוחתת על הבית, מציגה את העבודה, הרכב וההישגים, ושומרת סרטון אנכי מוכן לסטורי.</p></div>
     <div class="sec">התבנית שלך</div><div class="tpl"><button data-go="reelHome" data-arg="${esc(mine?.u || "")}" ${mine && keyOf(mine.u) ? "" : "disabled"}><span>🏠</span><b>הבית שלי</b><small>${mine ? (keyOf(mine.u) ? "‎@" + esc(mine.u) : "פתחו מהקישור האישי שלכם") : "חפשו קודם את הבית שלכם"}</small></button></div>
-    ${voiceHtml()}
-    ${mine && keyOf(mine.u) ? "" : `<div class="hero" style="margin-top:12px"><p>ריל הבית נפתח מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם אותו? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>`}`, wireVoice, sub());
+    ${mine && keyOf(mine.u) ? "" : `<div class="hero" style="margin-top:12px"><p>ריל הבית נפתח מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם אותו? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>`}`, null, sub());
   open("סטודיו רילים · מנהל", `<div class="hero"><p><b>👑 מצב מנהל.</b> בוחרים תבנית, והאתר מרנדר ריל של 15–25 שניות, פריים אחרי פריים, מוכן לאינסטגרם. בזמן ההכנה השאירו את המסך פתוח.</p></div>
-    <div class="sec">תבניות</div><div class="tpl">${Object.entries(TEMPLATES).map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok(); return `<button data-go="${k === "home" ? "reelHome" : "reel"}" data-arg="${k === "home" ? esc(S.mine?.u || "") : k}" ${ok ? "" : "disabled"}><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`; }).join("")}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn" data-go="admin">👑 לוח בקרה: בחירות, בניינים, חוקים ועוד</button></div>
+    <div class="sec">ריל משלך</div><div class="tpl"><button class="hero-tpl" data-go="editor"><span>✏️</span><b>ריל בעריכה שלי</b><small>בוחרים סצנות, מקומות וכתוביות. כולל תבנית ״בחירת שם לעיר״</small></button></div>
+    <div class="sec">תבניות מוכנות</div><div class="tpl">${Object.entries(TEMPLATES).filter(([k]) => k !== "custom").map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok();
+      return ok ? `<button data-go="${k === "home" ? "reelHome" : "reel"}" data-arg="${k === "home" ? esc(S.mine?.u || "") : k}"><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`
+        : `<button class="off" data-why="${esc(k === "home" ? "חפשו קודם את הבית שלכם" : t.why || "עוד אין מספיק תוכן")}"><span>${t.ic}</span><b>${t.name}</b><small>🔒 לחצו כדי לראות מה חסר</small></button>`; }).join("")}</div>
     ${voiceHtml()}
     <div class="sec">פקודות מנהל ב־Supabase (SQL Editor)</div><div class="list">
       ${info("🎟️", "הגרלה יומית", "<code>select * from run_daily_draw();</code>")}${info("💸", "מענק לתושב", "<code>select grant_bonus('user', 1000, 'סיבה');</code>")}
       ${info("🎁", "מענק לכל המדינה", "<code>select grant_bonus_all(200, 'חג');</code>")}${info("👑", "מינוי ראש ממשלה", "<code>select appoint_pm('user');</code>")}</div>
     <div class="btns"><button class="btn ghost" id="adminOut">יציאה ממצב מנהל</button></div>`,
-    () => { wireVoice(); $("adminOut").onclick = () => { ADMIN = false; try { localStorage.removeItem("sababa_admin"); } catch {} close(); toast("יצאת ממצב מנהל"); }; }, sub());
+    () => { wireVoice(); $("dBody").querySelectorAll("[data-why]").forEach(b => b.onclick = () => toast(b.dataset.why, 5000)); $("adminOut").onclick = () => { ADMIN = false; try { localStorage.removeItem("sababa_admin"); } catch {} close(); toast("יצאת ממצב מנהל"); }; }, sub());
 };
 function voiceHtml() {
-  return `<div class="sec">🎙️ דיבוב בעברית</div><div class="list"><label class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>קול עברי טבעי מקריא כל כתובית</small></span><input type="checkbox" id="vOn" ${VOICE_CFG.on ? "checked" : ""}></label>
-    <div class="li"><span class="ic">🗣️</span><span class="tx"><b>הקול</b></span><select id="vSel">${Object.entries(VOICES).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.voice ? "selected" : ""}>${n}</option>`).join("")}</select></div></div>`;
+  const M = { rec: "🎙️ הקלטה בקול שלי", tts: "🤖 קול אוטומטי (דורש מפתח Google)", off: "🔇 בלי קריינות" };
+  return `<div class="sec">🎙️ קריינות בעברית</div><div class="list"><div class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>${VOICE_CFG.mode === "rec" ? "לפני הצילום תקליטו כל כתובית בקול שלכם" : VOICE_CFG.mode === "tts" ? "קול עברי של גוגל מקריא כל כתובית" : "הריל ייצא בלי קול"}</small></span>
+    <select id="vMode">${Object.entries(M).filter(([k]) => k === "off" || (k === "tts" && ADMIN)).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.mode ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+    ${VOICE_CFG.mode === "tts" ? `<div class="li"><span class="ic">🗣️</span><span class="tx"><b>הקול</b></span><select id="vSel">${Object.entries(VOICES).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.voice ? "selected" : ""}>${n}</option>`).join("")}</select></div>` : ""}</div>`;
 }
-function wireVoice() { $("vOn").onchange = e => { VOICE_CFG.on = e.target.checked; setPref("sababa_voice_on", e.target.checked ? "1" : "0"); }; $("vSel").onchange = e => { VOICE_CFG.voice = e.target.value; setPref("sababa_voice", e.target.value); }; }
+function wireVoice() {
+  $("vMode").onchange = e => { VOICE_CFG.mode = e.target.value; setPref("sababa_voice_mode2", e.target.value); stack.pop(); GO.studio(); };
+  if ($("vSel")) $("vSel").onchange = e => { VOICE_CFG.voice = e.target.value; setPref("sababa_voice", e.target.value); };
+}
+/* ---------- the admin's own reel: pick scenes, places, angles and captions ---------- */
+const VIEWS = { high: "🦅 מלמעלה", street: "🚶 גובה הרחוב", orbit: "🔄 סיבוב סביב", top: "🛰️ מבט על" };
+const TIMES = { morning: ["🌅 בוקר", 7.2, 8.8], noon: ["☀️ צהריים", 12, 13.5], sunset: ["🌇 שקיעה", 17.3, 18.5], night: ["🌙 לילה", 21, 22.4] };
+const nextSiteIdx = () => { const i = S.slots.findIndex(s => !s.city); return i < 0 ? 0 : i; };
+const PRESETS = {
+  cityname: { ic: "🏙️", name: "בחירת שם לעיר", scenes: () => { const i = nextSiteIdx(), sl = S.slots[i], unnamedCap = S.slots[0]?.city && /ממתינה/.test(S.slots[0].city.name);
+    const at = unnamedCap ? "slot:0" : `slot:${i}`, when = unnamedCap ? "עיר הבירה עדיין בלי שם" : `עוד ${fmtN(Math.max(0, sl.at - S.total))} תושבים והיא קמה`;
+    return [
+      { place: "overview", view: "high", time: "morning", d: 3, cap: "רגע היסטורי ברפובליקת סבבה", sub: unnamedCap ? "הבירה שלנו צריכה שם" : "עיר חדשה עומדת לקום" },
+      { place: at, view: "high", time: "noon", d: 3.5, cap: unnamedCap ? "זאת הבירה שלנו" : "פה תקום העיר הבאה", sub: when },
+      { place: at, view: "street", time: "sunset", d: 3.5, cap: "איך נקרא לה?", sub: "תכתבו שם בתגובות 👇" },
+      { place: "slot:0", view: "orbit", time: "sunset", d: 3.5, cap: "השם עם הכי הרבה לייקים ינצח", sub: "והמציע/ה ייכנס/תיכנס להיסטוריה כמייסד/ת העיר 🏅" },
+      { place: "overview", view: "high", time: "night", d: 3, cap: "תגיבו עכשיו 👇", sub: "ההצבעה נסגרת מחר בערב" }]; } },
+  law: { ic: "📜", name: "חוק להצבעה", scenes: () => [
+    { place: "overview", view: "high", time: "morning", d: 3, cap: "הכנסת מתכנסת 🏛️", sub: "הצעת חוק חדשה על השולחן" },
+    { place: "gov:knesset", view: "street", time: "noon", d: 4, cap: "חוק: כתבו כאן את החוק", sub: "בעד? תגיבו 👍  נגד? תגיבו 👎" },
+    { place: "gov:pm", view: "orbit", time: "sunset", d: 3.5, cap: "ראש הממשלה מחכה להחלטה שלכם", sub: "רוב התגובות קובע" },
+    { place: "overview", view: "high", time: "night", d: 3, cap: "תצביעו בתגובות 👇", sub: "החוק ייכנס לספר החוקים מחר" }] },
+  build: { ic: "🏗️", name: "מה לבנות במגרש?", scenes: () => [
+    { place: "overview", view: "high", time: "morning", d: 3, cap: "יש לנו מגרש פנוי", sub: "ואתם מחליטים מה יקום עליו" },
+    { place: "lot:0:0", view: "street", time: "noon", d: 4, cap: "גינה? בריכה? קניון?", sub: "תכתבו בתגובות מה לבנות 👇" },
+    { place: "lot:0:0", view: "orbit", time: "sunset", d: 3.5, cap: "ההצעה עם הכי הרבה לייקים נבנית", sub: "והשם שלכם נכתב על השלט 🏅" },
+    { place: "overview", view: "high", time: "night", d: 3, cap: "תגיבו עכשיו 👇", sub: `‎@${INSTAGRAM}` }] },
+  vote: { ic: "🗳️", name: "הקלפי פתוחה", scenes: () => { const e = S.ballot.find(q => q.status === "open"), opts = e ? e.options.slice(0, 3).map(o => o.label).join(" · ") : "אפשרות א׳ · אפשרות ב׳";
+    const place = e?.kind === "city" ? `slot:${Math.max(0, S.slots.findIndex(s => String(s.at) === String(e.target)))}` : e?.kind === "law" ? "gov:knesset" : "overview";
+    return [
+      { place: "overview", view: "high", time: "morning", d: 3, cap: "🗳️ הקלפי נפתחה!", sub: "רפובליקת סבבה הולכת לבחירות" },
+      { place, view: "street", time: "noon", d: 3.5, cap: e ? e.title : "על מה מצביעים?", sub: opts },
+      { place: "gov:knesset", view: "orbit", time: "sunset", d: 3.5, cap: "כל תושב, קול אחד", sub: "נכנסים לאתר ← קלפי ← מצביעים" },
+      { place: "overview", view: "high", time: "night", d: 3, cap: "מצביעים עכשיו 👇", sub: e ? timeLeft(e.ends_at) : "הקלפי נסגרת מחר" }]; } },
+  blank: { ic: "📝", name: "ריק", scenes: () => [{ place: "overview", view: "high", time: "noon", d: 3, cap: "כותרת", sub: "" }] }
+};
+let CUSTOM = (() => { try { return JSON.parse(localStorage.getItem("sababa_custom")) || null; } catch { return null; } })();
+const saveCustom = () => { try { localStorage.setItem("sababa_custom", JSON.stringify(CUSTOM)); } catch {} };
+function placeList() {
+  const o = [["overview", "🏝️ כל האי"]];
+  S.slots.forEach((sl, i) => { if (sl.city) o.push([`slot:${i}`, `🏙️ ${sl.city.name}`]); else if (i === nextSiteIdx() || sl.named || onGrass(sl.x, sl.z, S.s, .02)) o.push([`slot:${i}`, `🔜 ${sl.named?.name || "עיר עתידית"} (ב־${fmtN(sl.at)} תושבים)`]); });
+  for (const g of GOV) if (g.x != null) o.push([`gov:${g.id}`, `${g.ic} ${g.name}`]);
+  for (const c of COAST) if (c.x != null) o.push([`coast:${c.id}`, `${c.ic} ${c.name}`]);
+  S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
+    o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
+  for (const w of S.workplaces) if (w.x != null) o.push([`work:${w.id}`, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]);
+  o.push(["house", "🏠 הבית של תושב/ת…"]);
+  return o;
+}
+function placeOf(sc) {
+  const [t, a, b] = String(sc.place).split(":"), zf = reelFit();
+  if (t === "slot" && S.slots[+a]) { const sl = S.slots[+a]; return { o: sl, zoom: sl.city ? 2.6 : 3.4 }; }
+  if (t === "gov") { const g = GOV.find(q => q.id === a); if (g?.x != null) return { o: g, zoom: 4.2 }; }
+  if (t === "coast") { const c = COAST.find(q => q.id === a); if (c?.x != null) return { o: c, zoom: 3.4 }; }
+  if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
+  if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
+  if (t === "house") { const h = S.byUser.get(clean(sc.u || "")); if (h?.lot) return { o: h, zoom: 9, mark: h }; }
+  return { o: ORIGIN, zoom: zf };
+}
+function customShots() {
+  const zf = reelFit(), list = []; let az = -.5;
+  CUSTOM.scenes.forEach((sc, i) => {
+    const p = placeOf(sc), el = { high: undefined, street: LOW, orbit: .55, top: 1.25 }[sc.view], tm = TIMES[sc.time] || TIMES.noon;
+    az += sc.view === "orbit" ? 1.1 : .4;
+    list.push({ d: Math.max(1.5, Math.min(8, +sc.d || 3)), a: i ? undefined : at(ORIGIN, zf * .9, az - .6), b: at(p.o, p.o === ORIGIN ? zf : p.zoom, az, el), h: [tm[1], tm[2]], cap: sc.cap || "", sub: sc.sub || "", mark: p.mark });
+  });
+  return chain(list);
+}
+GO.editor = () => {
+  if (!ADMIN) return;
+  CUSTOM ||= { scenes: PRESETS.cityname.scenes() };
+  const places = placeList(), sel = (opts, v, f, i) => `<select data-f="${f}" data-i="${i}">${opts.map(([k, n]) => `<option value="${esc(k)}" ${k === v ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>`;
+  const total = CUSTOM.scenes.reduce((t, s) => t + (+s.d || 3), 0);
+  open("✏️ ריל בעריכה שלי", `<div class="sec">התחלה מתבנית</div><div class="chips">${Object.entries(PRESETS).map(([k, p]) => `<button data-preset="${k}">${p.ic} ${p.name}</button>`).join("")}</div>
+    <div class="sec">הסצנות · ${fmtN(CUSTOM.scenes.length)} סצנות · ${total.toFixed(1)} שניות</div>
+    ${CUSTOM.scenes.map((sc, i) => `<div class="scene">
+      <div class="shead"><b>סצנה ${i + 1}</b><span><button data-mv="${i}:-1" ${i ? "" : "disabled"} aria-label="למעלה">↑</button><button data-mv="${i}:1" ${i < CUSTOM.scenes.length - 1 ? "" : "disabled"} aria-label="למטה">↓</button><button data-del="${i}" ${CUSTOM.scenes.length > 1 ? "" : "disabled"} aria-label="מחיקה">🗑</button></span></div>
+      <label>📍 מה מצלמים${sel(places, places.some(p => p[0] === sc.place) ? sc.place : "overview", "place", i)}</label>
+      ${sc.place === "house" ? `<label>שם המשתמש<input data-f="u" data-i="${i}" value="${esc(sc.u || "")}" placeholder="username" dir="ltr" autocapitalize="off"></label>` : ""}
+      <div class="row3"><label>🎥 זווית${sel(Object.entries(VIEWS), sc.view, "view", i)}</label><label>🕐 שעה${sel(Object.entries(TIMES).map(([k, v]) => [k, v[0]]), sc.time, "time", i)}</label><label>⏱️ שניות${sel([2, 2.5, 3, 3.5, 4, 5, 6, 8].map(n => [String(n), String(n)]), String(sc.d), "d", i)}</label></div>
+      <label>כותרת גדולה<input data-f="cap" data-i="${i}" value="${esc(sc.cap || "")}" maxlength="70"></label>
+      <label>שורה קטנה<input data-f="sub" data-i="${i}" value="${esc(sc.sub || "")}" maxlength="90"></label></div>`).join("")}
+    <div class="btns"><button class="btn ghost" id="eAdd">➕ סצנה</button></div>
+    <div class="btns"><button class="btn" id="eGo">🎬 לצלם את הריל</button></div>
+    <p class="note">הכל נשמר אוטומטית בטלפון הזה. ריל טוב לאינסטגרם: 4–6 סצנות, 15–25 שניות.</p>`, () => {
+    const B = $("dBody"), redraw = () => { const y = B.scrollTop; saveCustom(); stack.pop(); GO.editor(); $("dBody").scrollTop = y; };
+    B.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { CUSTOM = { scenes: PRESETS[b.dataset.preset].scenes() }; redraw(); toast(`נטענה התבנית ״${PRESETS[b.dataset.preset].name}״. ערכו את הטקסטים כרצונכם`); });
+    B.querySelectorAll("select[data-f]").forEach(el => el.onchange = () => { CUSTOM.scenes[+el.dataset.i][el.dataset.f] = el.dataset.f === "d" ? +el.value : el.value; redraw(); });
+    B.querySelectorAll("input[data-f]").forEach(el => el.oninput = () => { CUSTOM.scenes[+el.dataset.i][el.dataset.f] = el.value; saveCustom(); });
+    B.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => { const [i, d] = b.dataset.mv.split(":").map(Number), a = CUSTOM.scenes; [a[i], a[i + d]] = [a[i + d], a[i]]; redraw(); });
+    B.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { CUSTOM.scenes.splice(+b.dataset.del, 1); redraw(); });
+    $("eAdd").onclick = () => { const last = CUSTOM.scenes.at(-1) || {}; CUSTOM.scenes.push({ place: last.place || "overview", view: "high", time: last.time || "noon", d: 3, cap: "", sub: "" }); redraw(); setTimeout(() => $("dBody").scrollTop = 1e6, 30); };
+    $("eGo").onclick = () => { saveCustom(); if (!CUSTOM.scenes.some(s => s.cap || s.sub)) return toast("כתבו לפחות כותרת אחת"); startReel("custom"); };
+  }, true);
+};
+TEMPLATES.custom = { ic: "✏️", name: "ריל בעריכה שלי", sub: "", ok: () => !!CUSTOM?.scenes?.length, shots: customShots };
 GO.reel = k => startReel(k);
 GO.reelHome = u => startReel("home", u || S.mine?.u);
 
@@ -2065,11 +2440,13 @@ async function fetchCitizens() {
   return out;
 }
 async function loadData() {
-  const [cities, citizens, workplaces] = await Promise.all([api("cities?select=id,name,opens_at,founder_username&order=opens_at"), fetchCitizens(), api("workplaces?select=id,name,kind,city_id&order=id").catch(() => [])]);
+  const [cities, citizens, workplaces] = await Promise.all([api("cities?select=id,name,opens_at,founder_username&order=opens_at"), fetchCitizens(), api("workplaces?select=id,name,kind,city_id,color,floors&order=id").catch(() => api("workplaces?select=id,name,kind,city_id&order=id")).catch(() => [])]);
   S.cities = cities; S.raw = citizens; S.total = citizens.length; S.maxId = citizens.reduce((m, c) => Math.max(m, c.id), 0);
   S.workplaces = workplaces; S.wpById = new Map(workplaces.map(w => [w.id, w]));
-  const slots = SLOTS.map(s => ({ ...s, city: cities.find(c => c.opens_at === s.at) || null }));
-  for (const c of cities) if (!slots.some(s => s.city === c)) { const f = slots.find(s => !s.city); if (f) f.city = c; }
+  // a city row created before its milestone is only a name waiting for its city
+  const live = cities.filter(c => c.opens_at <= citizens.length || !MILESTONES.includes(c.opens_at));
+  const slots = SLOTS.map(s => ({ ...s, city: live.find(c => c.opens_at === s.at) || null, named: cities.find(c => c.opens_at === s.at && !live.includes(c)) || null }));
+  for (const c of live) if (!slots.some(s => s.city === c)) { const f = slots.find(s => !s.city && !s.named); if (f) f.city = c; }
   S.slots = slots;
 }
 function loadExtras() {
@@ -2117,6 +2494,7 @@ async function boot() {
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
   if (qs.has("debug")) window.GO = GO;
+  setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
 // admin mode: open the site with ?admin once, type the code that upgrade-5.sql printed, and this phone remembers it
