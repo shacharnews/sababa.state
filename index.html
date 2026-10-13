@@ -267,6 +267,8 @@ import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
 /* ============================ CONFIG ============================ */
 const SUPABASE_URL = "https://herjiivecdrwkzudzbap.supabase.co";
@@ -913,23 +915,37 @@ function projectModel(kind) {
 // a stylized figure, built at human size (1.8m) and scaled up into a landmark; the look comes from params
 function personParts(o = {}) {
   const skin = o.skin || "#c58c63", shirt = o.shirt || "#1b1b1b", pants = o.pants || "#3b3f46", cap = o.hat === "cap" || (!o.hat && o.cap) ? o.cap || "#6b4a2f" : null, beard = o.beard, shoes = "#2a211b", Q = [];
-  Q.push(box(.26, .12, .4, shoes, -.14, 0, .04), box(.26, .12, .4, shoes, .14, 0, .04), box(.24, .82, .28, pants, -.14, .1, 0), box(.24, .82, .28, pants, .14, .1, 0), box(.6, .14, .34, pants, 0, .85, 0));
-  Q.push(box(.66, .72, .36, shirt, 0, .96, 0), sph(.3, shirt, 0, 1.22, .06, 1.15, 1, .9), box(.7, .14, .38, shirt, 0, 1.6, 0));
-  if (o.logo) Q.push(cyl(.09, .09, .02, 14, o.logo, -.16, 0, 0, { x: Math.PI / 2 }).translate(0, 1.45, .2));
-  // arms crossed over the chest, like a proud monument
-  Q.push(box(.17, .48, .22, shirt, -.42, 1.18, 0), box(.17, .48, .22, shirt, .42, 1.18, 0), box(.72, .15, .2, skin, 0, 1.32, .27, { y: .12 }), box(.72, .15, .2, skin, 0, 1.4, .3, { y: -.12 }));
-  Q.push(cyl(.08, .09, .12, 10, skin, 0, 1.68, 0), sph(.17, skin, 0, 1.92, 0, 1, 1.12, 1), sph(.04, skin, 0, 1.9, .17));
-  if (beard) Q.push(sph(.16, beard, 0, 1.82, .05, 1.05, .75, .95), box(.2, .04, .05, beard, 0, 1.88, .16));
-  Q.push(box(.12, .025, .02, "#5a2a20", 0, 1.84, .17));   // a smile
-  if (o.hat === "tiger") {   // a plush tiger lying on the head, front paws hanging down to the shoulders
-    const Y = "#e9b43a", K = "#3a3020", W = "#fbf3e3";
-    Q.push(sph(.2, Y, 0, 2.02, -.01, 1.02, .7, 1.05), sph(.15, Y, 0, 2.22, .04, 1.1, .95, 1), sph(.08, W, 0, 2.19, .17, 1.2, .8, .7), sph(.03, K, 0, 2.22, .23),
-      sph(.045, Y, -.11, 2.34, .02), sph(.045, Y, .11, 2.34, .02), sph(.018, K, -.05, 2.27, .17), sph(.018, K, .05, 2.27, .17));
-    for (const sx of [-1, 1]) { Q.push(box(.09, .42, .1, Y, sx * .2, 1.66, .02, { z: sx * .12 }), sph(.065, Y, sx * .23, 1.66, .04));
-      for (const y of [1.78, 1.9, 2.0]) Q.push(box(.1, .025, .11, K, sx * .2, y, .02, { z: sx * .12 })); }
-    for (const z of [-.12, .0]) Q.push(box(.3, .03, .04, K, 0, 2.26, z));
-  }
-  if (cap) Q.push(cyl(.185, .19, .14, 16, cap, 0, 2.02, 0), sph(.18, cap, 0, 2.15, 0, 1, .45, 1), box(.3, .03, .2, cap, 0, 2.03, .2), box(.08, .07, .02, "#e6dcc8", 0, 2.08, .18));
+  const heavy = o.build === "heavy", W = heavy ? 1.28 : 1;    // a full, solid build
+  // legs and shoes
+  Q.push(box(.28, .12, .42, shoes, -.15 * W, 0, .05), box(.28, .12, .42, shoes, .15 * W, 0, .05), box(.26 * W, .74, .3, pants, -.15 * W, .1, 0), box(.26 * W, .74, .3, pants, .15 * W, .1, 0), box(.62 * W, .16, .36 * W, pants, 0, .78, 0));
+  // torso, with a round belly for the full build
+  Q.push(box(.68 * W, .74, .38 * W, shirt, 0, .9, 0), box(.74 * W, .16, .4 * W, shirt, 0, 1.56, 0));
+  if (heavy) Q.push(sph(.36, shirt, 0, 1.12, .13, 1.18, 1.05, 1), sph(.3, shirt, 0, 1.42, .06, 1.25, .8, 1));
+  else Q.push(sph(.3, shirt, 0, 1.22, .06, 1.15, 1, .9));
+  if (o.logo) Q.push(cyl(.09, .09, .02, 14, o.logo, -.16, 0, 0, { x: Math.PI / 2 }).translate(0, 1.45, .22 * W));
+  // arms: hands resting on the belly, a proud happy pose
+  const ax = .44 * W;
+  for (const sx of [-1, 1]) Q.push(box(.19, .3, .22, shirt, sx * ax, 1.38, 0), box(.17, .34, .2, skin, sx * (ax + .02), 1.06, .03, { z: sx * .05 }), box(.2, .16, .26, skin, sx * (ax - .1), .98, .3, { y: -sx * .5 }), sph(.08, skin, sx * (ax - .2), 1.0, .42));
+  // head: wide and round, big smile, heavy brows, grey hair at the sides. Built at life size, then enlarged like a cartoon statue so the face reads from afar
+  const hy = 1.9, hw = heavy ? 1.22 : 1, body = Q.length;
+  Q.push(cyl(.1 * hw, .12 * hw, .1, 12, skin, 0, 1.66, 0), sph(.19, skin, 0, hy, 0, hw, 1.05, 1.02), sph(.09, skin, -.12 * hw, hy - .07, .1), sph(.09, skin, .12 * hw, hy - .07, .1),
+    sph(.045, skin, -.21 * hw, hy, 0), sph(.045, skin, .21 * hw, hy, 0), sph(.045, skin, 0, hy - .01, .19, 1, .9, 1.1),
+    box(.16, .05, .03, "#7a2a20", 0, hy - .1, .17), box(.13, .022, .02, "#ffffff", 0, hy - .085, .185), box(.08, .025, .03, "#3a3a3a", -.07, hy + .07, .175, { z: .15 }), box(.08, .025, .03, "#3a3a3a", .07, hy + .07, .175, { z: -.15 }),
+    sph(.02, "#2a2420", -.065, hy + .035, .175), sph(.02, "#2a2420", .065, hy + .035, .175));
+  if (o.hair) Q.push(sph(.07, o.hair, -.18 * hw, hy + .04, -.04, .7, 1.1, 1.3), sph(.07, o.hair, .18 * hw, hy + .04, -.04, .7, 1.1, 1.3), sph(.12, o.hair, 0, hy + .02, -.13, 1.5, .9, .6));
+  if (beard) Q.push(sph(.16, beard, 0, hy - .08, .05, 1.05 * hw, .75, .95), box(.2, .04, .05, beard, 0, hy - .02, .16));
+  if (o.hat === "tiger") {   // the plush tiger hat: yellow with dark stripes, white snout, paws hanging down to the shoulders
+    const Y = "#eab53c", K = "#4a4228", Wt = "#fbf3e3", top = hy + .1;
+    Q.push(sph(.21, Y, 0, top, -.03, 1.08 * hw, .75, 1.08), sph(.15, Y, 0, top + .22, -.03, 1.15, .95, 1.05), sph(.085, Wt, 0, top + .19, .11, 1.25, .85, .75), sph(.032, "#111111", 0, top + .23, .17),
+      sph(.05, Y, -.12, top + .35, -.05), sph(.05, Y, .12, top + .35, -.05), sph(.025, Wt, -.12, top + .35, -.02), sph(.025, Wt, .12, top + .35, -.02),
+      sph(.02, "#111111", -.055, top + .28, .1), sph(.02, "#111111", .055, top + .28, .1), sph(.05, Wt, -.17 * hw, top - .02, .14), sph(.05, Wt, .17 * hw, top - .02, .14));
+    for (const z of [-.14, -.04, .06]) Q.push(box(.42 * hw, .03, .035, K, 0, top + .1, z));
+    for (const sx of [-1, 1]) { const x = sx * .22 * hw;
+      Q.push(box(.1, .44, .11, Y, x, hy - .3, .02, { z: sx * .1 }), sph(.07, Y, x + sx * .03, hy - .32, .05));
+      for (const y of [hy - .2, hy - .08, hy + .03]) Q.push(box(.11, .025, .12, K, x, y, .02, { z: sx * .1 })); }
+  } else if (cap) Q.push(cyl(.185 * hw, .19 * hw, .14, 16, cap, 0, hy + .12, 0), sph(.18 * hw, cap, 0, hy + .25, 0, 1, .45, 1), box(.3, .03, .2, cap, 0, hy + .13, .2 * hw), box(.08, .07, .02, "#e6dcc8", 0, hy + .18, .18 * hw));
+  const HS = o.headScale || 1.45;
+  for (let i = body; i < Q.length; i++) Q[i].translate(0, -1.64, 0).scale(HS, HS, HS).translate(0, 1.64, .02);
   return Q;
 }
 function tigerParts() {
@@ -946,17 +962,68 @@ const MONUMENTS = {
   person: { name: "פסל דמות", build: o => ({ parts: personParts(o), scale: 15 }) },
   person_tiger: { name: "פסל דמות עם נמר", build: o => ({ parts: [...personParts(o), ...tigerParts().map(g => g.scale(.62, .62, .62).translate(.62, 0, .32))], scale: 15 }) },
   tiger: { name: "פסל נמר", build: () => ({ parts: tigerParts(), scale: 17 }) },
+  model: { name: "מודל תלת־ממד (קובץ GLB)", build: () => ({ parts: [], scale: 1, model: true }) },
   obelisk: { name: "אובליסק", build: o => ({ parts: [box(1.2, .3, 1.2, "#d8d1c2"), part(new THREE.CylinderGeometry(.18, .38, 5, 4), o.color || "#e6dcc8", 0, 2.8, 0, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.26, .5, 4), "#c9a24a", 0, 5.55, 0, { y: Math.PI / 4 })], scale: 6 }) },
   clock: { name: "מגדל שעון", build: o => ({ parts: [box(1.2, 4.6, 1.2, o.color || "#d9c39a"), box(1.4, .2, 1.4, "#b9a47a", 0, 4.6, 0), ...[0, 1, 2, 3].map(i => cyl(.4, .4, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * .62, 3.9, Math.cos(i * Math.PI / 2) * .62)),
     part(new THREE.ConeGeometry(.95, 1.3, 4), "#7a2a20", 0, 5.45, 0, { y: Math.PI / 4 })], scale: 6 }) }
 };
+// one-color patina, like a real copper statue: every part keeps only its light or dark, the hue becomes oxidized copper
+function patinate(parts) {
+  const dark = C("#22463c"), light = C("#b9dccd"), c = new THREE.Color();
+  for (const g of parts) { const a = g.attributes.color; g.userData.kind = "base";
+    for (let i = 0; i < a.count; i++) { const L = .2126 * a.getX(i) + .7152 * a.getY(i) + .0722 * a.getZ(i); c.copy(dark).lerp(light, Math.min(1, .08 + Math.pow(L, .75) * 1.1)); a.setXYZ(i, c.r, c.g, c.b); } }
+  return parts;
+}
+// a colossal statue on its own little island off the coast, like the Statue of Liberty
+const isletSpot = k => { const t = 2.3 + k * .55, q = shorePt(t, S.s, 1.24); return { x: q.x, z: q.z, face: Math.atan2(VIEW_DIR.x, VIEW_DIR.z) }; };
+function buildIsletMonument(p, k) {
+  const o = p.params || {}, M = MONUMENTS[o.type] || MONUMENTS.tiger, { parts, scale } = M.build(o), sp = isletSpot(k);
+  p.x = sp.x; p.z = sp.z;
+  const G = "#cfc8b8", G2 = "#b9b19f", star = [];
+  for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2; star.push(box(14, 9, 14, G2, Math.sin(a) * 22, 0, Math.cos(a) * 22, { y: a + Math.PI / 4 })); }
+  const base = solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), cyl(26, 28, 9, 11, G2, 0, 0, 0), ...star,
+    box(30, 3, 30, G, 0, 9, 0), box(24, 22, 24, G, 0, 12, 0), box(26, 2, 26, G2, 0, 34, 0), box(21, 6, 21, G, 0, 36, 0), box(22, 1, 22, G2, 0, 42, 0),
+    ...[-1, 1].flatMap(sx => [box(.2, 14, 6, "*#fff1c2", sx * 12.1, 16, 0), box(6, 14, .2, "*#fff1c2", 0, 16, sx * 12.1)]),
+    ...Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return box(.6, 3.4, .6, "#4a5056", Math.sin(a) * 36, .6, Math.cos(a) * 36); }),
+    ...Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; return box(1, .4, 1, "*#fff1c2", Math.sin(a) * 36, 4, Math.cos(a) * 36); })], sp.x, sp.z, sp.face, { type: "project", p });
+  const look = Math.atan2(VIEW_DIR.x, VIEW_DIR.z) + .25;   // looks at the map's camera
+  if (M === MONUMENTS.model) placeModel(p, sp.x, sp.z, 43, 125, look);
+  else solid(o.finish === "patina" ? patinate(parts) : parts, sp.x, sp.z, look, { type: "project", p }, 43).scale.setScalar(scale * 2.9);
+  const plate = sign(p.name || M.name, 18, 3, { bg: "#3a3428", fg: "#f2e4c4" }); mountSign(base, plate, 0, 28, 12.12);
+  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 14, 1.6, { bg: "#3a3428", fg: "#e2c48a", font: "600" }), 0, 24.6, 12.12);
+  // a little ferry pier pointing at the island
+  instanced(P.plane, [0], (_, q) => { q.position.set(sp.x * .955, -2.75, sp.z * .955); q.rotation.y = sp.face; q.scale.set(6, 1, 34); return "#9a7348"; }, { shadow: false });
+}
+// a realistic statue from a 3D model file (.glb), e.g. made from a photo with an image-to-3D tool, uploaded next to the site
+let GLTF = null, BUILD_NO = 0;
+const MODEL_CACHE = new Map();
+const PATINA_MAT = new THREE.MeshStandardMaterial({ color: "#5f9384", metalness: .55, roughness: .42, envMapIntensity: 1 });
+function modelLoader() {
+  if (GLTF) return GLTF;
+  const draco = new DRACOLoader(); draco.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/gltf/");
+  GLTF = new GLTFLoader(); GLTF.setDRACOLoader(draco); return GLTF;
+}
+function placeModel(p, x, z, y, height, ry) {
+  const o = p.params || {}, url = String(o.url || "").trim(), build = BUILD_NO; if (!url) return;
+  if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
+  MODEL_CACHE.get(url).then(src => {
+    if (build !== BUILD_NO) return;   // the island was rebuilt meanwhile
+    // the same model object is reused (cloning would break rigged models); reset it and measure it at its own scale
+    const m = src; m.removeFromParent(); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); m.scale.setScalar(1); m.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(m, true), size = bb.getSize(new THREE.Vector3()), k = height / (size.y || 1);
+    m.position.set(-(bb.min.x + size.x / 2) * k, -bb.min.y * k, -(bb.min.z + size.z / 2) * k); m.scale.setScalar(k);
+    const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry + (+o.turn || 0) * Math.PI / 180;
+    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (o.finish === "patina") n.material = PATINA_MAT; n.userData = { type: "project", p }; S.picks.push(n); });
+    world.add(grp);
+  }).catch(() => { if (ADMIN) toast("לא הצלחנו לטעון את קובץ הפסל. בדקו את הכתובת", 5000); });
+}
 function buildMonument(p, cx, cz) {
   const o = p.params || {}, M = MONUMENTS[o.type] || MONUMENTS.tiger, { parts, scale } = M.build(o);
   // a stone plaza with a pedestal in the middle of the lot
   const base = solid([box(38, .12, 19, "#d8cfbd"), box(30, .1, 2, "#c7bba2", 0, .02, 0), box(2, .1, 17, "#c7bba2", 0, .02, 0), box(9, 2.6, 7, "#cbbfa6", 0, 0, -1.5), box(9.6, .4, 7.6, "#b9ac90", 0, 2.6, -1.5),
     ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.3, 3.6, .3, "#4a5056", x, 0, z)), ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.6, .3, .6, "*#fff1c2", x, 3.6, z))], cx, cz, 0, { type: "project", p }, Y0);
-  const st = solid(parts, cx, cz - 1.5, 0, { type: "project", p }, Y0 + 3);
-  st.scale.setScalar(scale);
+  if (M === MONUMENTS.model) placeModel(p, cx, cz - 1.5, Y0 + 3, 34, -.45);
+  else solid(o.finish === "patina" ? patinate(parts) : parts, cx, cz - 1.5, o.type?.startsWith("person") ? -.45 : 0, { type: "project", p }, Y0 + 3).scale.setScalar(scale);   // turned toward the camera
   mountSign(base, sign(p.name || M.name, 8.6, 1.4, { bg: "#3a2f22", fg: "#f6e7c8" }), 0, 1.75, 2.02);
   if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 7, .7, { bg: "#3a2f22", fg: "#e2c48a", font: "600" }), 0, .75, 2.02);
 }
@@ -964,7 +1031,7 @@ const Y0 = CURB + .01; // public lots sit on top of the city's paving
 function buildPublic() {
   const trees = [];
   S.slots.filter(s => s.city).forEach(slot => {
-    const list = S.projects.filter(p => p.city_id === slot.city.id).sort((a, b) => a.id - b.id);
+    const list = S.projects.filter(p => p.city_id === slot.city.id && !p.params?.island).sort((a, b) => a.id - b.id);
     slot.publicSpots.forEach(([cx, cz], i) => {
       const p = list[i];
       if (!p) {   // an empty public lot, waiting for ideas
@@ -992,6 +1059,8 @@ function buildPublic() {
     });
   });
   instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, Y0, z); o.scale.setScalar(.9); });
+  S.projects.filter(p => p.params?.island).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildIsletMonument(p, k) : (() => { const sp = isletSpot(k); p.x = sp.x; p.z = sp.z;
+    solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), box(1.6, 60, 1.6, "#f2b440", 8, 0, 0), box(40, 1.6, 1.6, "#f2b440", -4, 60, 0), box(.5, .5, .5, "*#ffb000", 8, 61, 0)], sp.x, sp.z, sp.face, { type: "project", p }); })());
 }
 
 /* ============================ COAST & NATURE ============================ */
@@ -1058,7 +1127,7 @@ function clearWorld() {
   }
 }
 function buildWorld() {
-  clearWorld(); layout(); ACH_IDX = null;
+  BUILD_NO++; clearWorld(); layout(); ACH_IDX = null;
   buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildNature();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
@@ -1283,7 +1352,7 @@ const GO = {
       <div class="sec">מה אפשר לבנות</div><div class="list">${Object.values(PROJECT_KINDS).map(([ic, t]) => info(ic, t)).join("")}</div>
       <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">💬 להציע בתגובות</a></div>`, null, sub());
   },
-  project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, 4, () => showProject(p)); else showProject(p); }
+  project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, p.params?.island ? 1.3 : 4, () => showProject(p)); else showProject(p); }
 };
 function showProject(p) {
   const [ic, kindName] = PROJECT_KINDS[p.kind] || ["🏗️", ""], who = p.requested_by && S.byUser.get(p.requested_by);
@@ -1819,12 +1888,17 @@ GO.admin = () => {
       <div class="row2"><label>סוג<select id="mType">${opt(Object.entries(MONUMENTS).map(([k, m]) => [k, m.name]), "person_tiger")}</select></label><label>עיר<select id="mCity">${cityOpts}</select></label></div>
       <label>שם (על השלט)<input id="mName" placeholder="פסל הנמר"></label><label>מי ביקש (לא חובה)<input id="mBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
       <div id="mLook"><div class="row2"><label>צבע עור<select id="mSkin">${opt([["#f1c9a5", "בהיר"], ["#d9a67c", "שזוף"], ["#c58c63", "חום"], ["#8d5a3b", "כהה"]], "#d9a67c")}</select></label><label>זקן<select id="mBeard">${opt([["", "בלי"], ["#2a2420", "שחור"], ["#7a7068", "אפור"], ["#d8d4cf", "לבן"]], "")}</select></label></div>
+        <div class="row2"><label>מבנה גוף<select id="mBuild">${opt([["heavy", "מלא"], ["", "רגיל"]], "heavy")}</select></label><label>שיער בצדדים<select id="mHair">${opt([["#9a9590", "אפור"], ["#2a2420", "שחור"], ["#e8e4dc", "לבן"], ["", "בלי"]], "#9a9590")}</select></label></div>
         <div class="row2"><label>חולצה<input type="color" id="mShirt" value="#7cc6e6"></label><label>מכנסיים<input type="color" id="mPants" value="#3b3f46"></label></div>
         <div class="row2"><label>על הראש<select id="mHat">${opt([["tiger", "🐯 כובע נמר"], ["cap", "🧢 כובע מצחייה"], ["", "בלי"]], "tiger")}</select></label><label>צבע כובע מצחייה<input type="color" id="mCap" value="#6b4a2f"></label></div></div>
+      <div id="mModel"><label>כתובת הקובץ (‎.glb)<input id="mUrl" dir="ltr" autocapitalize="off" placeholder="/models/efi.glb"></label>
+        <label>סיבוב (מעלות, אם הפסל לא מסתכל קדימה)<input type="number" id="mTurn" value="0" step="15"></label></div>
       <label>צבע (לאובליסק / מגדל שעון)<input type="color" id="mColor" value="#e6dcc8"></label>
+      <div class="row2"><label>מיקום<select id="mWhere">${opt([["island", "🏝️ אי משלו מול החוף (ענק)"], ["lot", "🏙️ מגרש ציבורי בעיר"]], "island")}</select></label>
+        <label>גימור<select id="mFinish">${opt([["patina", "🗽 אבן ונחושת ירוקה"], ["color", "🎨 צבעוני"]], "patina")}</select></label></div>
       <label>איך זה נבנה<select id="mStatus">${opt([["done", "🎉 מיד, חנוכה"], ["building", "🏗️ קודם עגורן, חונכים אחר כך"]], "done")}</select></label>
       <button class="btn" id="mAdd">🗽 להקים</button>
-      <p class="note">הפסל עומד על אחד המגרשים הציבוריים הפנויים בעיר</p>
+      <p class="note">״אי משלו״: אי קטן מול החוף, כמו פסל החירות. ״מגרש ציבורי״: באחד המגרשים הפנויים בעיר</p>
     </details>
     <details class="adm"><summary>🏙️ שם לעיר (בלי בחירות)</summary>
       <label>העיר<select id="cAt">${opt(sites)}</select></label><label>השם<input id="cName"></label><label>מי הציע (לא חובה)<input id="cBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
@@ -1851,16 +1925,17 @@ GO.admin = () => {
     $("lAdd").onclick = e => { if (!v("lTitle")) return toast("מה החוק?"); run(e.target, "law_add", { title: v("lTitle"), description: v("lDesc"), by: v("lBy") }, "📜 החוק בתוקף"); };
     $("pAdd").onclick = e => run(e.target, "project_add", { kind: v("pKind"), city_id: +v("pCity"), name: v("pName") || PROJECT_KINDS[v("pKind")][1], by: v("pBy"), status: v("pStatus") }, "🏗️ הפרויקט על המפה");
     $("dBody").querySelectorAll("[data-done]").forEach(b => b.onclick = () => run(b, "project_done", { id: +b.dataset.done }, "🎉 נחנך!"));
-    const mLook = () => $("mLook").style.display = v("mType").startsWith("person") ? "" : "none"; $("mType").onchange = mLook; mLook();
+    const mLook = () => { $("mLook").style.display = v("mType").startsWith("person") ? "" : "none"; $("mModel").style.display = v("mType") === "model" ? "" : "none"; }; $("mType").onchange = mLook; mLook();
     $("mAdd").onclick = async e => {
-      const city = S.slots.find(s => s.city?.id === +v("mCity")), used = S.projects.filter(p => p.city_id === +v("mCity")).length;
-      if (city && used >= (city.publicSpots?.length || 0)) return toast("אין מגרש ציבורי פנוי בעיר הזו");
-      const params = { type: v("mType"), skin: v("mSkin"), beard: v("mBeard") || null, shirt: v("mShirt"), pants: v("mPants"), hat: v("mHat") || "none", cap: v("mCap"), color: v("mColor") };
+      const city = S.slots.find(s => s.city?.id === +v("mCity")), used = S.projects.filter(p => p.city_id === +v("mCity") && !p.params?.island).length;
+      if (v("mWhere") === "lot" && city && used >= (city.publicSpots?.length || 0)) return toast("אין מגרש ציבורי פנוי בעיר הזו");
+      if (v("mType") === "model" && !v("mUrl")) return toast("צריך כתובת של קובץ ה־GLB");
+      const params = { type: v("mType"), skin: v("mSkin"), beard: v("mBeard") || null, shirt: v("mShirt"), pants: v("mPants"), hat: v("mHat") || "none", cap: v("mCap"), build: v("mBuild"), hair: v("mHair") || null, island: v("mWhere") === "island", finish: v("mFinish"), url: v("mUrl"), turn: +v("mTurn") || 0, color: v("mColor") };
       const b = e.target; b.disabled = true; b.textContent = "רגע…";
       try { const r = await rpc("admin_monument", { secret: pref("sababa_admin", ""), args: { city_id: +v("mCity"), name: v("mName") || MONUMENTS[params.type].name, by: v("mBy"), status: v("mStatus"), params } });
         if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "לא הצליח: " + (r.detail || r.error), 5000); b.disabled = false; b.textContent = "🗽 להקים"; return; }
         await loadProjects(); buildWorld(); const p = S.projects.find(q => q.id === r.id); close();
-        if (p?.x != null) { flyTo(p.x, p.z, 3.2, 1600); setTimeout(() => showProject(p), 1700); } toast("🗽 הפסל עומד!", 4000);
+        if (p?.x != null) { flyTo(p.x, p.z, p.params?.island ? 1.3 : 3.2, 1600); setTimeout(() => showProject(p), 1700); } toast("🗽 הפסל עומד!", 4000);
       } catch { toast("אין חיבור כרגע"); b.disabled = false; b.textContent = "🗽 להקים"; }
     };
     $("cSet").onclick = e => { if (!v("cName")) return toast("מה השם?"); run(e.target, "city_name", { opens_at: +v("cAt"), name: v("cName"), by: v("cBy") }, "🏙️ לעיר יש שם"); };
@@ -2453,6 +2528,7 @@ function placeList() {
   S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
   for (const w of S.workplaces) if (w.x != null) o.push([`work:${w.id}`, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]);
+  for (const p of S.projects.filter(q => q.params?.island && q.x != null)) o.push([`mon:${p.id}`, `🗽 ${p.name || "פסל"}`]);
   o.push(["house", "🏠 הבית של תושב/ת…"]);
   return o;
 }
@@ -2463,6 +2539,7 @@ function placeOf(sc) {
   if (t === "coast") { const c = COAST.find(q => q.id === a); if (c?.x != null) return { o: c, zoom: 3.4 }; }
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
   if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
+  if (t === "mon") { const p = S.projects.find(q => q.id === +a); if (p?.x != null) return { o: p, zoom: 1.5 }; }
   if (t === "house") { const h = S.byUser.get(clean(sc.u || "")); if (h?.lot) return { o: h, zoom: 9, mark: h }; }
   return { o: ORIGIN, zoom: zf };
 }
@@ -2577,7 +2654,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) window.GO = GO;
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
