@@ -137,6 +137,49 @@ body.rec #recBar{display:flex}
 .tpl button b{display:block;font-size:15px;margin-top:6px}.tpl button small{display:block;color:var(--fg2);font-size:12.5px;margin-top:2px}
 .tpl button span{font-size:26px}
 .tpl button:disabled{opacity:.4}
+.reelprev{height:min(100vh,177.8vw);width:auto;max-width:100vw;display:block}
+body.rec #gl canvas:not(.reelprev){position:absolute;left:-99999px}
+select{font:inherit;font-size:14px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:6px 8px}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.note{font-size:12.5px;color:var(--fg2);text-align:center;margin:8px 0 0}
+.hero.warn{background:rgba(224,122,79,.16)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;direction:ltr;unicode-bidi:embed;white-space:normal}
+.li small code{white-space:normal}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-inline-start:4px;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+/* ---------- wallet, shop, achievements ---------- */
+.wallet{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin-top:8px}
+.wallet div{background:var(--tint);border-radius:16px;padding:10px 8px;text-align:center}
+.wallet small{display:block;color:var(--fg2);font-size:12px}.wallet b{display:block;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+.btn:disabled{opacity:.55}
+.ach{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ach button{background:var(--tint);border-radius:14px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;filter:grayscale(1);opacity:.45}
+.ach button.on{filter:none;opacity:1;background:linear-gradient(160deg,rgba(255,182,39,.28),var(--tint))}
+.ach span{font-size:24px}.ach small{font-size:10.5px;font-weight:600;line-height:1.15;text-align:center}
+.bar.sm{height:5px;margin-top:6px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--tint);border-radius:14px;padding:4px;margin-top:12px}
+.seg button{border-radius:11px;padding:9px 0;font-weight:700;color:var(--fg2)}.seg button.on{background:var(--bg-strong);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.swatches button{aspect-ratio:1;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.swatches button.on{box-shadow:0 0 0 3px var(--bg-strong),0 0 0 5px var(--accent)}
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.shop .item{background:var(--tint);border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:2px}
+.shop img{width:100%;aspect-ratio:1.6;object-fit:contain;border-radius:10px;background:radial-gradient(circle at 50% 70%,rgba(255,255,255,.7),transparent 70%)}
+.shop b{font-size:14.5px}.shop small{color:var(--fg2);font-size:12px;margin-bottom:6px}
+.shop .btn{padding:8px 6px;font-size:13px;margin-top:auto}.shop .btn.sure{background:var(--accent-2)}
+.own,.need{margin-top:auto;text-align:center;font-size:12.5px;font-weight:700;padding:8px 0;color:var(--fg2)}.own{color:var(--accent)}
+.storybox{background:var(--tint);border-radius:18px;padding:10px;display:grid;place-items:center;min-height:120px}
+.storybox img{width:min(60%,260px);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);-webkit-touch-callout:default;user-select:auto}
+.stwait{color:var(--fg2);font-weight:600}
+a.btn[aria-disabled]{opacity:.55;pointer-events:none}
+body.inside .top,body.inside .zoom,body.inside .dock,body.inside #labels{display:none}
+#intUI{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
+body.inside #intUI{display:block}
+#intUI>*{pointer-events:auto}
+.ihead{position:absolute;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;max-width:640px;margin:0 auto;border-radius:20px;display:flex;align-items:center;gap:10px;padding:10px 12px}
+.ihead .ic{font-size:26px}.ihead .tx{flex:1}.ihead b{display:block;font-size:17px;font-weight:800}.ihead small{color:var(--fg2);font-size:12.5px}
+.ihead button{width:36px;height:36px;border-radius:50%;background:var(--tint);font-size:16px}
+.ifoot{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:10px;right:10px;max-width:640px;margin:0 auto;border-radius:22px;padding:12px 14px;text-align:center}
+.ifoot p{margin:0 0 10px;font-size:14.5px;color:var(--fg2)}.ifoot p b{color:var(--fg)}.ifoot .btn{width:100%}.ifoot .note{margin:8px 0 0}
 /* ---------- loader ---------- */
 #loader{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:linear-gradient(180deg,#1b2a4a 0%,#e58a5c 62%,#f4c27d 100%);transition:opacity .8s}
 #loader.gone{opacity:0;pointer-events:none}
@@ -176,6 +219,7 @@ body.rec #recBar{display:flex}
   </div>
 </nav>
 <div class="toast glass" id="toast"></div>
+<div id="intUI"></div>
 <div id="recBar"><i></i><span id="recT">מצלם ריל…</span><button id="recStop">ביטול</button></div>
 
 <div class="scrim" id="scrim"></div>
@@ -190,6 +234,8 @@ import * as THREE from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 /* ============================ CONFIG ============================ */
 const SUPABASE_URL = "https://herjiivecdrwkzudzbap.supabase.co";
@@ -228,13 +274,25 @@ $("loadFlag").innerHTML = FLAG; $("hudFlag").innerHTML = FLAG; $("favicon").href
 const STREETS = ["שדרות ״יהיה בסדר״","רחוב ״עוד חמש דקות״","סמטת ״אני רק שאלה״","רחוב ״שלח לי מיקום״","דרך ״זה על הדרך״","רחוב ״אני מכיר מישהו״","סמטת ״רגע, מי משלם?״","רחוב ״סבבה אגוזים״","שדרות ״תכלס״","רחוב ״חבל על הזמן״","סמטת ״יאללה ביי״","רחוב ״ברור שבאתי״","רחוב ״מה הלחץ?״","סמטת ״אחי, דקה״","דרך ״כבר יוצא״","רחוב ״יש לך מטען?״","שביל ״נדבר״","רחוב ״אמא שלי אמרה״","שדרות השקשוקה","רחוב הבמבה","סמטת הביסלי","רחוב הסביח","רחוב השניצל של סבתא","סמטת המלאווח","רחוב החמין","רחוב הג׳חנון","שדרות הקרמבו","רחוב השוקו בשקית","סמטת הפתיתים","רחוב הבורקס","רחוב הקוסקוס של שישי","דרך הפלאפל עם הכל","רחוב החנייה בכפולה","סמטת המכולת","רחוב הוואטסאפ המשפחתי","שדרות שישי בצהריים","רחוב העל האש","סמטת הנרגילה","רחוב הקפה השחור","דרך הטרמפים","רחוב הקומזיץ","רחוב התור בסופר","סמטת הדוד שמש","רחוב המזגן על 24","רחוב המטקות","טיילת השקיעה","רחוב הכפכפים","שביל הארטיק","סמטת המגבת","רחוב הקרם הגנה","טיילת הגלים","רחוב הגוגואים","סמטת הטמגוצ׳י","רחוב האסימון","שדרות הטלפון הציבורי","רחוב הדיסקמן","סמטת הקלטת","רחוב השוקולד פרה"];
 const HEB = ["", "ב", "ג", "ד", "ה", "ו", "ז", "ח"];
 const HOUSE_NAMES = { "1_0": "קוביה לבנה עם דוד שמש", "1_1": "בית קטן עם גג רעפים", "1_2": "בית קטן עם גג אפור",
-  "2_0": "בית דו־קומתי עם מרפסת", "2_1": "בית דו־קומתי עם גג רעפים", "3_0": "וילה עם בריכה" };
+  "2_0": "בית דו־קומתי עם מרפסת", "2_1": "בית דו־קומתי עם גג רעפים", "2_2": "בית באוהאוס לבן", "2_3": "בית מאבן ירושלמית",
+  "3_0": "וילה עם בריכה", "3_1": "אחוזה מודרנית" };
+// prices must match shop_price() in upgrade-5.sql
+const HOUSE_PRICE = { "1_0": 800, "1_1": 800, "1_2": 800, "2_0": 8000, "2_1": 8000, "2_2": 11000, "2_3": 12000, "3_0": 25000, "3_1": 40000 };
+const COLORS = { white: ["#f2f2ef", "לבן פיתה"], black: ["#17191c", "שחור קפה"], red: ["#b3121b", "אדום שקשוקה"], blue: ["#1f4f8f", "כחול ים"], olive: ["#5b6b3a", "ירוק זית"],
+  yellow: ["#f2c230", "צהוב פלאפל"], orange: ["#e8692b", "כתום שקיעה"], purple: ["#5a2d6e", "סגול חציל"], silver: ["#aeb4ba", "כסף מטאלי"], gold: ["#c9a24a", "זהב מדבר"],
+  teal: ["#138a8a", "טורקיז מפרץ"], pink: ["#e88aa8", "ורוד מסטיק"] };
+const COLOR_KEYS = Object.keys(COLORS);
+// daily pay, must match daily_salary() in upgrade-5.sql
+const PAY = { tech: 220, clinic: 180, police: 170, school: 160, garage: 150, hummus: 130, market: 120 }, PAY_LV = [1, 1, 1.4, 1.9, 2.6];
+const salaryOf = h => Math.round((h.wp ? PAY[h.wp.kind] || 110 : 60) * PAY_LV[Math.min(4, Math.max(1, h.level))]);
+const COIN = "🪙";
 const CAR_NAMES = { 1: "רכב עירוני קטן", 2: "רכב משפחתי", 3: "רכב ספורט יוקרתי" };
+const TIER_NAMES = { 1: "עירוני", 2: "משפחתי", 3: "יוקרה" };
 const ROLE = { bakery: "אופה", cafe: "בריסטה", market: "קופאי/ת", school: "מורה", clinic: "אח/ות", garage: "מכונאי/ת",
   hummus: "מגיש/ת חומוס", tech: "מפתח/ת תוכנה", police: "שוטר/ת", fuel: "מתדלק/ת" };
 const KIND_IC = { bakery: "🥖", cafe: "☕", market: "🛒", school: "🏫", clinic: "🏥", garage: "🔧", hummus: "🥙", tech: "💻", police: "🚓", fuel: "⛽" };
 const LEVEL = ["", "", "ראש/ת צוות", "מנהל/ת", 'מנכ"ל/ית'];
-const PRIZES = { luxury_house: ["🏡", "וילה עם בריכה"], luxury_car: ["🏎️", "רכב יוקרה"], minister: ["🏛️", "שר/ה ליום"], promotion: ["📈", "קידום בעבודה"], job_change: ["🔄", "עבודה חדשה"] };
+const PRIZES = { luxury_house: ["🏡", "וילה עם בריכה"], luxury_car: ["🏎️", "רכב יוקרה"], minister: ["🏛️", "שר/ה ליום"], promotion: ["📈", "קידום בעבודה"], job_change: ["🔄", "עבודה חדשה"], cash: ["💰", "מענק כספי"] };
 const PROJECT_KINDS = { park: ["🌳", "גינה ציבורית"], playground: ["🛝", "גן שעשועים"], community: ["🎭", "מתנ״ס"], pool: ["🏊", "בריכה עירונית"],
   football: ["⚽", "מגרש כדורגל"], basketball: ["🏀", "מגרש כדורסל"], library: ["📚", "ספרייה"], mall: ["🛍️", "קניון"], dogpark: ["🐕", "גינת כלבים"] };
 const jobTitle = h => !h.wp ? "מחפש/ת עבודה" : (h.level <= 1 ? `${ROLE[h.wp.kind] || "עובד/ת"} ב${h.wp.name}` : `${LEVEL[Math.min(4, h.level)]} ב${h.wp.name}`);
@@ -342,6 +400,11 @@ const SUN_DIR = new THREE.Vector3(.4, .8, .3).normalize();
 
 const MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 const GLOW = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: new THREE.Color("#ffc06a"), emissiveIntensity: 0 });
+const GLOW_RED = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: new THREE.Color("#ff2a1a"), emissiveIntensity: 0 });
+// car paint: glossy, with the sky reflected in it
+const PAINT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .32, metalness: .35, envMapIntensity: 1 });
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
 const C = c => new THREE.Color(c);
 
 /* ---------- geometry kit ("*#hex" = a part that lights up at night) ---------- */
@@ -349,11 +412,11 @@ function part(geo, color, x = 0, y = 0, z = 0, r = {}) {
   if (geo.index) geo = geo.toNonIndexed();
   if (r.x) geo.rotateX(r.x); if (r.z) geo.rotateZ(r.z); if (r.y) geo.rotateY(r.y);
   geo.translate(x, y, z);
-  const glow = color[0] === "*", c = C(glow ? color.slice(1) : color), n = geo.attributes.position.count, a = new Float32Array(n * 3);
+  const kind = { "*": "glow", "^": "red", "!": "paint", "~": "tint" }[color[0]] || "base", c = C(kind === "base" ? color : color.slice(1)), n = geo.attributes.position.count, a = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
   geo.setAttribute("color", new THREE.BufferAttribute(a, 3));
   for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "color"].includes(k)) geo.deleteAttribute(k);
-  geo.userData.glow = glow;
+  geo.userData.kind = kind;
   return geo;
 }
 const box = (w, h, d, col, x = 0, y = 0, z = 0, r) => part(new THREE.BoxGeometry(w, h, d), col, x, y + h / 2, z, r);
@@ -362,12 +425,16 @@ function gable(w, h, d, col, x = 0, y = 0, z = 0) {
   const g = new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(-d / 2, 0), new THREE.Vector2(d / 2, 0), new THREE.Vector2(0, h)]), { depth: w, bevelEnabled: false });
   g.translate(0, 0, -w / 2); g.rotateY(Math.PI / 2); return part(g, col, x, y, z);
 }
+// a prefab is up to four merged meshes: plain parts, parts that light up at night (*), red lights (^) and car paint (!)
+const BUCKETS = ["base", "glow", "red", "paint", "tint"];
 function prefab(parts, shared = true) {
-  const base = parts.filter(p => !p.userData.glow), glow = parts.filter(p => p.userData.glow);
-  const out = { base: mergeGeometries(base), glow: glow.length ? mergeGeometries(glow) : null };
-  out.base.userData.shared = shared; if (out.glow) out.glow.userData.shared = shared;
+  const out = {};
+  for (const k of BUCKETS) { const list = parts.filter(p => p.userData.kind === k); out[k] = list.length ? mergeGeometries(list) : null; if (out[k]) out[k].userData.shared = shared; }
+  if (!out.base) out.base = mergeGeometries([box(.01, .01, .01, "#000000", 0, -50, 0)]);
   return out;
 }
+const TINT = new THREE.MeshLambertMaterial({ vertexColors: true });   // "~" parts: take the instance color, matte (clothes)
+const BMAT = { base: MAT, glow: GLOW, red: GLOW_RED, paint: PAINT, tint: TINT };
 
 const WALL = "#ffffff", WIN = "*#33464f", DOOR = "#6b4a2f", TILE = "#b5563a", GREYR = "#6f7781", GLASS = "*#6fa9c4", PANEL = "#22304f", TRIM = "#e2dacb";
 const solar = (x, y, z) => [cyl(.45, .45, 1.9, 8, "#e9e9e9", x, y + .5, z - .7, { z: Math.PI / 2 }), box(1.9, .08, 1.3, PANEL, x, y + .3, z + .4, { x: -.5 }), box(.1, .5, .1, "#9a9a9a", x - .8, y, z - .7), box(.1, .5, .1, "#9a9a9a", x + .8, y, z - .7)];
@@ -381,34 +448,93 @@ const P = {
   "2_0": prefab([box(7.4, 6.6, 7, WALL, -1.1, 0, -.5), box(7.7, .35, 7.3, TRIM, -1.1, 6.6, -.5), box(1.2, 2.2, .12, DOOR, .9, 0, 3.02), ...wins([-3, -1.1], 1.3, 3.02), ...wins([-3, .9], 4.4, 3.02),
     box(3.4, .22, 1.3, "#d4cdbf", -2, 3.3, 3.6), box(3.4, .9, .06, "#4c5a61", -2, 3.52, 4.22), ...solar(-2.2, 6.95, -1)]),
   "2_1": prefab([box(7.4, 6, 7, WALL, -1.1, 0, -.5), gable(8.2, 2.8, 8, TILE, -1.1, 6, -.5), box(1.2, 2.2, .12, DOOR, .9, 0, 3.02), ...wins([-3, -1.1], 1.3, 3.02), ...wins([-3, -1.1, .9], 4.2, 3.02)]),
+  "2_2": prefab([box(8, 6.4, 7, WALL, -1, 0, -.5), box(8.3, .3, 7.3, "#f4f4f4", -1, 6.4, -.5), box(6.6, .9, .12, WIN, -1.4, 1.5, 3.02), box(6.6, .9, .12, WIN, -1.4, 4.5, 3.02),
+    box(.12, .9, 4.6, WIN, -5.02, 4.5, -.5), cyl(1.7, 1.7, 1, 18, "#f6f6f4", 1.6, 3.2, 2.6), box(1.1, 2.2, .12, "#2f4b6e", 1.9, 0, 3.02), box(1.6, .15, 1.2, "#d9d4c8", 1.9, 0, 3.6),
+    box(.25, 3.2, .25, "#e8e8e8", -3.6, 0, 3.4), box(.25, 3.2, .25, "#e8e8e8", .9, 0, 3.4), box(5, .25, 1.1, "#f4f4f4", -1.35, 3, 3.5), ...solar(-2.4, 6.75, -1.6)]),
+  "2_3": prefab([box(7.6, 6.2, 7, "#eadbb8", -1, 0, -.5), box(7.9, .7, 7.3, "#dccaa0", -1, 6.2, -.5),
+    ...[-3.2, -.8].flatMap(x => [box(1.2, 1.3, .12, WIN, x, 1.2, 3.02), cyl(.6, .6, .12, 12, WIN, x, 0, 0, { x: Math.PI / 2 }).translate(0, 2.5, 3.02)]),
+    ...[-3.2, -.8, 1.6].flatMap(x => [box(1.2, 1.3, .12, WIN, x, 4.1, 3.02), cyl(.6, .6, .12, 12, WIN, x, 0, 0, { x: Math.PI / 2 }).translate(0, 5.4, 3.02)]),
+    box(1.3, 2.2, .12, "#5a3d24", 1.6, 0, 3.02), cyl(.65, .65, .12, 12, "#5a3d24", 1.6, 0, 0, { x: Math.PI / 2 }).translate(0, 2.2, 3.02),
+    box(3.4, .2, 1.3, "#dccaa0", -2, 3.4, 3.6), box(3.4, .85, .06, "#2b2b2b", -2, 3.6, 4.22), box(.06, .85, 1.3, "#2b2b2b", -3.67, 3.6, 3.6), box(.06, .85, 1.3, "#2b2b2b", -.33, 3.6, 3.6),
+    ...[[-4.2, -3.5], [-4.2, 1.5], [1.4, -3.5], [1.4, 1.5]].map(([x, z]) => box(.2, 2.2, .2, "#8a6a48", x, 6.9, z)), ...[-3, -1.5, 0, 1.5].map(z => box(5.8, .15, .25, "#8a6a48", -1.4, 9.1, z)),
+    cyl(.45, .35, .7, 8, "#b5563a", 3, 0, 3.6), part(new THREE.IcosahedronGeometry(.6, 0), "#4f8a3a", 3, 1.1, 3.6)]),
+  "3_1": prefab([box(9, 3.6, 6, "#f2f0ea", .3, 0, -1.6), box(9.2, .25, 6.2, "#d9d6cf", .3, 3.6, -1.6), box(7.4, 3.2, 6.8, "#3d4248", -1.3, 3.85, -1.1), box(7.6, .25, 7, "#2b2f34", -1.3, 7.05, -1.1),
+    box(5.6, 2.8, .12, GLASS, 1.4, .3, 1.42), box(6.4, 1.8, .12, GLASS, -1.6, 4.5, 2.32), box(2.4, 3.2, .14, "#a8784a", 2.95, 3.85, -1.1), box(.14, 1.8, 4, GLASS, -5.02, 4.5, -1.1),
+    box(5.2, .14, 3.6, "#c9a77a", -1.9, 0, 3), box(4.2, .22, 2.4, "#2fb9e0", -2.2, .04, 3.1), box(1.2, .4, .5, "#f4f4f4", -.2, .14, 4.3), box(.5, .9, 3.4, "#4f7f3a", -4.4, 0, 2.9),
+    box(1.2, 2.4, .14, "#2b2f34", 3.7, 0, 1.42), ...solar(.8, 7.3, -2.6)]),
   "3_0": prefab([box(8, 3.8, 5, WALL, .5, 0, -2), box(8.3, .3, 5.3, TRIM, .5, 3.8, -2), box(5, 3, 4.6, "#f1ebe0", 1.5, 4.1, -2.2), box(5.3, .3, 4.9, "#d6cebd", 1.5, 7.1, -2.2),
     box(4.4, 2.3, .12, GLASS, 1.5, 4.4, .12), box(5, 2.6, .12, GLASS, -.6, .2, .52), box(1.2, 2.4, .12, "#3b2a1a", 3.4, 0, .52),
     box(4.8, .18, 3.8, "#e6dfd0", -2.5, 0, 2.6), box(4, .2, 3, "#38b2d8", -2.5, .05, 2.6), box(1.6, .3, .7, "#f2f2f2", -2.2, .2, 4.6)]),
-  c1: prefab([box(1.7, .85, 3.5, "#ffffff", 0, .3, 0), box(1.5, .62, 1.9, "#25323a", 0, 1.15, -.25), box(1.52, .08, 1.6, "#ffffff", 0, 1.77, -.3), ...wheels(.82, 1.1, .32, .24), box(1.3, .2, .05, "*#fff6d0", 0, .8, 1.76)]),
-  c2: prefab([box(1.9, 1.05, 4.4, "#ffffff", 0, .35, 0), box(1.75, .78, 2.7, "#25323a", 0, 1.4, -.35), box(1.78, .1, 2.4, "#ffffff", 0, 2.18, -.4), ...wheels(.92, 1.4, .38, .28), box(1.5, .22, .05, "*#fff6d0", 0, 1.05, 2.21)]),
-  c3: prefab([box(1.95, .62, 4.7, "#ffffff", 0, .25, 0), box(1.6, .5, 1.8, "#1b2328", 0, .87, -.45), box(1.9, .1, .5, "#1d1d1d", 0, 1.05, -2.2), ...wheels(.95, 1.5, .36, .3), box(1.6, .15, .05, "*#fff6d0", 0, .65, 2.36)]),
   tree: prefab([cyl(.25, .35, 2.4, 6, "#6e4c30"), part(new THREE.IcosahedronGeometry(2.3, 1), "#5f8f45", 0, 3.6, 0), part(new THREE.IcosahedronGeometry(1.5, 0), "#6d9e50", .8, 4.6, .4)]),
   olive: prefab([cyl(.3, .45, 1.8, 6, "#7a6650"), part(new THREE.IcosahedronGeometry(2, 1), "#8aa070", 0, 2.9, 0), part(new THREE.IcosahedronGeometry(1.4, 0), "#9aae7f", -.9, 3.3, .5)]),
   cypress: prefab([cyl(.2, .3, 1.4, 6, "#6e4c30"), part(new THREE.ConeGeometry(1.15, 6, 8), "#3d6b37", 0, 4.2, 0)]),
   palm: prefab([cyl(.2, .32, 6, 7, "#94714c"), ...Array.from({ length: 6 }, (_, i) => box(.8, .12, 3.4, "#4f8f3e", Math.sin(i) * 1.4, 6, Math.cos(i) * 1.4, { x: -.35, y: i * Math.PI / 3 }))]),
   lamp: prefab([cyl(.09, .12, 5.2, 6, "#4a5056"), box(1.2, .1, .1, "#4a5056", .55, 5.1, 0), box(.5, .18, .3, "*#fff1c2", 1.05, 4.92, 0)]),
   umbrella: prefab([cyl(.06, .06, 2.4, 6, "#dddddd"), part(new THREE.ConeGeometry(1.6, .7, 8), "#ffffff", 0, 2.5, 0)]),
+  slab: prefab([box(1, 1, 1, "#ffffff")]),
+  walker: prefab([box(.15, .82, .2, "#2d3440", -.11, 0, 0), box(.15, .82, .2, "#2d3440", .11, 0, 0), box(.48, .64, .27, "~#ffffff", 0, .8, 0), box(.12, .55, .14, "~#ffffff", -.31, .86, 0), box(.12, .55, .14, "~#ffffff", .31, .86, 0),
+    part(new THREE.IcosahedronGeometry(.15, 1), "#d6a684", 0, 1.62, 0), box(.3, .1, .3, "#2a211b", 0, 1.74, -.02)]),
   plane: prefab([(() => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()])
 };
+
+/* ---------- the car catalog: three models in each class, painted in the owner's color ("!" parts) ---------- */
+const TIRE = "#17181a", RIM = "#c3c8cd", CGLASS = "#22303a", TRIMD = "#26292c", HEAD = "*#fff4cf", TAIL = "^#8a1414";
+function rodas(dx, zf, zr, r, w, rim = RIM) {
+  return [[-dx, zf], [dx, zf], [-dx, zr], [dx, zr]].flatMap(([x, z]) => [cyl(r, r, w, 14, TIRE, x, r - w / 2, z, { z: Math.PI / 2 }).translate(0, 0, 0), cyl(r * .58, r * .58, w + .04, 10, rim, x, r - (w + .04) / 2, z, { z: Math.PI / 2 })]);
+}
+function lights(w, y, zf, zr, h = .16) {
+  return [-1, 1].flatMap(s => [box(w * .22, h, .06, HEAD, s * w * .32, y, zf), box(w * .2, h, .06, TAIL, s * w * .33, y, zr)]);
+}
+const CARS = {
+  pita: { name: "פיתה", tier: 1, cls: "מיקרו לשניים", price: 0, L: 2.8, parts: () => [box(1.55, .72, 2.8, "!#ffffff", 0, .26, 0), box(1.4, .62, 1.7, CGLASS, 0, .98, -.2), box(1.42, .08, 1.55, "!#ffffff", 0, 1.6, -.22),
+    box(1.6, .22, .12, TRIMD, 0, .22, 1.42), box(1.6, .22, .12, TRIMD, 0, .22, -1.42), ...rodas(.72, .88, -.88, .27, .2), ...lights(1.55, .62, 1.41, -1.41)] },
+  mini: { name: "סבבה מיני", tier: 1, cls: "האצ׳בק עירוני", price: 1500, L: 3.6, parts: () => [box(1.7, .8, 3.6, "!#ffffff", 0, .28, 0), box(1.56, .64, 2.1, CGLASS, 0, 1.08, -.3), box(1.6, .1, 1.9, "!#ffffff", 0, 1.72, -.35),
+    box(1.74, .24, .12, TRIMD, 0, .25, 1.82), box(1.74, .24, .12, TRIMD, 0, .25, -1.82), box(.9, .22, .05, TRIMD, 0, .62, 1.81), box(.12, .18, .3, "!#ffffff", .9, 1.15, .6), box(.12, .18, .3, "!#ffffff", -.9, 1.15, .6),
+    ...rodas(.8, 1.15, -1.15, .32, .24), ...lights(1.7, .74, 1.81, -1.81)] },
+  station: { name: "חומוס סטיישן", tier: 2, cls: "סטיישן משפחתי", price: 3500, L: 4.7, parts: () => [box(1.86, .86, 4.7, "!#ffffff", 0, .3, 0), box(1.72, .66, 3.2, CGLASS, 0, 1.16, -.55), box(1.75, .1, 3.05, "!#ffffff", 0, 1.82, -.6),
+    box(.08, .1, 2.8, TRIMD, .7, 1.92, -.6), box(.08, .1, 2.8, TRIMD, -.7, 1.92, -.6), box(1.9, .26, .14, TRIMD, 0, .28, 2.36), box(1.9, .26, .14, TRIMD, 0, .28, -2.36), box(1.1, .24, .05, TRIMD, 0, .66, 2.36),
+    ...rodas(.9, 1.5, -1.5, .36, .27), ...lights(1.86, .84, 2.36, -2.36)] },
+  tramp: { name: "טרמפ", tier: 2, cls: "טנדר שטח", price: 4500, L: 5.1, parts: () => [box(1.96, .62, 5.1, "!#ffffff", 0, .42, 0), box(1.96, .34, 2.3, "!#ffffff", 0, 1.04, 1.4),
+    box(1.8, .76, 1.6, CGLASS, 0, 1.38, .55), box(1.82, .1, 1.5, "!#ffffff", 0, 2.14, .5), box(.12, .44, 2.6, "!#ffffff", .92, 1.04, -1.25), box(.12, .44, 2.6, "!#ffffff", -.92, 1.04, -1.25),
+    box(1.96, .44, .12, "!#ffffff", 0, 1.04, -2.49), box(1.7, .04, 2.5, "#3b3b3b", 0, 1.05, -1.25), box(2.02, .3, .16, TRIMD, 0, .32, 2.56), box(2.02, .3, .16, TRIMD, 0, .32, -2.56),
+    box(1.2, .3, .05, "#9aa0a6", 0, .72, 2.56), ...rodas(.95, 1.65, -1.65, .44, .32, "#5c6166"), ...lights(1.96, .86, 2.56, -2.56)] },
+  shakshuka: { name: "שקשוקה", tier: 2, cls: "ג׳יפ פנאי", price: 6000, L: 4.6, parts: () => [box(2.04, .3, 4.66, TRIMD, 0, .34, 0), box(2, 1.05, 4.6, "!#ffffff", 0, .46, 0), box(1.86, .76, 3.1, CGLASS, 0, 1.51, -.35), box(1.9, .1, 2.95, "!#ffffff", 0, 2.27, -.4),
+    box(.1, .12, 2.6, "#9aa0a6", .78, 2.37, -.4), box(.1, .12, 2.6, "#9aa0a6", -.78, 2.37, -.4), cyl(.42, .42, .26, 14, TIRE, 0, 0, 0, { x: Math.PI / 2 }).translate(0, 1.1, -2.42),
+    box(1.3, .3, .05, "#9aa0a6", 0, .86, 2.31), ...rodas(1, 1.45, -1.45, .45, .32, "#7a7f84"), ...lights(2, 1.1, 2.31, -2.31)] },
+  caravan: { name: "קומזיץ", tier: 2, cls: "קרוואן קמפינג", price: 7000, L: 5.2, parts: () => [box(2.04, 1.15, 5.2, "!#ffffff", 0, .36, 0), box(2.04, 1.05, 4.2, "#f3f0e8", 0, 1.51, -.5),
+    box(1.9, .8, .08, CGLASS, 0, 1.62, 1.62), box(.08, .6, 1.4, CGLASS, 1.03, 1.7, .6), box(.08, .6, 1.4, CGLASS, -1.03, 1.7, .6), box(.08, .55, 1.2, CGLASS, 1.03, 1.75, -1.4), box(.08, .55, 1.2, CGLASS, -1.03, 1.75, -1.4),
+    box(1.8, .25, 3, "#e9e4d6", 0, 2.56, -.6), box(.55, .09, 2.9, "#f2b440", 0, 2.81, -.6), box(2.08, .28, .14, TRIMD, 0, .34, 2.62), box(2.08, .28, .14, TRIMD, 0, .34, -2.62),
+    ...rodas(.95, 1.75, -1.6, .4, .3), ...lights(2.04, .9, 2.61, -2.61)] },
+  roadster: { name: "ג׳חנון רודסטר", tier: 3, cls: "קבריולה פתוחה", price: 12000, L: 4.2, parts: () => [box(1.86, .56, 4.2, "!#ffffff", 0, .24, 0), box(1.5, .14, 1.4, "#5a3a26", 0, .8, -.4),
+    box(.5, .5, .5, "#5a3a26", .38, .8, -.9), box(.5, .5, .5, "#5a3a26", -.38, .8, -.9), box(.46, .28, .7, "!#ffffff", .4, .8, -1.45), box(.46, .28, .7, "!#ffffff", -.4, .8, -1.45),
+    box(1.6, .42, .06, CGLASS, 0, .78, .5, { x: -.45 }), box(.06, .2, .9, TRIMD, .94, .5, .3), box(.06, .2, .9, TRIMD, -.94, .5, .3),
+    ...rodas(.9, 1.35, -1.35, .36, .28, "#d8dce0"), ...lights(1.86, .58, 2.11, -2.11, .12)] },
+  gt: { name: "יהיה בסדר GT", tier: 3, cls: "קופה ספורט", price: 16000, L: 4.6, parts: () => [box(1.96, .55, 4.6, "!#ffffff", 0, .22, 0), box(1.7, .12, 1.6, "!#ffffff", 0, .77, 1.3, { x: .1 }),
+    box(1.6, .48, 1.8, CGLASS, 0, .77, -.35), box(1.55, .07, 1.3, "!#ffffff", 0, 1.25, -.45), box(2, .14, 4.4, TRIMD, 0, .16, 0),
+    box(.14, .34, .14, TRIMD, .7, .77, -2.1), box(.14, .34, .14, TRIMD, -.7, .77, -2.1), box(1.96, .07, .5, "!#ffffff", 0, 1.1, -2.1), cyl(.09, .09, .2, 8, "#9aa0a6", .4, .3, -2.35, { x: Math.PI / 2 }), cyl(.09, .09, .2, 8, "#9aa0a6", -.4, .3, -2.35, { x: Math.PI / 2 }),
+    ...rodas(.93, 1.5, -1.45, .37, .3, "#2a2c30"), ...lights(1.96, .56, 2.31, -2.31, .1)] },
+  migdalor: { name: "מגדלור", tier: 3, cls: "לימוזינה נשיאותית", price: 22000, L: 6.6, parts: () => [box(1.96, .76, 6.6, "!#ffffff", 0, .3, 0), box(1.8, .6, 4.6, CGLASS, 0, 1.06, -.4), box(1.82, .08, 4.4, "!#ffffff", 0, 1.66, -.45),
+    box(1.82, .6, .16, "!#ffffff", 0, 1.06, .35), box(1.82, .6, .16, "!#ffffff", 0, 1.06, -1.15), box(1.98, .06, 6.62, "#e5e8eb", 0, .8, 0),
+    box(1.2, .26, .05, "#e5e8eb", 0, .62, 3.31), box(.06, .26, .06, "#e5e8eb", .82, 1.06, 3.2), ...rodas(.92, 2.3, -2.3, .36, .28, "#e5e8eb"), ...lights(1.96, .8, 3.31, -3.31)] }
+};
+const CAR_KEYS = Object.keys(CARS), CARS_BY_TIER = { 1: CAR_KEYS.filter(k => CARS[k].tier === 1), 2: CAR_KEYS.filter(k => CARS[k].tier === 2), 3: CAR_KEYS.filter(k => CARS[k].tier === 3) };
+for (const k of CAR_KEYS) P["car_" + k] = prefab(CARS[k].parts());
 
 /* ---------- builders ---------- */
 const o3 = new THREE.Object3D(), col3 = new THREE.Color();
 function instanced(pf, items, place, { shadow = true, receive = true } = {}) {
   const make = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length)); m.count = items.length; m.castShadow = shadow; m.receiveShadow = receive; world.add(m); return m; };
-  const m = make(pf.base, MAT), g = pf.glow ? make(pf.glow, GLOW) : null;
+  const m = make(pf.base, MAT), twins = ["glow", "red", "paint", "tint"].filter(k => pf[k]).map(k => { const t = make(pf[k], BMAT[k]); t.userData.kind = k; return t; });
+  const painted = !!(pf.paint || pf.tint), white = new THREE.Color("#ffffff");
   items.forEach((it, i) => { o3.position.set(0, 0, 0); o3.rotation.set(0, 0, 0); o3.scale.set(1, 1, 1); const c = place(it, o3); o3.updateMatrix();
-    m.setMatrixAt(i, o3.matrix); m.setColorAt(i, col3.set(c || "#ffffff")); if (g) { g.setMatrixAt(i, o3.matrix); g.setColorAt(i, col3.set("#ffffff")); } });
-  for (const x of [m, g]) if (x && x.instanceColor) x.instanceColor.needsUpdate = true;
-  m.userData.twin = g; return m;
+    m.setMatrixAt(i, o3.matrix); m.setColorAt(i, painted ? white : col3.set(c || "#ffffff"));
+    for (const t of twins) { t.setMatrixAt(i, o3.matrix); t.setColorAt(i, t.userData.kind === "paint" || t.userData.kind === "tint" ? col3.set(c || "#ffffff") : white); } });
+  for (const x of [m, ...twins]) if (x.instanceColor) x.instanceColor.needsUpdate = true;
+  m.userData.twins = twins; return m;
 }
 function solid(parts, x, z, ry = 0, data, y = 0) {
   const pf = prefab(parts, false), grp = new THREE.Group();
-  for (const [geo, mat] of [[pf.base, MAT], [pf.glow, GLOW]]) { if (!geo) continue; const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; if (data) { m.userData = data; S.picks.push(m); } grp.add(m); }
+  for (const k of BUCKETS) { const geo = pf[k], mat = BMAT[k]; if (!geo) continue; const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; if (data) { m.userData = data; S.picks.push(m); } grp.add(m); }
   grp.position.set(x, y, z); grp.rotation.y = ry; world.add(grp); return grp;
 }
 // a sign painted on a building: a canvas texture on a flat board, lit like a real shop sign
@@ -457,9 +583,13 @@ function layout() {
     const list = (byCity.get(slot.city.id) || []).sort((a, b) => a.id - b.id), lots = cityLots(slot, si, list.length);
     slot.pop = list.length;
     list.forEach((c, i) => {
-      const lot = lots[i] || null, tier = Math.min(3, Math.max(1, c.house_tier || 1));
-      const h = { id: c.id, u: c.ig_username, city: slot.city, slot, lot, tier, style: tier === 1 ? hash(c.ig_username) % 3 : tier === 2 ? hash(c.ig_username) % 2 : 0,
-        joined: c.created_at, car: Math.min(3, Math.max(1, c.car_tier || 1)), wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
+      const lot = lots[i] || null, tier = Math.min(3, Math.max(1, c.house_tier || 1)), car = Math.min(3, Math.max(1, c.car_tier || 1)), u = c.ig_username;
+      // the style/model the citizen bought, unless a draw moved them to another tier since then
+      const hk = c.house_style && +c.house_style[0] === tier && P[c.house_style] ? c.house_style : `${tier}_${tier === 1 ? hash(u) % 3 : tier === 2 ? hash(u) % 2 : 0}`;
+      const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_BY_TIER[car][hash(u + "m") % CARS_BY_TIER[car].length];
+      const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
+      const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
+        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
@@ -478,15 +608,26 @@ function layout() {
     }
   });
   S.s = Math.min(MAX_S + .3, need);
+  // citizen number = order of arrival (ids can have gaps)
+  [...S.houses].sort((a, b) => a.id - b.id).forEach((h, i) => h.no = i + 1);
   for (const w of S.workplaces) w.staff = [];
   for (const h of S.houses) if (h.wp) h.wp.staff.push(h);
 }
 
 /* ============================ CITIES ============================ */
-const CAR_TINTS = ["#d9dbdc", "#9c2f25", "#2b4f74", "#232323", "#8a9297", "#f2f2f2", "#3c5e47", "#c8a24a", "#5b3a75"];
-const LUX_TINTS = ["#0d0d0d", "#c9a227", "#9c0018", "#f1f1f1", "#1a3561"];
 const BODY_TINTS = ["#ffffff", "#f3ead9", "#ece1cc", "#f8f3ea", "#e6dac3", "#efe6d6"];
-let traffic = [], trafficMesh = null;
+let traffic = [], trafficSets = [], walkers = [], walkerMesh = null;
+const CURB = .58, LAWN = .6;   // sidewalk top and garden level, the street is at .3
+const TRAFFIC_MIX = ["mini", "mini", "station", "station", "shakshuka", "pita", "tramp", "caravan", "gt"];
+const SHIRTS = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8", "#222831", "#ef7f9f", "#1f6f8b"];
+// pedestrians walk around the sidewalk of their block
+function placeWalker(w, o, t) {
+  const hx = 20.3, hz = 10.3, per = 4 * (hx + hz), d = ((w.p * per + w.dir * w.v * t) % per + per) % per;
+  let x, z, r;
+  if (d < 2 * hx) { x = -hx + d; z = -hz; r = Math.PI / 2; } else if (d < 2 * hx + 2 * hz) { x = hx; z = -hz + d - 2 * hx; r = 0; }
+  else if (d < 4 * hx + 2 * hz) { x = hx - (d - 2 * hx - 2 * hz); z = hz; r = -Math.PI / 2; } else { x = -hx; z = hz - (d - 4 * hx - 2 * hz); r = Math.PI; }
+  o.position.set(w.cx + x, CURB + Math.abs(Math.sin(t * 6 + w.ph)) * .06, w.cz + z); o.rotation.set(0, w.dir > 0 ? r : r + Math.PI, 0); o.scale.set(1, 1, 1);
+}
 
 const FLAGS = [];
 const flagTex = (() => { const cv = document.createElement("canvas"); cv.width = 300; cv.height = 200; const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
@@ -498,22 +639,31 @@ const POOL_MAT = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, de
     g.addColorStop(0, "rgba(255,200,120,.9)"); g.addColorStop(1, "rgba(255,200,120,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
 
 function buildCities() {
-  const open = S.slots.filter(s => s.city), asphalt = [], walk = [], lawn = [], dashes = [], lamps = new Map();
+  const open = S.slots.filter(s => s.city), asphalt = [], walk = [], curbs = [], lawn = [], dashes = [], hedges = [], lamps = new Map();
+  walkers = [];
   for (const slot of open) {
     const taken = new Set(S.houses.filter(h => h.slot === slot && h.lot).map(h => `${h.lot.x},${h.lot.z}`));
     for (const b of slot.blocks.values()) {
       const cx = slot.x + b.bx * BX, cz = slot.z + b.bz * BZ;
-      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, 22, b.civic ? "#d8cfbd" : "#c7c0b2"]);
-      if (!b.civic) for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) {
-        const x = cx - 15 + i * 10, z = cz - 5 + j * 10, t = taken.has(`${x},${z}`);
-        lawn.push([x, z, 9.3, 9.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
+      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, 22, b.civic ? "#d8cfbd" : "#c9c2b4"]); curbs.push([cx, cz, 42.6, 22.6, "#9b978f"]);
+      if (!b.civic) {
+        for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) {
+          const x = cx - 15 + i * 10, z = cz - 5 + j * 10, t = taken.has(`${x},${z}`);
+          lawn.push([x, z, 9.3, 9.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
+          if (t) { hedges.push([x, z - (j ? -4.55 : 4.55) * -1, 9.2, .8, .35]); if (i < 3 && taken.has(`${x + 10},${z}`)) hedges.push([x + 5, z, .35, .7, 8.6]); }
+        }
+        for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
       }
       for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - 14, 3.2, .3, "#e8e3d4"]);
-      for (const [dx, dz] of [[-21.5, -11.5], [21.5, 11.5]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
+      for (const [dx, dz] of [[-20.6, -10.6], [20.6, 10.6]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
     }
   }
   const flatList = (list, y) => instanced(P.plane, list, ([x, z, w, d, c], o) => { o.position.set(x, y, z); o.scale.set(w, 1, d); return c; }, { shadow: false });
-  flatList(asphalt, .3); flatList(dashes, .33); flatList(walk, .37); flatList(lawn, .43);
+  flatList(asphalt, .3); flatList(dashes, .33); flatList(lawn, LAWN);
+  // raised sidewalks with a darker curb stone, like a real street
+  const slabs = (list, y0, y1) => instanced(P.slab, list, ([x, z, w, d, c], o) => { o.position.set(x, y0, z); o.scale.set(w, y1 - y0, d); return c; }, { shadow: false });
+  slabs(curbs, .3, CURB - .04); slabs(walk, .3, CURB);
+  instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
 
   // highways from the capital to every city and to the coast
   const cap = open[0];
@@ -527,28 +677,28 @@ function buildCities() {
 
   // houses
   const groups = {};
-  for (const h of S.houses) if (h.lot) (groups[`${h.tier}_${h.style}`] ||= []).push(h);
+  for (const h of S.houses) if (h.lot) (groups[h.hk] ||= []).push(h);
   for (const [key, list] of Object.entries(groups)) {
-    const m = instanced(P[key], list, (h, o) => { o.position.set(h.x, .43, h.z); o.rotation.y = h.lot.face; return BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; });
+    const m = instanced(P[key], list, (h, o) => { o.position.set(h.x, LAWN, h.z); o.rotation.y = h.lot.face; return BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; });
     Object.assign(m.userData, { type: "house", items: list }); S.picks.push(m);
   }
-  // parked cars
-  for (const tier of [1, 2, 3]) {
-    const list = S.houses.filter(h => h.lot && h.car === tier);
-    const m = instanced(P["c" + tier], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
-      o.position.set(h.x + 3.9 * cs + 2.6 * sn, .43, h.z - 3.9 * sn + 2.6 * cs); o.rotation.y = h.lot.face;
-      const pal = tier === 3 ? LUX_TINTS : CAR_TINTS; return pal[hash(h.u + "car") % pal.length]; });
+  // parked cars: every model in the owner's color
+  for (const key of CAR_KEYS) {
+    const list = S.houses.filter(h => h.lot && h.cm === key); if (!list.length) continue;
+    const zo = Math.min(2.6, 4.4 - CARS[key].L / 2);
+    const m = instanced(P["car_" + key], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
+      o.position.set(h.x + 3.9 * cs + zo * sn, LAWN, h.z - 3.9 * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; });
     Object.assign(m.userData, { type: "house", items: list }); S.picks.push(m);
   }
   // gardens
   const back = (h, k) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return [h.x - k * cs - k * sn, h.z + k * sn - k * cs]; };
-  instanced(P.olive, S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), (h, o) => { const [x, z] = back(h, 3.6); o.position.set(x, .43, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; });
-  instanced(P.palm, S.houses.filter(h => h.lot && h.tier === 3), (h, o) => { const [x, z] = back(h, 4.2); o.position.set(x, .43, z); });
+  instanced(P.olive, S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), (h, o) => { const [x, z] = back(h, 3.6); o.position.set(x, LAWN, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; });
+  instanced(P.palm, S.houses.filter(h => h.lot && h.tier === 3), (h, o) => { const [x, z] = back(h, 4.2); o.position.set(x, LAWN, z); });
   // street lamps + pools of light
   const L = [...lamps.values()];
-  instanced(P.lamp, L, (l, o) => { o.position.set(l.x, .37, l.z); o.rotation.y = l.r; });
+  instanced(P.lamp, L, (l, o) => { o.position.set(l.x, CURB, l.z); o.rotation.y = l.r; });
   const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), POOL_MAT, Math.max(1, L.length)); pools.count = L.length;
-  L.forEach((l, i) => { o3.position.set(l.x + (l.r ? -1 : 1), .5, l.z); o3.rotation.set(0, 0, 0); o3.scale.set(16, 1, 16); o3.updateMatrix(); pools.setMatrixAt(i, o3.matrix); });
+  L.forEach((l, i) => { o3.position.set(l.x + (l.r ? -1 : 1), CURB + .05, l.z); o3.rotation.set(0, 0, 0); o3.scale.set(16, 1, 16); o3.updateMatrix(); pools.setMatrixAt(i, o3.matrix); });
   world.add(pools);
 
   // traffic
@@ -559,10 +709,12 @@ function buildCities() {
     const r0 = rng(slot.at + 3);
     for (const [bz, r] of [...rows.entries()].sort((a, b) => Math.abs(a[0]) - Math.abs(b[0])).slice(0, 8)) {
       const z = slot.z + bz * BZ - 14, x0 = slot.x + r.min * BX - BX / 2, x1 = slot.x + r.max * BX + BX / 2;
-      for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: CAR_TINTS[Math.floor(r0() * CAR_TINTS.length)] });
+      for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
     }
   }
-  trafficMesh = instanced(P.c2, traffic, (t, o) => { o.position.set(t.x0 + t.p, .3, t.z); o.rotation.y = t.dir * Math.PI / 2; return t.c; });
+  trafficSets = [...new Set(traffic.map(t => t.m))].map(k => { const list = traffic.filter(t => t.m === k);
+    return { list, mesh: instanced(P["car_" + k], list, (t, o) => { o.position.set(t.x0 + t.p, .3, t.z); o.rotation.y = t.dir * Math.PI / 2; return t.c; }) }; });
+  walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false });
 
   open.forEach((slot, si) => { plaza(slot, si === 0); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
   // future city sites that are already on the island
@@ -581,9 +733,9 @@ function plaza(slot, isCap) {
   solid([cyl(5.5, 5.8, .8, 28, "#d6cab0"), cyl(4.8, 4.8, .3, 28, "#3fa8cf", 0, .62, 0), cyl(.8, 1, 2.2, 12, "#d6cab0"), cyl(1.6, 1.4, .3, 14, "#3fa8cf", 0, 2.2, 0),
     ...[[-14, -5], [14, -5], [-14, 5], [14, 5]].map(([a, b]) => box(3, .5, 1, "#7a5232", a, .4, b)),
     cyl(.2, .25, isCap ? 26 : 14, 8, "#d0d0d0", 12, 0, 0),
-    ...posts.map(([a, b]) => cyl(.08, .1, 4.9, 6, "#4a5056", a, 0, b)), ...posts.map(([a, b]) => box(.3, .2, .3, "*#fff1c2", a, 4.9, b))], x, z, 0, { type: "slot", slot });
-  const f = flagMesh(isCap ? 9 : 5, isCap ? 6 : 3.3); f.position.set(x + 12.2 + (isCap ? 4.5 : 2.5), isCap ? 22.8 : 12, z); world.add(f); FLAGS.push(f);
-  instanced(P.tree, [[-17, -8], [17, -8], [-17, 8], [17, 8]], ([a, b], o) => { o.position.set(x + a, .37, z + b); o.scale.setScalar(.85); });
+    ...posts.map(([a, b]) => cyl(.08, .1, 4.9, 6, "#4a5056", a, 0, b)), ...posts.map(([a, b]) => box(.3, .2, .3, "*#fff1c2", a, 4.9, b))], x, z, 0, { type: "slot", slot }, CURB);
+  const f = flagMesh(isCap ? 9 : 5, isCap ? 6 : 3.3); f.position.set(x + 12.2 + (isCap ? 4.5 : 2.5), (isCap ? 22.8 : 12) + CURB, z); world.add(f); FLAGS.push(f);
+  instanced(P.tree, [[-17, -8], [17, -8], [-17, 8], [17, 8]], ([a, b], o) => { o.position.set(x + a, CURB, z + b); o.scale.setScalar(.85); });
 }
 
 /* ============================ GOVERNMENT & WORK ============================ */
@@ -596,7 +748,7 @@ function govBuilding(id, x, z) {
     ...[2.5, 6, 9.2].flatMap(y => wins([-10, -6.5, -3, 3, 6.5, 10], y, 5.55, 1.6, 1.8)), box(3, 3, .12, "#3b2a1a", 0, 0, 8.05), box(9, .2, 5, "#4f7a3f", -14, 0, 7)];
   else parts = [box(28, 9, 13, "#dde5ea", 0, 0, -1), box(28.6, .6, 13.6, "#95a9b5", 0, 9, -1), box(6, 3.5, .15, GLASS, 0, 0, 5.6), box(8, .6, 3, "#1f6f8b", 0, 3.7, 6.6),
     ...[1.8, 5.2].flatMap(y => wins([-11, -7.5, -4, 4, 7.5, 11], y, 5.55, 2.2, 2))];
-  const g = GOV.find(q => q.id === id), grp = solid(parts, x, z, 0, { type: "gov", id });
+  const g = GOV.find(q => q.id === id), grp = solid(parts, x, z, 0, { type: "gov", id }, CURB);
   const spec = { knesset: [16, 1.1, 9.4, 6.06, "#f6f2e8", "#2b3a4a"], pm: [12, 1.2, 10.6, 5.61, "#e5d6b8", "#3b2a1a"], interior: [13, 1.4, 7.6, 5.61, "#1f6f8b", "#ffffff"] }[id];
   mountSign(grp, sign(g.name, spec[0], spec[1], { bg: spec[4], fg: spec[5] }), 0, spec[2], spec[3]);
 }
@@ -616,7 +768,7 @@ function workBuilding(w, x, z, ry) {
   const SG = { tech: [9, 1.4, 22.3, 5.66, "#1b2a3a", "#e8f4ff"], school: [8, 1.2, 5.8, 1.1, "#ffffff", "#7a3a22"], fuel: [10, .8, 5.3, 6.13, "#c0392b", "#ffffff"],
     clinic: [8, 1.2, 3.5, 5.12, "#ffffff", "#c0392b"], garage: [10, 1, 4.4, 5.3, "#e2b33a", "#1b1b1b"], police: [9, 1, 5.15, 5.17, "#1f4e9e", "#ffffff"],
     market: [14, 1.2, 4.75, 5.32, "#d9762b", "#ffffff"], bakery: [9, .9, 4.05, 4.07, "#5a2a1a", "#f6e7c8"], cafe: [9, .9, 4.05, 4.07, "#1f3d2b", "#f1e6cf"], hummus: [9, .9, 4.05, 4.07, "#3a2a10", "#ffd75a"] }[k] || [9, .9, 4, 4.1, "#ffffff", "#1b2430"];
-  const grp = solid(Q, x, z, ry, { type: "work", w });
+  const grp = solid(Q, x, z, ry, { type: "work", w }, CURB);
   mountSign(grp, sign(w.name, SG[0], SG[1], { bg: SG[4], fg: SG[5] }), 0, SG[2], SG[3]);
 }
 function buildCivic() {
@@ -628,12 +780,12 @@ function buildCivic() {
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
       const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; workBuilding(w, w.x, w.z, 0);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
-      const r = rng(w.id * 7 + 1); for (let k = 0; k < 4; k++) if (r() < .7) parked.push({ x: sp[0] + 10 + (k % 2) * 6, z: sp[1] - 4.5 + Math.floor(k / 2) * 9, c: CAR_TINTS[Math.floor(r() * CAR_TINTS.length)], f: k < 2 ? 0 : Math.PI });
+      const r = rng(w.id * 7 + 1); for (let k = 0; k < 4; k++) if (r() < .7) parked.push({ x: sp[0] + 10 + (k % 2) * 6, z: sp[1] - 4.5 + Math.floor(k / 2) * 9, c: COLORS[COLOR_KEYS[Math.floor(r() * 10)]][0], f: k < 2 ? 0 : Math.PI, m: TRAFFIC_MIX[Math.floor(r() * 6)] });
     });
   });
-  instanced(P.plane, lots, ([x, z], o) => { o.position.set(x, .46, z); o.scale.set(13, 1, 19); return "#565c63"; }, { shadow: false });
-  instanced(P.tree, parks, ([x, z], o) => { o.position.set(x, .4, z); o.scale.setScalar(.9); });
-  instanced(P.c2, parked, (c, o) => { o.position.set(c.x, .46, c.z); o.rotation.y = c.f; return c.c; });
+  instanced(P.plane, lots, ([x, z], o) => { o.position.set(x, CURB + .02, z); o.scale.set(13, 1, 19); return "#565c63"; }, { shadow: false });
+  instanced(P.tree, parks, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.9); });
+  for (const k of new Set(parked.map(c => c.m))) instanced(P["car_" + k], parked.filter(c => c.m === k), (c, o) => { o.position.set(c.x, CURB + .02, c.z); o.rotation.y = c.f; return c.c; });
 }
 
 /* ============================ PUBLIC LOTS & PROJECTS ============================ */
@@ -677,7 +829,7 @@ function projectModel(kind) {
   }
   return Q;
 }
-const Y0 = .38; // public lots sit on top of the city's paving
+const Y0 = CURB + .01; // public lots sit on top of the city's paving
 function buildPublic() {
   const trees = [];
   S.slots.filter(s => s.city).forEach(slot => {
@@ -774,7 +926,7 @@ function clearWorld() {
   }
 }
 function buildWorld() {
-  clearWorld(); layout();
+  clearWorld(); layout(); ACH_IDX = null;
   buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildNature();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
@@ -809,7 +961,8 @@ function applyTime() {
   sun.color.copy(lerpC(a[3], b[3], k)); sun.intensity = a[4] + (b[4] - a[4]) * k;
   hemi.intensity = a[5] + (b[5] - a[5]) * k; hemi.color.copy(sky).lerp(C("#ffffff"), .6);
   const glow = a[6] + (b[6] - a[6]) * k;
-  GLOW.emissiveIntensity = glow * 1.6; POOL_MAT.opacity = glow * .55;
+  GLOW.emissiveIntensity = glow * 1.6; GLOW_RED.emissiveIntensity = .25 + glow * 1.6; POOL_MAT.opacity = glow * .55;
+  PAINT.envMapIntensity = .15 + (1 - glow) * .85; WATER.envMapIntensity = SHALLOW.envMapIntensity = .08 + (1 - glow) * .3;
   const day = h >= 6 && h <= 18.6, ang = day ? Math.PI * (h - 6) / 12.6 : Math.PI * .3;
   SUN_DIR.set(Math.cos(ang) * .8, Math.max(.32, Math.sin(ang)), .45).normalize();
   document.body.classList.toggle("night", glow > .5);
@@ -827,7 +980,7 @@ const pin = new CSS2DObject(pinEl); pin.center.set(.5, 1); pin.visible = false; 
 function mark(h) {
   if (!h || !h.lot) { ring.visible = pin.visible = false; return; }
   const me = h === S.mine;
-  ring.material.color.set(me ? "#e07a4f" : "#0f8b8d"); ring.position.set(h.x, .55, h.z); ring.visible = true;
+  ring.material.color.set(me ? "#e07a4f" : "#0f8b8d"); ring.position.set(h.x, LAWN + .15, h.z); ring.visible = true;
   pinEl.className = "marker" + (me ? "" : " alt"); pinEl.querySelector(".bub").textContent = me ? "הבית שלך" : "@" + h.u;
   pin.position.set(h.x, h.tier === 1 ? 6 : 9, h.z); pin.visible = true;
 }
@@ -846,12 +999,13 @@ function flyTo(x, z, zoom, ms = 1200) {
 $("zin").onclick = () => setZoom(camera.zoom * 1.6);
 $("zout").onclick = () => setZoom(camera.zoom / 1.6);
 $("zfit").onclick = () => flyTo(0, 0, fitZoom());
-addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight); frustum(); controls.minZoom = fitZoom() * .75; });
+addEventListener("resize", () => { if (REEL.on) return; renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight); frustum(); controls.minZoom = fitZoom() * .75;
+  if (INT.on) { INT.cam.aspect = innerWidth / innerHeight; INT.cam.updateProjectionMatrix(); } });
 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 renderer.domElement.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; fly = null; });
 renderer.domElement.addEventListener("pointerup", e => {
-  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
+  if (INT.on || REEL.on || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObjects(S.picks, false)[0];
   if (!hit) { if (S.sel) { S.sel = null; mark(S.mine); } return; }
@@ -866,28 +1020,51 @@ renderer.domElement.addEventListener("pointerup", e => {
 });
 
 /* ============================ LOOP ============================ */
-const clock = new THREE.Clock(); let lastZoom = -1, lastTimeTick = 0;
-function loop(now) {
-  requestAnimationFrame(loop);
-  const dt = Math.min(.05, clock.getDelta()), t = clock.elapsedTime;
-  if (REEL.on) reelTick(now); else if (fly) fly(now); else controls.update();
-  const tg = controls.target, lim = (v, m) => Math.max(-m, Math.min(m, v)), cx = lim(tg.x, RX0 * S.s * 1.05), cz = lim(tg.z, RZ0 * S.s * 1.05);
-  if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
-  if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
-  if (trafficMesh && traffic.length) {
-    const twin = trafficMesh.userData.twin;
-    traffic.forEach((c, i) => { const L = c.x1 - c.x0; c.p = (c.p + c.v * dt * c.dir + L) % L; o3.position.set(c.x0 + c.p, .3, c.z); o3.rotation.set(0, c.dir * Math.PI / 2, 0); o3.scale.set(1, 1, 1); o3.updateMatrix(); trafficMesh.setMatrixAt(i, o3.matrix); if (twin) twin.setMatrixAt(i, o3.matrix); });
-    trafficMesh.instanceMatrix.needsUpdate = true; if (twin) twin.instanceMatrix.needsUpdate = true;
+const clock = new THREE.Clock(); let lastZoom = -1, lastTimeTick = 0, simT = 0;
+// everything that moves on the island; also driven frame by frame by the reel renderer
+function animate(dt) {
+  simT += dt; const t = simT;
+  for (const set of trafficSets) {
+    const ms = [set.mesh, ...set.mesh.userData.twins];
+    set.list.forEach((c, i) => { const L = c.x1 - c.x0; c.p = (c.p + c.v * dt * c.dir + L) % L; o3.position.set(c.x0 + c.p, .3, c.z); o3.rotation.set(0, c.dir * Math.PI / 2, 0); o3.scale.set(1, 1, 1); o3.updateMatrix(); for (const m of ms) m.setMatrixAt(i, o3.matrix); });
+    for (const m of ms) m.instanceMatrix.needsUpdate = true;
+  }
+  if (walkerMesh && walkers.length) {
+    const ms = [walkerMesh, ...walkerMesh.userData.twins];
+    walkers.forEach((w, i) => { placeWalker(w, o3, t); o3.updateMatrix(); for (const m of ms) m.setMatrixAt(i, o3.matrix); });
+    for (const m of ms) m.instanceMatrix.needsUpdate = true;
   }
   boats.forEach((b, i) => { b.position.y = -2.9 + Math.sin(t * 1.3 + i) * .25; b.rotation.z = Math.sin(t * .9 + i * 2) * .04; });
   for (const f of FLAGS) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w;
     for (let i = 0; i < p.count; i++) { const x = base[i * 3] + w / 2; p.array[i * 3 + 2] = Math.sin(x * 4.5 / w - t * 4) * x * .06; } p.needsUpdate = true; }
   if (ring.visible) ring.scale.setScalar(1 + Math.sin(t * 4) * .08);
-  const vis = camera.right * 2 / camera.zoom, half = Math.min(500, Math.max(40, vis * .7)), sc = sun.shadow.camera;
+}
+// the sun's shadow box follows whatever the camera is looking at
+function sunFollow(tg, vis) {
+  const half = Math.min(500, Math.max(40, vis * .7)), sc = sun.shadow.camera;
   sun.position.copy(tg).addScaledVector(SUN_DIR, 600); sun.target.position.copy(tg);
   if (sc.right !== half) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.near = 1; sc.far = 1500; sc.updateProjectionMatrix(); }
+}
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (REEL.busy) return;   // the offline reel renderer owns the renderer right now
+  const dt = Math.min(.05, clock.getDelta());
+  if (REEL.live) return reelLive(now, dt);
+  if (INT.on) {
+    INT.ctl.update(); simT += dt;
+    for (const f of INT.flags) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w;
+      for (let i = 0; i < p.count; i++) { const x = base[i * 3] + w / 2; p.array[i * 3 + 2] = Math.sin(x * 4.5 / w - simT * 4) * x * .06; } p.needsUpdate = true; }
+    if (INT.tag) { INT.tag.quaternion.copy(INT.cam.quaternion); INT.tag.position.y = 2.9 + Math.sin(simT * 2.5) * .08; }
+    return renderer.render(INT.sc, INT.cam);
+  }
+  if (fly) fly(now); else controls.update();
+  const tg = controls.target, lim = (v, m) => Math.max(-m, Math.min(m, v)), cx = lim(tg.x, RX0 * S.s * 1.05), cz = lim(tg.z, RZ0 * S.s * 1.05);
+  if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
+  if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
+  animate(dt);
+  sunFollow(tg, camera.right * 2 / camera.zoom);
   if (camera.zoom !== lastZoom) { lastZoom = camera.zoom; for (const l of LABELS) l.visible = lastZoom >= l.userData.minZ; }
-  renderer.render(scene, camera); if (REEL.on) reelComposite(); else labelRenderer.render(scene, camera);
+  renderer.render(scene, camera); labelRenderer.render(scene, camera);
 }
 
 /* ============================ DRAWER ============================ */
@@ -921,7 +1098,8 @@ const GO = {
       ${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}
       ${li("ideas", "🏗️", "נבנה לפי בקשתכם", `${fmtN(S.projects.filter(p => p.status === "done").length)} נחנכו · ${fmtN(S.projects.filter(p => p.status !== "done").length)} בבנייה`)}
       ${li("people", "👋", "התושבים", "החדשים והמייסדים")}
-      ${li("studio", "🎬", "סטודיו רילים", "האתר מצלם ועורך לבד סרטון מוכן לאינסטגרם")}
+      ${li("top", "🏆", "טבלאות המדינה", "העשירים ובעלי ההישגים")}
+      ${li("studio", "🎬", "סטודיו רילים", ADMIN ? "👑 כל התבניות" : "ריל אישי של הבית שלך")}
       ${li("time", "🕐", "השעה במדינה", "יום ולילה לפי שעון ישראל")}
       ${li("symbols", "🏳️", "סמלי המדינה", "הדגל והמוטו")}</div>
     <div class="sec">מבני ממשלה</div><div class="list">${GOV.map(g => li("gov", g.ic, g.name, "", g.id)).join("")}</div>
@@ -930,12 +1108,12 @@ const GO = {
   mine: () => { if (S.mine) { S.sel = null; mark(S.mine); goTo(S.mine.x, S.mine.z, 7, () => showHouse(S.mine)); } else { $("q").focus(); toast("הקלידו את שם המשתמש שלכם באינסטגרם"); } },
   how: () => open("איך מתאזרחים?", `
     <div class="list">${info("1️⃣", `עוקבים אחרי ‎@${INSTAGRAM}`, "באינסטגרם")}${info("2️⃣", "שולחים את המילה ״אזרחות״", "בהודעה פרטית או בתגובה לריל")}${info("3️⃣", "מקבלים בית, רכב ועבודה", "עם כתובת קבועה באחת הערים")}</div>
-    <div class="hero" style="margin-top:12px"><p><b>מתחילים צנוע, משדרגים בדרך.</b> כל יום מוגרלים וילה, רכב יוקרה, קידום, עבודה חדשה ומינוי לשר.</p></div>
+    <div class="hero" style="margin-top:12px"><p><b>מתחילים צנוע, משדרגים בדרך.</b> כל יום עבודה מכניס משכורת בסבבונים ${COIN}, ואיתם קונים רכב חדש בצבע שבוחרים או משדרגים את הבית. וכל יום מוגרלים וילה, רכב יוקרה, קידום, מענק כספי ומינוי לשר.</p></div>
     <div class="hero" style="margin-top:8px"><p><b>הבית עוד לא מופיע?</b> משרד הפנים מאשר בקשות פעם-פעמיים ביום. עברו יותר מ־24 שעות? ודאו שאתם עוקבים ושלחו שוב.</p></div>
     <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">לאינסטגרם</a></div>`, null, sub()),
   draws: () => {
     const byDay = new Map(); for (const d of S.draws) { if (!byDay.has(d.draw_date)) byDay.set(d.draw_date, []); byDay.get(d.draw_date).push(d); }
-    open("ההגרלה היומית", `<div class="hero"><p><b>כל יום, חמישה פרסים בין כל התושבים.</b> הזוכים משודרגים על המפה מיד.</p></div>
+    open("ההגרלה היומית", `<div class="hero"><p><b>כל יום, שישה פרסים בין כל התושבים.</b> הזוכים משודרגים על המפה מיד.</p></div>
       <div class="list" style="margin-top:8px">${Object.values(PRIZES).map(([ic, t]) => info(ic, t)).join("")}</div>
       ${[...byDay.entries()].slice(0, 7).map(([day, list]) => `<div class="sec">${fmtDate(day)}</div><div class="list">${list.map(d => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize], u = d.citizens?.ig_username || "";
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
@@ -1014,35 +1192,393 @@ function showSlot(sl) {
 function showWork(w) {
   const staff = [...w.staff].sort((a, b) => b.level - a.level || a.id - b.id), boss = staff[0];
   open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
+    <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button></div>
     <div class="list" style="margin-top:10px">${boss && boss.level > 1 ? person(boss, LEVEL[Math.min(4, boss.level)]) : info("👔", "אין עדיין הנהלה", "הקידום הבא בהגרלה יכול להגיע מכאן")}</div>
     ${staff.length ? `<div class="sec">הצוות</div><div class="list">${staff.slice(0, 40).map(h => person(h, h.level > 1 ? LEVEL[Math.min(4, h.level)] : ROLE[w.kind] || "")).join("")}</div>` : ""}`);
 }
 function showHouse(h) {
-  const me = S.mine === h, mins = S.gov.filter(m => m.citizens?.ig_username === h.u), wins = S.draws.filter(d => d.citizens?.ig_username === h.u);
+  const me = S.mine === h, key = me && keyOf(h.u), mins = S.gov.filter(m => m.citizens?.ig_username === h.u), wins = S.draws.filter(d => d.citizens?.ig_username === h.u), done = collectedToday(h);
+  const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>`;
+  const owner = !me || h.coins == null ? "" : key
+    ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
+       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
+    : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
   open(me ? "הבית שלך" : `‎@${h.u}`, `
-    <div class="hero"><p style="font-size:13px">כתובת</p><div style="font-size:20px;font-weight:800;margin-top:2px">${esc(addressOf(h))}</div><p style="font-size:13px;margin-top:4px">תושב/ת #${fmtN(h.id)}</p></div>
+    <div class="hero"><p style="font-size:13px">כתובת</p><div style="font-size:20px;font-weight:800;margin-top:2px">${esc(addressOf(h))}</div><p style="font-size:13px;margin-top:4px">תושב/ת #${fmtN(h.no || h.id)}</p></div>
+    ${wallet}${owner}
     <div class="list" style="margin-top:10px">
-      ${info(h.tier === 3 ? "🏡" : "🏠", HOUSE_NAMES[`${h.tier}_${h.style}`], h.tier === 3 ? "זכייה בהגרלה ✨" : h.tier === 2 ? "בית משודרג" : "בית התחלתי")}
-      ${info(h.car === 3 ? "🏎️" : "🚗", CAR_NAMES[h.car], "חונה ליד הבית")}
+      ${info(h.tier === 3 ? "🏡" : "🏠", HOUSE_NAMES[h.hk], h.tier === 3 ? "דרגת יוקרה ✨" : h.tier === 2 ? "בית משודרג" : "בית התחלתי")}
+      ${info(h.car === 3 ? "🏎️" : "🚗", `${CARS[h.cm].name} <i class="dot" style="background:${h.cc}"></i>`, `${CARS[h.cm].cls} · ${COLORS[h.ck][1]}`)}
       ${h.wp ? li("work", KIND_IC[h.wp.kind] || "💼", esc(jobTitle(h)), esc(cityName(h.wp.city_id)), h.wp.id) : info("💼", "מחפש/ת עבודה")}
       ${mins.map(m => info("🏛️", esc(m.ministry), `מונה ב־${fmtDate(m.appointed_at)}`)).join("")}
       ${wins.length ? info("🎟️", "זכה/תה בהגרלה", wins.map(d => (PRIZES[d.prize] || ["", d.prize])[1]).join(", ")) : ""}
       ${S.projects.filter(p => p.requested_by === h.u).map(p => li("project", "💡", `יזם/ית: ${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}`, p.status === "done" ? "ההצעה שלו/ה נבנתה!" : "ההצעה שלו/ה בבנייה", p.id)).join("")}
     </div>
-    <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button><button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}</div>`,
-    () => { const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
+    ${achHtml(h)}
+    <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button>${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}</div>
+    ${h.wp ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">🚪 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button></div>` : ""}`,
+    () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
-async function idCard(u) {
-  const h = S.byUser.get(u); let row = null;
-  try { row = (await api(`citizens?select=id,ig_username,created_at&ig_username=eq.${encodeURIComponent(u)}`))[0]; } catch {}
-  if (!row || !h) return toast("לא הצלחנו לטעון את התעודה");
-  open("תעודת זהות", `<div class="idc"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
-      <div class="idc-num">${pad(row.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
-      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(row.ig_username)}</span></div><div><small>תאריך התאזרחות</small><span>${fmtDate(row.created_at)}</span></div>
-      <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>
-    <div class="btns"><button class="btn" id="dl">📲 תמונה לסטורי</button><button class="btn ghost" id="cp">🔗 העתק קישור</button></div>`,
-    () => { $("dl").onclick = () => story(row, h); $("cp").onclick = async () => { try { await navigator.clipboard.writeText(`${location.origin}/?u=${encodeURIComponent(row.ig_username)}`); toast("הקישור הועתק"); } catch {} }; }, true);
+/* ============================ ACHIEVEMENTS ============================ */
+const daysSince = d => d ? Math.floor((Date.now() - new Date(d).getTime()) / 864e5) : 0;
+let ACH_IDX = null;   // who did what, rebuilt after every data load
+function achIndex() {
+  if (ACH_IDX) return ACH_IDX;
+  const set = f => new Set(f.filter(Boolean));
+  const mins = S.gov.map(m => [m.citizens?.ig_username, m.ministry]);
+  return ACH_IDX = {
+    founders: set(S.cities.map(c => c.founder_username)), builders: set(S.projects.filter(p => p.status === "done").map(p => p.requested_by)),
+    lawmakers: set(S.laws.map(l => l.proposed_by)), pms: set(mins.filter(m => /ראש/.test(m[1])).map(m => m[0])), ministers: set(mins.filter(m => !/ראש/.test(m[1])).map(m => m[0])),
+    lucky: set(S.draws.map(d => d.citizens?.ig_username)) };
 }
+const ACH = [
+  { id: "first100", ic: "🥇", t: "מאה הראשונים", how: "היה/תה בין 100 התושבים הראשונים", test: h => h.no <= 100 },
+  { id: "first1000", ic: "🎖️", t: "אלף הראשונים", how: "היה/תה בין 1,000 התושבים הראשונים", test: h => h.no <= 1000 },
+  { id: "builder", ic: "💡", t: "ההצעה שלי נבנתה", how: "תגובה שלך ניצחה ונבנה לפיה משהו במדינה", test: h => achIndex().builders.has(h.u) },
+  { id: "founder", ic: "🏙️", t: "נתנ/ה שם לעיר", how: "השם שהצעת ניצח בהצבעה על עיר חדשה", test: h => achIndex().founders.has(h.u) },
+  { id: "lawmaker", ic: "📜", t: "מחוקק/ת", how: "חוק שהצעת נכנס לספר החוקים", test: h => achIndex().lawmakers.has(h.u) },
+  { id: "pm", ic: "👑", t: "כיהן/ה כראש ממשלה", how: "מונית לראש/ת הממשלה", test: h => achIndex().pms.has(h.u) },
+  { id: "minister", ic: "🏛️", t: "שר/ה בממשלה", how: "זכית במינוי לשר/ה בהגרלה", test: h => achIndex().ministers.has(h.u) },
+  { id: "lucky", ic: "🍀", t: "בר/ת מזל", how: "זכית בהגרלה היומית", test: h => achIndex().lucky.has(h.u) },
+  { id: "ceo", ic: "📈", t: "מנכ״ל/ית", how: "הגיעו לדרגה הכי גבוהה בעבודה", test: h => h.level >= 4, prog: h => [h.level, 4] },
+  { id: "villa", ic: "🏡", t: "בעל/ת וילה", how: "גרים בבית מהדרגה העליונה", test: h => h.tier === 3 },
+  { id: "luxcar", ic: "🏎️", t: "רכב יוקרה", how: "נוהגים ברכב מדרגת יוקרה", test: h => h.car === 3 },
+  { id: "upgrade", ic: "🛠️", t: "שדרוג ראשון", how: "שדרגו את הבית או הרכב בחנות", test: h => h.tier > 1 || h.car > 1 },
+  { id: "style", ic: "🎨", t: "בסטייל", how: "בחרו צבע לרכב בחנות", test: h => h.painted },
+  { id: "rich", ic: "💰", t: "עשיר/ה", how: "צברו 10,000 סבבונים", test: h => (h.coins || 0) >= 10000, prog: h => [h.coins || 0, 10000] },
+  { id: "streak", ic: "🔥", t: "שבוע ברצף", how: "אספו משכורת 7 ימים ברצף", test: h => h.best >= 7, prog: h => [h.best, 7] },
+  { id: "veteran", ic: "🗓️", t: "ותיק/ה", how: "30 יום במדינה", test: h => daysSince(h.joined) >= 30, prog: h => [daysSince(h.joined), 30] }
+];
+function achievements(h) { const got = [], todo = []; if (!h) return { got, todo }; for (const a of ACH) (a.test(h) ? got : todo).push(a); return { got, todo }; }
+const richest = () => S.houses.filter(h => h.coins != null && h.lot).sort((a, b) => b.coins - a.coins || a.id - b.id);
+function achHtml(h) {
+  const { got, todo } = achievements(h);
+  const goals = todo.filter(a => a.prog).map(a => ({ a, p: a.prog(h) })).sort((x, y) => y.p[0] / y.p[1] - x.p[0] / x.p[1]).slice(0, 3);
+  return `<div class="sec">הישגים · ${fmtN(got.length)} מתוך ${ACH.length}</div>
+    <div class="ach">${[...got, ...todo].map(a => `<button class="${got.includes(a) ? "on" : ""}" data-how="${esc((got.includes(a) ? "✅ " : "🔒 ") + a.how)}"><span>${a.ic}</span><small>${a.t}</small></button>`).join("")}</div>
+    ${goals.length ? `<div class="sec">היעדים הבאים</div><div class="list">${goals.map(({ a, p }) => `<div class="li"><span class="ic">${a.ic}</span><span class="tx"><b>${a.t}</b><small>${a.how}</small><div class="bar sm"><i style="width:${Math.max(3, Math.min(100, p[0] / p[1] * 100))}%"></i></div></span><span class="chev" style="font-size:12px">${fmtN(Math.min(p[0], p[1]))}/${fmtN(p[1])}</span></div>`).join("")}</div>` : ""}`;
+}
+function wireAch() { $("dBody").querySelectorAll(".ach button").forEach(b => b.onclick = () => toast(b.dataset.how, 3200)); }
+
+/* ============================ WALLET & SHOP ============================ */
+// the personal link from Instagram carries a key (?k=...). Only its owner can collect a salary and buy.
+const MEMKEYS = {};
+const keyOf = u => { try { return localStorage.getItem("sababa_key_" + u) || MEMKEYS[u] || null; } catch { return MEMKEYS[u] || null; } };
+function saveKey(u, k) { MEMKEYS[u] = k; try { localStorage.setItem("sababa_key_" + u, k); } catch {} }
+function dropKey(u) { delete MEMKEYS[u]; try { localStorage.removeItem("sababa_key_" + u); } catch {} }
+async function rpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
+}
+const israelDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date());
+const collectedToday = h => h.last && String(h.last).slice(0, 10) === israelDate();
+const rowOf = h => S.raw.find(c => c.id === h.id);
+// update one citizen locally after a purchase or salary, and redraw the island if their house or car changed
+function patchCitizen(h, patch, rebuild) {
+  const row = rowOf(h); if (row) Object.assign(row, patch);
+  if (rebuild) { buildWorld(); return S.byUser.get(h.u); }
+  if ("coins" in patch) h.coins = patch.coins; if ("streak" in patch) h.streak = patch.streak; if ("last_collected" in patch) h.last = patch.last_collected; if ("best_streak" in patch) h.best = patch.best_streak;
+  return h;
+}
+const ERR = { funds: "אין מספיק סבבונים 🪙", owned: "זה כבר שלך 😉", unauthorized: "הקישור האישי לא תקין. שלחו ״אזרחות״ באינסטגרם כדי לקבל קישור חדש", already: "כבר אספת היום. המשכורת הבאה מחר 🌅", bad_color: "צבע לא מוכר", bad_item: "המוצר לא קיים" };
+async function collect(u) {
+  const h = S.byUser.get(u), k = keyOf(u); if (!h || !k) return;
+  try {
+    const r = await rpc("collect_salary", { username: u, key: k });
+    if (!r.ok) { if (r.error === "unauthorized") dropKey(u); if (r.error === "already") patchCitizen(h, { last_collected: israelDate() }); toast(ERR[r.error] || "משהו השתבש"); return showHouse(h); }
+    const nh = patchCitizen(h, { coins: r.coins, streak: r.streak, best_streak: Math.max(h.best, r.streak), last_collected: israelDate() });
+    toast(`💼 +${fmtN(r.paid)} ${COIN} נכנסו לארנק${r.days > 1 ? ` (${fmtN(r.days)} ימים)` : ""}${r.bonus ? ` · 🔥 בונוס רצף ${fmtN(r.bonus)}` : ""}`, 4000);
+    showHouse(nh);
+  } catch { toast("אין חיבור כרגע. נסו שוב בעוד רגע"); }
+}
+async function purchase(u, item, color) {
+  const h = S.byUser.get(u), k = keyOf(u); if (!h || !k) return;
+  try {
+    const r = await rpc("buy", { username: u, key: k, item, color: color || null });
+    if (!r.ok) { if (r.error === "unauthorized") dropKey(u); return toast(ERR[r.error] || "משהו השתבש"); }
+    const patch = { coins: r.coins };
+    if (item.startsWith("car:")) { const m = item.slice(4); Object.assign(patch, { car_model: m, car_tier: CARS[m].tier }, color ? { car_color: color } : {}); }
+    else if (item.startsWith("house:")) { const st = item.slice(6); Object.assign(patch, { house_style: st, house_tier: +st[0] }); }
+    else patch.car_color = color;
+    const nh = patchCitizen(h, patch, true); S.mine = nh;
+    toast(item.startsWith("house:") ? `🎉 ברוכים הבאים ל${HOUSE_NAMES[item.slice(6)]}!` : item === "paint" ? `🎨 הרכב נצבע ב${COLORS[color][1]}` : `🔑 מזל טוב על ה${CARS[item.slice(4)].name}!`, 3500);
+    close(); S.sel = null; mark(nh); flyTo(nh.x, nh.z, 9, 1400); setTimeout(() => showHouse(nh), 1500);
+  } catch { toast("אין חיבור כרגע. נסו שוב בעוד רגע"); }
+}
+
+// little 3D pictures of every car and house for the shop, rendered once by a second, tiny renderer
+const THUMBS = new Map(); let TH = null;
+function thumb(key, color = "#ffffff") {
+  const id = key + color; if (THUMBS.has(id)) return THUMBS.get(id);
+  try {
+    if (!TH) {
+      const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); r.setSize(240, 150, false); r.toneMapping = THREE.ACESFilmicToneMapping;
+      const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight("#ffffff", "#8a7a60", 1.7)); const d = new THREE.DirectionalLight("#fff4e0", 2.6); d.position.set(5, 9, 7); sc.add(d);
+      sc.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), .04).texture;
+      const paint = PAINT.clone(); paint.envMapIntensity = 1;
+      TH = { r, sc, cam: new THREE.PerspectiveCamera(28, 240 / 150, .1, 400), paint, mats: { base: new THREE.MeshLambertMaterial({ vertexColors: true }), glow: new THREE.MeshLambertMaterial({ vertexColors: true }), red: new THREE.MeshLambertMaterial({ vertexColors: true }), tint: new THREE.MeshLambertMaterial({ vertexColors: true }), paint } };
+    }
+    TH.paint.color.set(color);
+    const grp = new THREE.Group(), pf = P[key];
+    for (const k of BUCKETS) if (pf[k]) grp.add(new THREE.Mesh(pf[k], TH.mats[k]));
+    grp.rotation.y = -.6; TH.sc.add(grp);
+    const bb = new THREE.Box3().setFromObject(grp), c = bb.getCenter(new THREE.Vector3()), size = bb.getSize(new THREE.Vector3()).length();
+    const dist = size / 2 / Math.tan(THREE.MathUtils.degToRad(14)) * .7;
+    TH.cam.position.copy(c).add(new THREE.Vector3(0, .45, 1).normalize().multiplyScalar(dist)); TH.cam.lookAt(c);
+    TH.r.render(TH.sc, TH.cam); const url = TH.r.domElement.toDataURL("image/png"); TH.sc.remove(grp);
+    THUMBS.set(id, url); return url;
+  } catch { return ""; }
+}
+const SHOP = { tab: "cars", color: null, confirm: null };
+GO.shop = () => {
+  const h = S.mine; if (!h) return;
+  const k = keyOf(h.u); if (!k) return toast("החנות פתוחה רק מהקישור האישי שלכם");
+  SHOP.color ||= h.ck;
+  const cc = COLORS[SHOP.color][0], coins = h.coins || 0;
+  const btn = (item, price, mine, label = "קנייה") => mine ? `<span class="own">✓ שלך</span>` : coins < price ? `<span class="need">חסרים ${fmtN(price - coins)} ${COIN}</span>`
+    : `<button class="btn buy${SHOP.confirm === item ? " sure" : ""}" data-buy="${item}">${SHOP.confirm === item ? `לאשר? ${fmtN(price)} ${COIN}` : price ? `${label} · ${fmtN(price)} ${COIN}` : "חינם"}</button>`;
+  const cars = [1, 2, 3].map(t => `<div class="sec">דרגה ${t} · ${TIER_NAMES[t]}</div><div class="shop">${CARS_BY_TIER[t].map(m => { const c = CARS[m];
+    return `<div class="item"><img alt="" src="${thumb("car_" + m, cc)}"><b>${c.name}</b><small>${c.cls}</small>${btn("car:" + m, c.price, h.cm === m)}</div>`; }).join("")}</div>`).join("");
+  const houses = [1, 2, 3].map(t => `<div class="sec">דרגה ${t} · ${t === 1 ? "בית התחלתי" : t === 2 ? "בית משודרג" : "יוקרה"}</div><div class="shop">${Object.keys(HOUSE_NAMES).filter(st => +st[0] === t).map(st =>
+    `<div class="item"><img alt="" src="${thumb(st)}"><b>${HOUSE_NAMES[st]}</b><small>${t < h.tier ? "ירידה בדרגה" : t > h.tier ? "שדרוג" : "החלפת סגנון"}</small>${btn("house:" + st, HOUSE_PRICE[st], h.hk === st, t > h.tier ? "שדרוג" : "מעבר")}</div>`).join("")}</div>`).join("");
+  open("🛒 החנות", `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div></div>
+    <div class="seg"><button class="${SHOP.tab === "cars" ? "on" : ""}" data-tab="cars">🚗 רכבים</button><button class="${SHOP.tab === "homes" ? "on" : ""}" data-tab="homes">🏠 בתים</button></div>
+    ${SHOP.tab === "cars" ? `<div class="sec">צבע: ${COLORS[SHOP.color][1]}</div><div class="swatches">${COLOR_KEYS.map(ck => `<button class="${ck === SHOP.color ? "on" : ""}" style="background:${COLORS[ck][0]}" data-color="${ck}" aria-label="${COLORS[ck][1]}"></button>`).join("")}</div>
+      <div class="list" style="margin-top:10px"><div class="li"><span class="ic">🎨</span><span class="tx"><b>לצבוע את ה${CARS[h.cm].name} שלך</b><small>${COLORS[SHOP.color][1]}</small></span>${btn("paint", 300, h.ck === SHOP.color && h.painted, "צביעה")}</div></div>${cars}` : houses}
+    <div class="hero" style="margin-top:14px"><p>כל יום עבודה מכניס משכורת, ואיסוף כמה ימים ברצף מוסיף בונוס. המדינה מחלקת גם מענקים על רעיונות טובים בתגובות 😉</p></div>`,
+    () => {
+      $("dBody").querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { SHOP.tab = b.dataset.tab; SHOP.confirm = null; stack.pop(); GO.shop(); });
+      $("dBody").querySelectorAll("[data-color]").forEach(b => b.onclick = () => { SHOP.color = b.dataset.color; SHOP.confirm = null; const y = $("dBody").scrollTop; stack.pop(); GO.shop(); $("dBody").scrollTop = y; });
+      $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = () => {
+        const item = b.dataset.buy;
+        if (SHOP.confirm !== item) { SHOP.confirm = item; const y = $("dBody").scrollTop; stack.pop(); GO.shop(); $("dBody").scrollTop = y; return; }
+        SHOP.confirm = null; b.disabled = true; b.textContent = "רגע…"; purchase(h.u, item, item.startsWith("house:") ? null : SHOP.color);
+      });
+    }, true);
+};
+GO.tx = async () => {
+  const h = S.mine; if (!h) return;
+  let rows = [];
+  try { rows = await api(`transactions?select=amount,reason,created_at&citizen_id=eq.${h.id}&order=id.desc&limit=40`); } catch {}
+  open("📒 תנועות בארנק", rows.length ? `<div class="list">${rows.map(r => info(r.amount >= 0 ? "➕" : "➖", `${r.amount >= 0 ? "+" : ""}${fmtN(r.amount)} ${COIN}`, `${esc(r.reason)} · ${fmtDate(r.created_at)}`)).join("")}</div>` : `<div class="hero"><p>עוד אין תנועות. אספו את המשכורת הראשונה 💼</p></div>`, null, true);
+};
+GO.collect = u => collect(u);
+GO.top = () => {
+  const rich = richest().slice(0, 10), byAch = S.houses.filter(h => h.lot).map(h => ({ h, n: achievements(h).got.length })).sort((a, b) => b.n - a.n || a.h.id - b.h.id).slice(0, 10);
+  open("🏆 טבלאות המדינה", `<div class="sec">💰 העשירים</div><div class="list">${rich.map((h, i) => person(h, `#${i + 1} · ${fmtN(h.coins)} ${COIN}`)).join("") || info("⏳", "עוד אין נתונים")}</div>
+    <div class="sec">🏅 הכי הרבה הישגים</div><div class="list">${byAch.map(({ h, n }, i) => person(h, `#${i + 1} · ${fmtN(n)} הישגים`)).join("") || info("⏳", "עוד אין נתונים")}</div>`, null, sub());
+};
+
+/* ============================ INSIDE THE WORKPLACE ============================ */
+// Every kind of business has its own furnished 3D interior (a cut-away "doll house" room). Employees come in once a day for a shift bonus.
+const INT = { on: false };
+const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
+function interiorOf(w) {
+  const k = w.kind, Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
+  const add = (...p) => Q.push(...p);
+  // room shell: floor, back wall (z=-6.5) and left wall (x=-9), open towards the camera
+  const room = (floor, wall, band, { tiles, planks } = {}) => {
+    add(box(18.6, .3, 13.6, floor, 0, -.3, 0), box(18.6, 5.2, .3, wall, 0, 0, -6.65), box(.3, 5.2, 13.6, wall, -9.15, 0, 0), box(18.6, 1.1, .32, band, 0, 0, -6.64), box(.32, 1.1, 13.6, band, -9.14, 0, 0),
+      box(18.6, .25, .34, "#ffffff", 0, 5.2, -6.66), box(.34, .25, 13.6, "#ffffff", -9.16, 5.2, 0));
+    if (tiles) for (let i = 0; i < 9; i++) for (let j = 0; j < 7; j++) if ((i + j) % 2) add(box(2, .02, 1.94, tiles, -8 + i * 2, 0, -5.8 + j * 1.94));
+    if (planks) for (let j = 0; j < 13; j++) add(box(18.6, .02, .5, j % 2 ? planks : floor, 0, 0, -6.2 + j));
+    // windows on the side wall, glowing a little: there's daylight outside
+    for (const z of [-2.5, 2.5]) add(box(.12, 2, 3, "*#bfe3f2", -8.98, 1.6, z), box(.2, .15, 3.2, "#ffffff", -8.95, 1.52, z), box(.2, .15, 3.2, "#ffffff", -8.95, 3.62, z));
+  };
+  const counter = (x, z, w, d, base = "#8a5a3a", top = "#ece6da", h = 1.05) => add(box(w, h - .08, d, base, x, 0, z), box(w + .1, .08, d + .1, top, x, h - .08, z));
+  const chair = (x, z, ry = 0, c = "#3a3f46") => add(box(.5, .06, .5, c, x, .5, z), box(.5, .55, .06, c, x - Math.sin(ry) * .22, .56, z - Math.cos(ry) * .22, { y: ry }), ...[[-.2, -.2], [.2, -.2], [-.2, .2], [.2, .2]].map(([a, b]) => box(.05, .5, .05, "#2a2a2a", x + a, 0, z + b)));
+  const table = (x, z, r = .6, top = "#f2efe8") => add(cyl(r, r, .06, 18, top, x, .78, z), cyl(.06, .06, .78, 8, "#333333", x, 0, z), cyl(.35, .35, .04, 14, "#333333", x, 0, z));
+  const plant = (x, z, s = 1) => add(cyl(.3 * s, .24 * s, .55 * s, 10, "#c9c3b8", x, 0, z), sph(.5 * s, "#4f8a3a", x, .95 * s, z, 1, 1.3, 1), sph(.35 * s, "#5f9a45", x + .2 * s, 1.35 * s, z - .1, 1, 1.2, 1));
+  const pendant = (x, z, y = 3.4) => add(cyl(.015, .015, 5.2 - y, 4, "#222222", x, y, z), cyl(.08, .35, .3, 14, "#2b2b2b", x, y - .3, z), sph(.12, "*#fff1c2", x, y - .3, z));
+  const shelf = (x, z, w, h, d, ry, cols, n = 4) => { const c = Math.cos(ry), s = Math.sin(ry);
+    const P2 = (dx, dz) => [x + dx * c + dz * s, z - dx * s + dz * c];
+    const [bx, bz] = P2(0, -d / 2); add(box(w, h, .06, "#d6d2c9", bx, 0, bz, { y: ry }));
+    for (let i = 0; i <= n; i++) { const y = .1 + i * (h - .2) / n; add(box(w, .05, d, "#e8e4dc", x, y, z, { y: ry }));
+      if (i < n) for (let j = 0; j < Math.floor(w / .32); j++) { const [px, pz] = P2(-w / 2 + .2 + j * .32, 0), hh = .2 + R() * .2; add(box(.24, hh, d * .7, cols[Math.floor(R() * cols.length)], px, y + .05, pz, { y: ry })); } }
+    for (const e of [-1, 1]) { const [px, pz] = P2(e * w / 2, 0); add(box(.06, h, d, "#bdb8ae", px, 0, pz, { y: ry })); } };
+  const screen = (x, y, z, w, h, ry = 0, glow = "*#5fa8e0") => add(box(w + .06, h + .06, .05, "#1a1a1a", x, y, z, { y: ry }), box(w, h, .02, glow, x + Math.sin(ry) * .03, y + .03, z + Math.cos(ry) * .03, { y: ry }));
+  const sgn = (text, w, h, x, y, z, ry = 0, bg = "#ffffff", fg = "#1b2430") => SG.push([text, w, h, x, y, z, ry, bg, fg]);
+  const name = w.name;
+
+  if (k === "bakery") {
+    room("#efe2c8", "#f6ead2", "#b8654a", { tiles: "#e2cfa8" });
+    for (const x of [2.5, 6.2]) add(box(3.2, 2.7, 1.5, "#c3c8cd", x, 0, -5.7), ...[.6, 1.3, 2].map(y => box(2.6, .38, .05, "*#ff8a3d", x, y, -4.93)), box(3.4, .25, 1.7, "#9aa0a6", x, 2.7, -5.7));
+    add(box(7.6, 1, 1.9, "#b8bec4", 4.3, 3.6, -5.6));
+    shelf(-5.2, -6.1, 5.2, 2.6, .7, 0, ["#a8652a", "#c58a3e", "#8a4f20", "#d9a35a"], 4);
+    for (let i = 0; i < 4; i++) add(box(.7, .9, .5, "#f2efe6", -1.2 + (i % 2) * .75, 0 + Math.floor(i / 2) * .9, -5.9));
+    add(box(3.6, .9, 1.6, "#9a6a40", -5, 0, -1.6), box(3.8, .1, 1.8, "#e6d8bd", -5, .9, -1.6), ...[[-6, -1.4], [-5, -1.9], [-4.1, -1.3]].map(([x, z]) => sph(.28, "#f3e6c9", x, 1.18, z, 1.3, .7, 1.1)));
+    counter(1.5, 2.2, 8, 1.3, "#7a4a2a", "#e9dfcf");
+    add(box(7.6, .7, 1.1, "*#dff1f7", 1.5, 1.05, 2.2), ...Array.from({ length: 14 }, (_, i) => sph(.2, ["#c58a3e", "#e2b35a", "#8a4f20", "#f2c9d2"][i % 4], -1.8 + (i % 7) * 1.1, 1.3, 1.9 + Math.floor(i / 7) * .5, 1.4, .6, 1)));
+    add(box(.6, .4, .5, "#2b2b2b", 5.6, 1.05, 2.4), box(.5, .3, .05, "*#7fd1a0", 5.6, 1.4, 2.2));
+    for (let i = 0; i < 3; i++) add(cyl(.4, .3, .35, 12, "#c8a165", -7.6 + i * .9, 0, 4.8), sph(.2, "#b8762e", -7.6 + i * .9, .45, 4.8, 1.6, .7, 1));
+    sgn(name, 6, 1, 0, 4.3, -6.48, 0, "#5a2a1a", "#f6e7c8"); sgn("לחם טרי מהתנור כל בוקר", 4, .9, -8.98, 3, 0, Math.PI / 2, "#2b2b2b", "#ffffff");
+    staff.push([1, -.2, 0], [4.3, -3.9, Math.PI], [-5, -.6, Math.PI], [-1.5, .8, 0], [3.2, .8, 0]);
+  } else if (k === "cafe") {
+    room("#a77b52", "#efe3cf", "#2d6e4a", { planks: "#946b45" });
+    counter(0, -4.6, 9, 1.2, "#2d6e4a", "#d8c7a8");
+    add(box(1.6, .9, .7, "#c3c8cd", -2, 1.05, -4.7), box(1.5, .12, .6, "*#ffd9a0", -2, 1.95, -4.7), ...[-2.4, -1.6].map(x => cyl(.06, .06, .3, 8, "#333333", x, .75, -4.35)),
+      cyl(.18, .14, .7, 10, "#2b2b2b", .2, 1.05, -4.7), box(2.4, .8, .9, "*#f6efe2", 2.8, 1.05, -4.6), ...Array.from({ length: 8 }, (_, i) => sph(.15, ["#8a4f20", "#e2b35a", "#f2c9d2"][i % 3], 1.9 + (i % 4) * .6, 1.25 + Math.floor(i / 4) * .35, -4.5, 1.3, .6, 1)),
+      ...Array.from({ length: 6 }, (_, i) => cyl(.12, .1, .2, 10, "#ffffff", -4 + i * .35, 1.05, -4.3)));
+    shelf(0, -6.2, 6, 2, .45, 0, ["#3b2a1a", "#7a5232", "#2d6e4a", "#e6dcc8"], 2);
+    for (const x of [-2.2, 0, 2.2]) pendant(x, -4.4);
+    for (const [x, z] of [[-5, 1], [-1, 3], [3.5, 1.6], [6, 4.2]]) { table(x, z); chair(x - .9, z, Math.PI / 2, "#5a3a26"); chair(x + .9, z, -Math.PI / 2, "#5a3a26"); }
+    add(box(3.8, .5, 1.2, "#7a3a28", -6.6, 0, 4.6), box(3.8, .9, .3, "#7a3a28", -6.6, .5, 5.15), box(1.1, .45, .7, "#2d2d2d", -6.6, 0, 3.2));
+    plant(7.8, -5.4, 1.3); plant(-8.2, -5.6, 1.1);
+    sgn("אספרסו 8 · הפוך 12 · מאפה 10", 5, 1.1, 0, 3.6, -6.48, 0, "#1f2a24", "#f1e6cf"); sgn(name, 4.6, .9, -8.98, 3.6, 0, Math.PI / 2, "#2d6e4a", "#ffffff");
+    staff.push([-1, -5.5, 0], [2, -5.5, 0], [-4.2, 1.6, -Math.PI / 2], [4.3, 2.2, -Math.PI / 2]);
+  } else if (k === "market") {
+    room("#eef1f2", "#ffffff", "#d9762b", { tiles: "#e1e6e8" });
+    for (let i = 0; i < 5; i++) add(box(2.6, 3, 1.1, "#d9dde1", -6 + i * 2.8, 0, -6), box(2.4, 2.6, .05, "*#d8eef6", -6 + i * 2.8, .2, -5.42),
+      ...Array.from({ length: 16 }, (_, j) => box(.22, .4, .22, ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8"][(i + j) % 6], -6.9 + i * 2.8 + (j % 8) * .26, .3 + Math.floor(j / 8) * 1.1, -5.7)));
+    for (const x of [-5.5, -2.2, 1.1]) shelf(x, -.5, 6, 1.9, 1, Math.PI / 2, ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8", "#ef7f4f", "#1f6f8b"], 4);
+    for (const z of [2.6, 4.8]) add(box(3, .9, .9, "#cfd4d8", 6, 0, z), box(2.2, .05, .7, "#222222", 5.6, .92, z), box(.5, .4, .4, "#2b2b2b", 7.2, .92, z), box(.4, .3, .05, "*#7fd1a0", 7.2, 1.3, z - .15));
+    for (let i = 0; i < 3; i++) add(box(1.2, .5, .9, "#a0703f", 4.2 + i * 1.3, 0, -3.2), ...Array.from({ length: 6 }, (_, j) => sph(.16, ["#e8692b", "#c0392b", "#7fb03e"][i], 3.8 + i * 1.3 + (j % 3) * .3, .62, -3.4 + Math.floor(j / 3) * .35)));
+    add(box(.9, .6, 1.3, "#9aa0a6", 3.4, .3, 5.6), cyl(.1, .1, .05, 8, "#222222", 3.1, 0, 5.2));
+    sgn(name, 6, 1, 0, 3.9, -6.48, 0, "#d9762b", "#ffffff"); sgn("מבצע: 2 חומוס ב־10", 4, .9, -8.98, 3.6, 0, Math.PI / 2, "#ffe14d", "#c0392b");
+    staff.push([6, 3.4, -Math.PI / 2], [6, 5.6, -Math.PI / 2], [-3.9, 1.5, 0], [4.8, -2.3, Math.PI]);
+  } else if (k === "school") {
+    room("#c9a77a", "#f4ead2", "#7a8fa3", { planks: "#bb966a" });
+    add(box(7, 2.4, .1, "#ffffff", 0, 1.3, -6.45), box(7.3, .12, .3, "#9aa0a6", 0, 1.2, -6.35));
+    sgn("שיעור אזרחות: איך מגדלים מדינה", 6.2, 1, 0, 2.6, -6.38, 0, "#ffffff", "#1f4e9e");
+    add(box(2.4, .8, 1, "#8a5a3a", -4.5, 0, -4.4), box(2.5, .06, 1.1, "#e6d8bd", -4.5, .8, -4.4)); chair(-4.5, -3.6, Math.PI, "#2f7fa8");
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) { const x = -4.5 + c * 3, z = -1.4 + r * 2.4; add(box(1.3, .06, .8, "#e6d8bd", x, .72, z), box(.06, .72, .06, "#444444", x - .55, 0, z - .3), box(.06, .72, .06, "#444444", x + .55, 0, z + .3), box(.06, .72, .06, "#444444", x - .55, 0, z + .3), box(.06, .72, .06, "#444444", x + .55, 0, z - .3));
+      chair(x, z + .7, Math.PI, ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a"][(r + c) % 4]); if (R() < .5) add(box(.35, .45, .2, ["#e05a4f", "#2f7fa8", "#8a5ac8"][c % 3], x + .5, 0, z + 1)); }
+    shelf(-8.6, 3, 4, 2.2, .5, Math.PI / 2, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8"], 4);
+    add(cyl(.08, .12, .5, 8, "#8a5a3a", 6.5, .8, -5.2), sph(.4, "#3f8fd0", 6.5, 1.65, -5.2), cyl(.6, .6, .05, 16, "#ffffff", 6, 4, -6.45, { x: Math.PI / 2 }), box(6, .8, .5, "#8a5a3a", 6, 0, -6));
+    staff.push([-3.2, -4.6, 0], [-4.5, -.6, Math.PI], [1.5, 1, Math.PI], [4.5, 3.4, Math.PI], [-1.5, 3.4, Math.PI]);
+  } else if (k === "clinic") {
+    room("#e8f0f2", "#ffffff", "#5fb3b3", { tiles: "#dbe6e9" });
+    counter(-4.5, 3.5, 4, 1.2, "#5fb3b3", "#f4f4f4"); screen(-4.5, 1.2, 3.3, .7, .45, Math.PI, "*#9fd6ff");
+    for (let i = 0; i < 5; i++) chair(-8.3, -3.8 + i * 1, Math.PI / 2, "#2f7fa8");
+    add(box(2.2, .7, 1, "#e0e4e6", 4.5, 0, -4.6), box(2.1, .2, .95, "#9fd3e0", 4.5, .7, -4.6), box(.7, .15, .9, "#ffffff", 3.7, .9, -4.6));
+    add(box(.05, .05, 5, "#9aa0a6", 2.6, 3.2, -3), box(.04, 2.6, 2.4, "#bfe3ea", 2.6, .5, -2.2));
+    add(box(1.6, 2.2, .6, "#f4f4f4", 7.5, 0, -6.1), box(1.5, .9, .05, "*#e8f6fb", 7.5, 1.2, -5.79), cyl(.04, .04, 1.6, 8, "#9aa0a6", 6.6, 0, -3.8)); screen(6.6, 1.7, -3.8, .6, .4, -Math.PI / 4, "*#7fe0a0");
+    add(box(.9, .2, .25, "#2fae6a", 0, 4, -6.45), box(.25, .9, .25, "#2fae6a", 0, 3.65, -6.45));
+    plant(-1.5, -5.6, 1.2); plant(7.8, 4.8, 1);
+    sgn(name, 5, .9, -3, 3.9, -6.48, 0, "#ffffff", "#c0392b"); sgn("בריאות זה הכי סבבה", 4.2, .8, -8.98, 3.6, 0, Math.PI / 2, "#5fb3b3", "#ffffff");
+    staff.push([-4.5, 2.6, 0], [3.8, -3.6, -Math.PI / 2], [6.6, -2.8, -Math.PI / 4], [-7.6, -1.8, Math.PI / 2]);
+  } else if (k === "garage") {
+    room("#9a9fa4", "#c9ccd0", "#3a3f46");
+    add(box(.15, .02, 12, "#f2c230", 2, 0, 0), box(.15, .02, 12, "#f2c230", 7, 0, 0));
+    for (const x of [2.8, 6.2]) add(box(.4, 3.4, .4, "#c0392b", x, 0, -1), box(.4, 3.4, .4, "#c0392b", x, 0, 2.5), box(.3, .15, 4, "#555555", x, 1.6, .75));
+    const car = CARS.station.parts(); for (const g of car) { g.rotateY(0); g.translate(4.5, 1.75, .75); } add(...car.map(g => { if (g.userData.kind === "paint") { const c = g.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, .17, .31, .56); g.userData.kind = "base"; } return g; }));
+    add(box(6, 2.6, .08, "#d9c39a", -4, 1.2, -6.45), ...Array.from({ length: 14 }, (_, i) => box(.12, .5 + R() * .4, .06, ["#c0392b", "#2b2b2b", "#9aa0a6", "#2f7fa8"][i % 4], -6.6 + (i % 7) * .85, 1.6 + Math.floor(i / 7) * 1.1, -6.38)));
+    add(box(4, .9, 1, "#3a3f46", -4, 0, -5.4), box(4.1, .08, 1.1, "#9aa0a6", -4, .9, -5.4), box(1.2, 1, .7, "#c0392b", -5.6, 0, -4.3), box(1.2, .5, .7, "#a52a1f", -5.6, 1, -4.3));
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 4; j++) add(cyl(.42, .42, .28, 16, "#1a1a1a", -7.6 + i * 1, j * .3, 4.5), cyl(.22, .22, .3, 12, "#5c6166", -7.6 + i * 1, j * .3 - .01, 4.5));
+    for (const [x, c] of [[-8.2, "#1f4e9e"], [-7.4, "#c0392b"]]) add(cyl(.38, .38, 1.1, 14, c, x, 0, 1.8));
+    add(box(5, 4, .1, "#8f979c", 4.5, 0, -6.45), ...Array.from({ length: 10 }, (_, i) => box(5, .05, .14, "#6f777c", 4.5, .3 + i * .38, -6.4)));
+    sgn(name, 5, .9, -4, 3.9, -6.48, 0, "#e2b33a", "#1b1b1b");
+    staff.push([3.2, 3.6, Math.PI], [-4, -4.6, Math.PI], [6.5, -1.8, -Math.PI / 2]);
+  } else if (k === "hummus") {
+    room("#c97b4f", "#f4e4c1", "#2f6fa3", { tiles: "#efe0c0" });
+    counter(0, -4.4, 10, 1.4, "#2f6fa3", "#f2ece0");
+    for (let i = 0; i < 4; i++) add(cyl(.42, .3, .25, 18, "#f4f1ea", -3.5 + i * 1.3, 1.05, -4.3), cyl(.36, .36, .03, 18, "#e8d3a2", -3.5 + i * 1.3, 1.27, -4.3), cyl(.13, .13, .03, 12, "#d9a91a", -3.5 + i * 1.3, 1.29, -4.3), sph(.05, "#3f8f3a", -3.4 + i * 1.3, 1.32, -4.25));
+    for (let i = 0; i < 8; i++) add(cyl(.38, .38, .04, 16, "#e8cf9a", 2.4, 1.05 + i * .045, -4.4));
+    add(box(1.4, .5, .9, "#c3c8cd", 4.2, 1.05, -4.4), box(1.2, .06, .7, "*#d9a13b", 4.2, 1.5, -4.4), ...Array.from({ length: 6 }, (_, i) => sph(.07, "#8a5a20", 3.8 + i * .16, 1.58, -4.35)));
+    add(box(1.6, 2.4, .8, "#c0392b", 7.6, 0, -5.9), box(1.4, 2, .05, "*#ffe9d0", 7.6, .2, -5.48), ...Array.from({ length: 12 }, (_, i) => cyl(.08, .08, .3, 8, ["#3fae6a", "#e8692b", "#2f7fa8"][i % 3], 7.1 + (i % 4) * .33, .4 + Math.floor(i / 4) * .65, -5.5)));
+    for (const [x, z] of [[-5, 1], [-1.2, 2.6], [3, 1.2], [6, 3.8], [-6, 4.6]]) { add(box(1.6, .06, 1, "#f4f1ea", x, .76, z), box(.08, .76, .08, "#555555", x, 0, z), cyl(.25, .2, .1, 12, "#f4f1ea", x - .3, .82, z), cyl(.2, .2, .02, 12, "#e8d3a2", x - .3, .9, z)); chair(x, z + .8, Math.PI, "#2f6fa3"); chair(x, z - .8, 0, "#2f6fa3"); }
+    sgn("חומוס טרי כל היום", 5.4, 1, 0, 3.6, -6.48, 0, "#3a2a10", "#ffd75a"); sgn(name, 4.4, .9, -8.98, 3.6, 0, Math.PI / 2, "#2f6fa3", "#ffffff");
+    staff.push([-2.5, -5.4, 0], [1.4, -5.4, 0], [4.2, -5.4, 0], [-4.6, 1.8, Math.PI]);
+  } else if (k === "tech") {
+    room("#d9dde1", "#ffffff", "#1b2a3a");
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) { const x = -1 + c * 3.2, z = -2.6 + r * 3.4;
+      add(box(2.8, .06, 1.3, "#f4f4f4", x, .74, z), box(.06, .74, 1.2, "#222222", x - 1.35, 0, z), box(.06, .74, 1.2, "#222222", x + 1.35, 0, z));
+      screen(x - .55, 1.05, z - .4, .9, .55, 0, ["*#5fa8e0", "*#7fe0a0", "*#c79bff"][c]); screen(x + .55, 1.05, z - .4, .9, .55, 0, "*#5fa8e0"); chair(x, z + .8, Math.PI, "#1b1b1b"); }
+    add(box(.06, 2.8, 4.6, "*#cfe6f2", -4.6, 0, -4.2), box(4.4, 2.8, .06, "*#cfe6f2", -6.8, 0, -1.9), box(2.6, .06, 1.4, "#f4f4f4", -6.8, .74, -4.2), box(.1, .74, .1, "#222222", -6.8, 0, -4.2));
+    screen(2, 2.6, -6.45, 4.4, 2.2, 0, "*#3a8fd0");
+    for (const [x, z, c] of [[5.6, 3.6, "#e05a4f"], [7, 4.6, "#f2b440"], [7.6, 2.8, "#3fae6a"]]) add(sph(.6, c, x, .4, z, 1.1, .7, 1.1));
+    add(box(2.7, .06, 1.5, "#1f6f4a", -5.8, .76, 3.8), box(.04, .15, 1.5, "#ffffff", -5.8, .82, 3.8), ...[[-6.9, 3.2], [-4.7, 4.4]].map(([x, z]) => box(.08, .76, .08, "#222222", x, 0, z)));
+    plant(8, -5.6, 1.4); plant(-8.3, 5.6, 1.2); plant(4.6, -5.8, 1);
+    sgn(name, 4.4, .9, 2, 4.4, -6.42, 0, "#1b2a3a", "#e8f4ff"); sgn("סבבה טק · עובדים מהאי", 4.6, .9, -8.98, 3.6, 2.5, Math.PI / 2, "#ffffff", "#1b2a3a");
+    staff.push([-1, -1.8, Math.PI], [2.2, 1.6, Math.PI], [5.4, -1.8, Math.PI], [-6.8, -3.4, Math.PI], [6.3, 4.2, -Math.PI / 2]);
+  } else if (k === "police") {
+    room("#cfd6dd", "#e9eef3", "#1f4e9e", { tiles: "#c3cbd3" });
+    counter(-3, 3, 6, 1.2, "#1f4e9e", "#f4f4f4"); screen(-3.8, 1.2, 2.8, .7, .45, Math.PI, "*#9fd6ff");
+    for (let i = 0; i < 3; i++) { const x = 1 + i * 2.6; add(box(2, .06, 1, "#e6e2da", x, .74, -2.4), box(.06, .74, .9, "#444444", x - .95, 0, -2.4), box(.06, .74, .9, "#444444", x + .95, 0, -2.4)); screen(x, 1.05, -2.7, .8, .5); chair(x, -1.7, Math.PI); }
+    for (let i = 0; i < 6; i++) add(box(.7, 2.2, .55, "#8f979c", -7.8 + i * .75, 0, -6.15), box(.08, .25, .05, "#cccccc", -7.6 + i * .75, 1.2, -5.86));
+    add(box(5, 2.6, .08, "#f4efe4", 4, 1.4, -6.45));
+    add(cyl(.05, .05, 2.6, 8, "#cccccc", 8.2, 0, -5.5)); const fl = flagMesh(1.5, 1); fl.position.set(8.95, 2.1, -5.5); fl.userData.int = true; INT.flags = [fl];
+    add(cyl(.25, .25, 1.2, 12, "#ffffff", -8.3, 0, 5.2), cyl(.22, .22, .5, 12, "*#bfe3f2", -8.3, 1.2, 5.2));
+    for (let i = 0; i < 4; i++) chair(-8.3, -2.6 + i * 1, Math.PI / 2, "#1f4e9e");
+    sgn(name, 4.8, .9, -3.5, 4.2, -6.48, 0, "#1f4e9e", "#ffffff"); sgn("מפת רפובליקת סבבה", 4.6, 2.2, 4, 1.55, -6.39, 0, "#e9f2f7", "#1f4e9e"); sgn("קבלת קהל", 2.6, .6, -3, 1.6, 3.62, 0, "#ffffff", "#1f4e9e");
+    staff.push([-2.4, 2, 0], [1, -1.2, Math.PI], [3.6, -1.2, Math.PI], [6.2, 1.5, -Math.PI / 2]);
+  } else {   // fuel station shop
+    room("#eef0f2", "#ffffff", "#c0392b", { tiles: "#e3e7ea" });
+    for (let i = 0; i < 4; i++) add(box(2.4, 3, 1.1, "#d9dde1", -5.4 + i * 2.6, 0, -6), box(2.2, 2.6, .05, "*#d8eef6", -5.4 + i * 2.6, .2, -5.42), ...Array.from({ length: 18 }, (_, j) => cyl(.09, .09, .34, 8, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#222222"][(i + j) % 6], -6.2 + i * 2.6 + (j % 6) * .32, .3 + Math.floor(j / 6) * .85, -5.7)));
+    for (const x of [-4.5, -1.2]) shelf(x, 0, 5, 1.6, .9, Math.PI / 2, ["#e05a4f", "#f2b440", "#3fae6a", "#8a5ac8", "#ef7f4f", "#2f7fa8"], 3);
+    counter(4.5, 2.8, 5, 1.2, "#c0392b", "#f4f4f4"); add(box(.5, .35, .45, "#2b2b2b", 6, 1.05, 2.8), box(.45, .28, .05, "*#7fd1a0", 6, 1.4, 2.58), box(1.2, .9, .8, "#3a3f46", 3.2, 1.05, 2.8), box(.9, .3, .05, "*#ffcf7a", 3.2, 1.5, 2.4));
+    for (let i = 0; i < 5; i++) add(cyl(.07, .07, .9, 8, "#c97b3a", 4.4 + i * .17, 1.15, 2.6, { z: Math.PI / 2 }));
+    sgn(name, 4.8, .9, 0, 4.1, -6.48, 0, "#c0392b", "#ffffff"); sgn("קפה הפוך + מאפה = 15", 4.4, .9, -8.98, 3.6, 0, Math.PI / 2, "#ffe14d", "#c0392b");
+    staff.push([4.5, 3.8, Math.PI], [-2.8, 2.5, Math.PI / 2], [5.4, -3, 0]);
+  }
+  return { Q, SG, staff };
+}
+function enterWork(id) {
+  const w = S.wpById.get(+id); if (!w) return;
+  close();
+  const sc = new THREE.Scene(); sc.background = new THREE.Color("#1d2430"); sc.environment = scene.environment;
+  sc.add(new THREE.HemisphereLight("#fff6ea", "#6a5a48", 1.25));
+  const dl = new THREE.DirectionalLight("#fff1dc", 2.2); dl.position.set(6, 14, 9); dl.castShadow = true; dl.shadow.mapSize.set(2048, 2048);
+  Object.assign(dl.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 40 }); dl.shadow.bias = -.0004; dl.shadow.normalBias = .03; sc.add(dl);
+  for (const [x, z] of [[-4, -2], [4, -2], [0, 3]]) { const pl = new THREE.PointLight("#ffd9a8", 18, 14, 1.6); pl.position.set(x, 4.6, z); sc.add(pl); }
+  INT.flags = [];
+  const { Q, SG, staff } = interiorOf(w), pf = prefab(Q, false);
+  for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = m.receiveShadow = true; sc.add(m); }
+  for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
+  for (const f of INT.flags) sc.add(f);
+  // people at work: the citizen in orange (if it's their workplace), colleagues around
+  const me = S.mine && S.mine.wp === w ? S.mine : null, crew = (w.staff || []).filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
+  const people = [...(me ? [{ h: me, c: "#e07a4f" }] : []), ...crew.map(h => ({ h, c: SHIRTS[hash(h.u) % SHIRTS.length] }))].slice(0, staff.length);
+  if (people.length) {
+    const im = { ...P.walker }, list = people.map((p, i) => ({ ...p, pos: staff[i] }));
+    const make = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat, list.length); m.castShadow = true; sc.add(m); return m; };
+    const meshes = BUCKETS.filter(k => im[k]).map(k => [k, make(im[k], BMAT[k])]);
+    list.forEach((p, i) => { o3.position.set(p.pos[0], 0, p.pos[1]); o3.rotation.set(0, p.pos[2], 0); o3.scale.setScalar(1.25); o3.updateMatrix();
+      for (const [k, m] of meshes) { m.setMatrixAt(i, o3.matrix); m.setColorAt(i, col3.set(k === "tint" ? p.c : "#ffffff")); } });
+    for (const [, m] of meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (me) { const tag = sign("את/ה", 1.6, .55, { bg: "#e07a4f", fg: "#ffffff" }); tag.position.set(staff[0][0], 2.9, staff[0][1]); tag.userData.face = true; sc.add(tag); INT.tag = tag; }
+  }
+  // frame the whole room, also on a narrow phone screen
+  const asp = innerWidth / innerHeight, cam = new THREE.PerspectiveCamera(asp < 1 ? 50 : 38, asp, .1, 300);
+  const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * asp), dist = Math.max(17, Math.min(38, 8.8 / Math.tan(hf)));
+  const tgt = new THREE.Vector3(-.5, 1, -.5); cam.position.copy(tgt).addScaledVector(new THREE.Vector3(13.5, 10.5, 16).normalize(), dist);
+  const ctl = new OrbitControls(cam, renderer.domElement); ctl.target.copy(tgt); ctl.enableDamping = true; ctl.minDistance = 6; ctl.maxDistance = dist * 1.3;
+  ctl.minPolarAngle = .35; ctl.maxPolarAngle = 1.3; ctl.minAzimuthAngle = -.15; ctl.maxAzimuthAngle = 1.55; ctl.enablePan = false; ctl.autoRotate = true; ctl.autoRotateSpeed = .35;
+  ctl.addEventListener("start", () => ctl.autoRotate = false);
+  controls.enabled = false;
+  Object.assign(INT, { on: true, w, sc, cam, ctl, me });
+  document.body.classList.add("inside");
+  renderIntUI();
+}
+function renderIntUI() {
+  const { w, me } = INT, key = me && keyOf(me.u), done = me && me.lastShift && String(me.lastShift).slice(0, 10) === israelDate();
+  const pay = me ? 30 + 10 * (Math.min(4, Math.max(1, me.level)) - 1) : 0;
+  $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${KIND_IC[w.kind] || "💼"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))} · ${fmtN(w.staff?.length || 0)} עובדים</small></span><button id="intX" aria-label="יציאה">✕</button></div>
+    <div class="ifoot glass">${me ? `<p><b>${esc(jobTitle(me))}</b> · משכורת יומית ${fmtN(salaryOf(me))} ${COIN}</p>
+      ${key ? `<button class="btn" id="shiftB" ${done ? "disabled" : ""}>${done ? "✅ עשית משמרת היום. נתראה מחר" : `🕘 להתחיל משמרת · +${fmtN(pay)} ${COIN}`}</button>` : `<p class="note">כדי לקבל בונוס משמרת, היכנסו מהקישור האישי שלכם</p>`}`
+      : `<p>ביקור ב${esc(w.name)}. ${S.mine ? "זה לא מקום העבודה שלך, אבל תמיד אפשר להציץ 👀" : "חפשו את הבית שלכם כדי להיכנס לעבודה שלכם"}</p>`}
+      <p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
+  $("intX").onclick = exitWork;
+  const b = $("shiftB"); if (b && !b.disabled) b.onclick = () => shift(me.u, b);
+}
+async function shift(u, b) {
+  b.disabled = true; b.textContent = "רגע…";
+  try {
+    const r = await rpc("work_shift", { username: u, key: keyOf(u) }), h = S.byUser.get(u);
+    if (!r.ok) { if (r.error === "already") { patchCitizen(h, { last_shift: israelDate() }); h.lastShift = israelDate(); } toast({ already: "כבר עשית משמרת היום 🌙", no_job: "אין לך עבודה כרגע", unauthorized: ERR.unauthorized }[r.error] || "משהו השתבש"); }
+    else { patchCitizen(h, { coins: r.coins, last_shift: israelDate() }); h.lastShift = israelDate(); toast(`🕘 משמרת טובה! +${fmtN(r.paid)} ${COIN}`, 3500); }
+    if (INT.on) { INT.me = S.byUser.get(u); renderIntUI(); }
+  } catch { toast("אין חיבור כרגע. נסו שוב"); b.disabled = false; }
+}
+function exitWork() {
+  if (!INT.on) return;
+  INT.ctl.dispose(); controls.enabled = true;
+  INT.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable || o.material?.map) { o.material.map?.dispose(); o.material.dispose(); } } });
+  INT.on = false; INT.sc = null; INT.tag = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
+  const w = INT.w; if (w) setTimeout(() => showWork(w), 50);
+}
+GO.enter = id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
 
 /* ============================ SEARCH ============================ */
 function find(qs) {
@@ -1056,137 +1592,376 @@ function find(qs) {
 }
 $("findForm").onsubmit = e => { e.preventDefault(); find($("q").value); };
 
-/* ============================ STORY IMAGE ============================ */
+/* ============================ ID CARD & STORY IMAGE ============================ */
 const loadImg = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
 function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-async function story(c, h) {
+// the 1080x1920 story picture of the ID card, with the citizen's achievements
+async function makeStory(h) {
   await document.fonts.ready;
   const W = 1080, H = 1920, el = document.createElement("canvas"); el.width = W; el.height = H; const x = el.getContext("2d");
   const sky = x.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#1b2a4a"); sky.addColorStop(.55, "#e58a5c"); sky.addColorStop(1, "#f4c27d"); x.fillStyle = sky; x.fillRect(0, 0, W, H);
-  try { const f = await loadImg(FLAG_URI); x.save(); x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 40; x.drawImage(f, W / 2 - 120, 150, 240, 160); x.restore(); } catch {}
-  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "300 84px Heebo"; x.fillText("רפובליקת סבבה", W / 2, 430);
-  const cx = 90, cy = 520, cw = W - 180, ch = 560;
+  try { const f = await loadImg(FLAG_URI); x.save(); x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 40; x.drawImage(f, W / 2 - 120, 130, 240, 160); x.restore(); } catch {}
+  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "300 84px Heebo"; x.fillText("רפובליקת סבבה", W / 2, 400);
+  const cx = 90, cy = 470, cw = W - 180, ch = 560;
   x.save(); x.shadowColor = "rgba(20,30,70,.45)"; x.shadowBlur = 60; x.shadowOffsetY = 20;
   const g = x.createLinearGradient(cx, cy, cx + cw, cy + ch); g.addColorStop(0, "#0f8b8d"); g.addColorStop(.6, "#1d4e89"); g.addColorStop(1, "#2a2d6e"); x.fillStyle = g; rr(x, cx, cy, cw, ch, 44); x.fill(); x.restore();
   x.fillStyle = "rgba(255,255,255,.95)"; x.textAlign = "right";
   x.font = "800 44px Heebo"; x.fillText("רפובליקת סבבה", cx + cw - 50, cy + 90); x.font = "400 24px Heebo"; x.globalAlpha = .7; x.fillText("IDENTITY CARD · תעודת זהות", cx + cw - 50, cy + 130); x.globalAlpha = 1;
   const gold = x.createLinearGradient(cx + 50, cy + 50, cx + 130, cy + 110); gold.addColorStop(0, "#f6d27a"); gold.addColorStop(1, "#c99a3d"); x.fillStyle = gold; rr(x, cx + 50, cy + 52, 84, 62, 12); x.fill();
-  x.fillStyle = "#fff"; x.font = "800 64px Heebo"; x.direction = "ltr"; x.textAlign = "right"; x.fillText(pad(c.id).replace(/(\d{3})(\d{3})/, "$1 $2"), cx + cw - 50, cy + 250);
+  x.fillStyle = "#fff"; x.font = "800 64px Heebo"; x.direction = "ltr"; x.textAlign = "right"; x.fillText(pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2"), cx + cw - 50, cy + 250);
   x.direction = "rtl"; const fld = (k, v, X, Y, sz = 38) => { x.globalAlpha = .7; x.font = "400 24px Heebo"; x.fillText(k, X, Y); x.globalAlpha = 1; x.font = `700 ${sz}px Heebo`; x.fillText(v, X, Y + sz + 6, cw - 100); };
-  fld("שם משתמש", "@" + c.ig_username, cx + cw - 50, cy + 310); fld("כתובת", addressOf(h), cx + cw - 50, cy + 410, 34);
-  x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "400 34px Heebo"; x.fillText(jobTitle(h), W / 2, 1210, W - 160);
-  x.font = "800 52px Heebo"; x.fillText("גם לך מחכה בית על האי", W / 2, 1640); x.font = "700 64px Heebo"; x.fillText("@" + INSTAGRAM, W / 2, 1740);
-  el.toBlob(async blob => { const file = new File([blob], `sababa-${c.ig_username}.png`, { type: "image/png" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); return; } catch {} }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; a.click(); }, "image/png");
+  fld("שם משתמש", "@" + h.u, cx + cw - 50, cy + 310); fld("כתובת", addressOf(h), cx + cw - 50, cy + 410, 34);
+  x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "500 36px Heebo"; x.fillText(jobTitle(h), W / 2, 1110, W - 160);
+  x.font = "400 30px Heebo"; x.globalAlpha = .9; x.fillText(`${HOUSE_NAMES[h.hk]} · ${CARS[h.cm].name} ב${COLORS[h.ck][1]}`, W / 2, 1160, W - 160); x.globalAlpha = 1;
+  // achievements
+  const got = achievements(h).got.slice(0, 6);
+  if (got.length) {
+    x.font = "800 40px Heebo"; x.fillText(`🏅 ${got.length === 1 ? "הישג" : "הישגים"} במדינה`, W / 2, 1260);
+    const per = Math.min(3, got.length), bw = 280, bh = 120, gap = 24;
+    got.forEach((a, i) => {
+      const row = Math.floor(i / 3), inRow = Math.min(per, got.length - row * 3), col = i % 3, X = W / 2 + (inRow - 1) * (bw + gap) / 2 - col * (bw + gap) - bw / 2, Y = 1300 + row * (bh + gap);
+      x.fillStyle = "rgba(255,255,255,.18)"; rr(x, X, Y, bw, bh, 28); x.fill();
+      x.fillStyle = "#fff"; x.font = "52px Heebo, 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"; x.fillText(a.ic, X + bw / 2, Y + 62);
+      x.font = "700 26px Heebo"; x.fillText(a.t, X + bw / 2, Y + 102, bw - 20);
+    });
+  }
+  x.fillStyle = "#fff"; x.font = "800 52px Heebo"; x.fillText("גם לך מחכה בית על האי", W / 2, 1680); x.font = "700 64px Heebo"; x.direction = "ltr"; x.fillText("@" + INSTAGRAM, W / 2, 1780);
+  return el;
+}
+const ID_STYLE = `<style>.idc-ach{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.idc-ach span{background:var(--tint);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600}</style>`;
+function idCard(u) {
+  const h = S.byUser.get(u); if (!h) return toast("לא הצלחנו לטעון את התעודה");
+  const got = achievements(h).got, link = `${location.origin}/?u=${encodeURIComponent(h.u)}`;
+  open("תעודת זהות", `${ID_STYLE}<div class="idc"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
+      <div class="idc-num">${pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
+      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(h.u)}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
+      <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>
+    ${got.length ? `<div class="idc-ach">${got.map(a => `<span>${a.ic} ${a.t}</span>`).join("")}</div>` : ""}
+    <div class="sec">תמונה לסטורי</div>
+    <div class="storybox" id="stBox"><div class="stwait">מכין תמונה…</div></div>
+    <p class="note" id="stTip">${inApp ? "לחיצה ארוכה על התמונה ← ״שמירה״ / ״הוספה לתמונות״" : "אפשר גם ללחוץ לחיצה ארוכה על התמונה כדי לשמור אותה"}</p>
+    <div class="btns"><button class="btn" id="dl" disabled>📲 שיתוף לסטורי</button><a class="btn ghost" id="sv" aria-disabled="true">⬇️ שמירה</a></div>
+    <div class="btns" style="margin-top:8px"><button class="btn ghost" id="cp">🔗 העתקת קישור לבית</button></div>${inAppHint()}`,
+    async () => {
+      $("cp").onclick = () => copyText(link);
+      const el = await makeStory(h).catch(() => null); if (!el || !$("stBox")) return;
+      const dataUrl = el.toDataURL("image/png"), blob = await new Promise(r => el.toBlob(r, "image/png"));
+      const file = new File([blob], `sababa-${h.u}.png`, { type: "image/png" }), url = URL.createObjectURL(blob);
+      $("stBox").innerHTML = `<img src="${dataUrl}" alt="תעודת הזהות שלך לסטורי">`;
+      $("dl").disabled = false; $("dl").onclick = () => shareFile(file, url);
+      const sv = $("sv"); sv.href = url; sv.download = file.name; sv.removeAttribute("aria-disabled");
+    }, true);
+}
+function copyText(t) {
+  const done = () => toast("הקישור הועתק 🔗");
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(done, () => fallback()); else fallback();
+  function fallback() { const ta = document.createElement("textarea"); ta.value = t; ta.style.cssText = "position:fixed;opacity:0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch { prompt("העתיקו את הקישור:", t); } ta.remove(); }
 }
 
 /* ============================ REEL STUDIO ============================ */
-// The site films itself: a scripted camera flight over the island, rendered at 1080x1920 with Hebrew captions
-// burned in, recorded straight from the canvas into a video file that is ready for Instagram.
+// The site films itself: a scripted camera flight over the island with Hebrew captions burned in.
+// Rendered offline, frame by frame, with exact timestamps (WebCodecs + MP4 muxer), so a 20 second reel is always exactly 20 seconds,
+// however slow the phone is. Browsers without WebCodecs fall back to recording the screen in real time.
 const REEL = { on: false };
-const RW = 1080, RH = 1920, Y_AXIS = new THREE.Vector3(0, 1, 0);
+const BOOTQ = new URLSearchParams(location.search), OPUS_TEST = BOOTQ.has("opustest");   // test-only switches
+const RW = 1080, RH = 1920, FPS = +BOOTQ.get("fps") || 30;
+const MUXER_URL = "https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.mjs";
+const reelCam = new THREE.PerspectiveCamera(32, RW / RH, 1, 20000);
+const BASE_EL = Math.atan2(VIEW_DIR.y, Math.hypot(VIEW_DIR.x, VIEW_DIR.z)), BASE_AZ = Math.atan2(VIEW_DIR.x, VIEW_DIR.z);
 const ease = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const clamp01 = v => Math.max(0, Math.min(1, v));
 const reelFit = () => F * (RW / RH) / (RX0 * S.s * 2.25);
-const at = (o, zoom, az = 0) => ({ x: o.x, z: o.z, zoom, az });
-const today = () => new Date(Date.now() - 864e5);
-const dayNo = () => Math.max(1, Math.floor((Date.now() - new Date(INDEPENDENCE_DAY + "T00:00:00").getTime()) / 864e5) + 1);
+// a camera pose: look at (x, z), "zoom" like the map (visible height = F / zoom), azimuth offset, elevation angle
+const at = (o, zoom, az = 0, el) => ({ x: o.x, z: o.z, zoom, az, el });
+const LOW = .3;   // a low, street-level angle for the tours
+const ORIGIN = { x: 0, z: 0 };
+const dayNo = (d = Date.now()) => Math.max(1, Math.floor((new Date(d).getTime() - new Date(INDEPENDENCE_DAY + "T00:00:00").getTime()) / 864e5) + 1);
 const founder = () => S.mine || [...S.houses].filter(h => h.lot).sort((a, b) => a.id - b.id)[0];
+const recent = (d, hours = 24) => d && Date.now() - new Date(d).getTime() < hours * 36e5;
+// spread the light over the reel: shot by shot from hour h0 to hour h1
+function hours(shots, h0, h1) { const T = shots.reduce((t, s) => t + s.d, 0); let t = 0; for (const s of shots) { s.h = [h0 + (h1 - h0) * t / T, h0 + (h1 - h0) * (t + s.d) / T]; t += s.d; } return shots; }
+// chain shots: each one starts where the previous one ended
+function chain(list) { list.forEach((s, i) => { if (!s.a) s.a = i ? list[i - 1].b : s.b; }); return list; }
+
+function tourShots(night) {
+  const cap = S.slots[0], zf = reelFit(), stops = [];
+  const kn = GOV.find(g => g.id === "knesset");
+  if (kn?.x != null) stops.push({ o: kn, cap: "🏛️ הכנסת", sub: "כאן מצביעים על חוקי המדינה", zoom: 4.2 });
+  const ws = S.workplaces.filter(w => w.x != null && w.city_id === cap.city.id);
+  for (const w of [ws.find(w => w.kind === "tech"), ws.find(w => w.kind === "hummus"), ws.find(w => w.kind === "school")].filter(Boolean))
+    stops.push({ o: w, cap: `${KIND_IC[w.kind] || "💼"} ${w.name}`, sub: `${fmtN(w.staff?.length || 0)} תושבים עובדים כאן`, zoom: 5.5 });
+  const p = S.projects.filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0];
+  if (p) stops.push({ o: p, cap: `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}`, sub: p.requested_by ? `נבנה לבקשת ‎@${p.requested_by}` : "נבנה לבקשת התושבים", zoom: 4.5 });
+  const h = founder();
+  if (h?.lot) stops.push({ o: h, cap: `🏘️ ${h.lot.street}`, sub: `השכונה של ‎@${h.u}`, zoom: 7, mark: h });
+  for (const c of COAST.filter(c => c.id !== "beach" && c.x != null)) stops.push({ o: c, cap: `${c.ic} ${c.name}`, sub: c.id === "harbor" ? "כאן מגיעים התושבים החדשים" : "מאיר את הדרך לאי", zoom: 3.4 });
+  const list = [{ d: 3, a: at(ORIGIN, zf, -.6), b: at(cap, 2.6, -.2, .5), cap: night ? "המדינה בלילה 🌙" : "סיור במדינה 🚗", sub: `${cap.city.name} · ${fmtN(S.total)} תושבים` }];
+  stops.slice(0, 6).forEach((st, i) => list.push({ d: 2.6, b: at(st.o, st.zoom, -.2 + i * .45, LOW), cap: st.cap, sub: st.sub, mark: st.mark }));
+  list.push({ d: 3.2, b: at(ORIGIN, zf, 1.2 + stops.length * .45 - .6), cap: night ? "גם בלילה יש מקום בשבילך" : "רוצים לגור כאן?", sub: "תגיבו ״אזרחות״ 👇" });
+  return hours(chain(list), night ? 20.2 : 15.8, night ? 23.2 : 19.2);
+}
 
 const TEMPLATES = {
-  launch: { ic: "🏳️", name: "השקת המדינה", sub: "ריל 1: מדינה חדשה, תגיבו ״אזרחות״", ok: () => !!S.slots[0]?.city, shots() {
+  home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", pub: true, ok: h => !!(h || S.mine)?.lot, shots(h = S.mine) {
+    const zf = reelFit(), got = achievements(h).got, list = [
+      { d: 3, a: at(ORIGIN, zf, -.5), b: at(h.slot, 2.2, -.2), h: [6, 9], cap: "יש לי בית במדינה", sub: "רפובליקת סבבה 🏳️", say: "יש לי בית ברפובליקת סבבה!" },
+      { d: 3.4, b: at(h, 10, .35, .55), h: [10, 12], cap: addressOf(h), sub: `תושב/ת #${fmtN(h.no || h.id)}`, mark: h },
+      { d: 3.4, b: at(h, 13, 1.1, .38), h: [13, 15], cap: jobTitle(h), sub: `${CARS[h.cm].name} ב${COLORS[h.ck][1]} חונה בחוץ`, mark: h }];
+    if (got.length) list.push({ d: 3, b: at(h, 9, 1.7, .5), h: [16, 17.5], cap: got.slice(0, 5).map(a => a.ic).join(" "), sub: `${fmtN(got.length)} הישגים במדינה`, mark: h });
+    list.push({ d: 3.4, b: at(ORIGIN, zf, 2.2), h: [18, 20.5], cap: "גם לך מחכה בית", sub: `‎@${INSTAGRAM}`, say: "גם לך מחכה בית. תגיבו אזרחות!" });
+    return chain(list);
+  } },
+  daily: { ic: "📰", name: "עדכון יומי", sub: "מה השתנה ב־24 השעות האחרונות", ok: () => S.houses.some(h => h.lot), shots() {
+    const zf = reelFit(), cap = S.slots[0], list = [];
+    const fresh = S.houses.filter(h => h.lot && recent(h.joined)).sort((a, b) => b.id - a.id);
+    const day = S.draws[0]?.draw_date, wins = recent(day, 36) ? S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot) : [];
+    const proj = S.projects.filter(p => p.x != null && recent(p.created_at, 48)).sort((a, b) => b.id - a.id)[0];
+    const law = S.laws[0] && recent(S.laws[0].enacted_at, 48) ? S.laws[0] : null, kn = GOV.find(g => g.id === "knesset");
+    const rich = richest()[0];
+    list.push({ d: 3, a: at(ORIGIN, zf * .9, -.6), b: at(cap, 1.6, -.3), cap: `עדכון יומי · יום ${fmtN(dayNo())}`, sub: new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }), say: `עדכון יומי מרפובליקת סבבה. יום ${dayNo()} למדינה.` });
+    if (fresh.length) list.push({ d: 3.2, b: at(fresh[0], 8, 0, .5), cap: `+${fmtN(fresh.length)} תושבים חדשים`, sub: "ברוכים הבאים " + fresh.slice(0, 3).map(h => "‎@" + h.u).join(", "), mark: fresh[0] });
+    else list.push({ d: 3, b: at(cap, 3, .2, .5), cap: `${fmtN(S.total)} תושבים במדינה`, sub: "מחכים לתושבים החדשים של מחר" });
+    if (wins.length) list.push({ d: 3.2, b: at(wins[0].h, 8, .5, .5), cap: `🎟️ ${fmtN(wins.length)} זוכים בהגרלה`, sub: wins.slice(0, 3).map(({ d, h }) => `${(PRIZES[d.prize] || ["🎁"])[0]} ‎@${h.u}`).join("  "), mark: wins[0].h });
+    if (proj) list.push({ d: 3.2, b: at(proj, 4.2, .9, .45), cap: `${proj.status === "done" ? "🎉 נחנך" : "🏗️ התחילו לבנות"}: ${proj.name || PROJECT_KINDS[proj.kind]?.[1]}`, sub: proj.requested_by ? `בזכות ההצעה של ‎@${proj.requested_by}` : "לבקשת התושבים" });
+    if (law && kn?.x != null) list.push({ d: 3.2, b: at(kn, 4, 1.2, LOW), cap: "📜 חוק חדש", sub: law.title });
+    if (rich?.lot && rich.coins) list.push({ d: 3, b: at(rich, 9, 1.5, .5), cap: "💰 העשיר/ה במדינה", sub: `‎@${rich.u} · ${fmtN(rich.coins)} ${COIN}`, mark: rich });
+    list.push({ d: 3.2, b: at(ORIGIN, zf, 2), cap: "מחר עוד עדכון", sub: "תגיבו ״אזרחות״ ותהיו חלק מזה 👇" });
+    return hours(chain(list), 7, 20.5);
+  } },
+  tour: { ic: "🚗", name: "סיור בעיר", sub: "מצלמה בגובה הרחוב, מקום אחרי מקום", ok: () => !!S.slots[0]?.city, shots: () => tourShots(false) },
+  night: { ic: "🌙", name: "המדינה בלילה", sub: "הסיור באורות הלילה", ok: () => !!S.slots[0]?.city, shots: () => tourShots(true) },
+  growth: { ic: "📈", name: "איך גדלנו", sub: "טיימלאפס: האי גדל עם כל תושב", ok: () => S.total >= 20, shots() {
+    const zf = reelFit(), stages = [.06, .18, .38, .65, 1].map(f => Math.max(1, Math.round(S.raw.length * f)));
+    const list = stages.map((n, i) => { const last = S.raw[n - 1];
+      return { d: i === stages.length - 1 ? 3.6 : 2.8, a: at(ORIGIN, zf * 1.05, -.8 + i * .45), b: at(ORIGIN, zf * 1.1, -.35 + i * .45), build: n,
+        cap: i === stages.length - 1 ? `היום: ${fmtN(n)} תושבים` : `יום ${fmtN(dayNo(last?.created_at || Date.now()))}`, sub: i === stages.length - 1 ? "וזה רק ההתחלה" : `${fmtN(n)} תושבים` }; });
+    list.push({ d: 3, a: list.at(-1).b, b: at(S.slots[0], 2.4, 2, .45), cap: "רוצים להיות הבאים?", sub: "תגיבו ״אזרחות״ 👇" });
+    return hours(list, 9, 19);
+  } },
+  rich: { ic: "💰", name: "עשירי המדינה", sub: "5 התושבים עם הכי הרבה סבבונים", ok: () => richest().length >= 3, shots() {
+    const zf = reelFit(), top = richest().slice(0, 5).reverse();
+    const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(top[0], 3, 0, .5), cap: "💰 עשירי המדינה", sub: "מי צבר הכי הרבה סבבונים?" }];
+    top.forEach((h, i) => list.push({ d: 2.7, b: at(h, 9, .3 + i * .35, .5), cap: `#${top.length - i} ‎@${h.u}`, sub: `${fmtN(h.coins)} ${COIN} · ${CARS[h.cm].name}`, mark: h }));
+    list.push({ d: 3, b: at(ORIGIN, zf, 2.2), cap: "כל יום עבודה = משכורת", sub: "תגיבו ״אזרחות״ ותתחילו להרוויח 👇" });
+    return hours(chain(list), 10, 18.5);
+  } },
+  law: { ic: "📜", name: "חוק חדש", sub: "החוק האחרון שנכנס לספר החוקים", ok: () => S.laws.length > 0 && GOV[0].x != null, shots() {
+    const zf = reelFit(), l = S.laws[0], kn = GOV[0], by = l.proposed_by && S.byUser.get(l.proposed_by);
+    const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(kn, 3.2, -.2, .5), cap: "📜 חוק חדש במדינה", sub: `חוק מספר ${fmtN(S.laws.length)}` },
+      { d: 4.2, b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }];
+    if (by?.lot) list.push({ d: 3.2, b: at(by, 9, 1.1, .5), cap: "הוצע ע״י", sub: `‎@${by.u} 🏅`, mark: by });
+    list.push({ d: 3.4, b: at(ORIGIN, zf, 1.9), cap: "מה החוק הבא?", sub: "תציעו בתגובות, הכי אהוב נכנס 👇" });
+    return hours(chain(list), 11, 18.8);
+  } },
+  launch: { ic: "🏳️", name: "השקת המדינה", sub: "מדינה חדשה, תגיבו ״אזרחות״", ok: () => !!S.slots[0]?.city, shots() {
     const cap = S.slots[0], home = founder() || cap, lot = cap.publicSpots?.[0] ? { x: cap.publicSpots[0][0], z: cap.publicSpots[0][1] } : cap, zf = reelFit();
     return [
-      { d: 3.4, a: at({ x: 0, z: 0 }, zf * .85, -.7), b: at({ x: 0, z: 0 }, zf * 1.15, -.35), h: [5.1, 7.6], cap: "הקמתי מדינה חדשה", sub: "רפובליקת סבבה 🏳️" },
-      { d: 3.6, a: at({ x: 0, z: 0 }, zf * 1.15, -.35), b: at(cap, 2.6, .15), h: [8.5, 11], cap: `יום ${fmtN(dayNo())} · ${fmtN(S.total)} תושבים`, sub: "וכל עוקב הופך לתושב" },
-      { d: 4.2, a: at(cap, 2.6, .15), b: at(home, 9, .55), h: [12, 13], cap: "כל תושב מקבל בית, רכב ועבודה", sub: home.lot ? addressOf(home) : "עם כתובת אמיתית" },
-      { d: 3.6, a: at(home, 9, .55), b: at(lot, 3.4, .9), h: [14, 16], cap: "ואתם מחליטים מה נבנה כאן", sub: "גינה? בריכה? קניון? תכתבו בתגובות" },
-      { d: 4.4, a: at(lot, 3.4, .9), b: at({ x: 0, z: 0 }, zf, 1.35), h: [17.2, 20.6], cap: "רוצים בית?", sub: "תגיבו ״אזרחות״ 👇" }];
+      { d: 3.4, a: at(ORIGIN, zf * .85, -.7), b: at(ORIGIN, zf * 1.15, -.35), h: [5.1, 7.6], cap: "הקמתי מדינה חדשה", sub: "רפובליקת סבבה 🏳️" },
+      { d: 3.6, a: at(ORIGIN, zf * 1.15, -.35), b: at(cap, 2.6, .15), h: [8.5, 11], cap: `יום ${fmtN(dayNo())} · ${fmtN(S.total)} תושבים`, sub: "וכל עוקב הופך לתושב" },
+      { d: 4.2, a: at(cap, 2.6, .15), b: at(home, 9, .55, .5), h: [12, 13], cap: "כל תושב מקבל בית, רכב ועבודה", sub: home.lot ? addressOf(home) : "עם כתובת אמיתית" },
+      { d: 3.6, a: at(home, 9, .55, .5), b: at(lot, 3.4, .9, .45), h: [14, 16], cap: "ואתם מחליטים מה נבנה כאן", sub: "גינה? בריכה? קניון? תכתבו בתגובות" },
+      { d: 4.4, a: at(lot, 3.4, .9, .45), b: at(ORIGIN, zf, 1.35), h: [17.2, 20.6], cap: "רוצים בית?", sub: "תגיבו ״אזרחות״ 👇" }];
   } },
   newcomers: { ic: "👋", name: "תושבים חדשים", sub: "מי הגיע לאי ב־24 השעות האחרונות", ok: () => S.houses.some(h => h.lot), shots() {
-    const fresh = S.houses.filter(h => h.lot && h.joined && new Date(h.joined) > today()).sort((a, b) => b.id - a.id), pick = (fresh.length ? fresh : [...S.houses].filter(h => h.lot).sort((a, b) => b.id - a.id)).slice(0, 3), zf = reelFit();
-    const shots = [{ d: 3.2, a: at({ x: 0, z: 0 }, zf * .9, -.4), b: at(pick[0], 2.4, 0), h: [9, 11], cap: fresh.length ? `${fmtN(fresh.length)} תושבים חדשים הגיעו היום` : "התושבים החדשים של המדינה", sub: `סה״כ ${fmtN(S.total)} תושבים · יום ${fmtN(dayNo())}` }];
-    pick.forEach((h, i) => shots.push({ d: 3, a: at(i ? pick[i - 1] : pick[0], i ? 7 : 2.4, .2 * i), b: at(h, 9, .2 * i + .35), h: [11 + i, 12 + i], cap: `ברוכים הבאים ‎@${h.u}`, sub: addressOf(h), mark: h }));
-    shots.push({ d: 3.6, a: at(pick.at(-1), 9, .9), b: at({ x: 0, z: 0 }, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
-    return shots;
+    const fresh = S.houses.filter(h => h.lot && recent(h.joined)).sort((a, b) => b.id - a.id), pick = (fresh.length ? fresh : [...S.houses].filter(h => h.lot).sort((a, b) => b.id - a.id)).slice(0, 3), zf = reelFit();
+    const shots = [{ d: 3.2, a: at(ORIGIN, zf * .9, -.4), b: at(pick[0], 2.4, 0), h: [9, 11], cap: fresh.length ? `${fmtN(fresh.length)} תושבים חדשים הגיעו היום` : "התושבים החדשים של המדינה", sub: `סה״כ ${fmtN(S.total)} תושבים · יום ${fmtN(dayNo())}` }];
+    pick.forEach((h, i) => shots.push({ d: 3, b: at(h, 9, .2 * i + .35, .5), h: [11 + i, 12 + i], cap: `ברוכים הבאים ‎@${h.u}`, sub: addressOf(h), mark: h }));
+    shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
+    return chain(shots);
   } },
   draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
-    const shots = [{ d: 3, a: at({ x: 0, z: 0 }, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · 5 פרסים, 5 זוכים` }];
-    list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, a: at(i ? list[i - 1].h : h, i ? 8 : 2.2, .25 * i), b: at(h, 9.5, .25 * i + .3), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${h.u}${d.details ? " · " + d.details : ""}`, mark: h }); });
-    shots.push({ d: 3.2, a: at(list.at(-1)?.h || S.slots[0], 9, .9), b: at({ x: 0, z: 0 }, zf, 1.2), h: [20.5, 21.5], cap: "מחר זה יכול להיות את/ה", sub: "רק תושבים משתתפים · תגיבו ״אזרחות״" });
-    return shots;
+    const shots = [{ d: 3, a: at(ORIGIN, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
+    list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, b: at(h, 9.5, .25 * i + .3, .5), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${h.u}${d.details ? " · " + d.details : ""}`, mark: h }); });
+    shots.push({ d: 3.2, b: at(ORIGIN, zf, 1.2), h: [20.5, 21.5], cap: "מחר זה יכול להיות את/ה", sub: "רק תושבים משתתפים · תגיבו ״אזרחות״" });
+    return chain(shots);
   } },
   project: { ic: "🏗️", name: "ביקשתם, בנינו", sub: "חנוכה או התחלת בנייה של פרויקט", ok: () => S.projects.some(p => p.x != null), shots() {
     const p = [...S.projects].filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0], zf = reelFit();
     const name = p.name || PROJECT_KINDS[p.kind]?.[1], who = p.requested_by ? `לבקשת ‎@${p.requested_by}` : "לבקשת התושבים";
-    return [
-      { d: 3, a: at({ x: 0, z: 0 }, zf, -.5), b: at(p, 2, -.2), h: [10, 12], cap: p.status === "done" ? "ביקשתם, בנינו 🎉" : "ביקשתם, מתחילים לבנות 🏗️", sub: who },
-      { d: 5, a: at(p, 2, -.2), b: at(p, 5.5, .9), h: [12, 15], cap: name, sub: `${PROJECT_KINDS[p.kind]?.[0] || ""} ${cityName(p.city_id)}` },
-      { d: 3.6, a: at(p, 5.5, .9), b: at({ x: 0, z: 0 }, zf, 1.4), h: [16, 19.5], cap: "מה לבנות עכשיו?", sub: "תכתבו בתגובות 👇" }];
-  } },
-  home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", ok: u => !!(u ? S.byUser.get(u) : S.mine)?.lot, shots(h = S.mine) {
-    const zf = reelFit();
-    return [
-      { d: 3, a: at({ x: 0, z: 0 }, zf, -.5), b: at(h.slot, 2.2, -.2), h: [6, 9], cap: "יש לי בית במדינה", sub: "רפובליקת סבבה 🏳️" },
-      { d: 3.4, a: at(h.slot, 2.2, -.2), b: at(h, 10, .35), h: [10, 12], cap: addressOf(h), sub: `תושב/ת #${fmtN(h.id)}`, mark: h },
-      { d: 3.4, a: at(h, 10, .35), b: at(h, 12, 1.2), h: [14, 16], cap: jobTitle(h), sub: `${CAR_NAMES[h.car]} חונה בחוץ`, mark: h },
-      { d: 3.4, a: at(h, 12, 1.2), b: at({ x: 0, z: 0 }, zf, 1.7), h: [17.5, 20.5], cap: "גם לך מחכה בית", sub: `‎@${INSTAGRAM}` }];
+    return chain([
+      { d: 3, a: at(ORIGIN, zf, -.5), b: at(p, 2, -.2), h: [10, 12], cap: p.status === "done" ? "ביקשתם, בנינו 🎉" : "ביקשתם, מתחילים לבנות 🏗️", sub: who },
+      { d: 5, b: at(p, 5.5, .9, LOW + .05), h: [12, 15], cap: name, sub: `${PROJECT_KINDS[p.kind]?.[0] || ""} ${cityName(p.city_id)}` },
+      { d: 3.6, b: at(ORIGIN, zf, 1.4), h: [16, 19.5], cap: "מה לבנות עכשיו?", sub: "תכתבו בתגובות 👇" }]);
   } }
 };
 
-function setCam(v) {
-  controls.target.set(v.x, 0, v.z);
-  camera.position.copy(controls.target).addScaledVector(VIEW_DIR.clone().applyAxisAngle(Y_AXIS, v.az), 2000);
-  camera.zoom = v.zoom; camera.updateProjectionMatrix(); camera.lookAt(controls.target);
+function poseCam(v) {
+  const el = v.el ?? BASE_EL, az = BASE_AZ + v.az, vis = F / v.zoom, dist = vis / 2 / Math.tan(THREE.MathUtils.degToRad(reelCam.fov / 2));
+  const tg = new THREE.Vector3(v.x, 0, v.z);
+  reelCam.position.set(tg.x + Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, tg.z + Math.cos(az) * Math.cos(el) * dist);
+  reelCam.near = Math.max(.5, dist * .06); reelCam.far = dist * 10 + 6000; reelCam.updateProjectionMatrix(); reelCam.lookAt(tg);
+  scene.fog.near = dist * 1.8; scene.fog.far = dist * 6 + 2500;
+  sunFollow(tg, vis * (el < .45 ? 2 : 1.2));
 }
+// rebuild the island with only the first n citizens (growth timelapse)
+function buildSubset(n) { REEL.full ||= { raw: S.raw, total: S.total }; S.raw = REEL.full.raw.slice(0, n); S.total = n; buildWorld(); }
+// one frame of the reel at time el (seconds)
+function reelFrame(el, dt) {
+  const s = REEL.shots.find(q => el < q.t0 + q.d) || REEL.shots.at(-1), k = ease(clamp01((el - s.t0) / s.d));
+  if (s !== REEL.shot) {
+    REEL.shot = s;
+    if (s.build != null && s.build !== S.total) buildSubset(s.build);
+    if (s.mark) { S.sel = s.mark; mark(s.mark); } else ring.visible = pin.visible = false;
+  }
+  const L = (a, b) => a + (b - a) * k, ea = s.a.el ?? BASE_EL, eb = s.b.el ?? BASE_EL;
+  poseCam({ x: L(s.a.x, s.b.x), z: L(s.a.z, s.b.z), zoom: Math.exp(L(Math.log(s.a.zoom), Math.log(s.b.zoom))), az: L(s.a.az, s.b.az), el: L(ea, eb) });
+  const h = L(s.h[0], s.h[1]); if (Math.abs(h - timeMode.h) > .02) { timeMode = { live: false, h }; applyTime(); scene.fog.color.copy(scene.background); }
+  animate(dt);
+  renderer.render(scene, reelCam);
+  reelComposite(el, s);
+}
+
+async function pickEncoder() {
+  if (!window.VideoEncoder || !window.VideoFrame) return null;
+  for (const [codec, mux] of [["avc1.640028", "avc"], ["avc1.4d0028", "avc"], ["avc1.42E028", "avc"], ["vp09.00.40.08", "vp9"]]) {
+    try { const cfg = { codec, width: RW, height: RH, bitrate: 10e6, framerate: FPS, ...(mux === "avc" ? { avc: { format: "avc" } } : {}) };
+      if ((await VideoEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch {}
+  }
+  return null;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function renderOffline(enc0, audio) {
+  const { Muxer, ArrayBufferTarget } = await import(MUXER_URL);
+  const target = new ArrayBufferTarget(), muxer = new Muxer({ target, video: { codec: enc0.mux, width: RW, height: RH, frameRate: FPS },
+    ...(audio ? { audio: { codec: audio.mux, sampleRate: 48000, numberOfChannels: 1 } } : {}), fastStart: "in-memory", firstTimestampBehavior: "offset" });
+  if (audio) await encodeAudio(audio.buffer, audio, muxer);
+  let fail = null;
+  const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => fail = e });
+  enc.configure(enc0.cfg);
+  const N = Math.round(REEL.total * FPS);
+  for (let i = 0; i < N; i++) {
+    if (REEL.cancelled) { try { enc.close(); } catch {} return null; }
+    if (fail) throw fail;
+    reelFrame(i / FPS, 1 / FPS);
+    const vf = new VideoFrame(REEL.comp, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+    enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+    while (enc.encodeQueueSize > 5) await sleep(3);
+    if (i % 2 === 0) { $("recT").textContent = `מכין את הריל… ${Math.floor(i / N * 100)}%`; await sleep(0); }
+  }
+  await enc.flush(); enc.close(); muxer.finalize();
+  if (fail) throw fail;
+  return new Blob([target.buffer], { type: "video/mp4" });
+}
+// fallback: real-time recording of the composite canvas
 function pickMime() {
   for (const m of ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"])
     if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
   return null;
 }
-async function startReel(key, arg) {
-  const tpl = TEMPLATES[key], mime = pickMime();
-  if (!mime) return toast("הדפדפן הזה לא יכול להקליט וידאו. נסו בכרום או בספארי מעודכן");
-  if (!tpl.ok(arg)) return toast("עוד אין מספיק תוכן לתבנית הזו");
-  close();
-  const shots = tpl.shots(arg ? S.byUser.get(arg) : undefined); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
-  await document.fonts.ready;
-  const comp = document.createElement("canvas"); comp.width = RW; comp.height = RH;
-  const flag = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = FLAG_URI; });
-  renderer.setPixelRatio(1); renderer.setSize(RW, RH, false);
-  const fitW = Math.min(innerWidth, innerHeight * RW / RH);
-  renderer.domElement.style.width = fitW + "px"; renderer.domElement.style.height = fitW * RH / RW + "px";
-  camera.left = -F * RW / RH / 2; camera.right = F * RW / RH / 2; camera.updateProjectionMatrix();
-  document.body.classList.add("rec"); fly = null;
-  const prevMine = S.mine, prevSel = S.sel;
-  const stream = comp.captureStream(30), rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 9e6 }), chunks = [];
-  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
-  Object.assign(REEL, { on: true, key, shots, total: t, t0: 0, comp, cx: comp.getContext("2d"), flag, rec, chunks, mime, prevMine, prevSel, cancelled: false, lastMark: null });
-  setCam(shots[0].a); timeMode = { live: false, h: shots[0].h[0] }; applyTime();
-  rec.onstop = () => finishReel();
-  setTimeout(() => { if (!REEL.on || REEL.cancelled) return; REEL.t0 = performance.now(); rec.start(500); }, 400);   // let the first frame settle
-}
-function reelTick(now) {
-  if (!REEL.t0) return;
+function reelLive(now, dt) {
+  if (!REEL.t0) { REEL.t0 = now; REEL.rec.start(250); }
   const el = (now - REEL.t0) / 1000;
   $("recT").textContent = `מצלם ריל… ${Math.max(0, Math.ceil(REEL.total - el))}`;
-  if (el >= REEL.total + .25) { if (REEL.rec.state === "recording") REEL.rec.stop(); REEL.t0 = 0; return; }
-  const s = REEL.shots.find(q => el < q.t0 + q.d) || REEL.shots.at(-1), k = ease(Math.min(1, Math.max(0, (el - s.t0) / s.d)));
-  const L = (a, b) => a + (b - a) * k;
-  let daz = s.b.az - s.a.az;
-  setCam({ x: L(s.a.x, s.b.x), z: L(s.a.z, s.b.z), zoom: Math.exp(L(Math.log(s.a.zoom), Math.log(s.b.zoom))), az: s.a.az + daz * k });
-  const h = L(s.h[0], s.h[1]); if (Math.abs(h - timeMode.h) > .02) { timeMode = { live: false, h }; applyTime(); }
-  if (s.mark !== REEL.lastMark) { REEL.lastMark = s.mark; if (s.mark) { S.sel = s.mark; mark(s.mark); } else { ring.visible = false; } }
-  REEL.el = el; REEL.shot = s;
+  if (el >= REEL.total + .2) { REEL.live = false; if (REEL.rec.state === "recording") REEL.rec.stop(); return; }
+  reelFrame(Math.min(el, REEL.total - .001), dt);
+}
+
+/* ---------- Hebrew voiceover: every caption is read by a neural Hebrew voice (Google Chirp 3 HD, through Supabase) ---------- */
+const VOICES = { Kore: "קורה · אישה", Leda: "לדה · אישה", Aoede: "אאודה · אישה", Charon: "כרון · גבר", Puck: "פאק · גבר", Orus: "אורוס · גבר" };
+const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), on: pref("sababa_voice_on", "1") === "1" };
+// what the narrator says: the caption without emojis, handles read as words, "תושב/ת" read as "תושב"
+const spoken = s => (s.say ?? [s.cap, s.sub].filter(Boolean).join(". ")).replaceAll(COIN, " סבבונים")
+  .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{200E}\u{200F}]/gu, "").replace(/@([\w.]+)/g, (m, u) => u.replace(/[._]+/g, " "))
+  .replace(/#(\d)/g, "מספר $1").replace(/([\u0590-\u05FF]+)\/[\u0590-\u05FF]+/g, "$1").replace(/[״"]/g, "").replace(/·/g, ",").replace(/\s+/g, " ").replace(/^[\s,.]+|[\s,]+$/g, "").trim();
+const b64buf = b64 => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+async function voiceLine(line, auth) {
+  for (let i = 0; i < 45; i++) {
+    const r = await rpc("voice_line", { line, voice: VOICE_CFG.voice, secret: auth.secret || null, username: auth.u || null, key: auth.k || null });
+    if (!r.ok) throw new Error(r.error || "voice");
+    if (r.audio) return r.audio;
+    await sleep(800);
+  }
+  throw new Error("timeout");
+}
+const VOICE_ERR = { no_key: "חסר מפתח Google בהגדרות (ראו הוראות)", unauthorized: "צריך קישור אישי או קוד מנהל", quota: "נגמרה מכסת הדיבוב להיום", tts: "שירות הדיבוב החזיר שגיאה", timeout: "הדיבוב לקח יותר מדי זמן", bad_text: "משפט ארוך מדי" };
+// fetch all lines, stretch shots so every sentence fits, then mix one soundtrack
+async function prepareVoice(shots, auth) {
+  const lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
+  $("recT").textContent = "מקליט דיבוב…";
+  const clips = await Promise.all(lines.map(async l => l ? dec.decodeAudioData(b64buf(await voiceLine(l, auth))) : null));
+  let t = 0;
+  shots.forEach((s, i) => { const c = clips[i]; if (c) s.d = Math.max(s.d, c.duration + .75); s.t0 = t; t += s.d; });
+  const total = t, mix = new OfflineAudioContext(1, Math.ceil(total * 48000), 48000);
+  clips.forEach((c, i) => { if (!c) return; const src = mix.createBufferSource(); src.buffer = c; src.connect(mix.destination); src.start(shots[i].t0 + .3); });
+  return { buffer: await mix.startRendering(), total };
+}
+async function pickAudioEncoder() {
+  if (!window.AudioEncoder) return null;
+  const list = [["mp4a.40.2", "aac"]]; if (OPUS_TEST) list.push(["opus", "opus"]);
+  for (const [codec, mux] of list) { const cfg = { codec, sampleRate: 48000, numberOfChannels: 1, bitrate: 128000 };
+    try { if ((await AudioEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch {} }
+  return null;
+}
+async function encodeAudio(buffer, a0, muxer) {
+  let fail = null;
+  const enc = new AudioEncoder({ error: e => fail = e, output: (chunk, meta) => {
+    // Safari writes a broken AAC header; always use the standard one (AAC-LC, 48kHz, mono)
+    if (a0.mux === "aac" && meta?.decoderConfig) meta = { decoderConfig: { ...meta.decoderConfig, description: new Uint8Array([0x11, 0x88]) } };
+    muxer.addAudioChunk(chunk, meta); } });
+  enc.configure(a0.cfg);
+  const pcm = buffer.getChannelData(0), N = 1024;
+  for (let i = 0; i < pcm.length; i += N) {
+    const part = pcm.slice(i, Math.min(pcm.length, i + N));
+    const ad = new AudioData({ format: "f32-planar", sampleRate: 48000, numberOfFrames: part.length, numberOfChannels: 1, timestamp: Math.round(i / 48000 * 1e6), data: part });
+    enc.encode(ad); ad.close();
+    if (enc.encodeQueueSize > 20) await sleep(1);
+  }
+  await enc.flush(); enc.close(); if (fail) throw fail;
+}
+
+async function startReel(key, u) {
+  if (REEL.on) return;
+  const tpl = TEMPLATES[key], h = u ? S.byUser.get(u) : undefined;
+  if (!tpl.pub && !ADMIN) return toast("התבנית הזו זמינה רק למנהל המדינה");
+  if (!tpl.ok(h)) return toast("עוד אין מספיק תוכן לתבנית הזו");
+  close();
+  if (key === "home" && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("ריל הבית זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
+  const shots = tpl.shots(h); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
+  await document.fonts.ready;
+  const enc = await pickEncoder(), mime = enc ? null : pickMime();
+  if (!enc && !mime) return toast("הדפדפן הזה לא יכול ליצור וידאו. נסו בכרום או בספארי מעודכן");
+  const auth = ADMIN ? { secret: pref("sababa_admin", "") } : { u: h?.u, k: h && keyOf(h.u) };
+  const aenc = enc && VOICE_CFG.on ? await pickAudioEncoder() : null;
+  const comp = document.createElement("canvas"); comp.width = RW; comp.height = RH; comp.className = "reelprev";
+  const flag = await loadImg(FLAG_URI).catch(() => null);
+  Object.assign(REEL, { on: true, key, shots, total: t, comp, cx: comp.getContext("2d"), flag, prevMine: S.mine, prevSel: S.sel, cancelled: false, shot: null, full: null, t0: 0,
+    fog: [scene.fog.near, scene.fog.far], timeMode });
+  const q = enc ? 1 : .67;   // the real-time fallback renders smaller to keep up
+  renderer.setPixelRatio(1); renderer.setSize(Math.round(RW * q), Math.round(RH * q), false);
+  $("gl").appendChild(comp); document.body.classList.add("rec"); fly = null;
+  $("recT").textContent = "מכין את הריל…";
+  await sleep(60);
+  let blob = null, ext = "mp4", note = "", voice = null;
+  if (VOICE_CFG.on && enc && !aenc) note = "noaudio";
+  if (aenc) {
+    try { voice = await prepareVoice(shots, auth); REEL.total = voice.total; }
+    catch (e) { console.warn(e); voice = null; for (const s of shots) s.t0 = null; let tt = 0; for (const s of shots) { s.t0 = tt; tt += s.d; } REEL.total = tt; toast("🎙️ בלי דיבוב: " + (VOICE_ERR[e.message] || "הדיבוב לא זמין כרגע"), 4500); }
+  }
+  try {
+    if (enc) { REEL.busy = true; blob = await renderOffline(enc, voice && { ...aenc, buffer: voice.buffer }); if (enc.mux === "vp9") note = "vp9"; }
+    else {
+      const stream = comp.captureStream(FPS), chunks = [];
+      REEL.rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
+      REEL.rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+      const done = new Promise(r => REEL.rec.onstop = r);
+      REEL.live = true; await done;
+      if (!REEL.cancelled) { const type = mime.split(";")[0]; ext = type.includes("mp4") ? "mp4" : "webm"; blob = new Blob(chunks, { type }); note = "live"; }
+    }
+  } catch (e) { console.error(e); toast("משהו השתבש ביצירת הריל. נסו שוב"); }
+  REEL.voiced = !!voice && !!blob && !REEL.cancelled;
+  finishReel(blob, ext, note);
 }
 function wrapText(x, text, maxW) {
   const words = String(text).split(" "), lines = []; let cur = "";
   for (const w of words) { const tryL = cur ? cur + " " + w : w; if (x.measureText(tryL).width > maxW && cur) { lines.push(cur); cur = w; } else cur = tryL; }
   if (cur) lines.push(cur); return lines.slice(0, 3);
 }
-function reelComposite() {
-  const x = REEL.cx; if (!x) return;
+const pv = new THREE.Vector3();
+function reelComposite(el, s) {
+  const x = REEL.cx;
   x.drawImage(renderer.domElement, 0, 0, RW, RH);
   // gentle vignettes so text reads on any background
   let g = x.createLinearGradient(0, 0, 0, 380); g.addColorStop(0, "rgba(0,0,0,.55)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, RW, 380);
@@ -1195,53 +1970,96 @@ function reelComposite() {
   if (REEL.flag) { x.save(); x.shadowColor = "rgba(0,0,0,.4)"; x.shadowBlur = 16; x.drawImage(REEL.flag, RW - 70 - 120, 110, 120, 80); x.restore(); }
   x.font = "800 50px Heebo, Arial, sans-serif"; x.fillText("רפובליקת סבבה", RW - 220, 150);
   x.font = "500 32px Heebo, Arial, sans-serif"; x.globalAlpha = .85; x.fillText(`יום ${fmtN(dayNo())} · ${fmtN(S.total)} תושבים`, RW - 220, 196); x.globalAlpha = 1;
-  const s = REEL.shot;
-  if (s && REEL.el != null) {
-    const into = REEL.el - s.t0, left = s.t0 + s.d - REEL.el, a = Math.max(0, Math.min(1, into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
-    x.save(); x.globalAlpha = a; x.textAlign = "center";
-    x.font = "900 88px Heebo, Arial, sans-serif"; const L1 = wrapText(x, s.cap, RW - 140);
-    x.font = "600 46px Heebo, Arial, sans-serif"; const L2 = s.sub ? wrapText(x, s.sub, RW - 200) : [];
-    const blockH = L1.length * 100 + (L2.length ? 30 + L2.length * 58 : 0), top = RH - 470 - blockH + lift;
-    x.shadowColor = "rgba(0,0,0,.55)"; x.shadowBlur = 24; x.fillStyle = "#fff"; x.font = "900 88px Heebo, Arial, sans-serif";
-    L1.forEach((l, i) => x.fillText(l, RW / 2, top + 88 + i * 100));
-    if (L2.length) { x.font = "600 46px Heebo, Arial, sans-serif"; x.fillStyle = "#ffe2b8"; L2.forEach((l, i) => x.fillText(l, RW / 2, top + L1.length * 100 + 30 + 46 + i * 58)); }
-    x.restore();
+  const into = el - s.t0, left = s.t0 + s.d - el, a = clamp01(Math.min(into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
+  // a pin over the house in focus
+  if (s.mark?.lot) {
+    pv.set(s.mark.x, LAWN + (s.mark.tier === 1 ? 7 : 10), s.mark.z).project(reelCam);
+    const px = (pv.x + 1) / 2 * RW, py = (1 - pv.y) / 2 * RH;
+    if (pv.z < 1 && px > 0 && px < RW && py > 300 && py < RH - 500) {
+      x.save(); x.globalAlpha = clamp01(into / .5); x.direction = "ltr"; x.textAlign = "center"; x.font = "800 40px Heebo, Arial, sans-serif";
+      const label = "@" + s.mark.u, w = x.measureText(label).width + 48;
+      x.fillStyle = "#e07a4f"; x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 18; rr(x, px - w / 2, py - 110, w, 64, 32); x.fill(); x.shadowBlur = 0;
+      x.fillRect(px - 3, py - 48, 6, 40); x.beginPath(); x.arc(px, py, 10, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#fff"; x.fillText(label, px, py - 64); x.restore();
+    }
   }
+  x.save(); x.globalAlpha = a; x.textAlign = "center";
+  x.font = "900 88px Heebo, Arial, sans-serif"; const L1 = wrapText(x, s.cap, RW - 140);
+  x.font = "600 46px Heebo, Arial, sans-serif"; const L2 = s.sub ? wrapText(x, s.sub, RW - 200) : [];
+  const blockH = L1.length * 100 + (L2.length ? 30 + L2.length * 58 : 0), top = RH - 470 - blockH + lift;
+  x.shadowColor = "rgba(0,0,0,.55)"; x.shadowBlur = 24; x.fillStyle = "#fff"; x.font = "900 88px Heebo, Arial, sans-serif";
+  L1.forEach((l, i) => x.fillText(l, RW / 2, top + 88 + i * 100));
+  if (L2.length) { x.font = "600 46px Heebo, Arial, sans-serif"; x.fillStyle = "#ffe2b8"; L2.forEach((l, i) => x.fillText(l, RW / 2, top + L1.length * 100 + 30 + 46 + i * 58)); }
+  x.restore();
   x.direction = "ltr"; x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "800 44px Heebo, Arial, sans-serif"; x.fillText("@" + INSTAGRAM, RW / 2, RH - 170);
   x.font = "500 32px Heebo, Arial, sans-serif"; x.globalAlpha = .8; x.fillText("sababastate.com", RW / 2, RH - 120); x.globalAlpha = 1;
-  // progress line
-  if (REEL.el != null) { x.fillStyle = "rgba(255,255,255,.25)"; x.fillRect(80, RH - 70, RW - 160, 6); x.fillStyle = "#ffb627"; x.fillRect(RW - 80 - (RW - 160) * Math.min(1, REEL.el / REEL.total), RH - 70, (RW - 160) * Math.min(1, REEL.el / REEL.total), 6); }
+  const pr = Math.min(1, el / REEL.total); x.fillStyle = "rgba(255,255,255,.25)"; x.fillRect(80, RH - 70, RW - 160, 6); x.fillStyle = "#ffb627"; x.fillRect(RW - 80 - (RW - 160) * pr, RH - 70, (RW - 160) * pr, 6);
 }
 function restoreView() {
-  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight);
-  renderer.domElement.style.width = renderer.domElement.style.height = ""; frustum();
+  REEL.busy = REEL.live = false;
+  if (REEL.full) { S.raw = REEL.full.raw; S.total = REEL.full.total; REEL.full = null; buildWorld(); }
+  REEL.comp?.remove();
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight); frustum();
+  [scene.fog.near, scene.fog.far] = REEL.fog; sunFollow(controls.target, camera.right * 2 / camera.zoom);
   document.body.classList.remove("rec"); timeMode = { live: true, h: 12 }; applyTime();
-  S.mine = REEL.prevMine; S.sel = REEL.prevSel; mark(S.sel || S.mine); REEL.on = false; REEL.cx = null; REEL.el = null; REEL.shot = null;
+  S.mine = REEL.prevMine && S.byUser.get(REEL.prevMine.u) || null; S.sel = REEL.prevSel && S.byUser.get(REEL.prevSel.u) || null; mark(S.sel || S.mine);
+  REEL.on = false; REEL.cx = null; REEL.shot = null; clock.getDelta();
 }
-function finishReel() {
-  const { chunks, mime, cancelled, key } = REEL; restoreView();
+const inApp = /Instagram|FBAN|FBAV|FB_IAB|Line\//i.test(navigator.userAgent);
+const inAppHint = () => inApp ? `<div class="hero warn" style="margin-top:10px"><p><b>פתחתם מתוך אינסטגרם?</b> הדפדפן הפנימי של אינסטגרם לא מאפשר לשמור קבצים. לחצו על ⋯ למעלה ← ״פתיחה בדפדפן״, ושם שמרו או שתפו.</p></div>` : "";
+function shareFile(file, url) {
+  // must run synchronously inside the tap, or the browser blocks the share sheet
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(() => {}); return; }
+  const a = document.createElement("a"); a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); toast("הקובץ נשמר. העלו אותו מהגלריה");
+}
+function finishReel(blob, ext, note) {
+  const { cancelled, key, total } = REEL; restoreView();
   if (cancelled) return toast("הצילום בוטל");
-  const type = mime.split(";")[0], ext = type.includes("mp4") ? "mp4" : "webm", blob = new Blob(chunks, { type }), url = URL.createObjectURL(blob);
+  if (!blob) return;
+  const type = blob.type || "video/mp4", url = URL.createObjectURL(blob);
   const file = new File([blob], `sababa-${key}-${new Date().toISOString().slice(0, 10)}.${ext}`, { type });
   open("הריל מוכן 🎬", `<video class="reelvid" src="${url}" controls playsinline autoplay muted loop></video>
-    <div class="btns"><button class="btn" id="rShare">📲 שיתוף לאינסטגרם</button><a class="btn ghost" href="${url}" download="${file.name}">⬇️ שמירה</a></div>
-    <div class="hero" style="margin-top:12px"><p><b>טיפ:</b> באינסטגרם הוסיפו סאונד טרנדי מהספרייה שלהם, הוא משפר מאוד את החשיפה.${ext === "webm" ? " <br><b>שימו לב:</b> הדפדפן שמר את הסרטון בפורמט WebM. אם אינסטגרם לא מקבל אותו, פתחו את הסטודיו מכרום מעודכן או מספארי, שם הוא נשמר כ־MP4." : ""}</p></div>
+    <p class="note">${fmtN(Math.round(total))} שניות · ${ext.toUpperCase()}${REEL.voiced ? " · 🎙️ עם דיבוב" : ""} · ${(blob.size / 1048576).toFixed(1)}MB</p>
+    <div class="btns"><button class="btn" id="rShare">📲 שיתוף לאינסטגרם</button><a class="btn ghost" href="${url}" download="${file.name}">⬇️ שמירה</a></div>${inAppHint()}
+    <div class="hero" style="margin-top:12px"><p><b>טיפ:</b> באינסטגרם הוסיפו סאונד טרנדי מהספרייה שלהם, הוא משפר מאוד את החשיפה.${note === "noaudio" ? "<br><b>בלי דיבוב:</b> הדפדפן הזה לא יודע לקודד אודיו. בטלפון (אייפון או אנדרואיד מעודכן) הריל ייצא עם דיבוב." : ""}${note === "vp9" ? "<br><b>שימו לב:</b> הדפדפן הזה לא תומך בקידוד H.264, אז הסרטון נשמר ב־VP9. אם אינסטגרם לא מקבל אותו, צלמו מהטלפון (אייפון או אנדרואיד)." : ""}${ext === "webm" ? "<br><b>שימו לב:</b> הדפדפן שמר את הסרטון בפורמט WebM. אם אינסטגרם לא מקבל אותו, פתחו את הסטודיו מכרום מעודכן או מספארי." : ""}</p></div>
     <div class="btns"><button class="btn ghost" data-go="studio">צילום ריל אחר</button></div>`,
-    () => { $("rShare").onclick = async () => { if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch {} } else { const a = document.createElement("a"); a.href = url; a.download = file.name; a.click(); toast("הסרטון נשמר. העלו אותו מהגלריה"); } }; });
+    () => { $("rShare").onclick = () => shareFile(file, url); });
 }
-$("recStop").onclick = () => { REEL.cancelled = true; if (REEL.rec?.state === "recording") REEL.rec.stop(); else finishReel(); };
-GO.studio = () => open("סטודיו רילים", `<div class="hero"><p><b>האתר מצלם ועורך בשבילכם.</b> בוחרים תבנית, והמצלמה טסה מעל המדינה, משנה יום ללילה, מוסיפה כתוביות ושומרת סרטון אנכי מוכן לאינסטגרם. בזמן הצילום אל תעברו אפליקציה.</p></div>
-  <div class="sec">בחרו תבנית</div><div class="tpl">${Object.entries(TEMPLATES).map(([k, t]) => `<button data-go="reel" data-arg="${k}" ${t.ok() ? "" : "disabled"}><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`).join("")}</div>`, null, sub());
+$("recStop").onclick = () => { REEL.cancelled = true; if (REEL.rec?.state === "recording") REEL.rec.stop(); };
+GO.studio = () => {
+  const mine = S.mine?.lot ? S.mine : null;
+  if (!ADMIN) return open("סטודיו רילים", `<div class="hero"><p><b>האתר מצלם ועורך בשבילכם.</b> ריל אישי של הבית שלכם: המצלמה טסה מעל המדינה, נוחתת על הבית, מציגה את העבודה, הרכב וההישגים, ושומרת סרטון אנכי מוכן לסטורי.</p></div>
+    <div class="sec">התבנית שלך</div><div class="tpl"><button data-go="reelHome" data-arg="${esc(mine?.u || "")}" ${mine && keyOf(mine.u) ? "" : "disabled"}><span>🏠</span><b>הבית שלי</b><small>${mine ? (keyOf(mine.u) ? "‎@" + esc(mine.u) : "פתחו מהקישור האישי שלכם") : "חפשו קודם את הבית שלכם"}</small></button></div>
+    ${voiceHtml()}
+    ${mine && keyOf(mine.u) ? "" : `<div class="hero" style="margin-top:12px"><p>ריל הבית נפתח מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם אותו? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>`}`, wireVoice, sub());
+  open("סטודיו רילים · מנהל", `<div class="hero"><p><b>👑 מצב מנהל.</b> בוחרים תבנית, והאתר מרנדר ריל של 15–25 שניות, פריים אחרי פריים, מוכן לאינסטגרם. בזמן ההכנה השאירו את המסך פתוח.</p></div>
+    <div class="sec">תבניות</div><div class="tpl">${Object.entries(TEMPLATES).map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok(); return `<button data-go="${k === "home" ? "reelHome" : "reel"}" data-arg="${k === "home" ? esc(S.mine?.u || "") : k}" ${ok ? "" : "disabled"}><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`; }).join("")}</div>
+    ${voiceHtml()}
+    <div class="sec">פקודות מנהל ב־Supabase (SQL Editor)</div><div class="list">
+      ${info("🎟️", "הגרלה יומית", "<code>select * from run_daily_draw();</code>")}${info("💸", "מענק לתושב", "<code>select grant_bonus('user', 1000, 'סיבה');</code>")}
+      ${info("🎁", "מענק לכל המדינה", "<code>select grant_bonus_all(200, 'חג');</code>")}${info("👑", "מינוי ראש ממשלה", "<code>select appoint_pm('user');</code>")}</div>
+    <div class="btns"><button class="btn ghost" id="adminOut">יציאה ממצב מנהל</button></div>`,
+    () => { wireVoice(); $("adminOut").onclick = () => { ADMIN = false; try { localStorage.removeItem("sababa_admin"); } catch {} close(); toast("יצאת ממצב מנהל"); }; }, sub());
+};
+function voiceHtml() {
+  return `<div class="sec">🎙️ דיבוב בעברית</div><div class="list"><label class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>קול עברי טבעי מקריא כל כתובית</small></span><input type="checkbox" id="vOn" ${VOICE_CFG.on ? "checked" : ""}></label>
+    <div class="li"><span class="ic">🗣️</span><span class="tx"><b>הקול</b></span><select id="vSel">${Object.entries(VOICES).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.voice ? "selected" : ""}>${n}</option>`).join("")}</select></div></div>`;
+}
+function wireVoice() { $("vOn").onchange = e => { VOICE_CFG.on = e.target.checked; setPref("sababa_voice_on", e.target.checked ? "1" : "0"); }; $("vSel").onchange = e => { VOICE_CFG.voice = e.target.value; setPref("sababa_voice", e.target.value); }; }
 GO.reel = k => startReel(k);
-GO.reelHome = u => startReel("home", u);
+GO.reelHome = u => startReel("home", u || S.mine?.u);
 
 /* ============================ DATA ============================ */
+// newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
+const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift",
+  "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level", "id,ig_username,city_id,created_at"];
+let colset = 0;
 async function fetchCitizens() {
-  const out = [], step = 1000; let cols = "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level";
+  const out = [], step = 1000;
   for (let from = 0; ; from += step) {
     let data;
-    try { data = await api(`citizens?select=${cols}&order=id`, { Range: `${from}-${from + step - 1}` }); }
-    catch (e) { if (e.message === "416") break; if (cols.includes("house_tier")) { cols = "id,ig_username,city_id,created_at"; from -= step; continue; } throw e; }
+    try { data = await api(`citizens?select=${COLSETS[colset]}&order=id`, { Range: `${from}-${from + step - 1}` }); }
+    catch (e) { if (e.message === "416") break; if (colset < COLSETS.length - 1) { colset++; out.length = 0; from = -step; continue; } throw e; }
     out.push(...data); if (data.length < step) break;
   }
   return out;
@@ -1256,7 +2074,7 @@ async function loadData() {
 }
 function loadExtras() {
   return Promise.all([
-    api("laws?select=title,description,enacted_at&order=enacted_at.desc,id.desc").then(d => S.laws = d),
+    api("laws?select=title,description,enacted_at,proposed_by&order=enacted_at.desc,id.desc").catch(() => api("laws?select=title,description,enacted_at&order=enacted_at.desc,id.desc")).then(d => S.laws = d),
     api("ministers?select=ministry,appointed_at,citizens(ig_username)&order=appointed_at.desc,id.desc").then(d => S.gov = d),
     api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d)].map(p => p.catch(() => {})));
 }
@@ -1265,7 +2083,7 @@ async function loadProjects() { try { S.projects = await api("projects?select=id
 }
 // live updates: once a minute, look for new citizens or a new draw and rebuild the island in place
 async function refresh() {
-  if (document.hidden || document.body.classList.contains("open")) return;
+  if (document.hidden || document.body.classList.contains("open") || REEL.on) return;
   try {
     const [top, dr, pr] = await Promise.all([api("citizens?select=id&order=id.desc&limit=1"), api("draws?select=id&order=id.desc&limit=1").catch(() => []),
       api("projects?select=id,status&order=id").catch(() => S.projects)]);
@@ -1292,9 +2110,27 @@ async function boot() {
   controls.target.set(0, 0, 0); camera.position.copy(VIEW_DIR).multiplyScalar(2000); setZoom(fitZoom());
   requestAnimationFrame(loop);
   setTimeout(() => { $("loader").classList.add("gone"); flyTo(cap.x, cap.z, 2.2, 2400); }, 500);
-  const pre = new URLSearchParams(location.search).get("u");
-  if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => find(pre), 3000); }
+  const qs = new URLSearchParams(location.search), pre = qs.get("u"), k = qs.get("k");
+  // the personal link from Instagram: remember the key on this phone and take it out of the address bar, so it isn't shared by mistake
+  if (pre && k) { saveKey(clean(pre), k); history.replaceState(null, "", `?u=${encodeURIComponent(clean(pre))}`); }
+  if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
+    if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
+  initAdmin(qs);
+  if (qs.has("debug")) window.GO = GO;
   setInterval(refresh, REFRESH_MS);
+}
+// admin mode: open the site with ?admin once, type the code that upgrade-5.sql printed, and this phone remembers it
+let ADMIN = false;
+async function initAdmin(qs) {
+  let code = null; try { code = localStorage.getItem("sababa_admin"); } catch {}
+  if (qs.has("admin")) {
+    const rest = new URLSearchParams(qs); rest.delete("admin"); history.replaceState(null, "", rest.toString() ? "?" + rest : location.pathname);
+    code = (prompt("קוד מנהל:") || "").trim(); if (!code) return;
+  }
+  if (!code) return;
+  let ok = false; try { ok = (await rpc("admin_check", { secret: code })) === true; } catch {}
+  if (ok) { ADMIN = true; try { localStorage.setItem("sababa_admin", code); } catch {} if (qs.has("admin")) toast("👑 מצב מנהל פעיל. כל תבניות הרילים פתוחות בסטודיו"); }
+  else { try { localStorage.removeItem("sababa_admin"); } catch {} if (qs.has("admin")) toast("קוד מנהל שגוי"); }
 }
 boot();
 </script>
