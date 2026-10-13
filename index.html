@@ -325,7 +325,7 @@ const ROLE = { bakery: "אופה", cafe: "בריסטה", market: "קופאי/ת"
   hummus: "מגיש/ת חומוס", tech: "מפתח/ת תוכנה", police: "שוטר/ת", fuel: "מתדלק/ת", restaurant: "מלצר/ית", shop: "מוכר/ת", hotel: "פקיד/ת קבלה",
   office: "עובד/ת משרד", gym: "מאמן/ת כושר", bank: "פקיד/ת בנק", pharmacy: "רוקח/ת", factory: "עובד/ת ייצור" };
 const KIND_IC = { bakery: "🥖", cafe: "☕", market: "🛒", school: "🏫", clinic: "🏥", garage: "🔧", hummus: "🥙", tech: "💻", police: "🚓", fuel: "⛽",
-  restaurant: "🍽️", shop: "🛍️", hotel: "🏨", office: "🏢", gym: "🏋️", bank: "🏦", pharmacy: "💊", factory: "🏭" };
+  restaurant: "🍽️", shop: "🛍️", hotel: "🏨", office: "🏢", gym: "🏋️", bank: "🏦", pharmacy: "💊", factory: "🏭", ballot: "🗳️" };
 const KIND_NAMES = { bakery: "מאפייה", cafe: "בית קפה", market: "סופרמרקט", school: "בית ספר", clinic: "מרפאה", garage: "מוסך", hummus: "חומוסייה", tech: "חברת הייטק", police: "תחנת משטרה", fuel: "תחנת דלק",
   restaurant: "מסעדה", shop: "חנות", hotel: "מלון", office: "בניין משרדים", gym: "חדר כושר", bank: "בנק", pharmacy: "בית מרקחת", factory: "מפעל" };
 const LEVEL = ["", "", "ראש/ת צוות", "מנהל/ת", 'מנכ"ל/ית'];
@@ -657,7 +657,10 @@ function layout() {
     }
     // business-district blocks are paved only once the admin puts a building on them
     const nW = S.workplaces.filter(w => w.city_id === slot.city.id).length;
-    slot.extraUsed = extraBlocks(slot, si).slice(0, Math.max(0, nW - N_WORK));
+    slot.extraUsed = extraBlocks(slot, si).slice(0, Math.min(N_EXTRA - 1, Math.max(0, nW - N_WORK)));
+    // the capital's polling station lives on the last block of its business district
+    slot.ballotBlock = si === 0 ? extraBlocks(slot, si)[N_EXTRA - 1] || null : null;
+    if (slot.ballotBlock) slot.extraUsed = [...slot.extraUsed, slot.ballotBlock];
     for (const [bx, bz] of slot.extraUsed) {
       for (let x = Math.sign(bx); x !== bx + Math.sign(bx) && bx; x += Math.sign(bx)) if (!slot.blocks.has(`${x},0`)) slot.blocks.set(`${x},0`, { bx: x, bz: 0 });
       for (let z = Math.sign(bz); z !== bz && bz; z += Math.sign(bz)) if (!slot.blocks.has(`${bx},${z}`)) slot.blocks.set(`${bx},${z}`, { bx, bz: z });
@@ -853,11 +856,32 @@ function workBuilding(w, x, z, ry) {
     const light = c => { const q = C(c); return .2126 * q.r + .7152 * q.g + .0722 * q.b > .35; }, bg = w.color && !light(w.color) ? w.color : SG[4];
     mountSign(grp, sign(w.name, RW_, 2.5, { bg, fg: light(bg) ? "#1b2430" : "#ffffff" }), 0, ROOF[0] + 2.25, ROOF[1] + .16); }
 }
+// the polling station: a pseudo-workplace so it can be entered like any business
+const BALLOT = { id: "ballot", kind: "ballot", name: "קלפי מס׳ 1", staff: [], x: null, z: null };
+function ballotBuilding(x, z) {
+  const B = "#2f5d8a", Q = [box(30, .12, 18, "#d8cfbd"), box(22, 7, 11, "#f4f1ea", 0, 0, -2.5), box(22.4, .5, 11.4, B, 0, 7, -2.5), box(22.4, 1, .3, B, 0, 5.3, 3.1),
+    box(5, 3.4, .14, GLASS, 0, 0, 3.06), ...[-7.5, -4, 4, 7.5].map(x2 => box(2.4, 2, .12, WIN, x2, 2.6, 3.06)), box(8, .25, 3.4, "#e9e3d6", 0, 3.6, 4.6), ...[-3.6, 3.6].map(x2 => box(.25, 3.6, .25, "#dcd5c6", x2, 0, 6.1)),
+    ...[-12.5, 12.5].map(x2 => cyl(.12, .14, 11, 8, "#d0d0d0", x2, 0, 6)),
+    // queue barriers in front of the door
+    ...[-6, -3, 3, 6].map(x2 => cyl(.09, .09, 1, 8, "#c9a24a", x2, 0, 7.6)), box(3, .06, .06, "#b5232f", -4.5, .9, 7.6), box(3, .06, .06, "#b5232f", 4.5, .9, 7.6)];
+  const g = solid(Q, x, z, 0, { type: "ballot" }, CURB);
+  mountSign(g, sign("קלפי · ועדת הבחירות", 14, 1, { bg: B, fg: "#ffffff" }), 0, 5.8, 3.27);
+  mountSign(g, sign("🗳️ כאן מצביעים", 6, 1.1, { bg: "#ffffff", fg: B }), 0, 4.3, 6.32);
+  for (const sx of [-1, 1]) { const f = flagMesh(4.2, 2.8); f.position.set(x + sx * 12.5 + 2.1, CURB + 9.4, z + 6); world.add(f); FLAGS.push(f); }
+  instanced(P.walker, [[-5.2, 9], [-4.2, 9.1], [-3.2, 8.9], [4.4, 9]], ([a, b], o) => { o.position.set(x + a, CURB + .12, z + b); o.rotation.y = Math.PI; o.scale.setScalar(1.1); return SHIRTS[(a * 7 + 20 | 0) % SHIRTS.length]; });
+}
+function ballotHouse() {
+  if (BALLOT.x == null) return GO.ballot();
+  const n = S.ballot.filter(e => e.status === "open").length;
+  goTo(BALLOT.x, BALLOT.z, 5, () => open("🗳️ קלפי מס׳ 1", `<div class="hero"><p><b>מבנה ועדת הבחירות.</b> ${n ? `יש עכשיו ${fmtN(n)} בחירות פתוחות.` : "כרגע אין בחירות פתוחות."} נכנסים פנימה, עוברים את ועדת הקלפי, ובוחרים מאחורי הפרגוד.</p></div>
+    <div class="btns"><button class="btn" data-go="enter" data-arg="ballot">🚪 להיכנס לקלפי</button><button class="btn ghost" data-go="ballot">🗳️ להצביע</button></div>`));
+};
 function buildCivic() {
   const parks = [], lots = [], parked = [];
   S.slots.filter(s => s.city).forEach((slot, si) => {
     const all = slot.reserved.map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ]), nGov = si === 0 ? GOV.length : 0;
-    const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ])]; slot.publicSpots = all.slice(nGov + N_WORK);
+    const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).filter(b => b !== slot.ballotBlock).map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ])]; slot.publicSpots = all.slice(nGov + N_WORK);
+    if (slot.ballotBlock) { BALLOT.x = slot.x + slot.ballotBlock[0] * BX; BALLOT.z = slot.z + slot.ballotBlock[1] * BZ; BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); }
     if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; govBuilding(g.id, sp[0], sp[1]); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
       const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; workBuilding(w, w.x, w.z, 0);
@@ -967,6 +991,85 @@ const MONUMENTS = {
   clock: { name: "מגדל שעון", build: o => ({ parts: [box(1.2, 4.6, 1.2, o.color || "#d9c39a"), box(1.4, .2, 1.4, "#b9a47a", 0, 4.6, 0), ...[0, 1, 2, 3].map(i => cyl(.4, .4, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * .62, 3.9, Math.cos(i * Math.PI / 2) * .62)),
     part(new THREE.ConeGeometry(.95, 1.3, 4), "#7a2a20", 0, 5.45, 0, { y: Math.PI / 4 })], scale: 6 }) }
 };
+/* ---------- construction sites: a real tower crane, fences with the project's name, a rising skeleton, machines and workers ---------- */
+const CY = "#f2b630", CY2 = "#d99a1e";
+// a lattice: four steel chords with rungs and diagonal braces on every face, built upright along +y from 0 to len
+function lattice(len, w) {
+  const Q = [], t = .14, n = Math.max(2, Math.round(len / (w * 1.15))), seg = len / n, diag = Math.hypot(w, seg), ang = Math.atan2(w, seg);
+  for (const [a, c] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) Q.push(box(t, len, t, CY, a * w / 2, 0, c * w / 2));
+  for (let i = 0; i < n; i++) {
+    const b0 = i * seg, mid = b0 + seg / 2 - diag / 2, sg = i % 2 ? 1 : -1;
+    Q.push(box(w, t * .8, t * .8, CY2, 0, b0, -w / 2), box(w, t * .8, t * .8, CY2, 0, b0, w / 2), box(t * .8, t * .8, w, CY2, -w / 2, b0, 0), box(t * .8, t * .8, w, CY2, w / 2, b0, 0));
+    for (const c of [-1, 1]) Q.push(box(t * .7, diag, t * .7, CY2, 0, mid, c * w / 2, { z: sg * ang }), box(t * .7, diag, t * .7, CY2, c * w / 2, mid, 0, { x: sg * ang }));
+  }
+  return Q;
+}
+function craneParts(H = 30, jib = 26, cj = 9, hookDrop = 12) {
+  const Q = [], w = 1.6, top = H;
+  Q.push(box(4.4, 1.2, 4.4, "#9aa1a6", 0, 0, 0));                                     // concrete footing
+  Q.push(...lattice(H, w).map(g => g.translate(0, 1.2, 0)));                            // mast
+  Q.push(box(2.4, .5, 2.4, CY2, 0, top + 1.2, 0), cyl(1.1, 1.1, .5, 16, "#555a60", 0, top + 1.7, 0));   // slewing ring
+  // jib (towards +x) and counter-jib (towards -x), as lattices
+  const jy = top + 2.6;
+  Q.push(...lattice(jib, 1.1).map(g => g.rotateZ(-Math.PI / 2).translate(1.2, jy, 0)));    // the jib lies along +x
+  Q.push(box(cj, .5, 1.6, CY, -cj / 2 - .4, jy - .25, 0), ...[0, 1, 2].map(i => box(1.4, 1.8, 1.8, "#8a9096", -cj + .6 + i * 1.5, jy - 1.6, 0)));    // counter-jib + concrete counterweights
+  Q.push(box(1.6, 1.5, 1.6, "#f4f4f4", 1.6, top + 1.7, 1.3), box(1.3, .8, .05, "#22303a", 1.6, top + 2.1, 2.11));   // operator cab
+  // A-frame on top, with tie cables to the tips
+  const apex = jy + 5; Q.push(box(.25, 5, .25, CY, -.5, jy, -.5), box(.25, 5, .25, CY, -.5, jy, .5), box(.25, 5, .25, CY, .5, jy, -.5), box(.25, 5, .25, CY, .5, jy, .5));
+  const tie = (x1, y1, x2, y2) => { const L = Math.hypot(x2 - x1, y2 - y1); return box(L, .07, .07, "#3a3a3a", (x1 + x2) / 2, (y1 + y2) / 2 - .035, 0, { z: Math.atan2(y2 - y1, x2 - x1) }); };
+  Q.push(tie(0, apex, jib * .75, jy + .5), tie(0, apex, -cj + .5, jy));
+  // trolley, hook cables, hook block with a load
+  const tx = 1.2 + jib * .62;
+  Q.push(box(1.4, .45, 1.2, "#3a3f46", tx, jy - .9, 0), box(.05, hookDrop, .05, "#222222", tx - .2, jy - .9 - hookDrop, 0), box(.05, hookDrop, .05, "#222222", tx + .2, jy - .9 - hookDrop, 0),
+    box(.7, .9, .5, "#e5484d", tx, jy - 1.8 - hookDrop, 0), box(4, .5, 1.2, "#8a6a48", tx, jy - 3.2 - hookDrop, 0));
+  Q.push(box(.35, .35, .35, "^#ff3b30", 1.2 + jib, jy + .6, 0), box(.35, .35, .35, "^#ff3b30", 0, apex, 0));   // warning lights
+  return Q;
+}
+// fence walls with the project's name, all around; W x D lot centered at the origin
+function siteFence(grp, W, D, name, h = 2.4) {
+  const label = `כאן נבנה: ${name}`, col = "#1f4e5f";
+  for (const [len, x, z, ry] of [[W, 0, D / 2, 0], [W, 0, -D / 2, Math.PI], [D, W / 2, 0, Math.PI / 2], [D, -W / 2, 0, -Math.PI / 2]]) {
+    const segs = Math.max(1, Math.round(len / 18));
+    for (let i = 0; i < segs; i++) {
+      const sl = len / segs, off = -len / 2 + sl * (i + .5), c = Math.cos(ry), s = Math.sin(ry);
+      const px = x + off * c, pz = z - off * s, s2 = sign(i % 2 ? "רפובליקת סבבה · בונים בשבילכם" : label, sl - .4, h - .3, { bg: i % 2 ? "#f2b630" : col, fg: i % 2 ? "#1b1b1b" : "#ffffff" });
+      mountSign(grp, s2, px + Math.sin(ry) * .09, h / 2 + .1, pz + Math.cos(ry) * .09, ry);
+    }
+  }
+}
+function siteParts(W, D, { crane = true, craneH = 30, jib = 26, skeleton = true } = {}) {
+  const Q = [box(W, .12, D, "#a58a62")];
+  // fence frame (the printed panels are mounted on it), posts, a gate
+  for (const [w, d, x, z] of [[W, .15, 0, D / 2], [W, .15, 0, -D / 2], [.15, D, W / 2, 0], [.15, D, -W / 2, 0]]) Q.push(box(w, 2.5, d, "#e8e8e8", x, 0, z));
+  // a concrete skeleton going up inside scaffolding
+  if (skeleton) {
+    const sx = -W * .18, sz = -D * .1, bw = Math.min(14, W * .4), bd = Math.min(10, D * .5);
+    for (let f = 0; f < 3; f++) { Q.push(box(bw, .35, bd, "#b9bec2", sx, f * 3.2, sz)); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) Q.push(box(.5, 3.2, .5, "#a4a9ad", sx + a * (bw / 2 - .3), f * 3.2, sz + b * (bd / 2 - .3))); }
+    Q.push(box(bw, .35, bd * .5, "#b9bec2", sx, 9.6, sz - bd / 4));
+    for (let f = 0; f < 4; f++) for (const z of [sz - bd / 2 - .9, sz + bd / 2 + .9]) Q.push(box(bw + 2, .12, .9, "#8a6a48", sx, f * 3.2 + .2, z), box(bw + 2, .08, .08, "#c0392b", sx, f * 3.2 + 1.2, z + (z > sz ? .4 : -.4)));
+    for (let i = 0; i <= 4; i++) for (const z of [sz - bd / 2 - 1.3, sz + bd / 2 + 1.3]) Q.push(box(.1, 12.6, .1, "#9aa1a6", sx - bw / 2 - 1 + i * (bw + 2) / 4, 0, z));
+    Q.push(box(bw + 2.4, 3, .05, "#2f8f6a", sx, 9.6, sz + bd / 2 + 1.5));    // safety net
+  }
+  // machines and materials
+  const ex = W * .28, ez = D * .22;
+  Q.push(box(2.4, 1, 3.4, "#f2b630", ex, .4, ez), box(2.6, .6, 3.8, "#2a2a2a", ex, 0, ez), box(1.4, 1.3, 1.4, "#f2b630", ex + .4, 1.4, ez - .6), box(1.2, 1, .05, "#22303a", ex + .4, 1.7, ez + .11),
+    box(.4, .4, 4, "#f2b630", ex - .5, 2.2, ez + 2.2, { x: -.5 }), box(.4, .4, 2.6, "#f2b630", ex - .5, 1.2, ez + 4.6, { x: .9 }), box(1, .6, .9, "#3a3a3a", ex - .5, .1, ez + 5.4));   // excavator
+  Q.push(box(2.2, 1.6, 2.2, "#f4f4f4", ex - 6, .6, -ez - 1.5), box(2.3, .5, 6.5, "#3a3f46", ex - 6, .4, -ez), cyl(1.1, .8, 3.6, 12, "#e8692b", ex - 6, 0, 0, { x: Math.PI / 2 - .25 }).translate(0, 2.2, -ez + 1),
+    ...[[-.9, -1.8], [.9, -1.8], [-.9, 2], [.9, 2]].map(([a, b]) => cyl(.45, .45, .35, 12, "#1a1a1a", ex - 6 + a, .45 - .175, -ez + b, { z: Math.PI / 2 })));     // concrete mixer truck
+  Q.push(box(6, 2.6, 2.4, "#f4f4f4", -W / 2 + 4.2, 0, D / 2 - 2.2), box(6.1, .2, 2.5, "#1f6f8b", -W / 2 + 4.2, 2.6, D / 2 - 2.2), box(1.6, .9, .05, "*#cfe6f2", -W / 2 + 3, 1.3, D / 2 - .98));   // site office
+  for (let i = 0; i < 3; i++) Q.push(box(3, .25, 1, "#8a6a48", W / 2 - 3, .1 + i * .26, -D / 2 + 2.5 + (i % 2) * .2));                                          // planks
+  for (let i = 0; i < 4; i++) Q.push(cyl(.35, .35, 2.4, 10, "#7a7f84", W / 2 - 5.5, .35 + Math.floor(i / 2) * .7, -D / 2 + 1.8 + (i % 2) * .72, { x: Math.PI / 2 }));   // pipes
+  Q.push(part(new THREE.ConeGeometry(2.2, 1.6, 8), "#c9b48c", W / 2 - 4, 0, D / 2 - 3.5), box(.4, .7, .4, "#e8692b", 2, 0, D / 2 - 1), box(.4, .7, .4, "#e8692b", 4, 0, D / 2 - 1));    // sand, cones
+  if (crane) Q.push(...craneParts(craneH, jib, Math.round(jib * .35)).map(g => g.translate(W * .3, 0, -D * .28)));
+  return Q;
+}
+function buildSite(p, name, cx, cz, W, D, y0, ry = 0, opts) {
+  const g = solid(siteParts(W, D, opts), cx, cz, ry, { type: "project", p }, y0);
+  siteFence(g, W, D, name);
+  const crew = [[-W * .18, -D * .1 + 5.6], [W * .28 - 2, D * .22 + 2], [-W / 2 + 6, D / 2 - 4.5]];
+  instanced(P.walker, crew, ([x, z], o) => { const c = Math.cos(ry), s = Math.sin(ry); o.position.set(cx + x * c + z * s, y0 + .12, cz - x * s + z * c); o.rotation.y = ry + x; o.scale.setScalar(1.15); return "#f2b630"; });
+  return g;
+}
 // one-color patina, like a real copper statue: every part keeps only its light or dark, the hue becomes oxidized copper
 function patinate(parts) {
   const dark = C("#22463c"), light = C("#b9dccd"), c = new THREE.Color();
@@ -1055,14 +1158,7 @@ function buildPublic() {
         return;
       }
       p.x = cx; p.z = cz; const name = p.name || PROJECT_KINDS[p.kind]?.[1] || "";
-      if (p.status !== "done") {   // construction site with a crane
-        const g = solid([box(40, .1, 20, "#b89a6a"), ...[[40, .2, 0, -10], [40, .2, 0, 10], [.2, 20, -20, 0], [.2, 20, 20, 0]].map(([w, d, x, z]) => box(w, 1.8, d, "#e8e8e8", x, 0, z)),
-          box(1.2, 26, 1.2, "#f2b440", 12, 0, -5), box(22, .9, .9, "#f2b440", 5, 26, -5), box(3, 1.6, 1.6, "#6b6b6b", 16.5, 25, -5), cyl(.05, .05, 10, 4, "#333333", -4, 16, -5),
-          ...[[-8, -4], [-2, -4], [-8, 2], [-2, 2]].map(([x, z]) => box(.6, 6, .6, "#9aa1a6", x, 0, z)), box(7, .4, 7, "#9aa1a6", -5, 6, -1), box(5, 1.6, 2, "#d9cba8", 4, 0, 5),
-          box(.3, .3, .3, "*#ffb000", 12, 26.6, -5)], cx, cz, 0, { type: "project", p }, Y0);
-        mountSign(g, sign(`בבנייה: ${name}`, 12, 1.8, { bg: "#f2b440", fg: "#1b1b1b" }), 0, .9, 10.12);
-        return;
-      }
+      if (p.status !== "done") { buildSite(p, name, cx, cz, 40, 20, Y0, 0, { craneH: p.kind === "monument" ? 34 : 26, jib: 22 }); return; }
       if (p.kind === "monument") return buildMonument(p, cx, cz);
       const open = ["park", "playground", "dogpark", "football", "basketball"].includes(p.kind);
       const g = solid([...projectModel(p.kind), ...(open ? [box(.2, 2.9, .2, "#6e4c30", -3.2, 0, 9.5), box(.2, 2.9, .2, "#6e4c30", 3.2, 0, 9.5)] : [])], cx, cz, 0, { type: "project", p }, Y0);
@@ -1075,7 +1171,8 @@ function buildPublic() {
   });
   instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, Y0, z); o.scale.setScalar(.9); });
   S.projects.filter(p => p.params?.island).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildIsletMonument(p, k) : (() => { const sp = isletSpot(k); p.x = sp.x; p.z = sp.z;
-    solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), box(1.6, 60, 1.6, "#f2b440", 8, 0, 0), box(40, 1.6, 1.6, "#f2b440", -4, 60, 0), box(.5, .5, .5, "*#ffb000", 8, 61, 0)], sp.x, sp.z, sp.face, { type: "project", p }); })());
+    solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), cyl(26, 28, 9, 11, "#b9b19f", 0, 0, 0)], sp.x, sp.z, sp.face, { type: "project", p });
+    buildSite(p, p.name || "פסל", sp.x, sp.z, 46, 46, 9, sp.face, { craneH: 60, jib: 40 }); })());
 }
 
 /* ============================ COAST & NATURE ============================ */
@@ -1233,6 +1330,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
   else if (d.type === "lot") GO.ideas();
+  else if (d.type === "ballot") GO.ballotHouse();
 });
 
 /* ============================ LOOP ============================ */
@@ -1374,7 +1472,7 @@ function showProject(p) {
   open(`${ic} ${p.name || kindName}`, `<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
-    <div class="btns"><button class="btn ghost" data-go="ideas">כל הפרויקטים</button></div>`);
+    <div class="btns">${INDOOR.includes(p.kind) && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 להיכנס פנימה</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button></div>`);
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
@@ -1382,9 +1480,9 @@ $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
 function openGov(id) {
   const g = GOV.find(q => q.id === id);
   open(`${g.ic} ${g.name}`, {
-    knesset: `<div class="hero"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
-    pm: `<div class="hero"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
-    interior: `<div class="hero"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
+    knesset: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:knesset">🚪 להיכנס למליאה</button></div><div class="hero" style="margin-top:8px"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
+    pm: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:pm">🚪 להיכנס ללשכה</button></div><div class="hero" style="margin-top:8px"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
+    interior: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:interior">🚪 להיכנס פנימה</button></div><div class="hero" style="margin-top:8px"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
   }[id]);
 }
 function openPlace(id) {
@@ -1435,7 +1533,7 @@ function showHouse(h) {
     </div>
     ${achHtml(h)}
     <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button>${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}</div>
-    ${h.wp ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">🚪 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button></div>` : ""}`,
+    <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="enter" data-arg="home:${esc(h.u)}">🛋️ ${me ? "להיכנס הביתה" : "להציץ פנימה"}</button>${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">🚪 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}</div>`,
     () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
 /* ============================ ACHIEVEMENTS ============================ */
@@ -1594,8 +1692,9 @@ GO.top = () => {
 const INT = { on: false };
 const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
 const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", hotel: "cafe", factory: "garage" };
+const ROOMS = new Set(["bakery", "cafe", "market", "school", "clinic", "garage", "hummus", "tech", "police", "fuel", "gym", "ballot", "gov_knesset", "gov_pm", "gov_interior", "library", "community", "mall", "home"]);
 function interiorOf(w) {
-  const k = INTERIOR_OF[w.kind] || w.kind, Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
+  const k0 = INTERIOR_OF[w.kind] || w.kind, k = ROOMS.has(k0) ? k0 : "tech", Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
   const add = (...p) => Q.push(...p);
   // room shell: floor, back wall (z=-6.5) and left wall (x=-9), open towards the camera
   const room = (floor, wall, band, { tiles, planks } = {}) => {
@@ -1723,6 +1822,85 @@ function interiorOf(w) {
     for (let i = 0; i < 4; i++) chair(-8.3, -2.6 + i * 1, Math.PI / 2, "#1f4e9e");
     sgn(name, 4.8, .9, -3.5, 4.2, -6.48, 0, "#1f4e9e", "#ffffff"); sgn("מפת רפובליקת סבבה", 4.6, 2.2, 4, 1.55, -6.39, 0, "#e9f2f7", "#1f4e9e"); sgn("קבלת קהל", 2.6, .6, -3, 1.6, 3.62, 0, "#ffffff", "#1f4e9e");
     staff.push([-2.4, 2, 0], [1, -1.2, Math.PI], [3.6, -1.2, Math.PI], [6.2, 1.5, -Math.PI / 2]);
+  } else if (k === "ballot") {   // a real polling station: committee table, ballot box, a voting booth behind a screen, a queue
+    room("#c9b48c", "#f1ead8", "#2f5d8a", { planks: "#bda57c" });
+    // the committee table, cloth to the floor, voter lists, envelopes, and the blue ballot box with its slot
+    add(box(6.4, .78, 1.5, "#f4f4f4", 1.5, 0, -2.6), box(6.5, .05, 1.6, "#ffffff", 1.5, .78, -2.6), box(.9, .02, .6, "#ffffff", -.6, .82, -2.7), box(.9, .02, .6, "#f2f2f2", .5, .82, -2.8),
+      ...Array.from({ length: 6 }, (_, i) => box(.3, .02, .22, "#3f7fbf", 3.6 + (i % 3) * .05, .82 + i * .02, -2.9)), box(.12, .02, .02, "#1a1a1a", -.2, .84, -2.5),
+      box(.8, .62, .55, "#2f6fa3", 1.9, .8, -2.25), box(.5, .02, .08, "#111111", 1.9, 1.42, -2.25), box(.5, .18, .02, "#ffffff", 1.9, 1.05, -1.96));
+    for (const x of [-.3, 1.5, 3.3]) chair(x, -3.7, 0, "#2f5d8a");
+    // the voting booth: three cardboard panels around a table of ballot-slip trays
+    add(box(2.4, 1.9, .06, "#e8e2d4", -6, .8, -5.6), box(.06, 1.9, 2, "#e8e2d4", -7.2, .8, -4.6), box(.06, 1.9, 2, "#e8e2d4", -4.8, .8, -4.6), box(2.2, .75, 1.4, "#9a7a52", -6, 0, -4.9));
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 7; c++) add(box(.26, .04, .34, "#ffffff", -6.85 + c * .28, .76 + r * .05, -5.4 + r * .38), box(.12, .005, .1, ["#2f5d8a", "#b5232f", "#2f8f6a", "#c9a24a"][(r + c) % 4], -6.85 + c * .28, .81 + r * .05, -5.38 + r * .38));
+    // a second booth, a water cooler, a clock, the queue with barriers
+    add(box(2.4, 1.9, .06, "#e8e2d4", -2.6, .8, -5.6), box(.06, 1.9, 2, "#e8e2d4", -3.8, .8, -4.6), box(.06, 1.9, 2, "#e8e2d4", -1.4, .8, -4.6), box(2.2, .75, 1.4, "#9a7a52", -2.6, 0, -4.9));
+    add(cyl(.25, .25, 1.2, 12, "#ffffff", 7.8, 0, -5.6), cyl(.22, .22, .5, 12, "*#bfe3f2", 7.8, 1.2, -5.6), cyl(.5, .5, .06, 18, "#ffffff", 5.5, 4, -6.45, { x: Math.PI / 2 }));
+    for (const [x, z] of [[4, 1.5], [4, 4.5], [7.5, 1.5], [7.5, 4.5]]) add(cyl(.07, .07, 1, 8, "#c9a24a", x, 0, z));
+    add(box(3.5, .05, .05, "#b5232f", 5.75, .92, 1.5), box(3.5, .05, .05, "#b5232f", 5.75, .92, 4.5));
+    add(cyl(.05, .05, 2.6, 8, "#cccccc", -8.3, 0, 2)); const fl = flagMesh(1.5, 1); fl.position.set(-7.55, 2.1, 2); INT.flags.push(fl);
+    sgn("ועדת הבחירות המרכזית · רפובליקת סבבה", 8, .9, 1.5, 4.2, -6.48, 0, "#2f5d8a", "#ffffff"); sgn("קלפי מס׳ 1", 3, .8, 1.5, 3.1, -6.48, 0, "#ffffff", "#2f5d8a");
+    sgn("פרגוד · תא הצבעה", 2.2, .5, -6, 2.4, -5.55, 0, "#ffffff", "#1b2430"); sgn("מצביעים רק פעם אחת 😉", 4.2, .8, -8.98, 3.6, -2, Math.PI / 2, "#ffe14d", "#1b2430");
+    sgn("← לתא ההצבעה", 2.6, .6, -8.98, 2.4, -4, Math.PI / 2, "#ffffff", "#2f5d8a");
+    staff.push([-.3, -3.3, 0], [1.5, -3.3, 0], [3.3, -3.3, 0], [-6, -4.1, Math.PI], [5.7, 2.2, Math.PI], [5.7, 3.1, Math.PI], [5.7, 4, Math.PI], [1.7, -1.4, Math.PI]);
+  } else if (k === "gov_knesset") {   // the plenum: a horseshoe of desks facing the speaker's podium
+    room("#33476b", "#ece4d2", "#b08d57");
+    add(box(7, 1.3, 1.4, "#7a5232", 0, 0, -5.4), box(7.2, .08, 1.6, "#b08d57", 0, 1.3, -5.4), box(2.4, 1.15, .9, "#7a5232", 0, 0, -3.6), box(.6, .4, .3, "#2b2b2b", 0, 1.15, -3.6));
+    for (let r = 0; r < 3; r++) { const R = 4.2 + r * 1.7, n = 7 + r * 2;
+      for (let i = 0; i < n; i++) { const a = -1.25 + 2.5 * i / (n - 1), x = Math.sin(a) * R, z = -3 + Math.cos(a) * R;
+        add(box(1.1, .78, .5, "#8a5a3a", x, 0, z, { y: a }), box(1.15, .05, .55, "#b08d57", x, .78, z, { y: a }), box(.5, .9, .5, "#2f5d8a", x + Math.sin(a) * .55, 0, z + Math.cos(a) * .55, { y: a })); } }
+    screen(-5.5, 2.4, -6.4, 3, 1.6, 0, "*#3a8fd0"); screen(5.5, 2.4, -6.4, 3, 1.6, 0, "*#3a8fd0");
+    add(cyl(.05, .05, 2.8, 8, "#cccccc", -3.6, 0, -6)); const f1 = flagMesh(1.5, 1); f1.position.set(-2.85, 2.3, -6); INT.flags.push(f1);
+    sgn("הכנסת · מליאה", 4.6, .9, 0, 3.6, -6.48, 0, "#b08d57", "#ffffff"); sgn("בעד: 61 · נגד: 59", 2.8, .6, -5.5, 3.5, -6.36, 0, "#1b2430", "#7fe0a0"); sgn("סדר היום: חוק החומוס", 2.8, .6, 5.5, 3.5, -6.36, 0, "#1b2430", "#ffd75a");
+    staff.push([0, -5.9, 0], [0, -3.1, Math.PI], [-3.3, -.5, Math.PI - 1], [3.3, -.5, Math.PI + 1], [-1.5, 2.5, Math.PI - .3], [1.6, 2.6, Math.PI + .3], [-5.5, 1.2, Math.PI - 1.1], [5.6, 1.4, Math.PI + 1.1]);
+  } else if (k === "gov_pm") {   // the prime minister's office
+    room("#6b4a3a", "#f3ead8", "#2f5d8a", { planks: "#5f4132" });
+    add(box(4, .8, 1.8, "#5a3a24", 0, 0, -4.4), box(4.2, .08, 2, "#3a2414", 0, .8, -4.4), box(1, 1.5, .9, "#2b2b2b", 0, 0, -5.6)); screen(-1.2, 1.1, -4.2, .8, .5, 0, "*#9fd6ff");
+    for (const x of [-2.6, 2.6]) { add(cyl(.05, .05, 2.8, 8, "#c9a24a", x, 0, -6.1)); const f = flagMesh(1.4, .95); f.position.set(x + .72, 2.3, -6.1); INT.flags.push(f); }
+    shelf(-8.6, -2, 5, 2.6, .5, Math.PI / 2, ["#7a2a20", "#2f5d8a", "#c9a24a", "#3a3a3a"], 4);
+    add(box(4.4, .76, 1.6, "#7a5232", 3, 0, 2), box(4.5, .05, 1.7, "#5a3a24", 3, .76, 2)); for (const x of [1.5, 3, 4.5]) { chair(x, 1, 0, "#7a2a20"); chair(x, 3, Math.PI, "#7a2a20"); }
+    add(box(3.4, .5, 1.2, "#7a2a20", -4.5, 0, 4.4), box(3.4, .9, .3, "#7a2a20", -4.5, .5, 4.95), box(1.6, .4, .9, "#3a2414", -4.5, 0, 3.1)); plant(7.8, -5.6, 1.4);
+    sgn("לשכת ראש הממשלה", 4.6, .9, 0, 4.2, -6.48, 0, "#2f5d8a", "#ffffff"); sgn("״יהיה בסדר״", 2.6, .7, 0, 3, -6.48, 0, "#f3ead8", "#b08d57");
+    staff.push([0, -5.1, 0], [1.5, .7, 0], [4.5, 3.4, Math.PI], [-4.5, 4.1, Math.PI]);
+  } else if (k === "gov_interior") {   // the interior ministry: counters, a queue-number screen, waiting chairs
+    room("#dfe5ea", "#ffffff", "#1f6f8b", { tiles: "#d2d9df" });
+    for (let i = 0; i < 4; i++) { const x = -5 + i * 3.4; add(box(2.8, 1.1, .8, "#1f6f8b", x, 0, -4.8), box(2.8, 1.4, .05, "*#e3f2f8", x, 1.1, -4.45), box(.06, 2.5, .8, "#9aa0a6", x + 1.45, 0, -4.8)); screen(x, 1.5, -5.1, .6, .4, 0, "*#9fd6ff"); sgn(`עמדה ${i + 1}`, 1.4, .4, x, 2.8, -4.42, 0, "#1f6f8b", "#ffffff"); }
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) chair(-6 + c * 1.1, .5 + r * 1.5, Math.PI, "#2f7fa8");
+    add(box(.8, 1.5, .6, "#e05a4f", 6.5, 0, 3.5), box(.5, .3, .05, "*#ffe9a8", 6.5, 1.1, 3.82));
+    sgn("משרד הפנים · תעודות זהות לאזרחי סבבה", 8, .9, 0, 4.2, -6.48, 0, "#1f6f8b", "#ffffff"); sgn("תור מס׳ 42", 2.4, .9, 6.5, 2.9, -6.4, 0, "#1b2430", "#ff6b5a"); sgn("קחו מספר ←", 2, .5, 6.5, 1.9, 3.9, Math.PI, "#ffffff", "#e05a4f");
+    staff.push([-5, -5.4, 0], [-1.6, -5.4, 0], [1.8, -5.4, 0], [-5, -3.9, Math.PI], [1.8, -3.9, Math.PI], [-3.8, .9, Math.PI], [-1.6, 2.4, Math.PI], [6, 2.6, Math.PI]);
+  } else if (k === "library") {
+    room("#8a6a48", "#efe6d2", "#5a3a24", { planks: "#7a5c3c" });
+    for (const x of [-6, -2, 2, 6]) shelf(x, -6.1, 3.6, 3, .5, 0, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8", "#7a5232"], 6);
+    for (const z of [-2.4, 0]) shelf(-4.5, z, 5, 2, .7, 0, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8"], 4);
+    for (const [x, z] of [[3, -1.5], [3, 2], [-3, 3.6]]) { add(box(3, .06, 1.4, "#7a5232", x, .76, z), box(.1, .76, 1.2, "#5a3a24", x - 1.3, 0, z), box(.1, .76, 1.2, "#5a3a24", x + 1.3, 0, z), cyl(.05, .05, .4, 8, "#333333", x, .8, z), cyl(.18, .1, .2, 10, "*#ffe6a8", x, 1.2, z)); chair(x - .7, z + 1, Math.PI, "#3f6b4a"); chair(x + .7, z - 1, 0, "#3f6b4a"); }
+    add(box(5, .02, 3.5, "#7a2a20", -3, 0, 3.6), cyl(.08, .12, .5, 8, "#8a5a3a", 7.5, .8, 4.6), sph(.4, "#3f8fd0", 7.5, 1.6, 4.6)); plant(-8.3, 5.6, 1.2);
+    sgn("ספרייה · שקט בבקשה 🤫", 5, .9, 0, 4.4, -6.48, 0, "#5a3a24", "#f6e7c8"); sgn("ספרי השבוע", 2.6, .6, -8.98, 3.6, 3, Math.PI / 2, "#f2b440", "#1b2430");
+    staff.push([2.3, -.5, Math.PI], [3.7, -2.5, 0], [-3.7, 4.6, Math.PI], [-6, -5, 0], [6.5, 0, -Math.PI / 2]);
+  } else if (k === "community") {   // a hall with a stage
+    room("#c9a77a", "#f4e9d8", "#e07a4f", { planks: "#bb966a" });
+    add(box(10, .9, 3.2, "#7a5232", 0, 0, -4.9), box(10.4, 4.2, .2, "#a1252f", 0, .9, -6.4), box(.8, 4.2, .4, "#7a1a22", -5, .9, -6.2), box(.8, 4.2, .4, "#7a1a22", 5, .9, -6.2), box(1.6, 1.1, .7, "#1a1a1a", -3.5, .9, -5.2), box(.4, 1.1, .4, "#555555", 1, .9, -4.2));
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 7; c++) chair(-4.8 + c * 1.6, -1.2 + r * 1.5, Math.PI, ["#e07a4f", "#2f7fa8", "#3fae6a"][r % 3]);
+    add(box(2.7, .06, 1.5, "#1f6f4a", 6.8, .76, 4.5), ...[[5.6, 3.9], [8, 5.1]].map(([x, z]) => box(.08, .76, .08, "#222222", x, 0, z)));
+    sgn("מתנ״ס רפובליקת סבבה", 5, .9, 0, 4.6, -6.3, 0, "#e07a4f", "#ffffff"); sgn("הערב: מופע סטנדאפ", 3.6, .8, -8.98, 3.6, 0, Math.PI / 2, "#1b2430", "#ffd75a");
+    staff.push([0, -4.8, 0], [-3.2, -1.2, Math.PI], [1.6, .3, Math.PI], [-1.6, 1.8, Math.PI], [3.2, 3.3, Math.PI], [6.8, 3.5, 0]);
+  } else if (k === "mall") {   // an atrium with shopfronts, an escalator and a fountain
+    room("#e9e4da", "#ffffff", "#b7bcc2", { tiles: "#ddd6c9" });
+    const shops = [["סבבה פאשן", "#c0392b"], ["גלידה יאללה", "#e88aa8"], ["גאדג׳טים", "#1f6f8b"], ["נעליים", "#3a3a3a"]];
+    shops.forEach(([n, c], i) => { const x = -6.3 + i * 4.2; add(box(3.8, 3.2, .3, c, x, 0, -6.2), box(3.2, 2.6, .05, "*#f4f0e6", x, .1, -6.02)); sgn(n, 3.2, .6, x, 3.5, -6.03, 0, c, "#ffffff"); });
+    for (let i = 0; i < 2; i++) { const z = -2 + i * 3.6; add(box(.3, 3.2, 3, "#d9dde1", -9, 0, z), box(.05, 2.6, 2.4, "*#f4f0e6", -8.83, .1, z)); sgn(["קפה הקניון", "צעצועים"][i], 2.4, .5, -8.82, 3.4, z, Math.PI / 2, ["#2d6e4a", "#f2b440"][i], "#ffffff"); }
+    add(box(1.6, .2, 6, "#9aa0a6", 6.5, 1.6, 2, { x: -.5 }), box(.1, 1, 6, "#2b2b2b", 5.7, 2.1, 2, { x: -.5 }), box(.1, 1, 6, "#2b2b2b", 7.3, 2.1, 2, { x: -.5 }), cyl(2, 2.2, .5, 24, "#d8d1c2", 0, 0, 1.5), cyl(1.8, 1.8, .2, 24, "#3fa8cf", 0, .35, 1.5), cyl(.3, .4, 1.4, 12, "#d8d1c2", 0, .3, 1.5));
+    for (const [x, z] of [[-3.5, 1.5], [3.5, 1.5]]) add(box(2, .45, .6, "#7a5232", x, 0, z)); plant(-3.5, 4, 1.4); plant(3.5, 4, 1.4);
+    sgn("קניון סבבה", 4, .9, 0, 4.5, -6.48, 0, "#1b2430", "#ffd75a");
+    staff.push([-6.3, -4.6, 0], [-2.1, -4.4, 0], [2.4, 1.2, -Math.PI / 2], [-1.8, 3.8, Math.PI], [1.5, 4.2, Math.PI + .5], [-7.6, -.2, Math.PI / 2]);
+  } else if (k === "home") {   // a citizen's living room and kitchen
+    const wc = ["#f3ead8", "#e8f0f2", "#f4e4c1", "#efe3f2", "#e6efe0"][hash(w.name) % 5];
+    room("#b88a5a", wc, "#8a6a48", { planks: "#a97c50" });
+    add(box(7, .9, .7, "#e9e4da", 3.5, 0, -6), box(7, .06, .75, "#3a3a3a", 3.5, .9, -6), box(1.1, 2.1, .8, "#d9dde1", 7.8, 0, -6), box(.8, .4, .05, "#2b2b2b", 2, 1.4, -6.45), cyl(.3, .3, .05, 16, "#c0392b", 4.5, .95, -6));
+    add(box(2.6, .06, 1.4, "#7a5232", 3.5, .76, -2.6), box(.08, .76, .08, "#5a3a24", 2.4, 0, -2.6), box(.08, .76, .08, "#5a3a24", 4.6, 0, -2.6)); for (const x of [2.8, 4.2]) { chair(x, -1.7, Math.PI, "#7a5232"); chair(x, -3.5, 0, "#7a5232"); }
+    add(box(4, .5, 1.3, "#3f6b8a", -4.5, 0, 3.6), box(4, .9, .3, "#3f6b8a", -4.5, .5, 4.2), box(.4, .8, 1.3, "#3f6b8a", -6.6, 0, 3.6), box(.4, .8, 1.3, "#3f6b8a", -2.4, 0, 3.6), box(5, .02, 3.2, "#c97b4f", -4.5, 0, 1.6), box(1.8, .4, 1, "#7a5232", -4.5, 0, 1.3));
+    add(box(3.2, .6, .6, "#3a3a3a", -4.5, 0, -1.4)); screen(-4.5, 1.6, -1.35, 2.6, 1.4, Math.PI, "*#4aa3df"); shelf(-8.6, -3.5, 3, 2.2, .45, Math.PI / 2, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a"], 3); plant(-8.2, 5.6, 1.2); plant(7.8, 3.5, 1);
+    sgn(w.name, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#ffffff", "#1b2430"); sgn("בית חם 🏠", 2.2, .6, 3.5, 3, -6.48, 0, "#8a6a48", "#ffffff");
+    staff.push([-4, 3.5, Math.PI]);
   } else if (k === "gym") {
     room("#3a3f46", "#f2f2f2", w.color || "#e5484d");
     for (let i = 0; i < 4; i++) add(box(.9, .3, 2, "#2b2b2b", -6 + i * 1.8, 0, -4.8), box(.8, .05, 1.7, "#555555", -6 + i * 1.8, .3, -4.8), box(.1, 1.3, .1, "#9aa0a6", -6.35 + i * 1.8, .3, -5.6), box(.1, 1.3, .1, "#9aa0a6", -5.65 + i * 1.8, .3, -5.6), box(.9, .3, .1, "#2b2b2b", -6 + i * 1.8, 1.5, -5.6), box(.6, .35, .05, "*#7fd1a0", -6 + i * 1.8, 1.55, -5.55));
@@ -1743,9 +1921,8 @@ function interiorOf(w) {
   }
   return { Q, SG, staff };
 }
-function enterWork(id) {
-  const w = S.wpById.get(+id); if (!w) return;
-  close();
+// builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
+function interiorScene(w) {
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#1d2430"); sc.environment = scene.environment;
   sc.add(new THREE.HemisphereLight("#fff6ea", "#6a5a48", 1.25));
   const dl = new THREE.DirectionalLight("#fff1dc", 2.2); dl.position.set(6, 14, 9); dl.castShadow = true; dl.shadow.mapSize.set(2048, 2048);
@@ -1757,7 +1934,8 @@ function enterWork(id) {
   for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
   for (const f of INT.flags) sc.add(f);
   // people at work: the citizen in orange (if it's their workplace), colleagues around
-  const me = S.mine && S.mine.wp === w ? S.mine : null, crew = (w.staff || []).filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
+  const me = S.mine && (S.mine.wp === w || w.owner === S.mine) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
+  let tag = null;
   const people = [...(me ? [{ h: me, c: "#e07a4f" }] : []), ...crew.map(h => ({ h, c: SHIRTS[hash(h.u) % SHIRTS.length] }))].slice(0, staff.length);
   if (people.length) {
     const im = { ...P.walker }, list = people.map((p, i) => ({ ...p, pos: staff[i] }));
@@ -1766,8 +1944,25 @@ function enterWork(id) {
     list.forEach((p, i) => { o3.position.set(p.pos[0], 0, p.pos[1]); o3.rotation.set(0, p.pos[2], 0); o3.scale.setScalar(1.25); o3.updateMatrix();
       for (const [k, m] of meshes) { m.setMatrixAt(i, o3.matrix); m.setColorAt(i, col3.set(k === "tint" ? p.c : "#ffffff")); } });
     for (const [, m] of meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    if (me) { const tag = sign("את/ה", 1.6, .55, { bg: "#e07a4f", fg: "#ffffff" }); tag.position.set(staff[0][0], 2.9, staff[0][1]); tag.userData.face = true; sc.add(tag); INT.tag = tag; }
+    if (me) { tag = sign("את/ה", 1.6, .55, { bg: "#e07a4f", fg: "#ffffff" }); tag.position.set(staff[0][0], 2.9, staff[0][1]); sc.add(tag); }
   }
+  return { sc, me, tag, flags: INT.flags };
+}
+// anything you can walk into: "ballot", "gov:knesset", "proj:3", "home:dana_k", or a workplace id
+const INDOOR = ["community", "library", "mall"];
+function interiorTarget(id) {
+  id = String(id); const [t, a] = id.split(":");
+  if (id === "ballot") return BALLOT;
+  if (t === "work") return S.wpById.get(+a);
+  if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
+  if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && INDOOR.includes(p.kind) && p.status === "done" && { id, kind: p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
+  if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
+  return S.wpById.get(+id);
+}
+function enterWork(id) {
+  const w = interiorTarget(id); if (!w) return;
+  close();
+  const { sc, me, tag, flags } = interiorScene(w); INT.tag = tag; INT.flags = flags;
   // frame the whole room, also on a narrow phone screen
   const asp = innerWidth / innerHeight, cam = new THREE.PerspectiveCamera(asp < 1 ? 50 : 38, asp, .1, 300);
   const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * asp), dist = Math.max(17, Math.min(38, 8.8 / Math.tan(hf)));
@@ -1781,6 +1976,18 @@ function enterWork(id) {
   renderIntUI();
 }
 function renderIntUI() {
+  if (INT.w.kind === "ballot") {
+    const n = S.ballot.filter(e => e.status === "open").length;
+    $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">🗳️</span><span class="tx"><b>קלפי מס׳ 1</b><small>ועדת הבחירות של רפובליקת סבבה</small></span><button id="intX" aria-label="יציאה">✕</button></div>
+      <div class="ifoot glass"><p>${n ? `<b>${fmtN(n)} בחירות פתוחות.</b> ניגשים לפרגוד ובוחרים.` : "כרגע אין בחירות פתוחות. הבאות יוכרזו בריל 🎬"}</p><button class="btn" id="voteB">🗳️ להצביע</button><p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
+    $("intX").onclick = exitWork; $("voteB").onclick = () => GO.ballot(); return;
+  }
+  if (!S.wpById.has(INT.w.id)) {   // a visit: government buildings, public buildings, homes
+    const w = INT.w;
+    $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${w.ic || "🏛️"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))}</small></span><button id="intX" aria-label="יציאה">✕</button></div>
+      <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(w.owner.u)}`) : `ביקור ב${esc(w.name)}`}</p><p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
+    $("intX").onclick = exitWork; return;
+  }
   const { w, me } = INT, key = me && keyOf(me.u), done = me && me.lastShift && String(me.lastShift).slice(0, 10) === israelDate();
   const pay = me ? 30 + 10 * (Math.min(4, Math.max(1, me.level)) - 1) : 0;
   $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${KIND_IC[w.kind] || "💼"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))} · ${fmtN(w.staff?.length || 0)} עובדים</small></span><button id="intX" aria-label="יציאה">✕</button></div>
@@ -1805,13 +2012,14 @@ function exitWork() {
   INT.ctl.dispose(); controls.enabled = true;
   INT.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable || o.material?.map) { o.material.map?.dispose(); o.material.dispose(); } } });
   INT.on = false; INT.sc = null; INT.tag = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
-  const w = INT.w; if (w) setTimeout(() => showWork(w), 50);
+  const w = INT.w; if (w) setTimeout(() => w.kind === "ballot" ? GO.ballotHouse() : w.back ? w.back() : showWork(w), 50);
 }
-GO.enter = id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
+GO.enter = id => { const w = interiorTarget(id); if (!w) return toast("אי אפשר להיכנס לכאן"); if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
 
 /* ============================ BALLOT BOX ============================ */
 // elections: the admin opens a vote (a city name, a law, what to build...), citizens vote with their personal link, the winner applies itself
 S.ballot = []; S.myVotes = [];
+GO.ballotHouse = ballotHouse;
 const EKIND = { city: ["🏙️", "שם לעיר"], law: ["📜", "חוק"], project: ["🏗️", "מה לבנות"], other: ["🗳️", "הצבעה"] };
 async function loadBallot() {
   try { S.ballot = await rpc("ballot", {}); } catch { S.ballot = []; }
@@ -1840,7 +2048,8 @@ GO.ballot = async () => {
   open("🗳️ הקלפי", `<div class="hero"><p><b>כל תושב, קול אחד.</b> בוחרים אפשרות, ואפשר להתחרט עד שהקלפי נסגרת. בסוף הזמן האפשרות עם הכי הרבה קולות נכנסת לתוקף במדינה.</p></div>
     ${!k ? `<div class="hero warn" style="margin-top:8px"><p><b>כדי להצביע</b> צריך להיכנס מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>` : ""}
     ${opened.length ? `<div class="sec">פתוחות להצבעה</div>${opened.map(card).join("")}` : `<div class="sec">פתוחות להצבעה</div><div class="hero"><p>אין כרגע בחירות פתוחות. הבחירות הבאות יוכרזו בריל 🎬</p></div>`}
-    ${closed.length ? `<div class="sec">תוצאות אחרונות</div>${closed.map(card).join("")}` : ""}`, () => {
+    ${closed.length ? `<div class="sec">תוצאות אחרונות</div>${closed.map(card).join("")}` : ""}
+    ${BALLOT.x != null && !INT.on ? `<div class="btns"><button class="btn ghost" data-go="ballotHouse">🏛️ למבנה הקלפי במפה</button></div>` : ""}`, () => {
     $("dBody").querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
       b.disabled = true;
       try { const r = await rpc("vote", { username: me.u, key: k, option_id: +b.dataset.vote });
@@ -2177,8 +2386,19 @@ function poseCam(v) {
 // rebuild the island with only the first n citizens (growth timelapse)
 function buildSubset(n) { REEL.full ||= { raw: S.raw, total: S.total }; S.raw = REEL.full.raw.slice(0, n); S.total = n; buildWorld(); }
 // one frame of the reel at time el (seconds)
+// a shot inside a building: the room is its own scene, the camera circles inside it
+function insideFrame(s, k) {
+  REEL.ins ||= new Map();
+  const key = s.inside.id; if (!REEL.ins.has(key)) REEL.ins.set(key, interiorScene(s.inside));
+  const I = REEL.ins.get(key), L = (a, b) => a + (b - a) * k, az = L(s.a.az, s.b.az), dist = L(s.a.dist, s.b.dist), el = L(s.a.el, s.b.el), tg = new THREE.Vector3(-.5, 1.3, -1);
+  reelCam.fov = 58; reelCam.near = .1; reelCam.far = 300; reelCam.position.set(tg.x + Math.sin(az) * Math.cos(el) * dist, tg.y + Math.sin(el) * dist, tg.z + Math.cos(az) * Math.cos(el) * dist);
+  reelCam.updateProjectionMatrix(); reelCam.lookAt(tg);
+  for (const f of I.flags || []) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w; for (let i = 0; i < p.count; i++) { const x = base[i * 3] + w / 2; p.array[i * 3 + 2] = Math.sin(x * 4.5 / w - simT * 4) * x * .06; } p.needsUpdate = true; }
+  renderer.render(I.sc, reelCam); reelCam.fov = 32; reelCam.updateProjectionMatrix();
+}
 function reelFrame(el, dt) {
   const s = REEL.shots.find(q => el < q.t0 + q.d) || REEL.shots.at(-1), k = ease(clamp01((el - s.t0) / s.d));
+  if (s.inside) { if (s !== REEL.shot) { REEL.shot = s; ring.visible = pin.visible = false; } simT += dt; insideFrame(s, k); reelComposite(el, s); return; }
   if (s !== REEL.shot) {
     REEL.shot = s;
     if (s.build != null && s.build !== S.total) buildSubset(s.build);
@@ -2450,6 +2670,8 @@ function restoreView() {
   [scene.fog.near, scene.fog.far] = REEL.fog; sunFollow(controls.target, camera.right * 2 / camera.zoom);
   document.body.classList.remove("rec"); timeMode = { live: true, h: 12 }; applyTime();
   S.mine = REEL.prevMine && S.byUser.get(REEL.prevMine.u) || null; S.sel = REEL.prevSel && S.byUser.get(REEL.prevSel.u) || null; mark(S.sel || S.mine);
+  for (const I of REEL.ins?.values() || []) I.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.material?.map) { o.material.map.dispose(); o.material.dispose(); } } });
+  REEL.ins = null; reelCam.fov = 32;
   REEL.on = false; REEL.cx = null; REEL.shot = null; clock.getDelta();
 }
 const inApp = /Instagram|FBAN|FBAV|FB_IAB|Line\//i.test(navigator.userAgent);
@@ -2503,6 +2725,7 @@ function wireVoice() {
 }
 /* ---------- the admin's own reel: pick scenes, places, angles and captions ---------- */
 const VIEWS = { high: "🦅 מלמעלה", street: "🚶 גובה הרחוב", orbit: "🔄 סיבוב סביב", top: "🛰️ מבט על" };
+const DISTS = { far: ["🔭 רחוק", .55, 24], normal: ["רגיל", 1, 17], close: ["🔍 קרוב", 1.9, 11], vclose: ["🔎 קרוב מאוד", 3.2, 7] };
 const TIMES = { morning: ["🌅 בוקר", 7.2, 8.8], noon: ["☀️ צהריים", 12, 13.5], sunset: ["🌇 שקיעה", 17.3, 18.5], night: ["🌙 לילה", 21, 22.4] };
 const nextSiteIdx = () => { const i = S.slots.findIndex(s => !s.city); return i < 0 ? 0 : i; };
 const PRESETS = {
@@ -2529,7 +2752,9 @@ const PRESETS = {
     return [
       { place: "overview", view: "high", time: "morning", d: 3, cap: "🗳️ הקלפי נפתחה!", sub: "רפובליקת סבבה הולכת לבחירות" },
       { place, view: "street", time: "noon", d: 3.5, cap: e ? e.title : "על מה מצביעים?", sub: opts },
-      { place: "gov:knesset", view: "orbit", time: "sunset", d: 3.5, cap: "כל תושב, קול אחד", sub: "נכנסים לאתר ← קלפי ← מצביעים" },
+      ...(BALLOT.x != null ? [{ place: "ballot", view: "street", time: "noon", d: 3, dist: "close", cap: "הקלפי פתוחה", sub: "קלפי מס׳ 1 · ועדת הבחירות" },
+        { place: "inside:ballot", view: "orbit", time: "noon", d: 4, dist: "close", cap: "כל תושב, קול אחד", sub: "נכנסים לאתר ← קלפי ← מצביעים" }]
+        : [{ place: "gov:knesset", view: "orbit", time: "sunset", d: 3.5, cap: "כל תושב, קול אחד", sub: "נכנסים לאתר ← קלפי ← מצביעים" }]),
       { place: "overview", view: "high", time: "night", d: 3, cap: "מצביעים עכשיו 👇", sub: e ? timeLeft(e.ends_at) : "הקלפי נסגרת מחר" }]; } },
   blank: { ic: "📝", name: "ריק", scenes: () => [{ place: "overview", view: "high", time: "noon", d: 3, cap: "כותרת", sub: "" }] }
 };
@@ -2540,11 +2765,16 @@ function placeList() {
   S.slots.forEach((sl, i) => { if (sl.city) o.push([`slot:${i}`, `🏙️ ${sl.city.name}`]); else if (i === nextSiteIdx() || sl.named || onGrass(sl.x, sl.z, S.s, .02)) o.push([`slot:${i}`, `🔜 ${sl.named?.name || "עיר עתידית"} (ב־${fmtN(sl.at)} תושבים)`]); });
   for (const g of GOV) if (g.x != null) o.push([`gov:${g.id}`, `${g.ic} ${g.name}`]);
   for (const c of COAST) if (c.x != null) o.push([`coast:${c.id}`, `${c.ic} ${c.name}`]);
+  if (BALLOT.x != null) o.push(["ballot", "🗳️ מבנה הקלפי (מבחוץ)"], ["inside:ballot", "🚪 בתוך הקלפי"]);
   S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
   for (const w of S.workplaces) if (w.x != null) o.push([`work:${w.id}`, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]);
   for (const p of S.projects.filter(q => q.params?.island && q.x != null)) o.push([`mon:${p.id}`, `🗽 ${p.name || "פסל"}`]);
   o.push(["house", "🏠 הבית של תושב/ת…"]);
+  for (const g of GOV) if (g.x != null) o.push([`inside:gov:${g.id}`, `🚪 בתוך ${g.name}`]);
+  for (const p of S.projects.filter(q => INDOOR.includes(q.kind) && q.status === "done" && q.x != null)) o.push([`inside:proj:${p.id}`, `🚪 בתוך ${p.name || PROJECT_KINDS[p.kind][1]}`]);
+  o.push(["inside:home", "🛋️ בתוך הבית של תושב/ת…"]);
+  for (const w of S.workplaces) if (w.x != null) o.push([`inside:work:${w.id}`, `🚪 בתוך ${w.name} · ${cityName(w.city_id)}`]);
   return o;
 }
 function placeOf(sc) {
@@ -2554,6 +2784,7 @@ function placeOf(sc) {
   if (t === "coast") { const c = COAST.find(q => q.id === a); if (c?.x != null) return { o: c, zoom: 3.4 }; }
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
   if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
+  if (t === "ballot" && BALLOT.x != null) return { o: BALLOT, zoom: 5 };
   if (t === "mon") { const p = S.projects.find(q => q.id === +a); if (p?.x != null) return { o: p, zoom: 1.5 }; }
   if (t === "house") { const h = S.byUser.get(clean(sc.u || "")); if (h?.lot) return { o: h, zoom: 9, mark: h }; }
   return { o: ORIGIN, zoom: zf };
@@ -2561,9 +2792,16 @@ function placeOf(sc) {
 function customShots() {
   const zf = reelFit(), list = []; let az = -.5;
   CUSTOM.scenes.forEach((sc, i) => {
-    const p = placeOf(sc), el = { high: undefined, street: LOW, orbit: .55, top: 1.25 }[sc.view], tm = TIMES[sc.time] || TIMES.noon;
+    const p = placeOf(sc), el = { high: undefined, street: LOW, orbit: .55, top: 1.25 }[sc.view], tm = TIMES[sc.time] || TIMES.noon, ds = DISTS[sc.dist] || DISTS.normal;
+    const d = Math.max(1.5, Math.min(8, +sc.d || 3)), base = { d, h: [tm[1], tm[2]], cap: sc.cap || "", sub: sc.sub || "" };
+    if (String(sc.place).startsWith("inside:")) {   // inside a building: circle around the room
+      const rest = sc.place.slice(7), w = rest === "home" ? interiorTarget("home:" + clean(sc.u || "")) : interiorTarget(rest);
+      if (w) { const e = { high: .62, street: .28, orbit: .45, top: 1.05 }[sc.view] ?? .5, sweep = sc.view === "orbit" ? .9 : .35;
+        list.push({ ...base, inside: w, a: { az: .25, dist: ds[2] * 1.12, el: e }, b: { az: .25 + sweep, dist: ds[2], el: e } }); return; }
+    }
     az += sc.view === "orbit" ? 1.1 : .4;
-    list.push({ d: Math.max(1.5, Math.min(8, +sc.d || 3)), a: i ? undefined : at(ORIGIN, zf * .9, az - .6), b: at(p.o, p.o === ORIGIN ? zf : p.zoom, az, el), h: [tm[1], tm[2]], cap: sc.cap || "", sub: sc.sub || "", mark: p.mark });
+    const prev = list.at(-1), from = !i || prev?.inside ? at(p.o, (p.o === ORIGIN ? zf : p.zoom) * ds[1] * .7, az - .5, el) : undefined;
+    list.push({ ...base, a: from, b: at(p.o, (p.o === ORIGIN ? zf : p.zoom) * (p.o === ORIGIN ? Math.min(1, ds[1]) : ds[1]), az, el), mark: p.mark });
   });
   return chain(list);
 }
@@ -2577,8 +2815,9 @@ GO.editor = () => {
     ${CUSTOM.scenes.map((sc, i) => `<div class="scene">
       <div class="shead"><b>סצנה ${i + 1}</b><span><button data-mv="${i}:-1" ${i ? "" : "disabled"} aria-label="למעלה">↑</button><button data-mv="${i}:1" ${i < CUSTOM.scenes.length - 1 ? "" : "disabled"} aria-label="למטה">↓</button><button data-del="${i}" ${CUSTOM.scenes.length > 1 ? "" : "disabled"} aria-label="מחיקה">🗑</button></span></div>
       <label>📍 מה מצלמים${sel(places, places.some(p => p[0] === sc.place) ? sc.place : "overview", "place", i)}</label>
-      ${sc.place === "house" ? `<label>שם המשתמש<input data-f="u" data-i="${i}" value="${esc(sc.u || "")}" placeholder="username" dir="ltr" autocapitalize="off"></label>` : ""}
-      <div class="row3"><label>🎥 זווית${sel(Object.entries(VIEWS), sc.view, "view", i)}</label><label>🕐 שעה${sel(Object.entries(TIMES).map(([k, v]) => [k, v[0]]), sc.time, "time", i)}</label><label>⏱️ שניות${sel([2, 2.5, 3, 3.5, 4, 5, 6, 8].map(n => [String(n), String(n)]), String(sc.d), "d", i)}</label></div>
+      ${sc.place === "house" || sc.place === "inside:home" ? `<label>שם המשתמש<input data-f="u" data-i="${i}" value="${esc(sc.u || "")}" placeholder="username" dir="ltr" autocapitalize="off"></label>` : ""}
+      <div class="row2"><label>🎥 זווית${sel(Object.entries(VIEWS), sc.view, "view", i)}</label><label>📏 מרחק${sel(Object.entries(DISTS).map(([k, v]) => [k, v[0]]), sc.dist || "normal", "dist", i)}</label></div>
+      <div class="row2"><label>🕐 שעה${sel(Object.entries(TIMES).map(([k, v]) => [k, v[0]]), sc.time, "time", i)}</label><label>⏱️ שניות${sel([2, 2.5, 3, 3.5, 4, 5, 6, 8].map(n => [String(n), String(n)]), String(sc.d), "d", i)}</label></div>
       <label>כותרת גדולה<input data-f="cap" data-i="${i}" value="${esc(sc.cap || "")}" maxlength="70"></label>
       <label>שורה קטנה<input data-f="sub" data-i="${i}" value="${esc(sc.sub || "")}" maxlength="90"></label></div>`).join("")}
     <div class="btns"><button class="btn ghost" id="eAdd">➕ סצנה</button></div>
