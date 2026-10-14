@@ -312,7 +312,10 @@ const STREETS = ["שדרות ״יהיה בסדר״","רחוב ״עוד חמש ד
 const HEB = ["", "ב", "ג", "ד", "ה", "ו", "ז", "ח"];
 const HOUSE_NAMES = { "1_0": "קוביה לבנה עם דוד שמש", "1_1": "בית קטן עם גג רעפים", "1_2": "בית קטן עם גג אפור",
   "2_0": "בית דו־קומתי עם מרפסת", "2_1": "בית דו־קומתי עם גג רעפים", "2_2": "בית באוהאוס לבן", "2_3": "בית מאבן ירושלמית",
-  "3_0": "וילה עם בריכה", "3_1": "אחוזה מודרנית" };
+  "3_0": "וילה עם בריכה", "3_1": "אחוזה מודרנית", "3_2": "בית פפיון ענק 🎀" };
+const SPECIAL_HOUSES = ["3_2"];   // given by the state (admin edit), not sold in the shop
+const BOW_PINK = "#e8569a";
+const houseLook = h => { const o = S.houseSign?.get(h.u) || {}; return { text: String(o.text || "").trim() || "@" + h.u, color: /^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : BOW_PINK }; };
 // prices must match shop_price() in upgrade-5.sql
 const HOUSE_PRICE = { "1_0": 800, "1_1": 800, "1_2": 800, "2_0": 8000, "2_1": 8000, "2_2": 11000, "2_3": 12000, "3_0": 25000, "3_1": 40000 };
 const COLORS = { white: ["#f2f2ef", "לבן פיתה"], black: ["#17191c", "שחור קפה"], red: ["#b3121b", "אדום שקשוקה"], blue: ["#1f4f8f", "כחול ים"], olive: ["#5b6b3a", "ירוק זית"],
@@ -484,6 +487,25 @@ function gable(w, h, d, col, x = 0, y = 0, z = 0) {
   const g = new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(-d / 2, 0), new THREE.Vector2(d / 2, 0), new THREE.Vector2(0, h)]), { depth: w, bevelEnabled: false });
   g.translate(0, 0, -w / 2); g.rotateY(Math.PI / 2); return part(g, col, x, y, z);
 }
+// a giant bow tie standing on its knot: puffy fabric wings (in the owner's color, "~"), a pleated knot with the name, a glass lobby underneath
+const BOW_CY = 6.2, BOW_KNOT_Z = 3.12;
+function bowtieHouse() {
+  const Q = [], wing = s => { const sh = new THREE.Shape(); sh.moveTo(s * 1.4, BOW_CY - 1.6); sh.quadraticCurveTo(s * 3.6, BOW_CY - 3, s * 5.1, BOW_CY - 4.6); sh.quadraticCurveTo(s * 5.9, BOW_CY, s * 5.1, BOW_CY + 4.6);
+    sh.quadraticCurveTo(s * 3.6, BOW_CY + 3, s * 1.4, BOW_CY + 1.6); sh.closePath(); return sh; };
+  const right = new THREE.ExtrudeGeometry(wing(1), { depth: 4, bevelEnabled: true, bevelThickness: .45, bevelSize: .4, bevelSegments: 3, curveSegments: 14 }); right.translate(0, 0, -2);
+  for (const s of [-1, 1]) {
+    const g = s > 0 ? right : right.clone().rotateY(Math.PI);   // the left wing is the right one turned around, so both are exactly alike
+    Q.push(part(g, "~#ffffff"), cyl(.18, .22, 2.3, 8, "#e6e2da", s * 4.5, 0, 1.1), cyl(.18, .22, 2.3, 8, "#e6e2da", s * 4.5, 0, -1.1));
+    // windows that light up at night, polka dots between them, on both faces
+    for (const z of [2.95, -2.95]) for (const ax of [2.3, 3.4, 4.5]) { const hh = 1.6 + (ax - 1.4) / 3.7 * 3;
+      for (let k = -3; k <= 3; k++) { const y = BOW_CY + k * 1.3; if (Math.abs(k * 1.3) + .55 < hh - .35) Q.push(box(.62, .58, .12, "*#ffe2a0", s * ax, y - .29, z));
+        const yd = BOW_CY + (k + .5) * 1.3, xd = ax + .55; if (Math.abs((k + .5) * 1.3) + .3 < 1.6 + (xd - 1.4) / 3.7 * 3 - .45 && xd < 5) Q.push(cyl(.2, .2, .12, 12, "#ffffff", s * xd, 0, 0, { x: Math.PI / 2 }).translate(0, yd, z)); } }
+  }
+  // the knot: pleats, a band of lights, a glass lobby and steps underneath
+  Q.push(box(3, 3.8, 6.2, "~#d2d2d2", 0, BOW_CY - 1.9, 0), box(.16, 3.9, 6.3, "~#ababab", -.95, BOW_CY - 1.95, 0), box(.16, 3.9, 6.3, "~#ababab", .95, BOW_CY - 1.95, 0));
+  Q.push(box(2.4, BOW_CY - 1.9, 3.6, "#f4f1ea", 0, 0, 0), box(1.6, 2.5, .08, GLASS, 0, .15, 1.82), box(.08, 2.5, .08, "#3a3a3a", 0, .15, 1.87), box(2.9, .22, 1.2, "#d9d2c3", 0, 0, 2.35), box(2.2, .12, .5, "*#fff1c2", 0, 3, 1.85));
+  return Q;
+}
 // a prefab is up to four merged meshes: plain parts, parts that light up at night (*), red lights (^) and car paint (!)
 const BUCKETS = ["base", "glow", "red", "paint", "tint"];
 function prefab(parts, shared = true) {
@@ -524,6 +546,7 @@ const P = {
   "3_0": prefab([box(8, 3.8, 5, WALL, .5, 0, -2), box(8.3, .3, 5.3, TRIM, .5, 3.8, -2), box(5, 3, 4.6, "#f1ebe0", 1.5, 4.1, -2.2), box(5.3, .3, 4.9, "#d6cebd", 1.5, 7.1, -2.2),
     box(4.4, 2.3, .12, GLASS, 1.5, 4.4, .12), box(5, 2.6, .12, GLASS, -.6, .2, .52), box(1.2, 2.4, .12, "#3b2a1a", 3.4, 0, .52),
     box(4.8, .18, 3.8, "#e6dfd0", -2.5, 0, 2.6), box(4, .2, 3, "#38b2d8", -2.5, .05, 2.6), box(1.6, .3, .7, "#f2f2f2", -2.2, .2, 4.6)]),
+  "3_2": prefab(bowtieHouse()),
   tree: prefab([cyl(.25, .35, 2.4, 6, "#6e4c30"), part(new THREE.IcosahedronGeometry(2.3, 1), "#5f8f45", 0, 3.6, 0), part(new THREE.IcosahedronGeometry(1.5, 0), "#6d9e50", .8, 4.6, .4)]),
   olive: prefab([cyl(.3, .45, 1.8, 6, "#7a6650"), part(new THREE.IcosahedronGeometry(2, 1), "#8aa070", 0, 2.9, 0), part(new THREE.IcosahedronGeometry(1.4, 0), "#9aae7f", -.9, 3.3, .5)]),
   cypress: prefab([cyl(.2, .3, 1.4, 6, "#6e4c30"), part(new THREE.ConeGeometry(1.15, 6, 8), "#3d6b37", 0, 4.2, 0)]),
@@ -602,7 +625,10 @@ function sign(text, w, h, { bg = "#ffffff", fg = "#1b2430", font = "800" } = {})
   const x = cv.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
   let size = Math.round(H * .58); x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle";
   do { x.font = `${font} ${size}px Heebo, Arial, sans-serif`; size -= 2; } while (x.measureText(text).width > W * .9 && size > 10);
-  x.fillStyle = fg; x.fillText(text, W / 2, H / 2 + size * .04);
+  if (fg === "rainbow") {   // mosaic-colored letters, like the inscription in Lod
+    const gr = x.createLinearGradient(W * .06, 0, W * .94, 0); ["#d6342c", "#f08a24", "#f2c230", "#3aa655", "#17a2b8", "#1f6fd6", "#8a3fb8"].forEach((c, i, a) => gr.addColorStop(i / (a.length - 1), c)); x.fillStyle = gr;
+  } else x.fillStyle = fg;
+  x.fillText(text, W / 2, H / 2 + size * .04);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
   m.userData.disposable = true; return m;
@@ -748,8 +774,19 @@ function buildCities() {
   const groups = {};
   for (const h of S.houses) if (h.lot) (groups[h.hk] ||= []).push(h);
   for (const [key, list] of Object.entries(groups)) {
-    const m = instanced(P[key], list, (h, o) => { o.position.set(h.x, LAWN, h.z); o.rotation.y = h.lot.face; return BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; });
-    Object.assign(m.userData, { type: "house", items: list }); S.picks.push(m);
+    const m = instanced(P[key], list, (h, o) => { o.position.set(h.x, LAWN, h.z); o.rotation.y = h.lot.face;
+      return key === "3_2" ? houseLook(h).color : BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; });
+    // every layer of the house can be tapped (the bow tie house is mostly its colored layer)
+    for (const t of [m, ...(m.userData.twins || [])]) { Object.assign(t.userData, { type: "house", items: list }); S.picks.push(t); }
+  }
+  // the bow tie houses carry their owner's name on the knot, front and back
+  for (const h of groups["3_2"] || []) {
+    const { text, color } = houseLook(h), c = Math.cos(h.lot.face), s = Math.sin(h.lot.face), dark = "#" + new THREE.Color(color).multiplyScalar(.55).getHexString();
+    for (const back of [0, 1]) {
+      const sg = sign(text, 2.7, 1.5, { bg: dark, fg: "#ffffff" }), z = back ? -BOW_KNOT_Z - .06 : BOW_KNOT_Z + .06;
+      sg.position.set(h.x + z * s, LAWN + BOW_CY, h.z + z * c); sg.rotation.y = h.lot.face + (back ? Math.PI : 0);
+      sg.userData = { type: "house", items: [h], disposable: true }; world.add(sg); S.picks.push(sg);
+    }
   }
   // parked cars: every model in the owner's color
   for (const key of CAR_KEYS) {
@@ -993,8 +1030,80 @@ const MONUMENTS = {
   model: { name: "מודל תלת־ממד (קובץ GLB)", build: () => ({ parts: [], scale: 1, model: true }) },
   obelisk: { name: "אובליסק", build: o => ({ parts: [box(1.2, .3, 1.2, "#d8d1c2"), part(new THREE.CylinderGeometry(.18, .38, 5, 4), o.color || "#e6dcc8", 0, 2.8, 0, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.26, .5, 4), "#c9a24a", 0, 5.55, 0, { y: Math.PI / 4 })], scale: 6 }) },
   clock: { name: "מגדל שעון", build: o => ({ parts: [box(1.2, 4.6, 1.2, o.color || "#d9c39a"), box(1.4, .2, 1.4, "#b9a47a", 0, 4.6, 0), ...[0, 1, 2, 3].map(i => cyl(.4, .4, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * .62, 3.9, Math.cos(i * Math.PI / 2) * .62)),
-    part(new THREE.ConeGeometry(.95, 1.3, 4), "#7a2a20", 0, 5.45, 0, { y: Math.PI / 4 })], scale: 6 }) }
+    part(new THREE.ConeGeometry(.95, 1.3, 4), "#7a2a20", 0, 5.45, 0, { y: Math.PI / 4 })], scale: 6 }) },
+  balls: { name: "כיכר הכדורים", lotOnly: true, build: () => ({ parts: [], scale: 1 }), site: (p, cx, cz) => buildBallSquare(p, cx, cz) }
 };
+/* ---------- the ball square, after the one in Lod: seven big concrete balls on stems, each coated in fine colored stone, water running down every stem
+   into a round pool; a curved brick wall in front with the name in blue letters, flower beds all around ---------- */
+const MOSAIC = new Map(), JETS = [];
+function mosaicMat(col) {   // a fine speckled stone coat (like terrazzo), matte
+  if (MOSAIC.has(col)) return MOSAIC.get(col);
+  const cv = document.createElement("canvas"); cv.width = 1024; cv.height = 512; const x = cv.getContext("2d"), r = rng(hash(col)), hsl = {}, c = new THREE.Color(col), t = new THREE.Color();
+  c.getHSL(hsl, THREE.SRGBColorSpace);
+  for (let j = 0; j < 128; j++) for (let i = 0; i < 256; i++) {
+    const k = r(); if (k < .012) t.set("#e6dfd0"); else if (k < .04) t.setHSL(hsl.h, hsl.s * .6, Math.max(.05, hsl.l * .45), THREE.SRGBColorSpace);
+    else t.setHSL((hsl.h + (r() - .5) * .03 + 1) % 1, Math.min(1, hsl.s * (.85 + r() * .25)), Math.max(.08, Math.min(.8, hsl.l + (r() - .5) * .12)), THREE.SRGBColorSpace);
+    x.fillStyle = "#" + t.getHexString(); x.fillRect(i * 4, j * 4, 4, 4);
+  }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.wrapS = THREE.RepeatWrapping;
+  const m = new THREE.MeshStandardMaterial({ map: tex, roughness: .85, metalness: 0, envMapIntensity: .35 }); MOSAIC.set(col, m); return m;
+}
+// a curved wall of red bricks with big raised blue letters, as a texture for an arc of a cylinder
+function brickWall(text, w, h) {
+  const W = 2048, H = Math.round(W * h / w), cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d"), r = rng(7);
+  x.fillStyle = "#e9e1d2"; x.fillRect(0, 0, W, H);
+  const bh = H / 7, bw = bh * 2.6;
+  for (let row = 0; row < 7; row++) for (let i = -1; i * bw < W + bw; i++) {
+    const t = new THREE.Color().setHSL(.035 + (r() - .5) * .02, .55 + r() * .15, .45 + (r() - .5) * .12, THREE.SRGBColorSpace);
+    x.fillStyle = "#" + t.getHexString(); x.fillRect(i * bw + (row % 2) * bw / 2 + 3, row * bh + 3, bw - 6, bh - 6);
+  }
+  let size = Math.round(H * .62); x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle";
+  do { x.font = `900 ${size}px Heebo, Arial, sans-serif`; size -= 4; } while (x.measureText(text).width > W * .9 && size > 20);
+  x.fillStyle = "#13235e"; x.fillText(text, W / 2 + size * .05, H / 2 + size * .08);     // the depth of the raised letters
+  x.lineWidth = size * .05; x.strokeStyle = "#f4f6ff"; x.strokeText(text, W / 2, H / 2);
+  x.fillStyle = "#2b3fbf"; x.fillText(text, W / 2, H / 2);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; return tex;
+}
+// as in Lod: [x, z, radius, height of the ball's center, color]
+const BALLS = [[-.4, .2, 1.5, 2.3, "#9c968c"], [-2.7, 2.3, 1.7, 2.6, "#86a13c"], [.3, 1.5, 2.05, 4.4, "#c4432f"], [2.9, 1.7, 1.75, 3.1, "#2a3f92"],
+  [-2.5, -1.6, 1.6, 4.4, "#cc7632"], [.2, -1.9, 1.9, 6.3, "#4f80c2"], [2.5, -1.6, 1.6, 4.7, "#6c4b8c"]];
+function buildBallSquare(p, cx, cz) {
+  const data = { type: "project", p }, W0 = .8, R = 6.9, RO = 7.9, r0 = rng(31);
+  // lawn and flower beds around a round pool with a wide concrete rim
+  const flowers = [];
+  for (let i = 0; i < 170; i++) { const a = r0() * Math.PI * 2, d = 8.2 + r0() * 1.6; flowers.push(sph(.16 + r0() * .1, ["#e85c9a", "#f2a3c4", "#ffffff", "#d93b6a", "#f7d6e4"][i % 5], Math.sin(a) * d, .32, Math.cos(a) * d)); }
+  const base = solid([box(38, .12, 19, "#e6dccb"), cyl(9.9, 9.9, .2, 64, "#79a65a", 0, .05, 0), ...flowers,
+    cyl(RO, RO + .1, .62, 64, "#2d4a5a", 0, 0, 0), part(new THREE.CylinderGeometry(RO, RO + .12, .95, 64, 1, true), "#ddd2bd", 0, .475, 0), part(new THREE.RingGeometry(R, RO, 64).rotateX(-Math.PI / 2), "#e3d9c6", 0, .95, 0),
+    ...[[-16.6, -7], [16.6, -7], [-16.6, 7], [16.6, 7]].flatMap(([x, z]) => [cyl(2.2, 2.3, .5, 18, "#c9bb9e", x, 0, z), cyl(2, 2, .1, 18, "#6f9c4a", x, .5, z)]),
+    ...[[-12.5, -8.4], [12.5, -8.4], [-12.5, 8.4], [12.5, 8.4]].flatMap(([x, z]) => [box(2, .5, .6, "#7a5232", x, .45, z), box(2, .45, .1, "#7a5232", x, .95, z + (z > 0 ? .3 : -.3))]),
+    // the seven stems, standing in the pool
+    ...BALLS.map(([x, z, r, y]) => cyl(.26, .32, y - r * .8, 12, "#a9a399", x, .62, z))], cx, cz, 0, data, Y0);
+  const water = new THREE.Mesh(new THREE.CircleGeometry(R + .02, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#3d8fb0", roughness: .05, metalness: .3, envMapIntensity: 1.2 }));
+  water.position.y = W0; water.userData = { ...data, disposable: true }; base.add(water); S.picks.push(water);
+  const wmat = new THREE.MeshStandardMaterial({ color: "#eaf7ff", transparent: true, opacity: .5, roughness: .05, emissive: "#9fd8ef", emissiveIntensity: .2, depthWrite: false });
+  const flow = [];
+  BALLS.forEach(([x, z, r, y, col], i) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 28), mosaicMat(col)); m.position.set(x, y, z); m.rotation.y = i * 1.3; m.castShadow = m.receiveShadow = true;
+    m.userData = data; base.add(m); S.picks.push(m);
+    // water running out from under the ball and down the stem, splashing into the pool
+    const bot = y - r * .82, L = bot - W0;
+    flow.push(new THREE.CylinderGeometry(.34, .5, L, 14, 1, true).translate(x, W0 + L / 2, z), new THREE.ConeGeometry(.75, .45, 16, 1, true).translate(x, bot - .05, z));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(.55, .95, 28).rotateX(-Math.PI / 2), wmat); ring.position.set(x, W0 + .03, z); base.add(ring); JETS.push({ m: ring, ph: i * 1.7, ring: true });
+  });
+  for (const g of flow) for (const k of Object.keys(g.attributes)) if (k !== "position" && k !== "normal") g.deleteAttribute(k);
+  const fall = new THREE.Mesh(mergeGeometries(flow.map(g => g.index ? g.toNonIndexed() : g)), wmat); fall.userData.disposable = true; base.add(fall); JETS.push({ m: fall, ph: 0 });
+  // the curved brick wall at the front of the pool with the name in blue letters
+  const arc = 1.5, WR = R - .25, text = `${cityName(p.city_id)} - ${p.name || "כיכר הכדורים"}`;
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(WR, WR, 1.5, 48, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({ map: brickWall(text, WR * arc, 1.5), roughness: .8 }));
+  wall.position.y = .95 + .75; wall.castShadow = true; wall.userData = { ...data, disposable: true }; base.add(wall); S.picks.push(wall);
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(WR - .3, WR - .3, 1.5, 48, 1, true, -arc / 2, arc), new THREE.MeshStandardMaterial({ color: "#b8573a", roughness: .9, side: THREE.BackSide }));
+  back.position.y = .95 + .75; back.userData.disposable = true; base.add(back);
+  const cap = new THREE.Mesh(new THREE.RingGeometry(WR - .3, WR, 48, 1, -Math.PI / 2 - arc / 2, arc).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#d9cdb6", roughness: .8, side: THREE.DoubleSide }));
+  cap.position.y = .95 + 1.5; cap.userData.disposable = true; base.add(cap);
+  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 3.4, .4, { bg: "#ddd2bd", fg: "#5a4a32", font: "700" }), 0, .5, RO + .14);
+  instanced(P.palm, [[-16.6, -7], [16.6, -7], [-16.6, 7], [16.6, 7]], ([x, z], o) => { o.position.set(cx + x, Y0 + .6, cz + z); o.scale.setScalar(1.1); o.rotation.y = x; });
+  instanced(P.lamp, [[-11, 0, 0], [11, 0, Math.PI]], ([x, z, r], o) => { o.position.set(cx + x, Y0, cz + z); o.rotation.y = r; });
+}
 /* ---------- construction sites: a real tower crane, fences with the project's name, a rising skeleton, machines and workers ---------- */
 const CY = "#f2b630", CY2 = "#d99a1e";
 // a lattice: four steel chords with rungs and diagonal braces on every face, built upright along +y from 0 to len
@@ -1143,6 +1252,7 @@ function placeModel(p, x, z, y, height, ry, onFeet) {
 }
 function buildMonument(p, cx, cz) {
   const o = p.params || {}, M = MONUMENTS[o.type] || MONUMENTS.tiger, { parts, scale } = M.build(o);
+  if (M.site) return M.site(p, cx, cz);   // a whole square of its own
   // a stone plaza with a pedestal in the middle of the lot
   const base = solid([box(38, .12, 19, "#d8cfbd"), box(30, .1, 2, "#c7bba2", 0, .02, 0), box(2, .1, 17, "#c7bba2", 0, .02, 0), box(9, 2.6, 7, "#cbbfa6", 0, 0, -1.5), box(9.6, .4, 7.6, "#b9ac90", 0, 2.6, -1.5),
     ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.3, 3.6, .3, "#4a5056", x, 0, z)), ...[[-14, -6], [14, -6], [-14, 6], [14, 6]].map(([x, z]) => box(.6, .3, .6, "*#fff1c2", x, 3.6, z))], cx, cz, 0, { type: "project", p }, Y0);
@@ -1239,7 +1349,7 @@ function buildNature() {
 
 /* ============================ BUILD / REBUILD ============================ */
 function clearWorld() {
-  S.picks = []; LABELS.length = 0; FLAGS.length = 0;
+  S.picks = []; LABELS.length = 0; FLAGS.length = 0; JETS.length = 0;
   for (const ch of [...world.children]) {
     world.remove(ch);
     ch.traverse(o => { if (o.isInstancedMesh) o.dispose(); if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable && o.material) { o.material.map?.dispose(); o.material.dispose(); } });
@@ -1302,7 +1412,7 @@ function mark(h) {
   const me = h === S.mine;
   ring.material.color.set(me ? "#e07a4f" : "#0f8b8d"); ring.position.set(h.x, LAWN + .15, h.z); ring.visible = true;
   pinEl.className = "marker" + (me ? "" : " alt"); pinEl.querySelector(".bub").textContent = me ? "הבית שלך" : "@" + h.u;
-  pin.position.set(h.x, h.tier === 1 ? 6 : 9, h.z); pin.visible = true;
+  pin.position.set(h.x, h.hk === "3_2" ? 13.5 : h.tier === 1 ? 6 : 9, h.z); pin.visible = true;
 }
 
 /* ============================ CAMERA ============================ */
@@ -1330,7 +1440,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   const hit = ray.intersectObjects(S.picks, false)[0];
   if (!hit) { if (S.sel) { S.sel = null; mark(S.mine); } return; }
   const d = hit.object.userData;
-  if (d.type === "house") { const h = d.items[hit.instanceId]; S.sel = h; mark(h); showHouse(h); }
+  if (d.type === "house") { const h = d.items[hit.instanceId ?? 0]; S.sel = h; mark(h); showHouse(h); }
   else if (d.type === "work") showWork(d.w);
   else if (d.type === "gov") openGov(d.id);
   else if (d.type === "place") openPlace(d.id);
@@ -1356,6 +1466,8 @@ function animate(dt) {
     for (const m of ms) m.instanceMatrix.needsUpdate = true;
   }
   boats.forEach((b, i) => { b.position.y = -2.9 + Math.sin(t * 1.3 + i) * .25; b.rotation.z = Math.sin(t * .9 + i * 2) * .04; });
+  for (const j of JETS) {   // fountains: the spray flickers, the splash rings pulse
+    if (j.ring) j.m.scale.setScalar(1 + .12 * Math.sin(t * 5 + j.ph)); else j.m.material.opacity = .5 + .1 * Math.sin(t * 11) + .05 * Math.sin(t * 23); }
   for (const f of FLAGS) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w;
     for (let i = 0; i < p.count; i++) { const x = base[i * 3] + w / 2; p.array[i * 3 + 2] = Math.sin(x * 4.5 / w - t * 4) * x * .06; } p.needsUpdate = true; }
   if (ring.visible) ring.scale.setScalar(1 + Math.sin(t * 4) * .08);
@@ -1530,8 +1642,10 @@ function showHouse(h) {
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
-  open(me ? "הבית שלך" : `‎@${h.u}`, `
-    <div class="hero"><p style="font-size:13px">כתובת</p><div style="font-size:20px;font-weight:800;margin-top:2px">${esc(addressOf(h))}</div><p style="font-size:13px;margin-top:4px">תושב/ת #${fmtN(h.no || h.id)}</p></div>
+  open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
+    <div data-go="id" data-arg="${esc(h.u)}" style="cursor:pointer;max-width:420px;margin:0 auto">${idcHtml(h)}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="home:${esc(h.u)}">🚪 ${me ? "להיכנס הביתה" : "להיכנס לבית"}</button><button class="btn ghost" data-go="id" data-arg="${esc(h.u)}">🪪 תעודה מלאה ושיתוף</button></div>
+    <p class="note" style="margin-top:6px">תושב/ת #${fmtN(h.no || h.id)} · ${esc(HOUSE_NAMES[h.hk])}</p>
     ${wallet}${owner}
     <div class="list" style="margin-top:10px">
       ${info(h.tier === 3 ? "🏡" : "🏠", HOUSE_NAMES[h.hk], h.tier === 3 ? "דרגת יוקרה ✨" : h.tier === 2 ? "בית משודרג" : "בית התחלתי")}
@@ -1542,8 +1656,7 @@ function showHouse(h) {
       ${S.projects.filter(p => p.requested_by === h.u).map(p => li("project", "💡", `יזם/ית: ${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}`, p.status === "done" ? "ההצעה שלו/ה נבנתה!" : "ההצעה שלו/ה בבנייה", p.id)).join("")}
     </div>
     ${achHtml(h)}
-    <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button>${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>
-    <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="enter" data-arg="home:${esc(h.u)}">🛋️ ${me ? "להיכנס הביתה" : "להציץ פנימה"}</button>${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">🚪 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}</div>`,
+    <div class="btns">${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">💼 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>`,
     () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
 /* ============================ ACHIEVEMENTS ============================ */
@@ -1667,7 +1780,7 @@ GO.shop = () => {
     : `<button class="btn buy${SHOP.confirm === item ? " sure" : ""}" data-buy="${item}">${SHOP.confirm === item ? `לאשר? ${fmtN(price)} ${COIN}` : price ? `${label} · ${fmtN(price)} ${COIN}` : "חינם"}</button>`;
   const cars = [1, 2, 3].map(t => `<div class="sec">דרגה ${t} · ${TIER_NAMES[t]}</div><div class="shop">${CARS_BY_TIER[t].map(m => { const c = CARS[m];
     return `<div class="item"><img alt="" src="${thumb("car_" + m, cc)}"><b>${c.name}</b><small>${c.cls}</small>${btn("car:" + m, c.price, h.cm === m)}</div>`; }).join("")}</div>`).join("");
-  const houses = [1, 2, 3].map(t => `<div class="sec">דרגה ${t} · ${t === 1 ? "בית התחלתי" : t === 2 ? "בית משודרג" : "יוקרה"}</div><div class="shop">${Object.keys(HOUSE_NAMES).filter(st => +st[0] === t).map(st =>
+  const houses = [1, 2, 3].map(t => `<div class="sec">דרגה ${t} · ${t === 1 ? "בית התחלתי" : t === 2 ? "בית משודרג" : "יוקרה"}</div><div class="shop">${Object.keys(HOUSE_NAMES).filter(st => +st[0] === t && !SPECIAL_HOUSES.includes(st)).map(st =>
     `<div class="item"><img alt="" src="${thumb(st)}"><b>${HOUSE_NAMES[st]}</b><small>${t < h.tier ? "ירידה בדרגה" : t > h.tier ? "שדרוג" : "החלפת סגנון"}</small>${btn("house:" + st, HOUSE_PRICE[st], h.hk === st, t > h.tier ? "שדרוג" : "מעבר")}</div>`).join("")}</div>`).join("");
   open("🛒 החנות", `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div></div>
     <div class="seg"><button class="${SHOP.tab === "cars" ? "on" : ""}" data-tab="cars">🚗 רכבים</button><button class="${SHOP.tab === "homes" ? "on" : ""}" data-tab="homes">🏠 בתים</button></div>
@@ -1981,6 +2094,10 @@ function interiorScene(w) {
   for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = m.receiveShadow = true; sc.add(m); }
   for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
   for (const f of INT.flags) sc.add(f);
+  if (w.owner) {   // the resident's ID card, framed on the back wall
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.95, .08), new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: .6 })); fr.position.set(-1.3, 3.15, -6.46); fr.userData.disposable = true; sc.add(fr);
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(-1.3, 3.15, -6.41); card.userData.disposable = true; sc.add(card);
+  }
   // people at work: the citizen in orange (if it's their workplace), colleagues around
   const me = S.mine && (S.mine.wp === w || w.owner === S.mine) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
   let tag = null;
@@ -2033,8 +2150,10 @@ function renderIntUI() {
   if (!S.wpById.has(INT.w.id)) {   // a visit: government buildings, public buildings, homes
     const w = INT.w;
     $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${w.ic || "🏛️"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))}</small></span><button id="intX" aria-label="יציאה">✕</button></div>
-      <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(w.owner.u)}`) : `ביקור ב${esc(w.name)}`}</p><p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
-    $("intX").onclick = exitWork; return;
+      <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(w.owner.u)}`) : `ביקור ב${esc(w.name)}`}</p>
+        ${w.owner ? `<p class="note">${esc(addressOf(w.owner))} · תושב/ת #${fmtN(w.owner.no || w.owner.id)} · ${esc(jobTitle(w.owner))}</p><button class="btn" id="idB">🪪 תעודת התושב של ‎@${esc(w.owner.u)}</button>` : ""}
+        <p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
+    $("intX").onclick = exitWork; if ($("idB")) $("idB").onclick = () => idCard(w.owner.u); return;
   }
   const { w, me } = INT, key = me && keyOf(me.u), done = me && me.lastShift && String(me.lastShift).slice(0, 10) === israelDate();
   const pay = me ? 30 + 10 * (Math.min(4, Math.max(1, me.level)) - 1) : 0;
@@ -2197,7 +2316,8 @@ GO.admin = () => {
     $("lAdd").onclick = e => { if (!v("lTitle")) return toast("מה החוק?"); run(e.target, "law_add", { title: v("lTitle"), description: v("lDesc"), by: v("lBy") }, "📜 החוק בתוקף"); };
     $("pAdd").onclick = e => run(e.target, "project_add", { kind: v("pKind"), city_id: +v("pCity"), name: v("pName") || PROJECT_KINDS[v("pKind")][1], by: v("pBy"), status: v("pStatus") }, "🏗️ הפרויקט על המפה");
     $("dBody").querySelectorAll("[data-done]").forEach(b => b.onclick = () => run(b, "project_done", { id: +b.dataset.done }, "🎉 נחנך!"));
-    const mLook = () => { $("mLook").style.display = v("mType").startsWith("person") ? "" : "none"; $("mModel").style.display = v("mType") === "model" ? "" : "none"; }; $("mType").onchange = mLook; mLook();
+    const mLook = () => { $("mLook").style.display = v("mType").startsWith("person") ? "" : "none"; $("mModel").style.display = v("mType") === "model" ? "" : "none";
+      if (MONUMENTS[v("mType")].lotOnly) $("mWhere").value = "lot"; $("mWhere").disabled = !!MONUMENTS[v("mType")].lotOnly; }; $("mType").onchange = mLook; mLook();
     $("mAdd").onclick = async e => {
       const city = S.slots.find(s => s.city?.id === +v("mCity")), used = S.projects.filter(p => p.city_id === +v("mCity") && !p.params?.island).length;
       if (v("mWhere") === "lot" && city && used >= (city.publicSpots?.length || 0)) return toast("אין מגרש ציבורי פנוי בעיר הזו");
@@ -2222,6 +2342,8 @@ GO.admin = () => {
 function applySettings(rows) {
   for (const g of GOV) { g.orig ||= g.name; g.name = g.orig; }
   BALLOT.orig ||= BALLOT.name; BALLOT.name = BALLOT.orig;
+  S.houseSign = new Map();   // house_<username> = { text, color }: the name and color on a special house
+  for (const r of rows || []) if (r.key?.startsWith("house_") && r.value) S.houseSign.set(r.key.slice(6), r.value);
   for (const r of rows || []) { const v = typeof r.value === "string" ? r.value : r.value?.name;
     if (!v) continue; const g = GOV.find(q => "gov_" + q.id === r.key); if (g) g.name = v; if (r.key === "ballot_name") BALLOT.name = v; }
 }
@@ -2238,7 +2360,7 @@ function editForm(title, fields, values, onSave, onDelete, after) {
     <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">${fields.map(([k, label, type, options]) => type === "select"
       ? `<label>${label}<select data-k="${k}">${opt(options, values[k])}</select></label>`
       : type === "check" ? `<label class="chk"><input type="checkbox" data-k="${k}" ${values[k] ? "checked" : ""}> ${label}</label>`
-      : `<label>${label}<input data-k="${k}" type="${type || "text"}" value="${esc(values[k] ?? "")}" ${type === "number" ? 'step="any"' : ""} ${/user|by|url/.test(k) ? 'dir="ltr" autocapitalize="off"' : ""}></label>`).join("")}
+      : `<label>${label}<input data-k="${k}" type="${type || "text"}" value="${esc(values[k] ?? "")}" ${type === "number" ? 'step="any"' : type === "color" ? 'style="height:46px;padding:4px 6px"' : ""} ${/user|by|url/.test(k) ? 'dir="ltr" autocapitalize="off"' : ""}></label>`).join("")}
       <button class="btn" id="edSave">💾 לשמור</button>${onDelete ? `<button class="btn ghost danger" id="edDel">🗑 למחוק</button>` : ""}</div>`, () => {
     const read = () => { const o = {}; $("dBody").querySelectorAll("[data-k]").forEach(el => o[el.dataset.k] = el.type === "checkbox" ? el.checked : el.type === "number" ? (el.value === "" ? null : +el.value) : el.value.trim()); return o; };
     $("edSave").onclick = async e => { e.target.disabled = true; e.target.textContent = "שומר…"; if (await onSave(read())) { toast("✅ נשמר"); close(); after && setTimeout(after, 200); } else { e.target.disabled = false; e.target.textContent = "💾 לשמור"; } };
@@ -2276,9 +2398,15 @@ GO.edit = arg => {
     const h = S.byUser.get(id); if (!h) return;
     return editForm("@" + h.u, [["house", "בית", "select", Object.entries(HOUSE_NAMES).map(([k, n]) => [k, n])], ["car", "רכב", "select", CAR_KEYS.map(k => [k, `${CARS[k].name} · ${TIER_NAMES[CARS[k].tier]}`])],
       ["color", "צבע רכב", "select", COLOR_KEYS.map(k => [k, COLORS[k][1]])], ["wp", "עבודה", "select", [["", "בלי עבודה"], ...S.workplaces.map(w => [w.id, `${w.name} · ${cityName(w.city_id)}`])]],
-      ["level", "דרגה בעבודה", "select", [[1, "עובד/ת"], [2, LEVEL[2]], [3, LEVEL[3]], [4, LEVEL[4]]]], ["coins", "סבבונים בארנק", "number"]],
-      { house: h.hk, car: h.cm, color: h.ck, wp: h.wp?.id ?? "", level: h.level, coins: h.coins ?? 0 },
-      v => adminEdit("citizens", h.id, { house_style: v.house, house_tier: +v.house[0], car_model: v.car, car_tier: CARS[v.car].tier, car_color: v.color, workplace_id: v.wp ? +v.wp : null, job_level: +v.level, coins: v.coins ?? 0 }),
+      ["level", "דרגה בעבודה", "select", [[1, "עובד/ת"], [2, LEVEL[2]], [3, LEVEL[3]], [4, LEVEL[4]]]], ["coins", "סבבונים בארנק", "number"],
+      ["sign_text", "🎀 הכיתוב על בית הפפיון (למשל השם)"], ["sign_color", "🎀 צבע בית הפפיון", "color"]],
+      { house: h.hk, car: h.cm, color: h.ck, wp: h.wp?.id ?? "", level: h.level, coins: h.coins ?? 0, sign_text: S.houseSign?.get(h.u)?.text || "", sign_color: houseLook(h).color },
+      async v => {
+        if (v.house === "3_2") {   // the name and color live in settings, the house itself in the citizen's row
+          const r = await rpc("admin_edit", { secret: pref("sababa_admin", ""), entity: "settings", rid: "house_" + h.u, patch: { value: { text: v.sign_text, color: v.sign_color } }, remove: false }).catch(() => ({}));
+          if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "הכיתוב לא נשמר", 5000); return false; }
+        }
+        return adminEdit("citizens", h.id, { house_style: v.house, house_tier: +v.house[0], car_model: v.car, car_tier: CARS[v.car].tier, car_color: v.color, workplace_id: v.wp ? +v.wp : null, job_level: +v.level, coins: v.coins ?? 0 }); },
       () => confirm(`בטוח למחוק את @${h.u} מהמדינה, עם הבית, הארנק וההיסטוריה?`) && adminEdit("citizens", h.id, {}, true), () => GO.house(h.u));
   }
   if (t === "gov") {
@@ -2343,13 +2471,29 @@ async function makeStory(h) {
   return el;
 }
 const ID_STYLE = `<style>.idc-ach{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.idc-ach span{background:var(--tint);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600}</style>`;
+// the card itself: shown in the ID drawer, on top of every house, and inside every home
+const idcHtml = h => `<div class="idc"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
+      <div class="idc-num">${pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
+      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(h.u)}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
+      <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>`;
+// the same card drawn on a canvas, to hang inside the 3D home
+function idTexture(h) {
+  const W = 1024, H = 650, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#1f6f8b"); g.addColorStop(1, "#0f8b8d"); x.fillStyle = g; x.beginPath(); x.roundRect(0, 0, W, H, 48); x.fill();
+  x.fillStyle = "#ffb627"; x.beginPath(); x.arc(W - 110, 110, 52, 0, Math.PI * 2); x.fill();   // the sun of the flag
+  x.fillStyle = "#e9c46a"; x.beginPath(); x.roundRect(70, 200, 120, 90, 14); x.fill();          // the chip
+  x.direction = "rtl"; x.textAlign = "right"; x.fillStyle = "#ffffff";
+  x.font = "800 58px Heebo, Arial"; x.fillText("רפובליקת סבבה", W - 190, 105); x.font = "500 32px Heebo, Arial"; x.globalAlpha = .85; x.fillText("תעודת זהות · IDENTITY CARD", W - 190, 152); x.globalAlpha = 1;
+  x.font = "800 64px Heebo, Arial"; x.direction = "ltr"; x.textAlign = "left"; x.fillText(pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2"), 230, 270);
+  const row = (lab, val, y, ltr) => { x.direction = "rtl"; x.textAlign = "right"; x.font = "500 28px Heebo, Arial"; x.globalAlpha = .75; x.fillText(lab, W - 70, y); x.globalAlpha = 1;
+    x.font = "700 40px Heebo, Arial"; let s = String(val); while (x.measureText(s).width > W - 140 && s.length > 4) s = s.slice(0, -2); if (ltr) { x.direction = "ltr"; x.textAlign = "right"; } x.fillText(s, W - 70, y + 46); };
+  row("שם משתמש", "@" + h.u, 350, true); row("כתובת", addressOf(h), 450); row("עיסוק", jobTitle(h), 550);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
 function idCard(u) {
   const h = S.byUser.get(u); if (!h) return toast("לא הצלחנו לטעון את התעודה");
   const got = achievements(h).got, link = `${location.origin}/?u=${encodeURIComponent(h.u)}`;
-  open("תעודת זהות", `${ID_STYLE}<div class="idc"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
-      <div class="idc-num">${pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
-      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(h.u)}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
-      <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>
+  open("תעודת זהות", `${ID_STYLE}${idcHtml(h)}
     ${got.length ? `<div class="idc-ach">${got.map(a => `<span>${a.ic} ${a.t}</span>`).join("")}</div>` : ""}
     <div class="sec">תמונה לסטורי</div>
     <div class="storybox" id="stBox"><div class="stwait">מכין תמונה…</div></div>
@@ -2998,6 +3142,7 @@ const projSig = list => list.map(p => p.id + p.status).join(",");
 async function loadProjects() {
   try { S.projects = await api("projects?select=id,city_id,kind,name,requested_by,status,created_at,params&order=id"); }
   catch { try { S.projects = await api("projects?select=id,city_id,kind,name,requested_by,status,created_at&order=id"); } catch { S.projects = []; } }
+  for (const p of S.projects) if (p.params?.island && MONUMENTS[p.params.type]?.lotOnly) p.params.island = false;   // a square always stands in the city
 }
 // live updates: once a minute, look for new citizens or a new draw and rebuild the island in place
 async function refresh() {
@@ -3034,7 +3179,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
