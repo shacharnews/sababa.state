@@ -1422,8 +1422,9 @@ const GO = {
       ${li("studio", "🎬", "סטודיו רילים", ADMIN ? "👑 כל התבניות" : "ריל אישי של הבית שלך")}
       ${li("time", "🕐", "השעה במדינה", "יום ולילה לפי שעון ישראל")}
       ${li("symbols", "🏳️", "סמלי המדינה", "הדגל והמוטו")}</div>
-    <div class="sec">מבני ממשלה</div><div class="list">${GOV.map(g => li("gov", g.ic, g.name, "", g.id)).join("")}</div>
-    <div class="sec">מקומות</div><div class="list">${COAST.map(c => li("place", c.ic, c.name, "", c.id)).join("")}</div>
+    <div class="sec">מבני ממשלה</div><div class="list">${GOV.map(g => li("gov", g.ic, g.name, "", g.id)).join("")}${BALLOT.x != null ? li("ballotHouse", "🗳️", esc(BALLOT.name), "ועדת הבחירות · נכנסים ומצביעים") : ""}</div>
+    <div class="sec">מקומות</div><div class="list">${S.projects.filter(p => p.kind === "monument" && p.x != null).map(p => li("project", "🗽", esc(p.name || "פסל"), p.status === "done" ? (p.requested_by ? `לבקשת ‎@${esc(p.requested_by)}` : "פסל") : "🏗️ בבנייה", p.id)).join("")}${COAST.map(c => li("place", c.ic, c.name, "", c.id)).join("")}
+      ${S.projects.filter(p => p.kind !== "monument" && p.status === "done" && p.x != null).map(p => li("project", PROJECT_KINDS[p.kind]?.[0] || "🏗️", esc(p.name || PROJECT_KINDS[p.kind]?.[1]), esc(cityName(p.city_id)), p.id)).join("")}</div>
     <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">📸 ‎@${INSTAGRAM}</a></div>`),
   mine: () => { if (S.mine) { S.sel = null; mark(S.mine); goTo(S.mine.x, S.mine.z, 7, () => showHouse(S.mine)); } else { $("q").focus(); toast("הקלידו את שם המשתמש שלכם באינסטגרם"); } },
   how: () => open("איך מתאזרחים?", `
@@ -1476,7 +1477,7 @@ function showProject(p) {
   open(`${ic} ${p.name || kindName}`, `<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
-    <div class="btns">${INDOOR.includes(p.kind) && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 להיכנס פנימה</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}</div>`);
+    <div class="btns">${p.kind !== "monument" && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}</div>`);
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
@@ -1699,7 +1700,8 @@ const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGe
 const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", hotel: "cafe", factory: "garage" };
 const ROOMS = new Set(["bakery", "cafe", "market", "school", "clinic", "garage", "hummus", "tech", "police", "fuel", "gym", "ballot", "gov_knesset", "gov_pm", "gov_interior", "library", "community", "mall", "home"]);
 function interiorOf(w) {
-  const k0 = INTERIOR_OF[w.kind] || w.kind, k = ROOMS.has(k0) ? k0 : "tech", Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
+  let frame = null;
+  const k0 = INTERIOR_OF[w.kind] || w.kind, k = k0.startsWith("outdoor_") ? k0 : ROOMS.has(k0) ? k0 : "tech", Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
   const add = (...p) => Q.push(...p);
   // room shell: floor, back wall (z=-6.5) and left wall (x=-9), open towards the camera
   const room = (floor, wall, band, { tiles, planks } = {}) => {
@@ -1725,7 +1727,8 @@ function interiorOf(w) {
   const sgn = (text, w, h, x, y, z, ry = 0, bg = "#ffffff", fg = "#1b2430") => {
     // side-wall signs sit above the windows (which reach 3.8), slightly in front of the frames, so nothing hides them
     if (Math.abs(ry - Math.PI / 2) < .01 && x <= -8.9) { x = -8.78; y = Math.max(y, 4.4); h = Math.min(h, .8); }
-    if (!ry && z <= -6.4) z = -6.44;
+    if (!ry && z <= -6.4 && z > -6.7) z = -6.44;
+    else if (!ry && z < -6.25 && z > -6.4) z = -6.28;     // in front of a wall screen, never on its surface
     SG.push([text, w, h, x, y, z, ry, bg, fg]); };
   const name = w.name;
 
@@ -1851,16 +1854,46 @@ function interiorOf(w) {
     sgn("פרגוד · תא הצבעה", 2.2, .5, -6, 2.4, -5.55, 0, "#ffffff", "#1b2430"); sgn("מצביעים רק פעם אחת 😉", 3.8, .8, -8.98, 3.6, -1.9, Math.PI / 2, "#ffe14d", "#1b2430");
     sgn("← לתא ההצבעה", 1.8, .6, -8.98, 2.4, -5.3, Math.PI / 2, "#ffffff", "#2f5d8a");
     staff.push([-.3, -3.3, 0], [1.5, -3.3, 0], [3.3, -3.3, 0], [-6, -4.1, Math.PI], [5.7, 2.2, Math.PI], [5.7, 3.1, Math.PI], [5.7, 4, Math.PI], [1.7, -1.4, Math.PI]);
-  } else if (k === "gov_knesset") {   // the plenum: a horseshoe of desks facing the speaker's podium
-    room("#33476b", "#ece4d2", "#b08d57");
-    add(box(7, 1.3, 1.4, "#7a5232", 0, 0, -5.4), box(7.2, .08, 1.6, "#b08d57", 0, 1.3, -5.4), box(2.4, 1.15, .9, "#7a5232", 0, 0, -3.6), box(.6, .4, .3, "#2b2b2b", 0, 1.15, -3.6));
-    for (let r = 0; r < 3; r++) { const R = 4.2 + r * 1.7, n = 7 + r * 2;
-      for (let i = 0; i < n; i++) { const a = -1.25 + 2.5 * i / (n - 1), x = Math.sin(a) * R, z = -3 + Math.cos(a) * R;
-        add(box(1.1, .78, .5, "#8a5a3a", x, 0, z, { y: a }), box(1.15, .05, .55, "#b08d57", x, .78, z, { y: a }), box(.5, .9, .5, "#2f5d8a", x + Math.sin(a) * .55, 0, z + Math.cos(a) * .55, { y: a })); } }
-    screen(-5.5, 2.4, -6.4, 3, 1.6, 0, "*#3a8fd0"); screen(5.5, 2.4, -6.4, 3, 1.6, 0, "*#3a8fd0");
-    add(cyl(.05, .05, 2.8, 8, "#cccccc", -3.6, 0, -6)); const f1 = flagMesh(1.5, 1); f1.position.set(-2.85, 2.3, -6); INT.flags.push(f1);
-    sgn("הכנסת · מליאה", 4.6, .9, 0, 3.6, -6.48, 0, "#b08d57", "#ffffff"); sgn("בעד: 61 · נגד: 59", 2.8, .6, -5.5, 3.5, -6.36, 0, "#1b2430", "#7fe0a0"); sgn("סדר היום: חוק החומוס", 2.8, .6, 5.5, 3.5, -6.36, 0, "#1b2430", "#ffd75a");
-    staff.push([0, -5.9, 0], [0, -3.1, Math.PI], [-3.3, -.5, Math.PI - 1], [3.3, -.5, Math.PI + 1], [-1.5, 2.5, Math.PI - .3], [1.6, 2.6, Math.PI + .3], [-5.5, 1.2, Math.PI - 1.1], [5.6, 1.4, Math.PI + 1.1]);
+  } else if (k === "gov_knesset") {   // a full-size plenum: tiered horseshoe, government table, raised presidium, podium, visitors' gallery, the flag above the stage
+    const BW = 32, BD = 24, BH = 9, bz = -BD / 2, lx = -BW / 2;
+    add(box(BW + .6, .3, BD + .6, "#2c4470", 0, -.3, 0), box(BW + .6, BH, .3, "#efe7d6", 0, 0, bz - .15), box(.3, BH, BD + .6, "#efe7d6", lx - .15, 0, 0),
+      box(BW + .6, 1.4, .32, "#b08d57", 0, 0, bz - .14), box(.32, 1.4, BD + .6, "#b08d57", lx - .14, 0, 0), box(BW + .6, .3, .34, "#ffffff", 0, BH, bz - .16), box(.34, .3, BD + .6, "#ffffff", lx - .16, BH, 0));
+    for (let i = -3; i <= 3; i++) add(box(.6, BH - 1.4, .3, "#e2d6bd", i * 4.4, 1.4, bz + .05));        // wall pilasters
+    // the presidium: a raised dais with the speaker's long table, and the podium in front of it
+    add(box(16, 1.4, 5, "#7a5232", 0, 0, bz + 3), box(16.2, .1, 5.2, "#b08d57", 0, 1.4, bz + 3), box(12, 1.1, 1.4, "#5a3a24", 0, 1.4, bz + 2.4), box(12.2, .08, 1.6, "#b08d57", 0, 2.5, bz + 2.4));
+    for (let i = -2; i <= 2; i++) add(box(.9, 1.6, .8, "#2f5d8a", i * 2.4, 1.4, bz + 1.4));
+    add(box(3.4, .4, 2, "#7a5232", 0, 0, bz + 6.3), box(2.2, 1.35, 1, "#5a3a24", 0, .4, bz + 6.3), box(2.4, .08, 1.15, "#b08d57", 0, 1.75, bz + 6.3), cyl(.03, .03, .5, 6, "#222222", 0, 1.8, bz + 6.1));
+    // government table: the first, curved row
+    const cz = bz + 6.5;
+    for (let i = 0; i < 11; i++) { const a = -1.15 + 2.3 * i / 10, x = Math.sin(a) * 6.2, z = cz + Math.cos(a) * 6.2;
+      add(box(1.5, .8, .7, "#f0e9da", x, 0, z, { y: a }), box(1.55, .05, .75, "#b08d57", x, .8, z, { y: a }), box(.7, 1.2, .6, "#e8e2d4", x + Math.sin(a) * .7, 0, z + Math.cos(a) * .7, { y: a })); }
+    // the members' horseshoe: tiers that step up towards the back, a desk with a small screen in front of every seat
+    for (let r = 0; r < 5; r++) { const R = 8.4 + r * 1.9, n = 13 + r * 3, y = r * .38;
+      add(...Array.from({ length: n }, (_, i) => { const a = -1.32 + 2.64 * i / (n - 1); return box(1.9, y + .02, 1.9, "#2a3f66", Math.sin(a) * R, 0, cz + Math.cos(a) * R, { y: a }); }));
+      for (let i = 0; i < n; i++) { const a = -1.32 + 2.64 * i / (n - 1), x = Math.sin(a) * R, z = cz + Math.cos(a) * R;
+        add(box(1.3, .78, .5, "#8a5a3a", x, y, z, { y: a }), box(1.35, .05, .55, "#b08d57", x, y + .78, z, { y: a }), box(.3, .2, .03, "*#7fd1ff", x, y + .83, z, { y: a }),
+          box(.62, 1.15, .58, "#2f6f8f", x + Math.sin(a) * .62, y, z + Math.cos(a) * .62, { y: a })); } }
+    // the visitors' gallery behind glass, up on the side wall
+    add(box(3.4, 3.2, BD - 6, "#cfc3a8", lx + 1.7, 0, 1), box(3.4, .2, BD - 6, "#b08d57", lx + 1.7, 3.2, 1), box(.08, 1.6, BD - 6, "*#d8eef6", lx + 3.4, 3.4, 1));
+    for (let i = 0; i < 6; i++) add(box(1.2, .5, 2.6, "#7a2a20", lx + 1.4, 3.3, -6.5 + i * 3));
+    // two big screens, a ring chandelier
+    screen(-11, 5.4, bz + .25, 5, 2.6, 0, "*#3a8fd0"); screen(11, 5.4, bz + .25, 5, 2.6, 0, "*#3a8fd0");
+    add(part(new THREE.TorusGeometry(6, .18, 8, 48), "*#fff1c2", 0, BH - .8, cz + 2, { x: Math.PI / 2 }));
+    // the flag, big, hanging above the stage
+    const fl = flagMesh(8, 5.3); fl.position.set(0, 5.95, bz + .7); INT.flags.push(fl);
+    sgn("הכנסת · מליאה", 7, .8, 0, 1.6, bz + 3.13, 0, "#5a3a24", "#f2e4c4"); sgn("בעד: 61 · נגד: 59", 4.4, .9, -11, 5.9, bz + .56, 0, "#1b2430", "#7fe0a0"); sgn("על סדר היום: חוק החומוס", 4.4, .9, 11, 5.9, bz + .56, 0, "#1b2430", "#ffd75a");
+    staff.push([0, bz + 1.8, 0], [-2.4, bz + 1.8, 0], [2.4, bz + 1.8, 0], [0, bz + 5.6, Math.PI], [-3.6, cz + 5.6, Math.PI - .6], [3.6, cz + 5.6, Math.PI + .6], [-6.5, cz + 6.6, Math.PI - .8],
+      [6.6, cz + 6.8, Math.PI + .8], [-2.4, cz + 10.4, Math.PI - .25], [2.6, cz + 10.6, Math.PI + .25], [-9, cz + 8.6, Math.PI - 1.1], [9.2, cz + 8.2, Math.PI + 1.1], [0, cz + 12.6, Math.PI], [lx + 1.4, -2, Math.PI / 2], [lx + 1.4, 3, Math.PI / 2]);
+    frame = { target: [0, 2.6, -2], scale: 1.75, shadow: 24 };
+  } else if (k.startsWith("outdoor_")) {   // parks, pools and fields: the lot's own model at walking scale, with sky and trees around
+    const kind = k.slice(8);
+    add(box(44, .3, 34, "#86b862", 0, -.3, 0), ...projectModel(kind).map(g => g.scale(.48, .48, .48).translate(0, .02, 0)));
+    const R = rng(w.name.length * 13);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, d = 13 + R() * 5, x = Math.sin(a) * d * 1.3, z = Math.cos(a) * d; add(cyl(.2, .3, 2, 6, "#6e4c30", x, 0, z), sph(1.6, ["#5f8f45", "#6d9e50", "#4f8a3a"][i % 3], x, 3, z, 1, 1.1, 1)); }
+    add(box(.15, 2.4, .15, "#6e4c30", -2.4, 0, 6.5), box(.15, 2.4, .15, "#6e4c30", 2.4, 0, 6.5));
+    sgn(w.name, 5, .9, 0, 2, 6.55, 0, "#2f5e3a", "#ffffff");
+    staff.push([-4, 2, .5], [3.5, -1, -2], [6, 3, 2.5], [-6, -2.5, 1]);
+    frame = { target: [0, .5, 0], scale: 1.05, sky: true };
   } else if (k === "gov_pm") {   // the prime minister's office
     room("#6b4a3a", "#f3ead8", "#2f5d8a", { planks: "#5f4132" });
     add(box(4, .8, 1.8, "#5a3a24", 0, 0, -4.4), box(4.2, .08, 2, "#3a2414", 0, .8, -4.4), box(1, 1.5, .9, "#2b2b2b", 0, 0, -5.6)); screen(-1.2, 1.1, -4.2, .8, .5, 0, "*#9fd6ff");
@@ -1928,7 +1961,7 @@ function interiorOf(w) {
     sgn(name, 4.8, .9, 0, 4.1, -6.48, 0, "#c0392b", "#ffffff"); sgn("קפה הפוך + מאפה = 15", 4.4, .9, -8.98, 3.6, 0, Math.PI / 2, "#ffe14d", "#c0392b");
     staff.push([4.5, 3.8, Math.PI], [-2.8, 2.5, Math.PI / 2], [5.4, -3, 0]);
   }
-  return { Q, SG, staff };
+  return { Q, SG, staff, frame };
 }
 // builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
 function interiorScene(w) {
@@ -1938,7 +1971,9 @@ function interiorScene(w) {
   Object.assign(dl.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 40 }); dl.shadow.bias = -.0004; dl.shadow.normalBias = .03; sc.add(dl);
   for (const [x, z] of [[-4, -2], [4, -2], [0, 3]]) { const pl = new THREE.PointLight("#ffd9a8", 18, 14, 1.6); pl.position.set(x, 4.6, z); sc.add(pl); }
   INT.flags = [];
-  const { Q, SG, staff } = interiorOf(w), pf = prefab(Q, false);
+  const { Q, SG, staff, frame } = interiorOf(w), pf = prefab(Q, false);
+  if (frame?.sky) sc.background = new THREE.Color("#9fd0ea");
+  if (frame?.shadow) Object.assign(dl.shadow.camera, { left: -frame.shadow, right: frame.shadow, top: frame.shadow, bottom: -frame.shadow, far: 70 });
   for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = m.receiveShadow = true; sc.add(m); }
   for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
   for (const f of INT.flags) sc.add(f);
@@ -1955,7 +1990,7 @@ function interiorScene(w) {
     for (const [, m] of meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
     if (me) { tag = sign("את/ה", 1.6, .55, { bg: "#e07a4f", fg: "#ffffff" }); tag.position.set(staff[0][0], 2.9, staff[0][1]); sc.add(tag); }
   }
-  return { sc, me, tag, flags: INT.flags };
+  return { sc, me, tag, flags: INT.flags, frame: frame || {} };
 }
 // anything you can walk into: "ballot", "gov:knesset", "proj:3", "home:dana_k", or a workplace id
 const INDOOR = ["community", "library", "mall"];
@@ -1964,18 +1999,18 @@ function interiorTarget(id) {
   if (id === "ballot") return BALLOT;
   if (t === "work") return S.wpById.get(+a);
   if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
-  if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && INDOOR.includes(p.kind) && p.status === "done" && { id, kind: p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
+  if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
   if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
   return S.wpById.get(+id);
 }
 function enterWork(id) {
   const w = interiorTarget(id); if (!w) return;
   close();
-  const { sc, me, tag, flags } = interiorScene(w); INT.tag = tag; INT.flags = flags;
+  const { sc, me, tag, flags, frame } = interiorScene(w); INT.tag = tag; INT.flags = flags;
   // frame the whole room, also on a narrow phone screen
   const asp = innerWidth / innerHeight, cam = new THREE.PerspectiveCamera(asp < 1 ? 50 : 38, asp, .1, 300);
-  const hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * asp), dist = Math.max(17, Math.min(38, 8.8 / Math.tan(hf)));
-  const tgt = new THREE.Vector3(-.5, 1, -.5); cam.position.copy(tgt).addScaledVector(new THREE.Vector3(13.5, 10.5, 16).normalize(), dist);
+  const fs = frame.scale || 1, hf = Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * asp), dist = Math.max(17, Math.min(38, 8.8 / Math.tan(hf))) * fs;
+  const tgt = new THREE.Vector3(...(frame.target || [-.5, 1, -.5])); cam.position.copy(tgt).addScaledVector(new THREE.Vector3(13.5, 10.5, 16).normalize(), dist);
   const ctl = new OrbitControls(cam, renderer.domElement); ctl.target.copy(tgt); ctl.enableDamping = true; ctl.minDistance = 6; ctl.maxDistance = dist * 1.3;
   ctl.minPolarAngle = .35; ctl.maxPolarAngle = 1.3; ctl.minAzimuthAngle = -.15; ctl.maxAzimuthAngle = 1.55; ctl.enablePan = false; ctl.autoRotate = true; ctl.autoRotateSpeed = .35;
   ctl.addEventListener("start", () => ctl.autoRotate = false);
@@ -2476,7 +2511,7 @@ function buildSubset(n) { REEL.full ||= { raw: S.raw, total: S.total }; S.raw = 
 function insideFrame(s, k) {
   REEL.ins ||= new Map();
   const key = s.inside.id; if (!REEL.ins.has(key)) REEL.ins.set(key, interiorScene(s.inside));
-  const I = REEL.ins.get(key), L = (a, b) => a + (b - a) * k, az = L(s.a.az, s.b.az), dist = L(s.a.dist, s.b.dist), el = L(s.a.el, s.b.el), tg = new THREE.Vector3(-.5, 1.3, -1);
+  const I = REEL.ins.get(key), fr = I.frame || {}, L = (a, b) => a + (b - a) * k, az = L(s.a.az, s.b.az), dist = L(s.a.dist, s.b.dist) * (fr.scale || 1), el = L(s.a.el, s.b.el), tg = new THREE.Vector3(...(fr.target || [-.5, 1.3, -1]));
   reelCam.fov = 58; reelCam.near = .1; reelCam.far = 300; reelCam.position.set(tg.x + Math.sin(az) * Math.cos(el) * dist, tg.y + Math.sin(el) * dist, tg.z + Math.cos(az) * Math.cos(el) * dist);
   reelCam.updateProjectionMatrix(); reelCam.lookAt(tg);
   for (const f of I.flags || []) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w; for (let i = 0; i < p.count; i++) { const x = base[i * 3] + w / 2; p.array[i * 3 + 2] = Math.sin(x * 4.5 / w - simT * 4) * x * .06; } p.needsUpdate = true; }
@@ -2858,7 +2893,7 @@ function placeList() {
   for (const p of S.projects.filter(q => q.params?.island && q.x != null)) o.push([`mon:${p.id}`, `🗽 ${p.name || "פסל"}`]);
   o.push(["house", "🏠 הבית של תושב/ת…"]);
   for (const g of GOV) if (g.x != null) o.push([`inside:gov:${g.id}`, `🚪 בתוך ${g.name}`]);
-  for (const p of S.projects.filter(q => INDOOR.includes(q.kind) && q.status === "done" && q.x != null)) o.push([`inside:proj:${p.id}`, `🚪 בתוך ${p.name || PROJECT_KINDS[p.kind][1]}`]);
+  for (const p of S.projects.filter(q => q.kind !== "monument" && q.status === "done" && q.x != null)) o.push([`inside:proj:${p.id}`, `🚪 בתוך ${p.name || PROJECT_KINDS[p.kind][1]}`]);
   o.push(["inside:home", "🛋️ בתוך הבית של תושב/ת…"]);
   for (const w of S.workplaces) if (w.x != null) o.push([`inside:work:${w.id}`, `🚪 בתוך ${w.name} · ${cityName(w.city_id)}`]);
   return o;
