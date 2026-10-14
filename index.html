@@ -150,6 +150,10 @@ details.adm label{display:flex;flex-direction:column;gap:3px;font-size:12px;font
 details.adm input,details.adm select,details.adm textarea{width:100%;font:inherit;font-size:15px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:8px 10px}
 details.adm input[type=color]{height:42px;padding:2px}details.adm .btn{width:100%;margin-top:10px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.adm label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--fg2);margin-top:8px}
+.adm input,.adm select{width:100%;font:inherit;font-size:15px;color:var(--fg);background:var(--bg-strong);border:1px solid var(--hair);border-radius:10px;padding:8px 10px}
+.adm label.chk{flex-direction:row;align-items:center;gap:8px;font-size:14px}.adm label.chk input{width:22px;height:22px}
+.adm .btn{width:100%;margin-top:10px}.btn.danger{color:#e5484d}
 .mini{background:var(--bg-strong);border-radius:10px;padding:6px 9px;font-size:12.5px;font-weight:700;flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{background:var(--tint);border-radius:999px;padding:8px 12px;font-weight:700;font-size:13.5px}
 .scene{background:var(--tint);border-radius:18px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}
@@ -874,7 +878,7 @@ function ballotHouse() {
   if (BALLOT.x == null) return GO.ballot();
   const n = S.ballot.filter(e => e.status === "open").length;
   goTo(BALLOT.x, BALLOT.z, 5, () => open("🗳️ קלפי מס׳ 1", `<div class="hero"><p><b>מבנה ועדת הבחירות.</b> ${n ? `יש עכשיו ${fmtN(n)} בחירות פתוחות.` : "כרגע אין בחירות פתוחות."} נכנסים פנימה, עוברים את ועדת הקלפי, ובוחרים מאחורי הפרגוד.</p></div>
-    <div class="btns"><button class="btn" data-go="enter" data-arg="ballot">🚪 להיכנס לקלפי</button><button class="btn ghost" data-go="ballot">🗳️ להצביע</button></div>`));
+    <div class="btns"><button class="btn" data-go="enter" data-arg="ballot">🚪 להיכנס לקלפי</button><button class="btn ghost" data-go="ballot">🗳️ להצביע</button>${editBtn("ballot")}</div>`));
 };
 function buildCivic() {
   const parks = [], lots = [], parked = [];
@@ -1439,7 +1443,7 @@ const GO = {
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
   slot: i => { const sl = S.slots[+i]; if (!sl.city && !onGrass(sl.x, sl.z, S.s, .02)) return toast("השטח הזה עוד מתחת למים 🌊 האי יגיע אליו כשיהיו עוד תושבים"); goTo(sl.x, sl.z, sl.city ? 2.4 : 1.2, () => showSlot(sl)); },
-  laws: () => open("ספר החוקים", S.laws.length ? `<div class="list">${S.laws.map((l, i) => info("📜", `חוק ${S.laws.length - i}: ${esc(l.title)}`, `${l.description ? esc(l.description) + " · " : ""}${fmtDate(l.enacted_at)}`)).join("")}</div>` : `<div class="hero"><p>ספר החוקים עדיין ריק. החוק הראשון ייקבע בתגובות לריל 👀</p></div>`, null, sub()),
+  laws: () => open("ספר החוקים", S.laws.length ? `<div class="list">${S.laws.map((l, i) => ADMIN && l.id != null ? li("edit", "📜", `חוק ${S.laws.length - i}: ${esc(l.title)}`, `✏️ לעריכה · ${fmtDate(l.enacted_at)}`, "law:" + l.id) : info("📜", `חוק ${S.laws.length - i}: ${esc(l.title)}`, `${l.description ? esc(l.description) + " · " : ""}${fmtDate(l.enacted_at)}`)).join("")}</div>` : `<div class="hero"><p>ספר החוקים עדיין ריק. החוק הראשון ייקבע בתגובות לריל 👀</p></div>`, null, sub()),
   govlist: () => open("הממשלה", S.gov.length ? `<div class="list">${S.gov.map(m => { const h = S.byUser.get(m.citizens?.ig_username); return h ? person(h, `${esc(m.ministry)} · ${fmtDate(m.appointed_at)}`) : info("🏛️", esc(m.ministry)); }).join("")}</div>` : `<div class="hero"><p>עוד לא מונו שרים. כל יום מוגרל שר חדש מבין התושבים.</p></div>`, null, sub()),
   people: () => { const asc = [...S.houses].sort((a, b) => a.id - b.id);
     open("התושבים", `<div class="sec">הגיעו לאחרונה</div><div class="list">${asc.slice(-10).reverse().map(h => person(h, esc(addressOf(h)))).join("") || info("⏳", "עוד אין")}</div>
@@ -1472,14 +1476,14 @@ function showProject(p) {
   open(`${ic} ${p.name || kindName}`, `<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
-    <div class="btns">${INDOOR.includes(p.kind) && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 להיכנס פנימה</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button></div>`);
+    <div class="btns">${INDOOR.includes(p.kind) && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 להיכנס פנימה</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}</div>`);
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
 
 function openGov(id) {
   const g = GOV.find(q => q.id === id);
-  open(`${g.ic} ${g.name}`, {
+  open(`${g.ic} ${g.name}`, (ADMIN ? `<div class="btns" style="margin-bottom:8px">${editBtn("gov:" + id)}</div>` : "") + {
     knesset: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:knesset">🚪 להיכנס למליאה</button></div><div class="hero" style="margin-top:8px"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
     pm: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:pm">🚪 להיכנס ללשכה</button></div><div class="hero" style="margin-top:8px"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
     interior: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:interior">🚪 להיכנס פנימה</button></div><div class="hero" style="margin-top:8px"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
@@ -1504,12 +1508,13 @@ function showSlot(sl) {
   const c = sl.city, ws = S.workplaces.filter(w => w.city_id === c.id);
   open(c.name, `<div class="stats"><div class="stat"><b>${fmtN(sl.pop)}</b><small>תושבים</small></div><div class="stat"><b>${fmtN(ws.length)}</b><small>עסקים</small></div><div class="stat"><b>${sl.at === 0 ? "בירה" : fmtN(sl.at)}</b><small>${sl.at === 0 ? "מעמד" : "נוסדה בתושב"}</small></div></div>
     <div class="list" style="margin-top:10px">${c.founder_username ? info("🏅", `‎@${esc(c.founder_username)}`, "נתנ/ה לעיר את השם") : info("🗳️", "השם עוד ייבחר", "התושבים יבחרו בתגובות לריל")}${S.mine?.city.id === c.id ? info("📍", "זו העיר שלך") : ""}</div>
+    ${ADMIN ? `<div class="btns">${editBtn("city:" + c.id)}</div>` : ""}
     ${ws.length ? `<div class="sec">מקומות עבודה</div><div class="list">${ws.map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("")}</div>` : ""}`);
 }
 function showWork(w) {
   const staff = [...w.staff].sort((a, b) => b.level - a.level || a.id - b.id), boss = staff[0];
   open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
-    <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button></div>
+    <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button>${editBtn("work:" + w.id)}</div>
     <div class="list" style="margin-top:10px">${boss && boss.level > 1 ? person(boss, LEVEL[Math.min(4, boss.level)]) : info("👔", "אין עדיין הנהלה", "הקידום הבא בהגרלה יכול להגיע מכאן")}</div>
     ${staff.length ? `<div class="sec">הצוות</div><div class="list">${staff.slice(0, 40).map(h => person(h, h.level > 1 ? LEVEL[Math.min(4, h.level)] : ROLE[w.kind] || "")).join("")}</div>` : ""}`);
 }
@@ -1532,7 +1537,7 @@ function showHouse(h) {
       ${S.projects.filter(p => p.requested_by === h.u).map(p => li("project", "💡", `יזם/ית: ${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}`, p.status === "done" ? "ההצעה שלו/ה נבנתה!" : "ההצעה שלו/ה בבנייה", p.id)).join("")}
     </div>
     ${achHtml(h)}
-    <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button>${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}</div>
+    <div class="btns"><button class="btn" data-go="id" data-arg="${esc(h.u)}">🪪 תעודת זהות</button>${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>
     <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="enter" data-arg="home:${esc(h.u)}">🛋️ ${me ? "להיכנס הביתה" : "להציץ פנימה"}</button>${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">🚪 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}</div>`,
     () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
@@ -1717,7 +1722,11 @@ function interiorOf(w) {
       if (i < n) for (let j = 0; j < Math.floor(w / .32); j++) { const [px, pz] = P2(-w / 2 + .2 + j * .32, 0), hh = .2 + R() * .2; add(box(.24, hh, d * .7, cols[Math.floor(R() * cols.length)], px, y + .05, pz, { y: ry })); } }
     for (const e of [-1, 1]) { const [px, pz] = P2(e * w / 2, 0); add(box(.06, h, d, "#bdb8ae", px, 0, pz, { y: ry })); } };
   const screen = (x, y, z, w, h, ry = 0, glow = "*#5fa8e0") => add(box(w + .06, h + .06, .05, "#1a1a1a", x, y, z, { y: ry }), box(w, h, .02, glow, x + Math.sin(ry) * .03, y + .03, z + Math.cos(ry) * .03, { y: ry }));
-  const sgn = (text, w, h, x, y, z, ry = 0, bg = "#ffffff", fg = "#1b2430") => SG.push([text, w, h, x, y, z, ry, bg, fg]);
+  const sgn = (text, w, h, x, y, z, ry = 0, bg = "#ffffff", fg = "#1b2430") => {
+    // side-wall signs sit above the windows (which reach 3.8), slightly in front of the frames, so nothing hides them
+    if (Math.abs(ry - Math.PI / 2) < .01 && x <= -8.9) { x = -8.78; y = Math.max(y, 4.4); h = Math.min(h, .8); }
+    if (!ry && z <= -6.4) z = -6.44;
+    SG.push([text, w, h, x, y, z, ry, bg, fg]); };
   const name = w.name;
 
   if (k === "bakery") {
@@ -1839,8 +1848,8 @@ function interiorOf(w) {
     add(box(3.5, .05, .05, "#b5232f", 5.75, .92, 1.5), box(3.5, .05, .05, "#b5232f", 5.75, .92, 4.5));
     add(cyl(.05, .05, 2.6, 8, "#cccccc", -8.3, 0, 2)); const fl = flagMesh(1.5, 1); fl.position.set(-7.55, 2.1, 2); INT.flags.push(fl);
     sgn("ועדת הבחירות המרכזית · רפובליקת סבבה", 8, .9, 1.5, 4.2, -6.48, 0, "#2f5d8a", "#ffffff"); sgn("קלפי מס׳ 1", 3, .8, 1.5, 3.1, -6.48, 0, "#ffffff", "#2f5d8a");
-    sgn("פרגוד · תא הצבעה", 2.2, .5, -6, 2.4, -5.55, 0, "#ffffff", "#1b2430"); sgn("מצביעים רק פעם אחת 😉", 4.2, .8, -8.98, 3.6, -2, Math.PI / 2, "#ffe14d", "#1b2430");
-    sgn("← לתא ההצבעה", 2.6, .6, -8.98, 2.4, -4, Math.PI / 2, "#ffffff", "#2f5d8a");
+    sgn("פרגוד · תא הצבעה", 2.2, .5, -6, 2.4, -5.55, 0, "#ffffff", "#1b2430"); sgn("מצביעים רק פעם אחת 😉", 3.8, .8, -8.98, 3.6, -1.9, Math.PI / 2, "#ffe14d", "#1b2430");
+    sgn("← לתא ההצבעה", 1.8, .6, -8.98, 2.4, -5.3, Math.PI / 2, "#ffffff", "#2f5d8a");
     staff.push([-.3, -3.3, 0], [1.5, -3.3, 0], [3.3, -3.3, 0], [-6, -4.1, Math.PI], [5.7, 2.2, Math.PI], [5.7, 3.1, Math.PI], [5.7, 4, Math.PI], [1.7, -1.4, Math.PI]);
   } else if (k === "gov_knesset") {   // the plenum: a horseshoe of desks facing the speaker's podium
     room("#33476b", "#ece4d2", "#b08d57");
@@ -2168,6 +2177,83 @@ GO.admin = () => {
     $("pmSet").onclick = e => run(e.target, "pm", { username: v("pmUser") }, "👑 מונה/תה + 3,000 סבבונים");
   }, sub());
 };
+
+/* ============================ ADMIN: EDIT OR DELETE ANYTHING ============================ */
+// one form for every kind of thing on the map; saves through admin_edit (upgrade-8.sql)
+function applySettings(rows) {
+  for (const g of GOV) { g.orig ||= g.name; g.name = g.orig; }
+  BALLOT.orig ||= BALLOT.name; BALLOT.name = BALLOT.orig;
+  for (const r of rows || []) { const v = typeof r.value === "string" ? r.value : r.value?.name;
+    if (!v) continue; const g = GOV.find(q => "gov_" + q.id === r.key); if (g) g.name = v; if (r.key === "ballot_name") BALLOT.name = v; }
+}
+async function adminEdit(entity, rid, patch, remove = false) {
+  const r = await rpc("admin_edit", { secret: pref("sababa_admin", ""), entity, rid: String(rid), patch, remove });
+  if (!r.ok) { toast({ unauthorized: "קוד המנהל לא תקף", capital: "את הבירה אי אפשר למחוק, רק לשנות לה שם", has_citizens: "יש בעיר תושבים, אי אפשר למחוק אותה" }[r.error] || "לא הצליח: " + (r.detail || r.error), 5000); return false; }
+  await loadData(); await loadExtras(); await loadProjects(); await loadBallot(); buildWorld();
+  return true;
+}
+// fields: [key, label, type, options?]; values: current values
+function editForm(title, fields, values, onSave, onDelete, after) {
+  const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${esc(k)}" ${String(k) === String(v ?? "") ? "selected" : ""}>${esc(n)}</option>`).join("");
+  open("✏️ " + title, `<div class="hero warn"><p><b>עריכת מנהל.</b> השינויים נכנסים לתוקף מיד אצל כולם.</p></div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">${fields.map(([k, label, type, options]) => type === "select"
+      ? `<label>${label}<select data-k="${k}">${opt(options, values[k])}</select></label>`
+      : type === "check" ? `<label class="chk"><input type="checkbox" data-k="${k}" ${values[k] ? "checked" : ""}> ${label}</label>`
+      : `<label>${label}<input data-k="${k}" type="${type || "text"}" value="${esc(values[k] ?? "")}" ${type === "number" ? 'step="any"' : ""} ${/user|by|url/.test(k) ? 'dir="ltr" autocapitalize="off"' : ""}></label>`).join("")}
+      <button class="btn" id="edSave">💾 לשמור</button>${onDelete ? `<button class="btn ghost danger" id="edDel">🗑 למחוק</button>` : ""}</div>`, () => {
+    const read = () => { const o = {}; $("dBody").querySelectorAll("[data-k]").forEach(el => o[el.dataset.k] = el.type === "checkbox" ? el.checked : el.type === "number" ? (el.value === "" ? null : +el.value) : el.value.trim()); return o; };
+    $("edSave").onclick = async e => { e.target.disabled = true; e.target.textContent = "שומר…"; if (await onSave(read())) { toast("✅ נשמר"); close(); after && setTimeout(after, 200); } else { e.target.disabled = false; e.target.textContent = "💾 לשמור"; } };
+    if (onDelete) $("edDel").onclick = async e => { if (!confirm("למחוק לצמיתות? אי אפשר לבטל.")) return; e.target.disabled = true; if (await onDelete()) { toast("🗑 נמחק"); close(); } else e.target.disabled = false; };
+  }, true);
+}
+const cityPairs = () => S.slots.filter(s => s.city).map(s => [s.city.id, s.city.name]);
+GO.edit = arg => {
+  if (!ADMIN) return;
+  const [t, ...rest] = String(arg).split(":"), id = rest.join(":");
+  if (t === "work") {
+    const w = S.wpById.get(+id); if (!w) return;
+    return editForm(w.name, [["name", "שם (על השלט)"], ["kind", "סוג", "select", Object.keys(KIND_NAMES).map(k => [k, `${KIND_IC[k]} ${KIND_NAMES[k]}`])], ["city_id", "עיר", "select", cityPairs()],
+      ["color", "צבע (ריק = רגיל)", "text"], ["floors", "קומות (למגדל/מלון)", "number"]], w,
+      v => adminEdit("workplaces", w.id, { name: v.name, kind: v.kind, city_id: +v.city_id, color: v.color || null, floors: v.floors || null }),
+      () => adminEdit("workplaces", w.id, {}, true), () => { const n = S.wpById.get(w.id); n && GO.work(n.id); });
+  }
+  if (t === "proj") {
+    const p = S.projects.find(q => q.id === +id); if (!p) return; const pr = p.params || {}, mon = p.kind === "monument";
+    const f = [["name", "שם"], ["kind", "סוג", "select", Object.entries(PROJECT_KINDS).map(([k, v]) => [k, `${v[0]} ${v[1]}`])], ["status", "מצב", "select", [["building", "🏗️ בבנייה"], ["done", "🎉 נחנך"]]],
+      ["requested_by", "מי ביקש"], ["city_id", "עיר", "select", cityPairs()]];
+    if (mon) f.push(["m_type", "סוג הפסל", "select", Object.entries(MONUMENTS).map(([k, m]) => [k, m.name])], ["m_island", "על אי משלו מול החוף", "check"], ["m_finish", "גימור", "select", [["patina", "🗽 אבן ונחושת"], ["color", "🎨 צבעוני"]]],
+      ["m_url", "כתובת קובץ GLB (למודל)"], ["m_turn", "סיבוב (מעלות)", "number"]);
+    return editForm(p.name || "פרויקט", f, { ...p, m_type: pr.type, m_island: pr.island, m_finish: pr.finish, m_url: pr.url, m_turn: pr.turn || 0 },
+      v => adminEdit("projects", p.id, { name: v.name, kind: v.kind, status: v.status, requested_by: v.requested_by.replace(/^@/, "") || null, city_id: +v.city_id,
+        ...(mon ? { params: { ...pr, type: v.m_type, island: v.m_island, finish: v.m_finish, url: v.m_url, turn: v.m_turn || 0 } } : {}) }),
+      () => adminEdit("projects", p.id, {}, true), () => GO.project(p.id));
+  }
+  if (t === "city") {
+    const c = S.cities.find(q => q.id === +id); if (!c) return;
+    return editForm(c.name, [["name", "שם העיר"], ["founder_username", "מי נתן את השם"]], c, v => adminEdit("cities", c.id, { name: v.name, founder_username: v.founder_username.replace(/^@/, "") || null }),
+      c.opens_at ? () => adminEdit("cities", c.id, {}, true) : null);
+  }
+  if (t === "cit") {
+    const h = S.byUser.get(id); if (!h) return;
+    return editForm("@" + h.u, [["house", "בית", "select", Object.entries(HOUSE_NAMES).map(([k, n]) => [k, n])], ["car", "רכב", "select", CAR_KEYS.map(k => [k, `${CARS[k].name} · ${TIER_NAMES[CARS[k].tier]}`])],
+      ["color", "צבע רכב", "select", COLOR_KEYS.map(k => [k, COLORS[k][1]])], ["wp", "עבודה", "select", [["", "בלי עבודה"], ...S.workplaces.map(w => [w.id, `${w.name} · ${cityName(w.city_id)}`])]],
+      ["level", "דרגה בעבודה", "select", [[1, "עובד/ת"], [2, LEVEL[2]], [3, LEVEL[3]], [4, LEVEL[4]]]], ["coins", "סבבונים בארנק", "number"]],
+      { house: h.hk, car: h.cm, color: h.ck, wp: h.wp?.id ?? "", level: h.level, coins: h.coins ?? 0 },
+      v => adminEdit("citizens", h.id, { house_style: v.house, house_tier: +v.house[0], car_model: v.car, car_tier: CARS[v.car].tier, car_color: v.color, workplace_id: v.wp ? +v.wp : null, job_level: +v.level, coins: v.coins ?? 0 }),
+      () => confirm(`בטוח למחוק את @${h.u} מהמדינה, עם הבית, הארנק וההיסטוריה?`) && adminEdit("citizens", h.id, {}, true), () => GO.house(h.u));
+  }
+  if (t === "gov") {
+    const g = GOV.find(q => q.id === id); if (!g) return;
+    return editForm(g.name, [["name", "שם הבניין"]], g, v => adminEdit("settings", "gov_" + g.id, { value: v.name || g.orig }), null, () => openGov(g.id));
+  }
+  if (t === "ballot") return editForm(BALLOT.name, [["name", "שם מבנה הקלפי"]], BALLOT, v => adminEdit("settings", "ballot_name", { value: v.name || BALLOT.orig }), null, () => GO.ballotHouse());
+  if (t === "law") {
+    const l = S.laws.find(q => String(q.id) === id); if (!l) return;
+    return editForm("חוק", [["title", "החוק"], ["description", "הסבר"], ["proposed_by", "מי הציע"]], l, v => adminEdit("laws", l.id, { title: v.title, description: v.description || null, proposed_by: v.proposed_by.replace(/^@/, "") || null }),
+      () => adminEdit("laws", l.id, {}, true), () => GO.laws());
+  }
+};
+const editBtn = arg => ADMIN ? `<button class="btn ghost" data-go="edit" data-arg="${esc(arg)}">✏️ עריכה</button>` : "";
 
 /* ============================ SEARCH ============================ */
 function find(qs) {
@@ -2864,9 +2950,10 @@ async function loadData() {
 }
 function loadExtras() {
   return Promise.all([
-    api("laws?select=title,description,enacted_at,proposed_by&order=enacted_at.desc,id.desc").catch(() => api("laws?select=title,description,enacted_at&order=enacted_at.desc,id.desc")).then(d => S.laws = d),
+    api("laws?select=id,title,description,enacted_at,proposed_by&order=enacted_at.desc,id.desc").catch(() => api("laws?select=id,title,description,enacted_at&order=enacted_at.desc,id.desc")).then(d => S.laws = d),
     api("ministers?select=ministry,appointed_at,citizens(ig_username)&order=appointed_at.desc,id.desc").then(d => S.gov = d),
-    api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d)].map(p => p.catch(() => {})));
+    api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d),
+    api("settings?select=key,value").then(applySettings)].map(p => p.catch(() => {})));
 }
 const projSig = list => list.map(p => p.id + p.status).join(",");
 async function loadProjects() {
