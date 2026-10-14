@@ -37,6 +37,11 @@ a{color:inherit}
 .lbl.tag{background:var(--bg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .lbl.tag.gov{background:var(--accent);color:#fff}
 body.night .lbl.tag.gov{color:#1b1406}
+.lbl.pl{background:var(--bg);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:10px;padding:3px 10px;font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);pointer-events:none}
+.lbl.pl.gov{background:var(--accent);color:#fff}
+body.night .lbl.pl.gov{color:#1b1406}
+.lbl.st{background:rgba(255,255,255,.88);color:#1b2430;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.18);pointer-events:none}
+body.night .lbl.st{background:rgba(20,26,36,.85);color:#f1ece0}
 .lbl.lock{font-size:11px;font-weight:500;color:#fff;background:rgba(15,23,42,.45);border-radius:999px;padding:2px 9px}
 .marker{display:flex;flex-direction:column;align-items:center}
 .marker .bub{background:var(--accent-2);color:#fff;font-weight:800;font-size:14px;border-radius:999px;padding:5px 12px;box-shadow:0 6px 18px rgba(0,0,0,.25);white-space:nowrap}
@@ -484,7 +489,7 @@ frustum();
 const controls = new MapControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = .1;
 controls.minPolarAngle = .3; controls.maxPolarAngle = 1.15;
-controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.maxZoom = 18;
+controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.maxZoom = 32;
 
 const hemi = new THREE.HemisphereLight("#ffffff", "#7a6a50", 1.4); scene.add(hemi);
 const sun = new THREE.DirectionalLight("#fff2dc", 2.6);
@@ -656,20 +661,24 @@ function solid(parts, x, z, ry = 0, data, y = 0) {
 }
 // a sign painted on a building: a canvas texture on a flat board, lit like a real shop sign
 function sign(text, w, h, { bg = "#ffffff", fg = "#1b2430", font = "800" } = {}) {
-  const W = 512, H = Math.max(64, Math.round(W * h / w)), cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  // the canvas keeps the sign's exact proportions (no stretched letters) with enough pixels for the letters to stay sharp up close
+  const asp = w / h, H = Math.max(72, Math.min(320, Math.round(1100 / asp))), W = Math.min(4096, Math.round(H * asp)), cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const x = cv.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
-  let size = Math.round(H * .58); x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle";
+  let size = Math.round(H * .68); x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle";
   do { x.font = `${font} ${size}px Heebo, Arial, sans-serif`; size -= 2; } while (x.measureText(text).width > W * .9 && size > 10);
   if (fg === "rainbow") {   // mosaic-colored letters, like the inscription in Lod
     const gr = x.createLinearGradient(W * .06, 0, W * .94, 0); ["#d6342c", "#f08a24", "#f2c230", "#3aa655", "#17a2b8", "#1f6fd6", "#8a3fb8"].forEach((c, i, a) => gr.addColorStop(i / (a.length - 1), c)); x.fillStyle = gr;
   } else x.fillStyle = fg;
   x.fillText(text, W / 2, H / 2 + size * .04);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
   m.userData.disposable = true; return m;
 }
 function mountSign(grp, s, x, y, z, ry = 0) { s.position.set(x, y, z); s.rotation.y = ry; grp.add(s); const d = grp.children[0]?.userData; if (d && d.type) { s.userData = { ...d, disposable: true }; S.picks.push(s); } return s; }
 const LABELS = [];
+// names that float over places once you zoom in: always sharp, whatever the angle or the size of the sign on the building
+const placeLabel = (text, x, y, z, kind = "pl", minZ = 2.6) => label(esc(text), kind === "gov" ? "pl gov" : kind, x, y, z, minZ);
+const workTop = w => ({ tech: 29, office: (w.floors || 7) * 3.2 + 7, hotel: (w.floors || 8) * 2.8 + 6, factory: 18, bank: 15, school: 11 }[w.kind] || 10);
 function label(html, cls, x, y, z, minZ = 0) {
   const el = document.createElement("div"); el.className = "lbl " + cls; el.innerHTML = html;
   const o = new CSS2DObject(el); o.position.set(x, y, z); o.userData.minZ = minZ; world.add(o); LABELS.push(o); return o;
@@ -826,6 +835,12 @@ function buildCities() {
       for (const [off, dir] of [[5.4, 1], [9.4, 1], [-5.4, -1], [-9.4, -1]]) for (let k = 0; k < 2; k++)
         blvTraffic.push({ x0: a0, x1: a1, z: c + off, dir, vert, p: r0() * len, v: 8 + r0() * 8, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
     };
+    // street names, once in the middle of every street between two boulevards, and along the boulevards
+    for (const b of slot.blocks.values()) {
+      if (blvZ(b.bz) ? ((b.bx % 3) + 3) % 3 !== 0 : ((((b.bx - 2) % 4) + 4) % 4) !== 1) continue;
+      const cx = slot.x + BPX(b.bx) + (blvZ(b.bz) ? 0 : BX / 2), cz = slot.z + (blvZ(b.bz) ? blvCZ(b.bz) + 7.5 : BPZ(b.bz) - 14);
+      placeLabel(streetName(slot, si, b.bz, b.bx), cx, 1.2, cz, "st", 7);
+    }
     for (let e = mnZ + 1; e <= mxZ; e++) if (blvZ(e)) avenue(false, slot.z + blvCZ(e), ax0, ax1, jX);
     for (let e = mnX + 1; e <= mxX; e++) if (blvX(e)) avenue(true, slot.x + blvCX(e), az0, az1, jZ);
   }
@@ -970,7 +985,7 @@ function buildSquare(q) {
     const r = rng(h); for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -9 + r() * 18; if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue; trees.push([cx + x, cz + z]); }
     for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
   }
-  const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB);
+  const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB); placeLabel(`${kind === "park" ? "🌳" : "⛲"} ${q.name}`, cx, 8, cz);
   // the name on a sign at the front, facing the street
   Q.length = 0; const sg = solid([box(.18, 2.6, .18, "#5a4a32", -2.6, 0, 9.4), box(.18, 2.6, .18, "#5a4a32", 2.6, 0, 9.4)], cx, cz, 0, { type: "square", q }, CURB);
   mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, 9.52);
@@ -984,7 +999,7 @@ function buildLane(q) {
     for (let k = 1; k < 8; k++) Q.push(sph(.09, "*#ffd98a", -3.6 + k * .9, 3.2 - Math.sin(k / 8 * Math.PI) * .5, z + (k % 2) * .25)); }
   for (const z of [-6.8, -2.2, 2.2, 6.8]) Q.push(box(1, .6, 1, "#b8763a", (z > 0 ? 2.6 : -2.6), 0, z), sph(.5, ["#e85c9a", "#f2c230", "#e05a4f", "#ffffff"][Math.abs(Math.round(z)) % 4], (z > 0 ? 2.6 : -2.6), .9, z));
   for (const e of [-1, 1]) Q.push(box(.2, 3.8, .2, "#5a4a32", -3.4, 0, e * 10.6), box(.2, 3.8, .2, "#5a4a32", 3.4, 0, e * 10.6), box(7, .2, .2, "#5a4a32", 0, 3.8, e * 10.6));
-  const g = solid(Q, cx, cz, 0, null, CURB);
+  const g = solid(Q, cx, cz, 0, null, CURB); placeLabel(`🏮 ${name}`, cx, 5, cz, "st", 6);
   for (const e of [-1, 1]) { const s2 = sign(name, 5.4, .8, { bg: "#5a4a32", fg: "#fff4dc" }); s2.position.set(cx, CURB + 3.3, cz + e * 10.72); s2.rotation.y = e > 0 ? 0 : Math.PI; world.add(s2); }
 }
 function plaza(slot, isCap) {
@@ -1075,10 +1090,10 @@ function buildCivic() {
   S.slots.filter(s => s.city).forEach((slot, si) => {
     const all = slot.reserved.map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz]), nGov = si === 0 ? GOV.length : 0;
     const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).filter(b => b !== slot.ballotBlock).map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz])]; slot.publicSpots = all.slice(nGov + N_WORK);
-    if (slot.ballotBlock) { BALLOT.x = slot.x + BPX(slot.ballotBlock[0]); BALLOT.z = slot.z + BPZ(slot.ballotBlock[1]); BALLOT.addr = blockAddr(slot, si, ...slot.ballotBlock); BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); }
-    if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; g.addr = blockAddr(slot, si, sp[2], sp[3]); govBuilding(g.id, sp[0], sp[1]); });
+    if (slot.ballotBlock) { BALLOT.x = slot.x + BPX(slot.ballotBlock[0]); BALLOT.z = slot.z + BPZ(slot.ballotBlock[1]); BALLOT.addr = blockAddr(slot, si, ...slot.ballotBlock); BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); placeLabel(`🗳️ ${BALLOT.name}`, BALLOT.x, 11, BALLOT.z, "gov"); }
+    if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; g.addr = blockAddr(slot, si, sp[2], sp[3]); govBuilding(g.id, sp[0], sp[1]); placeLabel(`${g.ic} ${g.name}`, sp[0], 17, sp[1], "gov"); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
-      const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0);
+      const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
       const r = rng(w.id * 7 + 1); for (let k = 0; k < 4; k++) if (r() < .7) parked.push({ x: sp[0] + 10 + (k % 2) * 6, z: sp[1] - 4.5 + Math.floor(k / 2) * 9, c: COLORS[COLOR_KEYS[Math.floor(r() * 10)]][0], f: k < 2 ? 0 : Math.PI, m: TRAFFIC_MIX[Math.floor(r() * 6)] });
     });
@@ -1428,6 +1443,7 @@ function buildPublic() {
         return;
       }
       p.x = cx; p.z = cz; p.addr = blockAddr(slot, S.slots.indexOf(slot), pbx, pbz); const name = p.name || PROJECT_KINDS[p.kind]?.[1] || "";
+      placeLabel(`${p.status === "done" ? PROJECT_KINDS[p.kind]?.[0] || "📍" : "🏗️"} ${name}`, cx, p.status === "done" ? (p.kind === "monument" ? 14 : 9) : 14, cz);
       if (p.status !== "done") { buildSite(p, name, cx, cz, 40, 20, Y0, 0, { craneH: p.kind === "monument" ? 34 : 26, jib: 22 }); return; }
       if (p.kind === "monument") return buildMonument(p, cx, cz);
       const open = ["park", "playground", "dogpark", "football", "basketball"].includes(p.kind);
@@ -1452,6 +1468,7 @@ function buildCoast() {
   for (const c of COAST) {
     const p = shorePt(c.t, S.s, .97), out = Math.atan2(Math.cos(c.t) * RZ0, Math.sin(c.t) * RX0); // y-rotation that points local +z out to sea
     c.x = p.x; c.z = p.z;
+    placeLabel(`${c.ic} ${c.name}`, p.x, c.id === "light" ? 34 : 10, p.z, "pl", 1.2);
     if (c.id === "harbor") {
       const hg = solid([box(10, 1.4, 90, "#9a7348", 0, -1.1, 45), ...Array.from({ length: 10 }, (_, i) => cyl(.5, .5, 4, 6, "#6a4b2e", i % 2 ? -5.5 : 5.5, -3.4, 6 + i * 9)), box(16, 4, 10, "#efe9dd", 0, 0, -4), box(16.4, .4, 10.4, "#1f6f8b", 0, 4, -4), box(5, 2, .12, GLASS, 0, .5, 1.05),
         ...[10, 40, 70].map(k => cyl(.08, .08, 2.6, 6, "#4a5056", 4.6, .3, k)), ...[10, 40, 70].map(k => box(.3, .2, .3, "*#fff1c2", 4.6, 2.9, k))],
