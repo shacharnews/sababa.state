@@ -223,6 +223,7 @@ body.inside #intUI{display:block}
 #loader h1 b{font-weight:800}
 #loader p{margin:0;opacity:.8;font-size:14px}
 @keyframes float{50%{transform:translateY(-8px)}}
+.note.addr{margin:0 0 10px;font-size:14px;font-weight:600;opacity:.85}
 </style>
 <script type="importmap">
 {"imports":{
@@ -308,7 +309,14 @@ const FLAG_URI = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(FLAG);
 $("loadFlag").innerHTML = FLAG; $("hudFlag").innerHTML = FLAG; $("favicon").href = FLAG_URI;
 
 /* ============================ DOMAIN ============================ */
-const STREETS = ["שדרות ״יהיה בסדר״","רחוב ״עוד חמש דקות״","סמטת ״אני רק שאלה״","רחוב ״שלח לי מיקום״","דרך ״זה על הדרך״","רחוב ״אני מכיר מישהו״","סמטת ״רגע, מי משלם?״","רחוב ״סבבה אגוזים״","שדרות ״תכלס״","רחוב ״חבל על הזמן״","סמטת ״יאללה ביי״","רחוב ״ברור שבאתי״","רחוב ״מה הלחץ?״","סמטת ״אחי, דקה״","דרך ״כבר יוצא״","רחוב ״יש לך מטען?״","שביל ״נדבר״","רחוב ״אמא שלי אמרה״","שדרות השקשוקה","רחוב הבמבה","סמטת הביסלי","רחוב הסביח","רחוב השניצל של סבתא","סמטת המלאווח","רחוב החמין","רחוב הג׳חנון","שדרות הקרמבו","רחוב השוקו בשקית","סמטת הפתיתים","רחוב הבורקס","רחוב הקוסקוס של שישי","דרך הפלאפל עם הכל","רחוב החנייה בכפולה","סמטת המכולת","רחוב הוואטסאפ המשפחתי","שדרות שישי בצהריים","רחוב העל האש","סמטת הנרגילה","רחוב הקפה השחור","דרך הטרמפים","רחוב הקומזיץ","רחוב התור בסופר","סמטת הדוד שמש","רחוב המזגן על 24","רחוב המטקות","טיילת השקיעה","רחוב הכפכפים","שביל הארטיק","סמטת המגבת","רחוב הקרם הגנה","טיילת הגלים","רחוב הגוגואים","סמטת הטמגוצ׳י","רחוב האסימון","שדרות הטלפון הציבורי","רחוב הדיסקמן","סמטת הקלטת","רחוב השוקולד פרה"];
+// short street names: ordinary streets, boulevards (one name all along), pedestrian lanes, squares and parks
+const STREETS = ["הבמבה","הביסלי","הפלאפל","החומוס","השקשוקה","הסביח","הבורקס","המלאווח","הג׳חנון","הקרמבו","הפתיתים","הקוסקוס","החמין","השניצל","הטחינה","הפיתה","הזעתר","הנענע","הארטיק","המטקות",
+  "הכפכפים","הגלים","השקיעה","הדולפין","הצדף","האבטיח","הרימון","התאנה","הזית","הדקל","החרוב","הצבר","הגפן","התמר","הקומזיץ","הטרמפ","הקלטת","הגוגואים","האסימון","הקפה",
+  "התה","הסחלב","הבייגלה","הגרעינים","הסבבה","היאללה","התכלס","האחלה","הוואלה","החבר׳ה","השכנים","הנרגילה","הלימונדה","השוקו","הבננה","הקרטיב","המנגל","הפופקורן","הבלונים","הקשת"];
+const BOULEVARDS = ["שד׳ סבבה","שד׳ העצמאות","שד׳ הים","שד׳ הדגל","שד׳ השמש","שד׳ החלומות","שד׳ הכיף","שד׳ השלום","שד׳ החופש","שד׳ הגשם"];
+const LANES = ["סמטת הירח","סמטת הפנסים","סמטת הציירים","סמטת החתולים","סמטת הגיטרה","סמטת היסמין","סמטת הבוסתן","סמטת הפרפרים","סמטת הנגנים","סמטת הקטנה"];
+const SQUARES = ["כיכר הדגל","כיכר החברים","כיכר השעון","כיכר המוזיקה","כיכר הים","כיכר הפיתה","כיכר השמש","כיכר הכוכבים","כיכר העם","כיכר הצחוק"];
+const PARKS = ["גן הדקלים","גן הברווזים","גן הפיקניק","גן השושנים","גן העפיפונים","גן הילדים","גן התאנים","גן הירח"];
 const HEB = ["", "ב", "ג", "ד", "ה", "ו", "ז", "ח"];
 const HOUSE_NAMES = { "1_0": "קוביה לבנה עם דוד שמש", "1_1": "בית קטן עם גג רעפים", "1_2": "בית קטן עם גג אפור",
   "2_0": "בית דו־קומתי עם מרפסת", "2_1": "בית דו־קומתי עם גג רעפים", "2_2": "בית באוהאוס לבן", "2_3": "בית מאבן ירושלמית",
@@ -354,6 +362,20 @@ const shorePt = (t, s, k = 1) => ({ x: Math.cos(t) * RX0 * s * shoreF(t) * k, z:
 const MILESTONES = [0, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
 const SLOTS = MILESTONES.map((at, k) => { if (!k) return { at, x: 0, z: 0 }; const d = .5 * RX0 * growth(at), a = k * 2.39996 + .6; return { at, x: Math.cos(a) * d, z: Math.sin(a) * d * RZ0 / RX0 }; });
 const BX = 48, BZ = 28;
+/* the city plan: a wide boulevard every 4 blocks in each direction (an extra gap between two block columns or rows), roundabouts where boulevards meet,
+   squares and parks between the houses, pedestrian lanes through some blocks */
+const GAP = 22;   // how much wider a boulevard is than an ordinary street
+const blvX = e => ((e % 4) + 4) % 4 === 2, blvZ = e => ((e % 4) + 4) % 4 === 3;   // a boulevard runs between block e-1 and block e
+const offAxis = (k, B, isB, memo) => { if (memo.has(k)) return memo.get(k); let o = k * B;
+  if (k > 0) { for (let e = 1; e <= k; e++) if (isB(e)) o += GAP; } else for (let e = k + 1; e <= 0; e++) if (isB(e)) o -= GAP; memo.set(k, o); return o; };
+const OFFX = new Map(), OFFZ = new Map(), BPX = bx => offAxis(bx, BX, blvX, OFFX), BPZ = bz => offAxis(bz, BZ, blvZ, OFFZ);
+const blvCX = e => BPX(e) - BX / 2 - GAP / 2, blvCZ = e => BPZ(e) - BZ / 2 - GAP / 2;   // center line of the boulevard before block e
+const invAxis = (v, B, Pf) => { const k = Math.round(v / (B + GAP / 4)); let best = k, bd = Infinity; for (let q = k - 3; q <= k + 3; q++) { const d = Math.abs(Pf(q) - v); if (d < bd) { bd = d; best = q; } } return best; };
+// what a block of houses becomes: most are houses, some are squares or parks, some have a lane through the middle
+const blockKind = (slot, bx, bz) => { if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 2 ? "square" : h < 4 ? "park" : h < 9 ? "lane" : "houses"; };
+const LOT_X = { houses: [-15, -5, 5, 15], lane: [-16.4, -8.2, 8.2, 16.4] };
+const blockLots = kind => { const xs = LOT_X[kind] || LOT_X.houses, w = kind === "lane" ? 8.1 : 9.3, out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) out.push({ dx: xs[i], dz: -5 + j * 10, i, j, w }); return out; };
+const pickName = (list, key, si) => list[(hash(key) + si * 3) % list.length];
 const GOV = [
   { id: "knesset", name: "הכנסת", ic: "🏛️", bx: 0, bz: -1 },
   { id: "pm", name: "לשכת ראש הממשלה", ic: "🏢", bx: -1, bz: 0 },
@@ -366,10 +388,10 @@ function reservedBlocks(slot, si) {
   const want = (si === 0 ? GOV.length : 0) + N_WORK + N_PUBLIC, cand = [];
   for (let bx = -9; bx <= 9; bx++) for (let bz = -14; bz <= 14; bz++) {
     if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) continue;
-    const cx = slot.x + bx * BX, cz = slot.z + bz * BZ;
+    const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (nearestSlot(cx, cz).at !== slot.at) continue;
     if (![[-22, -12], [22, -12], [-22, 12], [22, 12]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
-    cand.push({ bx, bz, d: Math.hypot(bx * BX, bz * BZ) });
+    cand.push({ bx, bz, d: Math.hypot(BPX(bx), BPZ(bz)) });
   }
   cand.sort((a, b) => a.d - b.d || a.bx - b.bx || a.bz - b.bz);
   const out = [];
@@ -387,8 +409,8 @@ function extraBlocks(slot, si) {
   const key = slot.at; if (EXTRA_CACHE.has(key)) return EXTRA_CACHE.get(key);
   const res = new Set(reservedBlocks(slot, si).map(b => b.join(","))), cand = [];
   for (let bx = -12; bx <= 12; bx++) for (let bz = -18; bz <= 18; bz++) {
-    const d = Math.hypot(bx * BX, bz * BZ); if (d < 150 || res.has(bx + "," + bz)) continue;
-    const cx = slot.x + bx * BX, cz = slot.z + bz * BZ;
+    const d = Math.hypot(BPX(bx), BPZ(bz)); if (d < 150 || res.has(bx + "," + bz)) continue;
+    const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (nearestSlot(cx, cz).at !== slot.at) continue;
     if (![[-22, -12], [22, -12], [-22, 12], [22, 12]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
     cand.push({ bx, bz, d });
@@ -407,26 +429,36 @@ function cityLots(slot, si, need) {
     const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
     for (let bx = -nb; bx <= nb; bx++) for (let bz = -nz; bz <= nz; bz++) {
       if ((bx === 0 && bz === 0) || res.has(bx + "," + bz)) continue;
-      for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) {
-        const x = slot.x + bx * BX - 15 + i * 10, z = slot.z + bz * BZ - 5 + j * 10, d = Math.hypot(x - slot.x, z - slot.z);
+      const kind = blockKind(slot, bx, bz); if (kind === "square" || kind === "park") continue;
+      const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
+      for (const L of blockLots(kind)) {
+        const x = cx + L.dx, z = cz + L.dz, d = Math.hypot(x - slot.x, z - slot.z);
         if (d > R || !onGrass(x, z, MAX_S, .04) || nearestSlot(x, z).at !== slot.at) continue;
-        lots.push({ x, z, bx, bz, d, j, i, face: j === 0 ? Math.PI : 0 });
+        lots.push({ x, z, bx, bz, d, j: L.j, i: L.i, face: L.j === 0 ? Math.PI : 0 });
       }
     }
     if (lots.length >= need || R > 6000) {
       lots.sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
-      // a street is one row of up to 8 blocks; names are handed out in order of first appearance
-      const names = new Map(); let next = 0;
-      for (const l of lots) {
-        const row = l.j === 0 ? l.bz : l.bz + 1, seg = Math.floor((l.bx + 1024) / 8), key = row + ":" + seg;
-        if (!names.has(key)) { const k = (next + si * 11) % STREETS.length, round = Math.floor(next / STREETS.length); next++; names.set(key, STREETS[k] + (round ? " " + (HEB[round] || round + 1) : "")); }
-        const n = ((l.bx + 1024) % 8) * 4 + l.i + 1;
-        l.street = names.get(key); l.num = l.j === 0 ? 2 * n - 1 : 2 * n;
-      }
+      slot.st = { names: new Map(), next: 0, nextB: 0 };   // street names are handed out in order of first appearance, from the center out
+      for (const l of lots) { const e = l.j === 0 ? l.bz : l.bz + 1; l.street = streetName(slot, si, e, l.bx); l.num = houseNum(e, l.bx, l.i, l.j); }
       return lots;
     }
   }
 }
+// the street along the horizontal road at edge e (above block row e), at block column bx: a boulevard keeps one name all along,
+// an ordinary street gets a new name between two boulevards
+function streetName(slot, si, e, bx) {
+  const st = slot.st || (slot.st = { names: new Map(), next: 0, nextB: 0 }), B = blvZ(e), key = B ? "B" + e : e + ":" + Math.floor((bx - 2) / 4);
+  if (!st.names.has(key)) {
+    if (B) { const k = st.nextB++ + si * 3; st.names.set(key, BOULEVARDS[k % BOULEVARDS.length] + (k >= BOULEVARDS.length ? " " + (HEB[Math.floor(k / BOULEVARDS.length)] || "") : "")); }
+    else { const k = (st.next++ + si * 11), round = Math.floor(k / STREETS.length); st.names.set(key, STREETS[k % STREETS.length] + (round ? " " + (HEB[round] || round + 1) : "")); }
+  }
+  return st.names.get(key);
+}
+// numbers run along the street: odd on the north side, even on the south side
+const houseNum = (e, bx, i, j) => { const n = blvZ(e) ? Math.max(0, bx + 12) * 4 + i + 1 : (((bx - 2) % 4) + 4) % 4 * 4 + i + 1; return j === 0 ? 2 * n - 1 : 2 * n; };
+// the address of a whole block (a public building, a square): on the street in front of it
+const blockAddr = (slot, si, bx, bz) => `${streetName(slot, si, bz + 1, bx)} ${houseNum(bz + 1, bx, 1, 1) + 2}, ${slot.city?.name || ""}`;
 
 /* ============================ STATE ============================ */
 const S = { projects: [], cities: [], slots: [], houses: [], raw: [], byUser: new Map(), byAddr: new Map(), workplaces: [], wpById: new Map(), laws: [], gov: [], draws: [], total: 0, maxId: 0, s: .55, mine: null, sel: null, picks: [] };
@@ -699,9 +731,16 @@ function layout() {
       for (let z = Math.sign(bz); z !== bz && bz; z += Math.sign(bz)) if (!slot.blocks.has(`${bx},${z}`)) slot.blocks.set(`${bx},${z}`, { bx, bz: z });
     }
     for (const [bx, bz] of [...slot.reserved, ...slot.extraUsed]) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "work" });
+    // squares and parks appear once the neighborhood around them is built
+    const bl = [...slot.blocks.values()], xs = bl.map(b => b.bx), zs = bl.map(b => b.bz);
+    for (let bx = Math.min(...xs); bx <= Math.max(...xs); bx++) for (let bz = Math.min(...zs); bz <= Math.max(...zs); bz++) {
+      const k = blockKind(slot, bx, bz), cur = slot.blocks.get(`${bx},${bz}`); if ((k !== "square" && k !== "park") || cur?.civic) continue;
+      let n = 0; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) if (slot.blocks.has(`${bx + a},${bz + b}`)) n++;
+      if ((cur || n >= 3) && onGrass(slot.x + BPX(bx), slot.z + BPZ(bz), MAX_S, .05) && nearestSlot(slot.x + BPX(bx), slot.z + BPZ(bz)).at === slot.at) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: k });
+    }
     // the island must cover every block of this city
     for (const b of slot.blocks.values()) for (const [dx, dz] of [[-26, -16], [26, -16], [-26, 16], [26, 16]]) {
-      const x = slot.x + b.bx * BX + dx, z = slot.z + b.bz * BZ + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0);
+      const x = slot.x + BPX(b.bx) + dx, z = slot.z + BPZ(b.bz) + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0);
       need = Math.max(need, d / (GRASS * shoreF(t) - .05) + .02);
     }
   });
@@ -738,30 +777,69 @@ const POOL_MAT = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, de
 
 function buildCities() {
   const open = S.slots.filter(s => s.city), asphalt = [], walk = [], curbs = [], lawn = [], dashes = [], hedges = [], lamps = new Map();
+  const medians = [], palms = [], zebras = [], rounds = [], squares = [], lanes = [], blvTraffic = [];
   walkers = [];
   for (const slot of open) {
-    const taken = new Set(S.houses.filter(h => h.slot === slot && h.lot).map(h => `${h.lot.x},${h.lot.z}`));
+    const si = S.slots.indexOf(slot), taken = new Set(S.houses.filter(h => h.slot === slot && h.lot).map(h => `${h.lot.x},${h.lot.z}`));
     for (const b of slot.blocks.values()) {
-      const cx = slot.x + b.bx * BX, cz = slot.z + b.bz * BZ;
-      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, 22, b.civic ? "#d8cfbd" : "#c9c2b4"]); curbs.push([cx, cz, 42.6, 22.6, "#9b978f"]);
+      const cx = slot.x + BPX(b.bx), cz = slot.z + BPZ(b.bz), green = b.civic === "park";
+      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, 22, b.civic ? (green ? "#cfc6b0" : "#d8cfbd") : "#c9c2b4"]); curbs.push([cx, cz, 42.6, 22.6, "#9b978f"]);
+      if (b.civic === "square" || b.civic === "park") squares.push({ slot, si, b, cx, cz, kind: b.civic });
       if (!b.civic) {
-        for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) {
-          const x = cx - 15 + i * 10, z = cz - 5 + j * 10, t = taken.has(`${x},${z}`);
-          lawn.push([x, z, 9.3, 9.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
-          if (t) { hedges.push([x, z - (j ? -4.55 : 4.55) * -1, 9.2, .8, .35]); if (i < 3 && taken.has(`${x + 10},${z}`)) hedges.push([x + 5, z, .35, .7, 8.6]); }
+        const kind = blockKind(slot, b.bx, b.bz), L = blockLots(kind);
+        for (const l of L) {
+          const x = cx + l.dx, z = cz + l.dz, t = taken.has(`${x},${z}`);
+          lawn.push([x, z, l.w, 9.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
+          if (!t) continue;
+          hedges.push([x, z + (l.j ? -4.55 : 4.55), l.w - .1, .8, .35]);
+          const nx = L.find(q => q.j === l.j && q.i === l.i + 1);
+          if (nx && !(kind === "lane" && l.i === 1) && taken.has(`${cx + nx.dx},${z}`)) hedges.push([(x + cx + nx.dx) / 2, z, .35, .7, 8.6]);
         }
-        for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
+        if (kind === "lane") lanes.push({ slot, si, b, cx, cz });
       }
-      for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - 14, 3.2, .3, "#e8e3d4"]);
+      if (b.civic !== "work") for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
+      if (!blvZ(b.bz)) for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - 14, 3.2, .3, "#e8e3d4"]);
       for (const [dx, dz] of [[-20.6, -10.6], [20.6, 10.6]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
     }
+    // boulevards: a 28m wide avenue every 4 blocks, two lanes each way, a planted median with palms, roundabouts and zebra crossings at the junctions
+    const bl = [...slot.blocks.values()]; if (!bl.length) continue;
+    const mnX = Math.min(...bl.map(b => b.bx)), mxX = Math.max(...bl.map(b => b.bx)), mnZ = Math.min(...bl.map(b => b.bz)), mxZ = Math.max(...bl.map(b => b.bz));
+    const ax0 = slot.x + BPX(mnX) - BX / 2, ax1 = slot.x + BPX(mxX) + BX / 2, az0 = slot.z + BPZ(mnZ) - BZ / 2, az1 = slot.z + BPZ(mxZ) + BZ / 2;
+    const jX = [], jZ = [];
+    for (let bx = mnX; bx < mxX; bx++) jX.push({ p: slot.x + (blvX(bx + 1) ? blvCX(bx + 1) : BPX(bx) + BX / 2), big: blvX(bx + 1) });
+    for (let bz = mnZ; bz < mxZ; bz++) jZ.push({ p: slot.z + (blvZ(bz + 1) ? blvCZ(bz + 1) : BPZ(bz) + BZ / 2), big: blvZ(bz + 1) });
+    const avenue = (vert, c, a0, a1, js) => {
+      const P2 = (along, across) => vert ? [c + across, along] : [along, c + across];
+      const len = a1 - a0, mid = (a0 + a1) / 2; asphalt.push(vert ? [c, mid, GAP + .4, len, "#4a5057"] : [mid, c, len, GAP + .4, "#4a5057"]);
+      const stops = [{ p: a0, r: 0 }];
+      for (const j of js) { const round = j.big || hash(`${Math.round(j.p)}:${Math.round(c)}`) % 2 === 0, [x, z] = P2(j.p, 0);
+        stops.push({ p: j.p, r: round ? 7.4 : 4.2 });
+        if (round) rounds.push({ x, z, big: j.big, slot, si }); else for (const sd of [-1, 1]) for (let k = -12.5; k <= 12.5; k += 1.6) { if (Math.abs(k) < 2.6) continue; const [zx, zz] = P2(j.p + sd * 4.2, k); zebras.push([zx, zz, vert ? .8 : 1.6, vert ? 1.6 : .8]); } }
+      stops.push({ p: a1, r: 0 });
+      for (let i = 0; i + 1 < stops.length; i++) {
+        const s0 = stops[i].p + stops[i].r, s1 = stops[i + 1].p - stops[i + 1].r; if (s1 - s0 < 3) continue;
+        const [mx, mz] = P2((s0 + s1) / 2, 0); medians.push(vert ? [mx, mz, 4.6, s1 - s0] : [mx, mz, s1 - s0, 4.6]);
+        for (let q = s0 + 4; q < s1 - 3; q += 11) palms.push(P2(q, 0));
+        for (let q = s0 + 2; q < s1 - 2; q += 6) for (const off of [-7.5, 7.5]) { const [dx2, dz2] = P2(q, off); dashes.push([dx2, dz2, vert ? .3 : 2.6, vert ? 2.6 : .3, "#e8e3d4"]); }
+      }
+      const r0 = rng(Math.round(c * 13 + a0));
+      for (const [off, dir] of [[5.4, 1], [9.4, 1], [-5.4, -1], [-9.4, -1]]) for (let k = 0; k < 2; k++)
+        blvTraffic.push({ x0: a0, x1: a1, z: c + off, dir, vert, p: r0() * len, v: 8 + r0() * 8, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
+    };
+    for (let e = mnZ + 1; e <= mxZ; e++) if (blvZ(e)) avenue(false, slot.z + blvCZ(e), ax0, ax1, jX);
+    for (let e = mnX + 1; e <= mxX; e++) if (blvX(e)) avenue(true, slot.x + blvCX(e), az0, az1, jZ);
   }
   const flatList = (list, y) => instanced(P.plane, list, ([x, z, w, d, c], o) => { o.position.set(x, y, z); o.scale.set(w, 1, d); return c; }, { shadow: false });
   flatList(asphalt, .3); flatList(dashes, .33); flatList(lawn, LAWN);
+  if (zebras.length) flatList(zebras.map(([x, z, w, d]) => [x, z, w, d, "#f4f1e8"]), .335);
   // raised sidewalks with a darker curb stone, like a real street
   const slabs = (list, y0, y1) => instanced(P.slab, list, ([x, z, w, d, c], o) => { o.position.set(x, y0, z); o.scale.set(w, y1 - y0, d); return c; }, { shadow: false });
   slabs(curbs, .3, CURB - .04); slabs(walk, .3, CURB);
+  if (medians.length) { slabs(medians.map(([x, z, w, d]) => [x, z, w, d, "#9b978f"]), .3, .5); flatList(medians.map(([x, z, w, d]) => [x, z, w - .5, d - .5, "#79a65a"]), .51); }
+  if (palms.length) instanced(P.palm, palms, ([x, z], o) => { o.position.set(x, .5, z); o.rotation.y = x + z; o.scale.setScalar(.9 + (hash(Math.round(x * 3 + z)) % 3) / 10); });
   instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
+  buildRoundabouts(rounds); squares.forEach(buildSquare); lanes.forEach(buildLane);
+  traffic = [...blvTraffic];
 
   // highways from the capital to every city and to the coast
   const cap = open[0];
@@ -811,18 +889,18 @@ function buildCities() {
   world.add(pools);
 
   // traffic
-  traffic = [];
   for (const slot of open) {
     const rows = new Map();
     for (const b of slot.blocks.values()) { const r = rows.get(b.bz) || { min: b.bx, max: b.bx }; r.min = Math.min(r.min, b.bx); r.max = Math.max(r.max, b.bx); rows.set(b.bz, r); }
     const r0 = rng(slot.at + 3);
     for (const [bz, r] of [...rows.entries()].sort((a, b) => Math.abs(a[0]) - Math.abs(b[0])).slice(0, 8)) {
-      const z = slot.z + bz * BZ - 14, x0 = slot.x + r.min * BX - BX / 2, x1 = slot.x + r.max * BX + BX / 2;
+      if (blvZ(bz)) continue;   // the boulevards have their own traffic
+      const z = slot.z + BPZ(bz) - 14, x0 = slot.x + BPX(r.min) - BX / 2, x1 = slot.x + BPX(r.max) + BX / 2;
       for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
     }
   }
   trafficSets = [...new Set(traffic.map(t => t.m))].map(k => { const list = traffic.filter(t => t.m === k);
-    return { list, mesh: instanced(P["car_" + k], list, (t, o) => { o.position.set(t.x0 + t.p, .3, t.z); o.rotation.y = t.dir * Math.PI / 2; return t.c; }) }; });
+    return { list, mesh: instanced(P["car_" + k], list, (t, o) => { placeCar(t, o); return t.c; }) }; });
   walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false });
 
   open.forEach((slot, si) => { plaza(slot, si === 0); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
@@ -837,6 +915,78 @@ function buildCities() {
   });
 }
 
+// a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z
+function placeCar(c, o) {
+  if (c.vert) { o.position.set(c.z, .3, c.x0 + c.p); o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
+  else { o.position.set(c.x0 + c.p, .3, c.z); o.rotation.set(0, c.dir * Math.PI / 2, 0); }
+}
+// roundabouts: a raised island with a painted ring; every one is decorated differently, the big ones (two boulevards) get a landmark
+function buildRoundabouts(list) {
+  const Q = [], seen = new Set(), pal = [];
+  for (const r of list) {
+    const key = `${Math.round(r.x)},${Math.round(r.z)}`; if (seen.has(key)) continue; seen.add(key);
+    const { x, z } = r, R = r.big ? 4.3 : 3.6, h = hash(key);
+    Q.push(cyl(R + .2, R + .3, .3, 32, "#9b978f", x, .3, z), cyl(R, R, .06, 32, "#79a65a", x, .6, z), part(new THREE.RingGeometry(R + 2.4, R + 2.7, 40).rotateX(-Math.PI / 2), "#f2efe6", x, .335, z));
+    if (r.big) {
+      const d = h % 3;
+      if (d === 0) Q.push(cyl(3.2, 3.4, .7, 28, "#d9cfb9", x, .6, z), cyl(2.9, 2.9, .1, 28, "#3fa8cf", x, 1.22, z), cyl(.5, .7, 3, 12, "#d9cfb9", x, 1.3, z), cyl(1.3, 1.1, .3, 18, "#3fa8cf", x, 4.3, z), sph(.35, "#d9cfb9", x, 4.8, z));
+      else if (d === 1) Q.push(box(1.6, .6, 1.6, "#cfc6b0", x, .6, z), part(new THREE.CylinderGeometry(.3, .7, 10, 4), "#ece4d2", x, 6.2, z, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.42, .9, 4), "#c9a24a", x, 11.6, z, { y: Math.PI / 4 }));
+      else { Q.push(cyl(.12, .14, 12, 8, "#d0d0d0", x, .6, z)); const f = flagMesh(4.5, 3); f.position.set(x + 2.25, 10.5, z); world.add(f); FLAGS.push(f); }
+      for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; Q.push(sph(.3, ["#e85c9a", "#f2c230", "#ffffff", "#e05a4f"][i % 4], x + Math.cos(a) * (R - .6), .75, z + Math.sin(a) * (R - .6))); }
+    } else {
+      const d = h % 4;
+      if (d === 0) pal.push([x - 1, z - .6], [x + 1.1, z + .2], [x - .2, z + 1.2]);
+      else if (d === 1) Q.push(cyl(.25, .35, 1.6, 6, "#7a6650", x, .6, z), part(new THREE.IcosahedronGeometry(1.6, 1), "#8aa070", x, 2.9, z));
+      else if (d === 2) Q.push(...["#e05a4f", "#f2c230", "#2f7fa8"].map((c, i) => box(1.3 - i * .25, 1.3 - i * .25, 1.3 - i * .25, c, x, .6 + i * 1.15, z, { y: i * .6, x: i * .3 })));
+      else for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, rr = 1 + (i % 2) * 1.2; Q.push(sph(.35, ["#e85c9a", "#f2c230", "#ffffff"][i % 3], x + Math.cos(a) * rr, .8, z + Math.sin(a) * rr)); }
+    }
+  }
+  if (Q.length) solid(Q, 0, 0, 0, null, 0);
+  if (pal.length) instanced(P.palm, pal, ([x, z], o) => { o.position.set(x, .6, z); o.scale.setScalar(.75); o.rotation.y = x; });
+}
+// a town square or a park on a whole block, each with its own name and centerpiece
+function buildSquare(q) {
+  const { slot, si, b, cx, cz, kind } = q, key = `${slot.at}:${b.bx},${b.bz}`, h = hash(key), Q = [], trees = [], umbs = [];
+  q.name = pickName(kind === "park" ? PARKS : SQUARES, key, si); q.addr = blockAddr(slot, si, b.bx, b.bz); q.x = cx; q.z = cz; q.city_id = slot.city.id;
+  const bench = (x, z, r = 0) => Q.push(box(2.2, .45, .7, "#7a5232", x, .2, z, { y: r }), box(2.2, .55, .12, "#7a5232", x - Math.sin(r) * .3, .65, z - Math.cos(r) * .3, { y: r }));
+  if (kind === "square") {
+    Q.push(box(40, .04, 20, "#e3d7bf"), cyl(8.5, 8.5, .06, 40, "#d2c19e"), cyl(6.5, 6.5, .07, 40, "#e8dcc4"));
+    for (let i = 0; i < 8; i++) Q.push(box(40, .05, .12, "#d2c19e", 0, 0, -8.75 + i * 2.5));
+    const d = h % 4;
+    if (d === 0) Q.push(cyl(4, 4.2, .7, 32, "#d9cfb9"), cyl(3.7, 3.7, .1, 32, "#3fa8cf", 0, .62, 0), cyl(.5, .7, 2.4, 12, "#d9cfb9", 0, .7, 0), cyl(1.6, 1.3, .3, 18, "#d9cfb9", 0, 3.1, 0), cyl(1.4, 1.4, .06, 18, "#3fa8cf", 0, 3.38, 0), sph(.4, "#d9cfb9", 0, 3.8, 0));
+    else if (d === 1) Q.push(box(2.6, 9, 2.6, "#d9c39a"), box(3, .3, 3, "#b9a47a", 0, 9, 0), ...[0, 1, 2, 3].map(i => cyl(.8, .8, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * 1.33, 7.7, Math.cos(i * Math.PI / 2) * 1.33)), part(new THREE.ConeGeometry(2, 2.4, 4), "#7a2a20", 0, 10.5, 0, { y: Math.PI / 4 }));
+    else if (d === 2) { Q.push(cyl(4.2, 4.4, .6, 8, "#e9e2d3"), part(new THREE.ConeGeometry(4.8, 2, 8), "#2f6e7a", 0, 4.4, 0));
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.12, .12, 2.8, 6, "#ffffff", Math.cos(a) * 3.8, .6, Math.sin(a) * 3.8), sph(.14, "*#fff1c2", Math.cos(a) * 3.8, 3.3, Math.sin(a) * 3.8)); } }
+    else Q.push(box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 }));
+    for (const x of [-16, -11, 11, 16]) for (const z of [-7.5, 7.5]) trees.push([cx + x, cz + z]);
+    for (const x of [-7, 7]) { bench(x, -6.5, Math.PI); bench(x, 6.5); }
+    // a café with umbrellas, and a kiosk
+    for (const [x, z] of [[-14, -2.2], [-14, 2.2], [-10.5, 0]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
+    Q.push(box(3, 2.6, 2.4, "#f4e4c1", 14, 0, 0), box(3.6, .2, 3, "#e05a4f", 14, 2.6, 0), box(2.2, 1, .1, "*#ffe2a0", 14, 1.1, 1.22));
+  } else {
+    Q.push(box(40, .06, 20, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, 20, "#d8c7a8"), cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
+    Q.push(box(.8, .3, .5, "#ffffff", -11, .12, -5), box(.3, .3, .3, "#f2c230", -10.6, .2, -5));                    // a duck
+    Q.push(box(.12, 2.4, .12, "#e05a4f", 9, 0, 4), box(.12, 2.4, .12, "#e05a4f", 11, 0, 4), box(2.2, .12, .12, "#e05a4f", 10, 2.3, 4), box(.6, 2.6, 1.2, "#2f7fa8", 13, 0, 4.5, { x: .7 }), box(1.4, 1.6, 1.4, "#f2c230", 13, 0, 3.3));   // swings and a slide
+    const r = rng(h); for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -9 + r() * 18; if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue; trees.push([cx + x, cz + z]); }
+    for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
+  }
+  const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB);
+  // the name on a sign at the front, facing the street
+  Q.length = 0; const sg = solid([box(.18, 2.6, .18, "#5a4a32", -2.6, 0, 9.4), box(.18, 2.6, .18, "#5a4a32", 2.6, 0, 9.4)], cx, cz, 0, { type: "square", q }, CURB);
+  mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, 9.52);
+  instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.8 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
+  if (umbs.length) instanced(P.umbrella, umbs, ([x, z], o) => { o.position.set(x, CURB, z); return ["#e05a4f", "#f2c230", "#2f7fa8"][hash(Math.round(x + z)) % 3]; });
+}
+// a pedestrian lane through the middle of a block: paving, strings of lights, planters, and its name over both ends
+function buildLane(q) {
+  const { slot, si, b, cx, cz } = q, name = pickName(LANES, `${slot.at}:${b.bx},${b.bz}`, si), Q = [box(7.8, .05, 21.6, "#d9c4a0")];
+  for (let z = -9; z <= 9; z += 4.5) { for (const x of [-3.6, 3.6]) Q.push(cyl(.07, .08, 3.3, 6, "#3a3a3a", x, 0, z));
+    for (let k = 1; k < 8; k++) Q.push(sph(.09, "*#ffd98a", -3.6 + k * .9, 3.2 - Math.sin(k / 8 * Math.PI) * .5, z + (k % 2) * .25)); }
+  for (const z of [-6.8, -2.2, 2.2, 6.8]) Q.push(box(1, .6, 1, "#b8763a", (z > 0 ? 2.6 : -2.6), 0, z), sph(.5, ["#e85c9a", "#f2c230", "#e05a4f", "#ffffff"][Math.abs(Math.round(z)) % 4], (z > 0 ? 2.6 : -2.6), .9, z));
+  for (const e of [-1, 1]) Q.push(box(.2, 3.8, .2, "#5a4a32", -3.4, 0, e * 10.6), box(.2, 3.8, .2, "#5a4a32", 3.4, 0, e * 10.6), box(7, .2, .2, "#5a4a32", 0, 3.8, e * 10.6));
+  const g = solid(Q, cx, cz, 0, null, CURB);
+  for (const e of [-1, 1]) { const s2 = sign(name, 5.4, .8, { bg: "#5a4a32", fg: "#fff4dc" }); s2.position.set(cx, CURB + 3.3, cz + e * 10.72); s2.rotation.y = e > 0 ? 0 : Math.PI; world.add(s2); }
+}
 function plaza(slot, isCap) {
   const x = slot.x, z = slot.z, posts = [[-8, -7], [8, -7], [-8, 7], [8, 7]];
   solid([cyl(5.5, 5.8, .8, 28, "#d6cab0"), cyl(4.8, 4.8, .3, 28, "#3fa8cf", 0, .62, 0), cyl(.8, 1, 2.2, 12, "#d6cab0"), cyl(1.6, 1.4, .3, 14, "#3fa8cf", 0, 2.2, 0),
@@ -917,18 +1067,18 @@ function ballotBuilding(x, z) {
 function ballotHouse() {
   if (BALLOT.x == null) return GO.ballot();
   const n = S.ballot.filter(e => e.status === "open").length;
-  goTo(BALLOT.x, BALLOT.z, 5, () => open("🗳️ קלפי מס׳ 1", `<div class="hero"><p><b>מבנה ועדת הבחירות.</b> ${n ? `יש עכשיו ${fmtN(n)} בחירות פתוחות.` : "כרגע אין בחירות פתוחות."} נכנסים פנימה, עוברים את ועדת הקלפי, ובוחרים מאחורי הפרגוד.</p></div>
+  goTo(BALLOT.x, BALLOT.z, 5, () => open("🗳️ קלפי מס׳ 1", `${addrHtml(BALLOT)}<div class="hero"><p><b>מבנה ועדת הבחירות.</b> ${n ? `יש עכשיו ${fmtN(n)} בחירות פתוחות.` : "כרגע אין בחירות פתוחות."} נכנסים פנימה, עוברים את ועדת הקלפי, ובוחרים מאחורי הפרגוד.</p></div>
     <div class="btns"><button class="btn" data-go="enter" data-arg="ballot">🚪 להיכנס לקלפי</button><button class="btn ghost" data-go="ballot">🗳️ להצביע</button>${editBtn("ballot")}</div>`));
 };
 function buildCivic() {
   const parks = [], lots = [], parked = [];
   S.slots.filter(s => s.city).forEach((slot, si) => {
-    const all = slot.reserved.map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ]), nGov = si === 0 ? GOV.length : 0;
-    const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).filter(b => b !== slot.ballotBlock).map(([bx, bz]) => [slot.x + bx * BX, slot.z + bz * BZ])]; slot.publicSpots = all.slice(nGov + N_WORK);
-    if (slot.ballotBlock) { BALLOT.x = slot.x + slot.ballotBlock[0] * BX; BALLOT.z = slot.z + slot.ballotBlock[1] * BZ; BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); }
-    if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; govBuilding(g.id, sp[0], sp[1]); });
+    const all = slot.reserved.map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz]), nGov = si === 0 ? GOV.length : 0;
+    const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).filter(b => b !== slot.ballotBlock).map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz])]; slot.publicSpots = all.slice(nGov + N_WORK);
+    if (slot.ballotBlock) { BALLOT.x = slot.x + BPX(slot.ballotBlock[0]); BALLOT.z = slot.z + BPZ(slot.ballotBlock[1]); BALLOT.addr = blockAddr(slot, si, ...slot.ballotBlock); BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); }
+    if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; g.addr = blockAddr(slot, si, sp[2], sp[3]); govBuilding(g.id, sp[0], sp[1]); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
-      const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; workBuilding(w, w.x, w.z, 0);
+      const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
       const r = rng(w.id * 7 + 1); for (let k = 0; k < 4; k++) if (r() < .7) parked.push({ x: sp[0] + 10 + (k % 2) * 6, z: sp[1] - 4.5 + Math.floor(k / 2) * 9, c: COLORS[COLOR_KEYS[Math.floor(r() * 10)]][0], f: k < 2 ? 0 : Math.PI, m: TRAFFIC_MIX[Math.floor(r() * 6)] });
     });
@@ -1270,14 +1420,14 @@ function buildPublic() {
   const trees = [];
   S.slots.filter(s => s.city).forEach(slot => {
     const list = S.projects.filter(p => p.city_id === slot.city.id && !p.params?.island).sort((a, b) => a.id - b.id);
-    slot.publicSpots.forEach(([cx, cz], i) => {
+    slot.publicSpots.forEach(([cx, cz, pbx, pbz], i) => {
       const p = list[i];
       if (!p) {   // an empty public lot, waiting for ideas
         const g = solid([box(40, .1, 20, "#d8c79f"), box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)], cx, cz, 0, { type: "lot", slot }, Y0);
         mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
         return;
       }
-      p.x = cx; p.z = cz; const name = p.name || PROJECT_KINDS[p.kind]?.[1] || "";
+      p.x = cx; p.z = cz; p.addr = blockAddr(slot, S.slots.indexOf(slot), pbx, pbz); const name = p.name || PROJECT_KINDS[p.kind]?.[1] || "";
       if (p.status !== "done") { buildSite(p, name, cx, cz, 40, 20, Y0, 0, { craneH: p.kind === "monument" ? 34 : 26, jib: 22 }); return; }
       if (p.kind === "monument") return buildMonument(p, cx, cz);
       const open = ["park", "playground", "dogpark", "football", "basketball"].includes(p.kind);
@@ -1332,7 +1482,7 @@ function buildCoast() {
 }
 function buildNature() {
   const r = rng(7), open = S.slots.filter(s => s.city), keys = open.map(s => new Set(s.blocks.keys()));
-  const inCity = (x, z) => open.some((s, i) => { const bx = Math.round((x - s.x) / BX), bz = Math.round((z - s.z) / BZ); return keys[i].has(`${bx},${bz}`); });
+  const inCity = (x, z) => open.some((s, i) => { const bx = invAxis(x - s.x, BX, BPX), bz = invAxis(z - s.z, BZ, BPZ); return keys[i].has(`${bx},${bz}`); });
   const cap = open[0], ends = cap ? [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))] : [];
   const nearRoad = (x, z) => ends.some(t => { const dx = t.x - cap.x, dz = t.z - cap.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - cap.x) * dx + (z - cap.z) * dz) / L2)); return Math.hypot(x - cap.x - dx * k, z - cap.z - dz * k) < 12; });
   const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(6000, Math.max(900, area / 320)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
@@ -1451,6 +1601,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "project") showProject(d.p);
   else if (d.type === "lot") GO.ideas();
   else if (d.type === "ballot") GO.ballotHouse();
+  else if (d.type === "square") showSquare(d.q);
 });
 
 /* ============================ LOOP ============================ */
@@ -1460,7 +1611,7 @@ function animate(dt) {
   simT += dt; const t = simT;
   for (const set of trafficSets) {
     const ms = [set.mesh, ...set.mesh.userData.twins];
-    set.list.forEach((c, i) => { const L = c.x1 - c.x0; c.p = (c.p + c.v * dt * c.dir + L) % L; o3.position.set(c.x0 + c.p, .3, c.z); o3.rotation.set(0, c.dir * Math.PI / 2, 0); o3.scale.set(1, 1, 1); o3.updateMatrix(); for (const m of ms) m.setMatrixAt(i, o3.matrix); });
+    set.list.forEach((c, i) => { const L = c.x1 - c.x0; c.p = (c.p + c.v * dt * c.dir + L) % L; placeCar(c, o3); o3.scale.set(1, 1, 1); o3.updateMatrix(); for (const m of ms) m.setMatrixAt(i, o3.matrix); });
     for (const m of ms) m.instanceMatrix.needsUpdate = true;
   }
   if (walkerMesh && walkers.length) {
@@ -1591,9 +1742,13 @@ const GO = {
   },
   project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, p.params?.island ? 1.3 : 4, () => showProject(p)); else showProject(p); }
 };
+const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` : "";
+function showSquare(q) {
+  open(`${q.kind === "park" ? "🌳" : "⛲"} ${q.name}`, `${addrHtml(q)}<div class="hero"><p>${q.kind === "park" ? `<b>גן ציבורי</b> ב${esc(cityName(q.city_id))}: דשא, בריכת ברווזים, נדנדות ומגלשה. פתוח לכולם, תמיד.` : `<b>כיכר עירונית</b> ב${esc(cityName(q.city_id))}: בית קפה, קיוסק, ספסלים ומקום להיפגש.`}</p></div>`);
+}
 function showProject(p) {
   const [ic, kindName] = PROJECT_KINDS[p.kind] || ["🏗️", ""], who = p.requested_by && S.byUser.get(p.requested_by);
-  open(`${ic} ${p.name || kindName}`, `<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
+  open(`${ic} ${p.name || kindName}`, `${addrHtml(p)}<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
     <div class="btns">${p.kind !== "monument" && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}</div>`);
@@ -1603,7 +1758,7 @@ $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
 
 function openGov(id) {
   const g = GOV.find(q => q.id === id);
-  open(`${g.ic} ${g.name}`, (ADMIN ? `<div class="btns" style="margin-bottom:8px">${editBtn("gov:" + id)}</div>` : "") + {
+  open(`${g.ic} ${g.name}`, addrHtml(g) + (ADMIN ? `<div class="btns" style="margin-bottom:8px">${editBtn("gov:" + id)}</div>` : "") + {
     knesset: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:knesset">🚪 להיכנס למליאה</button></div><div class="hero" style="margin-top:8px"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
     pm: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:pm">🚪 להיכנס ללשכה</button></div><div class="hero" style="margin-top:8px"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
     interior: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:interior">🚪 להיכנס פנימה</button></div><div class="hero" style="margin-top:8px"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
@@ -1633,7 +1788,7 @@ function showSlot(sl) {
 }
 function showWork(w) {
   const staff = [...w.staff].sort((a, b) => b.level - a.level || a.id - b.id), boss = staff[0];
-  open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
+  open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `${addrHtml(w)}<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
     <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button>${editBtn("work:" + w.id)}</div>
     <div class="list" style="margin-top:10px">${boss && boss.level > 1 ? person(boss, LEVEL[Math.min(4, boss.level)]) : info("👔", "אין עדיין הנהלה", "הקידום הבא בהגרלה יכול להגיע מכאן")}</div>
     ${staff.length ? `<div class="sec">הצוות</div><div class="list">${staff.slice(0, 40).map(h => person(h, h.level > 1 ? LEVEL[Math.min(4, h.level)] : ROLE[w.kind] || "")).join("")}</div>` : ""}`);
@@ -2228,8 +2383,8 @@ function interiorTarget(id) {
   id = String(id); const [t, a] = id.split(":");
   if (id === "ballot") return BALLOT;
   if (t === "work") return S.wpById.get(+a);
-  if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
-  if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
+  if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, addr: g.addr, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
+  if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, addr: p.addr, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
   if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
   return S.wpById.get(+id);
 }
@@ -2258,7 +2413,7 @@ function renderIntUI() {
   }
   if (!S.wpById.has(INT.w.id)) {   // a visit: government buildings, public buildings, homes
     const w = INT.w;
-    $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${w.ic || "🏛️"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))}</small></span><button id="intX" aria-label="יציאה">✕</button></div>
+    $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${w.ic || "🏛️"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(w.owner ? addressOf(w.owner) : w.addr || cityName(w.city_id))}</small></span><button id="intX" aria-label="יציאה">✕</button></div>
       <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(w.owner.u)}`) : `ביקור ב${esc(w.name)}`}</p>
         ${w.owner ? `<p class="note">${esc(addressOf(w.owner))} · תושב/ת #${fmtN(w.owner.no || w.owner.id)} · ${esc(jobTitle(w.owner))}</p><button class="btn" id="idB">🪪 תעודת התושב של ‎@${esc(w.owner.u)}</button>` : ""}
         <p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
@@ -2266,7 +2421,7 @@ function renderIntUI() {
   }
   const { w, me } = INT, key = me && keyOf(me.u), done = me && me.lastShift && String(me.lastShift).slice(0, 10) === israelDate();
   const pay = me ? 30 + 10 * (Math.min(4, Math.max(1, me.level)) - 1) : 0;
-  $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${KIND_IC[w.kind] || "💼"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(cityName(w.city_id))} · ${fmtN(w.staff?.length || 0)} עובדים</small></span><button id="intX" aria-label="יציאה">✕</button></div>
+  $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${KIND_IC[w.kind] || "💼"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(w.addr || cityName(w.city_id))} · ${fmtN(w.staff?.length || 0)} עובדים</small></span><button id="intX" aria-label="יציאה">✕</button></div>
     <div class="ifoot glass">${me ? `<p><b>${esc(jobTitle(me))}</b> · משכורת יומית ${fmtN(salaryOf(me))} ${COIN}</p>
       ${key ? `<button class="btn" id="shiftB" ${done ? "disabled" : ""}>${done ? "✅ עשית משמרת היום. נתראה מחר" : `🕘 להתחיל משמרת · +${fmtN(pay)} ${COIN}`}</button>` : `<p class="note">כדי לקבל בונוס משמרת, היכנסו מהקישור האישי שלכם</p>`}`
       : `<p>ביקור ב${esc(w.name)}. ${S.mine ? "זה לא מקום העבודה שלך, אבל תמיד אפשר להציץ 👀" : "חפשו את הבית שלכם כדי להיכנס לעבודה שלכם"}</p>`}
