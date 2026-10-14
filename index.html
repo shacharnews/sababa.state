@@ -1388,15 +1388,16 @@ function loop(now) {
 /* ============================ DRAWER ============================ */
 const stack = [];
 function open(title, html, after, push = false) { if (!push) stack.length = 0; stack.push({ title, html, after }); render(); }
+let openedAt = 0;
 function render() {
-  const top = stack[stack.length - 1];
+  const top = stack[stack.length - 1]; openedAt = performance.now();
   $("dTitle").textContent = top.title; $("dBody").innerHTML = top.html; $("dBody").scrollTop = 0; $("dBack").hidden = stack.length < 2;
   document.body.classList.add("open");
   $("dBody").querySelectorAll("[data-go]").forEach(b => b.onclick = () => GO[b.dataset.go](b.dataset.arg));
   top.after && top.after();
 }
 function close() { document.body.classList.remove("open"); stack.length = 0; if (VREC.resolve) { const r = VREC.resolve; VREC.resolve = null; stopMic(); r(null); } }
-$("dX").onclick = close; $("scrim").onclick = close; $("dBack").onclick = () => { stack.pop(); render(); };
+$("dX").onclick = close; $("scrim").onclick = () => { if (performance.now() - openedAt > 450) close(); }; $("dBack").onclick = () => { stack.pop(); render(); };
 addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 const li = (go, ic, t, sub = "", arg = "") => `<button class="li" data-go="${go}" data-arg="${esc(arg)}"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="chev">‹</span></button>`;
 const info = (ic, t, sub = "") => `<div class="li"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span></div>`;
