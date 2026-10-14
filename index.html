@@ -495,7 +495,7 @@ function bowtieHouse() {
   const right = new THREE.ExtrudeGeometry(wing(1), { depth: 4, bevelEnabled: true, bevelThickness: .45, bevelSize: .4, bevelSegments: 3, curveSegments: 14 }); right.translate(0, 0, -2);
   for (const s of [-1, 1]) {
     const g = s > 0 ? right : right.clone().rotateY(Math.PI);   // the left wing is the right one turned around, so both are exactly alike
-    Q.push(part(g, "~#ffffff"), cyl(.18, .22, 2.3, 8, "#e6e2da", s * 4.5, 0, 1.1), cyl(.18, .22, 2.3, 8, "#e6e2da", s * 4.5, 0, -1.1));
+    Q.push(part(g, "~#ffffff"));
     // windows that light up at night, polka dots between them, on both faces
     for (const z of [2.95, -2.95]) for (const ax of [2.3, 3.4, 4.5]) { const hh = 1.6 + (ax - 1.4) / 3.7 * 3;
       for (let k = -3; k <= 3; k++) { const y = BOW_CY + k * 1.3; if (Math.abs(k * 1.3) + .55 < hh - .35) Q.push(box(.62, .58, .12, "*#ffe2a0", s * ax, y - .29, z));
@@ -503,7 +503,10 @@ function bowtieHouse() {
   }
   // the knot: pleats, a band of lights, a glass lobby and steps underneath
   Q.push(box(3, 3.8, 6.2, "~#d2d2d2", 0, BOW_CY - 1.9, 0), box(.16, 3.9, 6.3, "~#ababab", -.95, BOW_CY - 1.95, 0), box(.16, 3.9, 6.3, "~#ababab", .95, BOW_CY - 1.95, 0));
-  Q.push(box(2.4, BOW_CY - 1.9, 3.6, "#f4f1ea", 0, 0, 0), box(1.6, 2.5, .08, GLASS, 0, .15, 1.82), box(.08, 2.5, .08, "#3a3a3a", 0, .15, 1.87), box(2.9, .22, 1.2, "#d9d2c3", 0, 0, 2.35), box(2.2, .12, .5, "*#fff1c2", 0, 3, 1.85));
+  // a full-width ground floor the whole bow tie rests on: glass shopfront, a cornice, a door with steps, and a block under the knot
+  Q.push(box(10.8, 2.3, 5.4, "#f4f1ea", 0, 0, 0), box(11.2, .3, 5.8, "#e2dccf", 0, 2.3, 0), box(3.4, BOW_CY - 4.5, 4.2, "#f4f1ea", 0, 2.6, 0),
+    ...[-1, 1].flatMap(sx => [box(3.4, 1.4, .08, GLASS, sx * 3.3, .5, 2.72), box(3.4, 1.4, .08, GLASS, sx * 3.3, .5, -2.72)]),
+    box(1.5, 2, .08, "#3a2a1e", 0, 0, 2.72), box(.06, .3, .1, "#d9b65a", .5, .9, 2.78), box(2.6, .22, 1.1, "#d9d2c3", 0, 0, 3.2), box(10.4, .1, .3, "*#fff1c2", 0, 2.1, 2.75));
   return Q;
 }
 // a prefab is up to four merged meshes: plain parts, parts that light up at night (*), red lights (^) and car paint (!)
@@ -2051,15 +2054,121 @@ function interiorOf(w) {
     for (const [x, z] of [[-3.5, 1.5], [3.5, 1.5]]) add(box(2, .45, .6, "#7a5232", x, 0, z)); plant(-3.5, 4, 1.4); plant(3.5, 4, 1.4);
     sgn("קניון סבבה", 4, .9, 0, 4.5, -6.48, 0, "#1b2430", "#ffd75a");
     staff.push([-6.3, -4.6, 0], [-2.1, -4.4, 0], [2.4, 1.2, -Math.PI / 2], [-1.8, 3.8, Math.PI], [1.5, 4.2, Math.PI + .5], [-7.6, -.2, Math.PI / 2]);
-  } else if (k === "home") {   // a citizen's living room and kitchen
-    const wc = ["#f3ead8", "#e8f0f2", "#f4e4c1", "#efe3f2", "#e6efe0"][hash(w.name) % 5];
-    room("#b88a5a", wc, "#8a6a48", { planks: "#a97c50" });
-    add(box(7, .9, .7, "#e9e4da", 3.5, 0, -6), box(7, .06, .75, "#3a3a3a", 3.5, .9, -6), box(1.1, 2.1, .8, "#d9dde1", 7.8, 0, -6), box(.8, .4, .05, "#2b2b2b", 2, 1.4, -6.45), cyl(.3, .3, .05, 16, "#c0392b", 4.5, .95, -6));
-    add(box(2.6, .06, 1.4, "#7a5232", 3.5, .76, -2.6), box(.08, .76, .08, "#5a3a24", 2.4, 0, -2.6), box(.08, .76, .08, "#5a3a24", 4.6, 0, -2.6)); for (const x of [2.8, 4.2]) { chair(x, -1.7, Math.PI, "#7a5232"); chair(x, -3.5, 0, "#7a5232"); }
-    add(box(4, .5, 1.3, "#3f6b8a", -4.5, 0, 3.6), box(4, .9, .3, "#3f6b8a", -4.5, .5, 4.2), box(.4, .8, 1.3, "#3f6b8a", -6.6, 0, 3.6), box(.4, .8, 1.3, "#3f6b8a", -2.4, 0, 3.6), box(5, .02, 3.2, "#c97b4f", -4.5, 0, 1.6), box(1.8, .4, 1, "#7a5232", -4.5, 0, 1.3));
-    add(box(3.2, .6, .6, "#3a3a3a", -4.5, 0, -1.4)); screen(-4.5, 1.6, -1.35, 2.6, 1.4, Math.PI, "*#4aa3df"); shelf(-8.6, -3.5, 3, 2.2, .45, Math.PI / 2, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a"], 3); plant(-8.2, 5.6, 1.2); plant(7.8, 3.5, 1);
-    sgn(w.name, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#ffffff", "#1b2430"); sgn("בית חם 🏠", 2.2, .6, 3.5, 3, -6.48, 0, "#8a6a48", "#ffffff");
-    staff.push([-4, 3.5, Math.PI]);
+  } else if (k === "home") {   // every kind of house has its own interior, from a small studio to a villa and the bow tie house
+    const ow = w.owner, st = ow?.hk || "1_0", T = st[0], u = ow?.u || "", rot = (x, z, ry) => (dx, dz) => [x + dx * Math.cos(ry) + dz * Math.sin(ry), z - dx * Math.sin(ry) + dz * Math.cos(ry)];
+    const sofa = (x, z, L, c, ry = 0, leg = "#2a2a2a") => { const P2 = rot(x, z, ry); add(box(L, .45, 1, c, x, .12, z, { y: ry }));
+      let [a, b] = P2(0, -.42); add(box(L, .65, .22, c, a, .55, b, { y: ry }));
+      for (const e of [-1, 1]) { [a, b] = P2(e * (L / 2 - .1), 0); add(box(.22, .35, 1, c, a, .55, b, { y: ry })); [a, b] = P2(e * (L / 2 - .2), .35); add(box(.08, .12, .08, leg, a, 0, b)); }
+      for (let i = 0; i < Math.round(L / 1.1); i++) { [a, b] = P2(-L / 2 + .65 + i * 1.1, -.25); add(box(.8, .5, .16, "#f4efe6", a, .6, b, { y: ry, x: -.2 })); } };
+    const bed = (x, z, wd, cover, ry = 0, wood = "#7a5232") => { const P2 = rot(x, z, ry); add(box(wd, .45, 2.4, wood, x, 0, z, { y: ry }), box(wd - .1, .25, 2.3, "#f6f3ec", x, .45, z, { y: ry }));
+      let [a, b] = P2(0, .25); add(box(wd - .05, .1, 1.7, cover, a, .7, b, { y: ry })); [a, b] = P2(0, -1.25); add(box(wd + .1, 1.3, .12, wood, a, 0, b, { y: ry }));
+      for (const e of wd > 1.5 ? [-1, 1] : [0]) { [a, b] = P2(e * wd / 4, -.85); add(box(wd > 1.5 ? wd / 2 - .2 : wd - .3, .18, .5, "#ffffff", a, .7, b, { y: ry })); } };
+    const kitchen = (x0, len, base, top, wall = "#2b2b2b") => { add(box(len, .9, .7, base, x0, 0, -6.1), box(len + .05, .06, .75, top, x0, .9, -6.1), box(len, .8, .4, base, x0, 2.6, -6.3));
+      add(box(.8, .4, .05, wall, x0 - len / 4, 1.4, -6.45), cyl(.3, .3, .05, 16, "#c0392b", x0 + len / 5, .95, -6.1), box(.6, .05, .45, "#9aa0a6", x0 - len / 4, .95, -6.1)); };
+    const rug = (x, z, wd, d, c, c2) => { add(box(wd, .02, d, c, x, 0, z)); if (c2) add(box(wd * .8, .025, d * .8, c2, x, 0, z)); };
+    const art = (x, y, wd, h, cols) => cols.forEach((c, i) => add(box(wd / cols.length - .06, h, .05, c, x - wd / 2 + (i + .5) * wd / cols.length, y, -6.47)));
+    const lamp = (x, z) => add(cyl(.18, .25, .1, 12, "#2b2b2b", x, 0, z), cyl(.03, .03, 1.6, 6, "#2b2b2b", x, .1, z), cyl(.25, .35, .4, 14, "*#fff1c2", x, 1.7, z));
+
+    if (st === "3_2") {   // the bow tie house: pink and polka dots, a bow tie sofa, a giant bow tie on the wall in the owner's color
+      const { color, text } = houseLook(ow), dark = "#" + new THREE.Color(color).multiplyScalar(.55).getHexString();
+      room("#f6e3ea", "#fbe7ef", dark, { tiles: "#f0d0dc" });
+      for (let i = 0; i < 9; i++) for (let j = 0; j < 3; j++) add(cyl(.16, .16, .04, 12, "#ffffff", -8 + i * 2 + (j % 2), 0, 0, { x: Math.PI / 2 }).translate(0, 1.7 + j * 1.1, -6.47));
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) if (j || Math.abs(i - 2.5) > 1) add(cyl(.16, .16, .04, 12, "#ffffff", 0, 0, 0, { z: Math.PI / 2 }).translate(-8.98, 4.2 + j * .5, -5.5 + i * 2.2));
+      // the big bow tie on the back wall, and a bow tie shaped sofa facing the room
+      const bow = (sx, sz, y, z, c, depth) => { for (const e of [-1, 1]) { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(e * sx, -sz); sh.lineTo(e * sx, sz); sh.closePath();
+        add(part(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: .08, bevelThickness: .08, bevelSegments: 2 }), c, 0, y, z)); } };
+      bow(2.4, 1.3, 3.3, -6.42, color, .12); add(box(1, 1.1, .3, dark, 0, 2.75, -6.4)); Q.slice(-3).forEach(g => g.translate(2.4, 0, 0));
+      // a sofa shaped like a bow tie: two padded wedge seats, a bow tie backrest and a knot in the middle
+      const sofaBow = (x, z) => { for (const e of [-1, 1]) { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(e * 2, -.75); sh.lineTo(e * 2, .75); sh.closePath();
+          add(part(new THREE.ExtrudeGeometry(sh, { depth: .45, bevelEnabled: true, bevelSize: .1, bevelThickness: .1, bevelSegments: 3 }).rotateX(Math.PI / 2), color, x, .62, z)); }
+        bow(1.8, .7, 1.25, z - .95, color, .3); Q.slice(-2).forEach(g => g.translate(x, 0, 0)); add(box(.7, .75, 1.4, dark, x, .12, z), box(.7, 1.2, .4, dark, x, .7, z - .9), cyl(.07, .07, .12, 6, "#2a2a2a", x - 1.8, 0, z), cyl(.07, .07, .12, 6, "#2a2a2a", x + 1.8, 0, z)); };
+      sofaBow(-3.5, 2.6); rug(-3.5, .6, 5, 3.2, "#ffffff", color);
+      add(cyl(.7, .7, .06, 20, "#ffffff", -3.5, .5, .4), cyl(.08, .08, .5, 8, "#d9b65a", -3.5, 0, .4), cyl(.3, .3, .04, 14, "#d9b65a", -3.5, 0, .4));
+      // a vanity with a lit mirror, a round bed with a pink cover, a chandelier
+      add(box(1.6, .8, .6, "#ffffff", 7.6, 0, -6.1), cyl(.6, .6, .05, 28, "#e9eef2", 0, 0, 0, { x: Math.PI / 2 }).translate(7.6, 2, -6.42));
+      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; add(sph(.07, "*#fff1c2", 7.6 + Math.cos(a) * .7, 2 + Math.sin(a) * .7, -6.38)); }
+      add(cyl(1.6, 1.6, .55, 32, "#ffffff", 5, 0, 2.4), cyl(1.55, 1.6, .15, 32, color, 5, .55, 2.6), ...[-.5, .5].map(x => sph(.32, "#ffffff", 5 + x, .78, 1.2, 1.2, .5, .8)));
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; add(sph(.12, "*#ffe9f2", Math.cos(a) * .7 - 3.5, 4.2, Math.sin(a) * .7 + .6)); } add(cyl(.02, .02, .7, 4, "#d9b65a", -3.5, 4.5, .6), cyl(.75, .75, .05, 24, "#d9b65a", -3.5, 4.25, .6));
+      plant(8, -5.4, 1.1); plant(-8.2, 5.4, 1);
+      sgn(text, 2.6, .7, 2.4, 1.55, -6.2, 0, dark, "#ffffff"); sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, color, "#ffffff");
+      staff.push([-1.2, .4, -.6]); frame = { idAt: [-5.8, 3.2] };
+    } else if (st === "3_0") {   // villa: marble floor, a glass wall to the pool, a grand piano, a chandelier, gold accents
+      room("#f1eee8", "#f7f3ea", "#c9a24a", { tiles: "#dcd6cc" });
+      add(box(10, 3.6, .12, "*#8fcde6", 2, .6, -6.46), ...[-3, 2, 7].map(x => box(.14, 3.8, .2, "#c9a24a", x, .5, -6.4)), box(10.2, .14, .2, "#c9a24a", 2, 4.25, -6.4));
+      add(box(10, .1, 2.2, "#2fb9e0", 2, .2, -7.9));                                                       // the pool, seen through the glass
+      for (const x of [-7.6, 7.8]) add(cyl(.35, .4, 5.2, 16, "#fbf9f4", x, 0, -5.8), cyl(.5, .5, .25, 16, "#c9a24a", x, 0, -5.8), cyl(.5, .5, .25, 16, "#c9a24a", x, 4.95, -5.8));
+      sofa(-3.6, 1.4, 4.4, "#efe6d6", 0, "#c9a24a"); sofa(-6.3, 3.4, 2.6, "#efe6d6", Math.PI / 2, "#c9a24a");
+      rug(-3.8, 3.3, 5.4, 3.6, "#e9dcc4", "#d9c7a4"); add(box(2.2, .4, 1.2, "#fbf9f4", -3.6, 0, 3.2), box(2.3, .05, 1.3, "#c9a24a", -3.6, .4, 3.2));
+      // grand piano
+      add(cyl(1.2, 1.2, .3, 3, "#111111", 5.6, .7, 2.6, { y: .4 }), box(1.6, .3, 1.4, "#111111", 5.4, .7, 2.1), box(1.5, .06, .4, "#f4f4f4", 5.2, 1.0, 1.4), box(1.2, .06, 1.4, "#111111", 5.8, 1.3, 2.4, { x: -.6 }),
+        ...[[4.8, 1.6], [6, 1.8], [5.8, 3.4]].map(([x, z]) => cyl(.06, .06, .7, 6, "#111111", x, 0, z)), box(1, .5, .4, "#111111", 5.2, 0, .8));
+      // marble kitchen island with bar stools
+      add(box(3.6, .95, 1.2, "#2b2b2b", 3.6, 0, -2.6), box(3.8, .08, 1.4, "#f2f0ec", 3.6, .95, -2.6)); for (const x of [2.4, 3.6, 4.8]) add(cyl(.22, .22, .06, 12, "#c9a24a", x, .75, -1.6), cyl(.03, .03, .75, 6, "#c9a24a", x, 0, -1.6));
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 10; j++) { const a = j / 10 * Math.PI * 2, rr = .4 + i * .3; add(sph(.07, "*#fff4d6", -3.6 + Math.cos(a) * rr, 4.5 - i * .25, 1.4 + Math.sin(a) * rr)); }
+      add(cyl(.02, .02, .7, 4, "#c9a24a", -3.6, 4.5, 1.4), cyl(1, .4, .1, 20, "#c9a24a", -3.6, 4.5, 1.4));
+      plant(8, 5, 1.3); plant(-8, -4.6, 1.3); art(-1.2, 2.4, 1.4, 1.6, ["#d9c7a4", "#a07a4a", "#e9dcc4"]);
+      sgn(`וילת ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#c9a24a", "#ffffff");
+      staff.push([-3, 3.2, Math.PI]); frame = { idAt: [-5.6, 3.1] };
+    } else if (st === "3_1") {   // modern mansion: concrete and oak, a floating staircase, a fireplace, a glass wall to the garden
+      room("#a8865e", "#8e9399", "#3d4248", { planks: "#9a7a52" });
+      add(box(8, 3.8, .12, "*#cfe9d4", 3.5, .5, -6.46), box(8.2, .14, .2, "#2b2f34", 3.5, 4.3, -6.4), box(10, .5, 1.8, "#5f9a45", 3.5, 0, -7.8));
+      for (let i = 0; i < 9; i++) add(box(1.6, .14, .8, "#a8865e", -8.2, .4 + i * .5, -5.6 + i * .7));                // floating stairs along the side wall
+      add(box(.05, 4.6, .05, "#2b2b2b", -7.4, .4, -1));
+      // fireplace with a fire in a long black wall
+      add(box(4.6, 2.6, .5, "#22262b", -3.2, 0, -6.25), box(3.2, .5, .1, "*#ff8a3d", -3.2, .6, -5.98), box(3.2, .2, .1, "*#ffd27a", -3.2, .9, -5.98), box(5, .12, .7, "#a8865e", -3.2, 2.6, -6.1));
+      screen(-3.2, 3.2, -6.36, 3, 1.5, 0, "*#3a6f9a");
+      sofa(-3.2, 1, 4.6, "#5a3e2b", Math.PI); rug(-3.2, -1.4, 5.4, 3, "#c9c3b8", "#d9d4ca");
+      add(box(2.2, .35, 1, "#2b2f34", -3.2, 0, -1.4), box(.6, .8, .6, "#2b2f34", 1, 0, -1.6), sph(.3, "#c0392b", 1, 1.1, -1.6));
+      kitchen(5.5, 0, "#f2f2f2", "#2b2b2b"); add(box(3, .95, 1, "#2b2f34", 5.5, 0, 1.6), box(3.1, .06, 1.1, "#a8865e", 5.5, .95, 1.6)); for (const x of [4.5, 6.5]) pendant(x, 1.6, 3.2);
+      plant(8, 5, 1.2); lamp(-6.4, 2.2);
+      sgn(`אחוזת ‎@${u}`, 3.6, .7, -8.98, 3.6, 2.6, Math.PI / 2, "#2b2f34", "#ffffff");
+      staff.push([-3.2, 2.4, Math.PI]); frame = { idAt: [-7.3, 3.3] };
+    } else if (st === "2_2") {   // Bauhaus: white, black lines, primary colors, a strip window, terrazzo floor
+      room("#e9e6df", "#ffffff", "#111111", { tiles: "#dedad2" });
+      add(box(12, 1.2, .12, "*#cfe7f2", 1, 2.4, -6.46), box(12.2, .1, .16, "#111111", 1, 3.6, -6.42), box(12.2, .1, .16, "#111111", 1, 2.35, -6.42));
+      art(-6.8, 1.2, 1.6, 1.6, ["#d62f2f", "#f2c230", "#1f4fa8"]);
+      sofa(-3.6, 2.4, 3.6, "#f4f4f2", Math.PI, "#111111"); add(cyl(.8, .8, .04, 24, "*#d8eef6", -3.6, .45, .6), cyl(.04, .04, .45, 6, "#111111", -3.6, 0, .6));
+      for (const [x, c] of [[-5.6, "#d62f2f"], [-1.6, "#1f4fa8"]]) add(box(.8, .08, .8, c, x, .45, .6), box(.05, .5, .05, "#111111", x, 0, .6), box(.8, .5, .08, "#111111", x, .5, .6 + (x < -3 ? -.4 : -.4)));
+      kitchen(4.5, 5, "#ffffff", "#111111"); table(4.5, -2.2, .8, "#ffffff"); chair(3.5, -2.2, Math.PI / 2, "#f2c230"); chair(5.5, -2.2, -Math.PI / 2, "#d62f2f");
+      lamp(-7.4, 4.4); plant(8, 4.6, 1.1); rug(-3.6, 1, 4.4, 3, "#111111", "#f4f4f2");
+      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#111111", "#ffffff");
+      staff.push([-3.6, 3.6, Math.PI]); frame = { idAt: [-6.8, 3.9] };
+    } else if (st === "2_3") {   // Jerusalem stone: stone walls, arched windows, wooden beams, low cushions and copper lamps
+      room("#b98a5a", "#e6d6b0", "#cdb98e", { tiles: "#c9a77a" });
+      for (let i = 0; i < 9; i++) for (let j = 0; j < 5; j++) add(box(1.9, .9, .04, (i + j) % 3 ? "#e2d1a8" : "#dbc79a", -8.2 + i * 2 + (j % 2), .2 + j * 1, -6.48));
+      for (const x of [-4, 0, 4]) add(box(1.8, 2.2, .1, "*#bfe3f2", x, 1.4, -6.44), cyl(.9, .9, .1, 16, "*#bfe3f2", x, 0, 0, { x: Math.PI / 2 }).translate(0, 3.6, -6.44));
+      for (let i = 0; i < 5; i++) add(box(.35, .35, 13.6, "#6b4a2f", -8 + i * 4, 4.8, 0));
+      add(box(6, .35, 1.2, "#8a3b2a", -4, 0, 4.4), box(6, .8, .3, "#8a3b2a", -4, .35, 4.95), ...Array.from({ length: 5 }, (_, i) => box(.9, .55, .25, ["#c99a3a", "#2f6e7a", "#b8443a"][i % 3], -6.4 + i * 1.2, .5, 4.7, { x: -.25 })));
+      rug(-4, 1.8, 6, 3.6, "#8a3b2a", "#c99a3a"); add(cyl(.9, .9, .08, 20, "#b8763a", -4, .45, 1.8), cyl(.5, .5, .45, 12, "#6b4a2f", -4, 0, 1.8));
+      for (const x of [-5.5, -2.5]) add(cyl(.02, .02, 1.6, 4, "#b8763a", x, 3.4, 1.8), sph(.3, "*#ffb85a", x, 3.2, 1.8, 1, 1.3, 1));
+      kitchen(4.5, 5.5, "#7a5232", "#e6d6b0"); table(4.5, -1.6, .9, "#8a5a3a"); for (const [x, ry] of [[3.4, Math.PI / 2], [5.6, -Math.PI / 2]]) chair(x, -1.6, ry, "#6b4a2f");
+      plant(8, 4.6, 1.2); plant(-8.3, -5.6, 1);
+      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#6b4a2f", "#f6ead2");
+      staff.push([-4, 3.4, Math.PI]); frame = { idAt: [-7, 3.1] };
+    } else if (T === "2") {   // a family house: living room, dining table, a kitchen, stairs up to the bedrooms, toys on the rug
+      const wc = ["#f3ead8", "#e8f0f2", "#f4e4c1", "#efe3f2", "#e6efe0"][hash(u) % 5];
+      room("#b88a5a", wc, "#8a6a48", { planks: "#a97c50" });
+      kitchen(3.5, 7, "#e9e4da", "#3a3a3a"); add(box(1.1, 2.1, .8, "#d9dde1", 7.8, 0, -6));
+      add(box(2.6, .06, 1.4, "#7a5232", 3.5, .76, -2.6), box(.08, .76, .08, "#5a3a24", 2.4, 0, -2.6), box(.08, .76, .08, "#5a3a24", 4.6, 0, -2.6)); for (const x of [2.8, 4.2]) { chair(x, -1.7, Math.PI, "#7a5232"); chair(x, -3.5, 0, "#7a5232"); }
+      sofa(-4.5, 4, 4, "#3f6b8a", Math.PI); rug(-4.5, 1.6, 5, 3.2, "#c97b4f"); add(box(1.8, .4, 1, "#7a5232", -4.5, 0, 1.3));
+      add(box(3.2, .6, .6, "#3a3a3a", -4.5, 0, -1.4)); screen(-4.5, 1.6, -1.35, 2.6, 1.4, Math.PI, "*#4aa3df");
+      for (let i = 0; i < 8; i++) add(box(1.4, .2 + i * .55, .9, "#a97c50", -8.2, 0, 5.8 - i * .9));                      // stairs to the second floor
+      for (const [x, z, c] of [[-3.2, 2.2, "#f2b440"], [-3.6, 2.5, "#e05a4f"], [-5.6, 2.3, "#3fae6a"]]) add(box(.3, .3, .3, c, x, 0, z));
+      shelf(-8.6, -3.5, 3, 2.2, .45, Math.PI / 2, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a"], 3); plant(7.8, 3.5, 1);
+      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 1, Math.PI / 2, "#ffffff", "#1b2430"); sgn("בית חם 🏠", 2.2, .6, 3.5, 4.3, -6.48, 0, "#8a6a48", "#ffffff");
+      staff.push([-4, 3, Math.PI]); frame = { idAt: [-2.1, 3.2] };
+    } else {   // a small first home: one room with a bed, a small sofa, a kitchenette and a fan
+      const wc = ["#f6f1e7", "#eef3f1", "#f5ecd9"][hash(u) % 3];
+      room("#c9a37a", wc, "#b9a587", { planks: "#bf966a" });
+      bed(-6.6, -4.6, 1.6, ["#2f7fa8", "#e05a4f", "#3fae6a", "#f2b440"][hash(u) % 4]); add(box(.6, .55, .5, "#a07a50", -8.2, 0, -3), cyl(.15, .2, .3, 10, "*#fff1c2", -8.2, .55, -3));
+      kitchen(4, 3.6, "#f2efe8", "#8a8a8a"); add(box(.9, 1.7, .7, "#e6e8ea", 6.6, 0, -6.1));
+      table(3.8, -2.4, .55, "#f2efe8"); chair(3, -2.4, Math.PI / 2, "#a07a50"); chair(4.6, -2.4, -Math.PI / 2, "#a07a50");
+      sofa(-3, 3.6, 2.4, "#8a9a6a", Math.PI); add(box(1.4, .5, .5, "#a07a50", -3, 0, .6), box(1, .06, .05, "#1a1a1a", -3, 1, .62), box(.9, .55, .05, "*#4aa3df", -3, .55, .6));
+      rug(-3, 2, 3, 2, "#e8c39a"); add(cyl(.02, .02, .5, 4, "#333333", 0, 4.7, 0), ...[0, 1, 2].map(i => box(1.4, .02, .18, "#ffffff", 0, 4.6, 0, { y: i * Math.PI / 3 })));
+      plant(7.8, 4.5, .9);
+      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#ffffff", "#1b2430"); sgn("קטן אבל שלי 🏠", 2.6, .6, 4, 4.3, -6.48, 0, "#b9a587", "#ffffff");
+      staff.push([-3, 2.6, Math.PI]); frame = { idAt: [-1.6, 3] };
+    }
   } else if (k === "gym") {
     room("#3a3f46", "#f2f2f2", w.color || "#e5484d");
     for (let i = 0; i < 4; i++) add(box(.9, .3, 2, "#2b2b2b", -6 + i * 1.8, 0, -4.8), box(.8, .05, 1.7, "#555555", -6 + i * 1.8, .3, -4.8), box(.1, 1.3, .1, "#9aa0a6", -6.35 + i * 1.8, .3, -5.6), box(.1, 1.3, .1, "#9aa0a6", -5.65 + i * 1.8, .3, -5.6), box(.9, .3, .1, "#2b2b2b", -6 + i * 1.8, 1.5, -5.6), box(.6, .35, .05, "*#7fd1a0", -6 + i * 1.8, 1.55, -5.55));
@@ -2095,8 +2204,8 @@ function interiorScene(w) {
   for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
   for (const f of INT.flags) sc.add(f);
   if (w.owner) {   // the resident's ID card, framed on the back wall
-    const fr = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.95, .08), new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: .6 })); fr.position.set(-1.3, 3.15, -6.46); fr.userData.disposable = true; sc.add(fr);
-    const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(-1.3, 3.15, -6.41); card.userData.disposable = true; sc.add(card);
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.95, .08), new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: .6 })); const [ix, iy] = frame?.idAt || [-1.3, 3.15]; fr.position.set(ix, iy, -6.4); fr.userData.disposable = true; sc.add(fr);
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(ix, iy, -6.35); card.userData.disposable = true; sc.add(card);
   }
   // people at work: the citizen in orange (if it's their workplace), colleagues around
   const me = S.mine && (S.mine.wp === w || w.owner === S.mine) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
