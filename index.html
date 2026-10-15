@@ -211,6 +211,20 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;direction:ltr;uni
 .stwait{color:var(--fg2);font-weight:600}
 a.btn[aria-disabled]{opacity:.55;pointer-events:none}
 body.inside .top,body.inside .zoom,body.inside .dock,body.inside #labels{display:none}
+body.walking .top,body.walking .zoom,body.walking .dock{display:none}
+#walkUI{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
+body.walking #walkUI{display:block}
+body.walking.inside #walkUI{display:none}
+#walkUI>*{pointer-events:auto}
+.wjoy{position:absolute;left:22px;bottom:calc(26px + env(safe-area-inset-bottom));width:132px;height:132px;border-radius:50%;background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);touch-action:none}
+.wjoy i{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.wmap{position:absolute;right:16px;bottom:calc(26px + env(safe-area-inset-bottom));width:124px;height:124px;border-radius:50%;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.3);border:3px solid #fff;background:#8bb36a}
+.whome{position:absolute;right:30px;bottom:calc(160px + env(safe-area-inset-bottom));border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+.wact[hidden],.wspd[hidden]{display:none!important}
+.wact.wdoor{bottom:calc(226px + env(safe-area-inset-bottom));background:#1f6f8b;color:#fff;max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wact{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(170px + env(safe-area-inset-bottom));width:auto!important;padding:12px 22px;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.wspd{position:absolute;left:24px;bottom:calc(170px + env(safe-area-inset-bottom));border-radius:12px;padding:6px 12px;font-weight:800;font-size:15px}
+.whint{position:absolute;left:50%;transform:translateX(-50%);top:calc(84px + env(safe-area-inset-top));border-radius:14px;padding:8px 14px;font-size:13px;text-align:center;transition:opacity .8s;max-width:88%}
 #intUI{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
 body.inside #intUI{display:block}
 #intUI>*{pointer-events:auto}
@@ -262,6 +276,7 @@ body.inside #intUI{display:block}
 </nav>
 <div class="toast glass" id="toast"></div>
 <div id="intUI"></div>
+<div id="walkUI"></div>
 <div id="recBar"><i></i><span id="recT">מצלם ריל…</span><button id="recStop">ביטול</button></div>
 
 <div class="scrim" id="scrim"></div>
@@ -891,7 +906,7 @@ function buildCities() {
     const zo = Math.min(2.6, 4.4 - CARS[key].L / 2);
     const m = instanced(P["car_" + key], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
       o.position.set(h.x + 3.9 * cs + zo * sn, LAWN, h.z - 3.9 * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; });
-    Object.assign(m.userData, { type: "house", items: list }); S.picks.push(m);
+    Object.assign(m.userData, { type: "house", items: list, parked: key }); S.picks.push(m);
   }
   // gardens
   const back = (h, k) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return [h.x - k * cs - k * sn, h.z + k * sn - k * cs]; };
@@ -1611,12 +1626,13 @@ $("zin").onclick = () => setZoom(camera.zoom * 1.6);
 $("zout").onclick = () => setZoom(camera.zoom / 1.6);
 $("zfit").onclick = () => flyTo(0, 0, fitZoom());
 addEventListener("resize", () => { if (REEL.on) return; renderer.setSize(innerWidth, innerHeight); labelRenderer.setSize(innerWidth, innerHeight); frustum(); controls.minZoom = fitZoom() * .75;
-  if (INT.on) { INT.cam.aspect = innerWidth / innerHeight; INT.cam.updateProjectionMatrix(); } });
+  if (INT.on) { INT.cam.aspect = innerWidth / innerHeight; INT.cam.updateProjectionMatrix(); }
+  walkCam.aspect = innerWidth / innerHeight; walkCam.updateProjectionMatrix(); });
 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 renderer.domElement.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; fly = null; });
 renderer.domElement.addEventListener("pointerup", e => {
-  if (INT.on || REEL.on || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
+  if (INT.on || REEL.on || WALK.on || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObjects(S.picks, false)[0];
   if (!hit) { if (S.sel) { S.sel = null; mark(S.mine); } return; }
@@ -1663,7 +1679,7 @@ function sunFollow(tg, vis) {
 function loop(now) {
   requestAnimationFrame(loop);
   if (REEL.busy) return;   // the offline reel renderer owns the renderer right now
-  const dt = Math.min(.05, clock.getDelta());
+  const raw = clock.getDelta(), dt = Math.min(.05, raw);
   if (REEL.live) return reelLive(now, dt);
   if (INT.on) {
     INT.ctl.update(); simT += dt;
@@ -1672,6 +1688,7 @@ function loop(now) {
     if (INT.tag) { INT.tag.quaternion.copy(INT.cam.quaternion); INT.tag.position.y = 2.9 + Math.sin(simT * 2.5) * .08; }
     return renderer.render(INT.sc, INT.cam);
   }
+  if (WALK.on) return walkFrame(Math.min(.12, raw), now);   // walking keeps its real speed even when the phone draws few frames
   if (fly) fly(now); else controls.update();
   const tg = controls.target, lim = (v, m) => Math.max(-m, Math.min(m, v)), cx = lim(tg.x, RX0 * S.s * 1.05), cz = lim(tg.z, RZ0 * S.s * 1.05);
   if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
@@ -1682,6 +1699,199 @@ function loop(now) {
   renderer.render(scene, camera); labelRenderer.render(scene, camera);
 }
 
+/* ============================ WALKING ============================ */
+// your figure on the street: a joystick (or the arrow keys / WASD) to walk, drag the screen to look around; you can't walk through buildings
+const WALK = { on: false, keys: {}, joy: { x: 0, y: 0 }, cy: 0, pitch: .3, head: 0, t: 0, drag: null, lastDrag: 0, frame: 0, boxes: [] };
+const walkCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .3, 900);
+// the doors you can walk in through: every home, workplace, government building, the polling station and the public buildings
+function walkDoors() {
+  const D = [], add = (x, z, r, id, label) => D.push({ x, z, r, id, label });
+  for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, 2.7, 0); add(x, z, 2.6, "home:" + h.u, h === WALK.h ? "להיכנס הביתה" : `להציץ אל ‎@${h.u}`); }
+  for (const w of S.workplaces) if (w.x != null) add(w.x, w.z + 6, 4, w.id, `להיכנס: ${w.name}${S.mine?.wp === w ? " (העבודה שלך)" : ""}`);
+  for (const g of GOV) if (g.x != null) add(g.x, g.z + 7.5, 6, "gov:" + g.id, `להיכנס: ${g.name}`);
+  if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
+  for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
+    const name = p.name || PROJECT_KINDS[p.kind]?.[1];
+    if (INDOOR.includes(p.kind)) add(p.x, p.z + 5, 5, "proj:" + p.id, `להיכנס: ${name}`); else add(p.x, p.z, 10, "proj:" + p.id, `לטייל ב${name}`);
+  }
+  return D;
+}
+// what you bump into: houses, public buildings (as boxes on the ground)
+function walkBlockers() {
+  const B = [], rect = (x, z, w, d, ry = 0) => { const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry)), W = w * c + d * sn, D = w * sn + d * c; B.push([x - W / 2, z - D / 2, x + W / 2, z + D / 2]); };
+  for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, -1.4, 0); rect(x, z, h.hk === "3_2" ? 10.6 : 8.6, 6.4, h.lot.face); }
+  for (const w of S.workplaces) if (w.x != null) rect(w.x, w.z - .5, 15, 11);
+  for (const g of GOV) if (g.x != null) rect(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13);
+  if (BALLOT.x != null) rect(BALLOT.x, BALLOT.z - 2.5, 22, 11);
+  for (const p of S.projects) if (p.x != null && p.status === "done" && ["library", "mall", "community"].includes(p.kind)) rect(p.x, p.z - 2.5, 30, 12);
+  return B;
+}
+// the ground under your feet: sidewalks and gardens are raised above the road
+function groundAt(x, z) {
+  const slot = nearestSlot(x, z), sl = S.slots.find(q => q.at === slot.at); if (!sl?.city) return .3;
+  const bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dx = x - sl.x - BPX(bx), dz = z - sl.z - BPZ(bz);
+  return sl.blocks.has(`${bx},${bz}`) && Math.abs(dx) < 21 && Math.abs(dz) < 11 ? CURB : .3;
+}
+function streetHere(x, z) {
+  const sl = S.slots.find(q => q.city && q.at === nearestSlot(x, z).at); if (!sl) return "";
+  const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dz = z - sl.z - BPZ(bz);
+  const b = sl.blocks.get(`${bx},${bz}`);
+  if (b?.civic === "square" || b?.civic === "park") return pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
+  return `${streetName(sl, si, dz < 0 ? bz : bz + 1, bx)} · ${sl.city.name}`;
+}
+const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
+function walkStart(u) {
+  const h = S.byUser.get(u) || S.mine; if (!h?.lot) return toast("צריך בית כדי לצאת לטייל");
+  if (h !== S.mine && !ADMIN) return toast("יוצאים לטייל מהבית שלכם");
+  close(); exitWork();
+  const [x, z] = frontOf(h, 6.6, 0);
+  Object.assign(WALK, { on: true, h, x, z, head: h.lot.face, cy: h.lot.face + Math.PI, pitch: .3, t: 0, keys: {}, joy: { x: 0, y: 0 }, boxes: walkBlockers(), fog: [scene.fog.near, scene.fog.far], street: "", mode: "foot", car: null });
+  WALK.doors = walkDoors();   // after WALK.h is set: your own home gets its own button
+  WALK.fig = avatarMesh(avatarOf(h), 1); world.add(WALK.fig); if (MINE_FIG) MINE_FIG.visible = false;
+  scene.fog.near = 90; scene.fog.far = 520; walkCam.aspect = innerWidth / innerHeight; walkCam.updateProjectionMatrix();
+  controls.enabled = false; fly = null; document.body.classList.add("walking");
+  const touch = matchMedia("(pointer: coarse)").matches;
+  $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(h.u)}</small></span><button id="wX" aria-label="סיום">✕</button></div>
+    <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div>
+    <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
+  $("wAct").onclick = () => WALK.mode === "car" ? exitCar() : enterCar();
+  $("wDoor").onclick = () => { walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; enterWork(d.id); } };
+  $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
+  setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
+  // the joystick
+  const J = $("wJoy"), K = $("wKnob"), R = 50;
+  const jm = e => { const r = J.getBoundingClientRect(); let dx = e.clientX - r.left - r.width / 2, dy = e.clientY - r.top - r.height / 2; const d = Math.hypot(dx, dy); if (d > R) { dx *= R / d; dy *= R / d; }
+    K.style.transform = `translate(${dx}px,${dy}px)`; WALK.joy = { x: dx / R, y: -dy / R }; };
+  J.onpointerdown = e => { J.setPointerCapture(e.pointerId); jm(e); }; J.onpointermove = e => { if (J.hasPointerCapture(e.pointerId)) jm(e); };
+  J.onpointerup = J.onpointercancel = () => { K.style.transform = ""; WALK.joy = { x: 0, y: 0 }; };
+}
+function exitWalk() {
+  if (!WALK.on) return;
+  if (WALK.car) { WALK.car.mv.dispose(); WALK.car = null; hideParked(WALK.h, false); }
+  WALK.on = false; WALK.fig.removeFromParent(); WALK.fig.traverse(o => o.geometry?.dispose()); if (MINE_FIG) MINE_FIG.visible = true;
+  [scene.fog.near, scene.fog.far] = WALK.fog; document.body.classList.remove("walking"); $("walkUI").innerHTML = "";
+  controls.enabled = true; controls.target.set(WALK.x, 0, WALK.z); camera.position.copy(controls.target).addScaledVector(VIEW_DIR, 1500); setZoom(9); lastZoom = -1;
+}
+// looking around: drag anywhere on the street
+renderer.domElement.addEventListener("pointerdown", e => { if (WALK.on && !INT.on) WALK.drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+addEventListener("pointermove", e => { const d = WALK.drag; if (!WALK.on || !d || d.id !== e.pointerId) return;
+  WALK.cy -= (e.clientX - d.x) * .006; WALK.pitch = Math.max(.08, Math.min(.85, WALK.pitch + (e.clientY - d.y) * .004)); d.x = e.clientX; d.y = e.clientY; WALK.lastDrag = performance.now(); });
+addEventListener("pointerup", e => { if (WALK.drag?.id === e.pointerId) WALK.drag = null; });
+addEventListener("keydown", e => { if (!WALK.on) return; WALK.keys[e.code] = true; if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault(); if (e.code === "Escape") exitWalk(); });
+addEventListener("keyup", e => { WALK.keys[e.code] = false; });
+// the camera never ends up inside a building: it moves in closer until it has a clear spot
+function placeWalkCam(tx, ty, tz, D) {
+  const cp = Math.cos(WALK.pitch), sx = Math.sin(WALK.cy) * cp, sz = Math.cos(WALK.cy) * cp, sy = Math.sin(WALK.pitch);
+  let d = D; const blocked = (x, z) => WALK.boxes.some(b => x > b[0] - .4 && x < b[2] + .4 && z > b[1] - .4 && z < b[3] + .4);
+  for (let k = 1; k <= 8 && d > 2.5; k++) { const step = D * k / 8; if (blocked(tx + sx * step, tz + sz * step)) { d = Math.max(2.5, step - D / 8); break; } }
+  walkCam.position.set(tx + sx * d, ty + sy * d + (D - d) * .25, tz + sz * d); walkCam.lookAt(tx, ty, tz);
+}
+function walkStep(dt) {
+  if (WALK.mode === "car") return driveStep(dt);
+  const k = WALK.keys; let fx = WALK.joy.x, fy = WALK.joy.y;
+  if (k.ArrowUp || k.KeyW) fy += 1; if (k.ArrowDown || k.KeyS) fy -= 1; if (k.ArrowLeft || k.KeyA) fx -= 1; if (k.ArrowRight || k.KeyD) fx += 1;
+  const m = Math.min(1, Math.hypot(fx, fy));
+  WALK.t += dt * (m > .05 ? 1 : 0);
+  if (m > .05) {
+    const s = Math.sin(WALK.cy), c = Math.cos(WALK.cy), dx = -s * fy + c * fx, dz = -c * fy - s * fx, L = Math.hypot(dx, dz) || 1, speed = 2.6 + 6 * m;
+    let nx = WALK.x + dx / L * speed * m * dt, nz = WALK.z + dz / L * speed * m * dt;
+    // slide along walls instead of stopping dead
+    for (const b of WALK.boxes) {
+      if (nx < b[0] - 1 || nx > b[2] + 1 || nz < b[1] - 1 || nz > b[3] + 1) continue;
+      const qx = Math.max(b[0], Math.min(nx, b[2])), qz = Math.max(b[1], Math.min(nz, b[3])), ex = nx - qx, ez = nz - qz, d = Math.hypot(ex, ez), r = .55;
+      if (d > 0 && d < r) { nx = qx + ex / d * r; nz = qz + ez / d * r; }
+      else if (d === 0) { const pen = [[nx - b[0] + r, -1, 0], [b[2] - nx + r, 1, 0], [nz - b[1] + r, 0, -1], [b[3] - nz + r, 0, 1]].sort((a, b2) => a[0] - b2[0])[0]; nx += pen[1] * pen[0]; nz += pen[2] * pen[0]; }
+    }
+    if (onGrass(nx, nz, S.s, .005)) { WALK.x = nx; WALK.z = nz; }
+    WALK.head += angDiff(Math.atan2(dx, dz), WALK.head) * Math.min(1, dt * 10);
+    if (performance.now() - WALK.lastDrag > 900 && fy > .2) WALK.cy += angDiff(WALK.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);   // the camera swings in behind you
+  }
+  const gy = groundAt(WALK.x, WALK.z), f = WALK.fig;
+  f.position.set(WALK.x, gy + Math.abs(Math.sin(WALK.t * 9)) * .07 * m, WALK.z); f.rotation.set(0, WALK.head, Math.sin(WALK.t * 9) * .04 * m);
+  placeWalkCam(WALK.x, gy + 1.9, WALK.z, 7.2);
+}
+/* ---------- driving your own car ---------- */
+// where your car is parked: in front of your house, or wherever you left it
+function parkedSpot(h) { const zo = Math.min(2.6, 4.4 - CARS[h.cm].L / 2), cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return { x: h.x + 3.9 * cs + zo * sn, z: h.z - 3.9 * sn + zo * cs, head: h.lot.face }; }
+const carHere = () => WALK.car ? { x: WALK.car.x, z: WALK.car.z, head: WALK.car.head } : parkedSpot(WALK.h);
+// lift the parked copy of your car off the lawn while you drive it (and put it back at the end)
+function hideParked(h, hide) {
+  for (const m of S.picks) if (m.userData.parked && m.userData.items.includes(h)) {
+    const i = m.userData.items.indexOf(h);
+    for (const q of [m, ...(m.userData.twins || [])]) {
+      if (hide) { q.userData.saved ||= new THREE.Matrix4(); q.getMatrixAt(i, q.userData.saved); o3.position.set(0, -200, 0); o3.rotation.set(0, 0, 0); o3.scale.setScalar(.001); o3.updateMatrix(); q.setMatrixAt(i, o3.matrix); }
+      else if (q.userData.saved) q.setMatrixAt(i, q.userData.saved);
+      q.instanceMatrix.needsUpdate = true;
+    }
+  }
+}
+function enterCar() {
+  const h = WALK.h, sp = carHere();
+  if (!WALK.car) { hideParked(h, true); WALK.car = { ...sp, v: 0, mv: mover(P["car_" + h.cm], h.cc) }; }
+  WALK.mode = "car"; WALK.fig.visible = false; WALK.cy = WALK.car.head + Math.PI; WALK.pitch = .22; walkButtons();
+}
+function exitCar() {
+  const c = WALK.car; WALK.mode = "foot"; c.v = 0;
+  // step out on the driver's side
+  WALK.x = c.x + Math.cos(c.head) * 1.9; WALK.z = c.z - Math.sin(c.head) * 1.9; WALK.head = c.head; WALK.fig.visible = true; WALK.pitch = .3; walkButtons();
+}
+function driveStep(dt) {
+  const k = WALK.keys, c = WALK.car; let steer = WALK.joy.x, gas = WALK.joy.y;
+  if (k.ArrowUp || k.KeyW) gas += 1; if (k.ArrowDown || k.KeyS) gas -= 1; if (k.ArrowLeft || k.KeyA) steer -= 1; if (k.ArrowRight || k.KeyD) steer += 1;
+  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer));
+  const top = CARS[WALK.h.cm].tier === 3 ? 34 : CARS[WALK.h.cm].tier === 2 ? 27 : 22;
+  if (gas > .05) c.v += (c.v < 0 ? 30 : 13) * gas * dt; else if (gas < -.05) c.v += (c.v > 0 ? 30 : 8) * gas * dt; else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 9 * dt);
+  c.v = Math.max(-7, Math.min(top, c.v));
+  c.head -= steer * Math.min(1, Math.abs(c.v) / 6) * 1.6 * dt * Math.sign(c.v || 1);
+  const nx = c.x + Math.sin(c.head) * c.v * dt, nz = c.z + Math.cos(c.head) * c.v * dt, r = 1.2;
+  // blocked only when driving into a wall (a car that starts against a house can always drive away from it)
+  const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
+  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !onGrass(nx, nz, S.s, .01);
+  if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
+  c.mv.set(c.x, groundAt(c.x, c.z), c.z, c.head);
+  WALK.x = c.x; WALK.z = c.z;
+  // the camera follows behind the car, and swings in on turns
+  if (performance.now() - WALK.lastDrag > 700) WALK.cy += angDiff(c.head + Math.PI, WALK.cy) * Math.min(1, dt * 3);
+  placeWalkCam(c.x, groundAt(c.x, c.z) + 2.2, c.z, 11 + Math.abs(c.v) * .12);
+  const sp = $("wSpd"); if (sp && WALK.frame % 6 === 0) sp.textContent = `${Math.round(Math.abs(c.v) * 3.6)} קמ״ש`;
+}
+// the action button: get into the car when you stand next to it, get out while driving
+function walkButtons() {
+  const b = $("wAct"), dr = $("wDoor"); if (!b) return;
+  // the nearest door you're standing at
+  let best = null, bd = Infinity;
+  if (WALK.mode !== "car") for (const d of WALK.doors) { const q = Math.hypot(d.x - WALK.x, d.z - WALK.z); if (q < d.r && q < bd) { bd = q; best = d; } }
+  WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `🚪 ${best.label}`;
+  if (WALK.mode === "car") { b.hidden = false; b.textContent = "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
+  $("wSpd").hidden = true;
+  const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
+}
+function walkMinimap() {
+  const cv = $("wMap"); if (!cv) return; const x = cv.getContext("2d"), W = cv.width, sc = 1.1, cx0 = WALK.x, cz0 = WALK.z;
+  x.fillStyle = "#8bb36a"; x.fillRect(0, 0, W, W);
+  x.save(); x.translate(W / 2, W / 2); x.rotate(WALK.cy);   // the map turns with you: up is where you look
+  x.fillStyle = "#4a5057"; x.fillRect(-W, -W, W * 2, W * 2);
+  for (const sl of S.slots) if (sl.city) for (const b of sl.blocks.values()) {
+    const bxp = sl.x + BPX(b.bx) - cx0, bzp = sl.z + BPZ(b.bz) - cz0; if (Math.abs(bxp) > 160 || Math.abs(bzp) > 160) continue;
+    x.fillStyle = b.civic === "park" ? "#79a65a" : b.civic === "square" ? "#e3d7bf" : b.civic ? "#d8cfbd" : "#c9c2b4"; x.fillRect((bxp - 21) * sc, (bzp - 11) * sc, 42 * sc, 22 * sc);
+  }
+  if (WALK.car && WALK.mode !== "car") { x.fillStyle = WALK.h.cc; x.fillRect((WALK.car.x - cx0) * sc - 4, (WALK.car.z - cz0) * sc - 4, 8, 8); }
+  x.fillStyle = "#e07a4f"; const hp = [(WALK.h.x - cx0) * sc, (WALK.h.z - cz0) * sc]; if (Math.hypot(...hp) < W) { x.beginPath(); x.arc(hp[0], hp[1], 6, 0, Math.PI * 2); x.fill(); }
+  x.restore();
+  x.fillStyle = "#1f6f8b"; x.beginPath(); x.moveTo(W / 2, W / 2 - 11); x.lineTo(W / 2 + 8, W / 2 + 8); x.lineTo(W / 2 - 8, W / 2 + 8); x.closePath(); x.fill();
+}
+function walkFrame(dt, now) {
+  walkStep(dt); animate(dt);
+  if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
+  sunFollow(WALK.fig.position, 90);
+  if (WALK.frame % 3 === 0) walkButtons();
+  if (WALK.frame++ % 8 === 0) {
+    walkMinimap();
+    for (const l of LABELS) { const d = Math.hypot(l.position.x - WALK.x, l.position.z - WALK.z); l.visible = d < (l.element.classList.contains("st") ? 55 : l.element.classList.contains("city") ? 400 : 110); }
+    const st = streetHere(WALK.x, WALK.z); if (st !== WALK.street) { WALK.street = st; const e = $("wSt"); if (e) e.textContent = st || "טיול בעיר"; }
+  }
+  renderer.render(scene, walkCam); labelRenderer.render(scene, walkCam);
+}
 /* ============================ DRAWER ============================ */
 const stack = [];
 function open(title, html, after, push = false) { if (!push) stack.length = 0; stack.push({ title, html, after }); render(); }
@@ -1826,7 +2036,7 @@ function showHouse(h) {
   const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>`;
   const owner = !me || h.coins == null ? "" : key
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
-       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
+       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="walk" data-arg="${esc(h.u)}">🚶 לצאת לטייל</button><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
   open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
     <div data-go="id" data-arg="${esc(h.u)}" style="cursor:pointer;max-width:420px;margin:0 auto">${idcHtml(h)}</div>
@@ -2599,10 +2809,10 @@ async function shift(u, b) {
 }
 function exitWork() {
   if (!INT.on) return;
-  INT.ctl.dispose(); controls.enabled = true;
+  INT.ctl.dispose(); controls.enabled = !WALK.on;
   INT.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable || o.material?.map) { o.material.map?.dispose(); o.material.dispose(); } } });
   INT.on = false; INT.sc = null; INT.tag = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
-  const w = INT.w; if (w) setTimeout(() => w.kind === "ballot" ? GO.ballotHouse() : w.back ? w.back() : showWork(w), 50);
+  const w = INT.w; if (w && !WALK.on) setTimeout(() => w.kind === "ballot" ? GO.ballotHouse() : w.back ? w.back() : showWork(w), 50);   // walking: back out on the street, at the same door
 }
 GO.enter = id => { const w = interiorTarget(id); if (!w) return toast("אי אפשר להיכנס לכאן"); if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
 
@@ -3603,6 +3813,7 @@ TEMPLATES.custom = { ic: "✏️", name: "ריל בעריכה שלי", sub: "", 
 GO.reel = k => startReel(k);
 GO.reelHome = u => startReel("home", u || S.mine?.u);
 GO.reelArrive = u => startReel("arrival", u || S.mine?.u);
+GO.walk = walkStart;
 
 /* ============================ DATA ============================ */
 // newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
@@ -3678,7 +3889,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
