@@ -382,8 +382,9 @@ const polar = (x, z, s) => ({ t: Math.atan2(z / (RZ0 * s), x / (RX0 * s)), d: Ma
 const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < GRASS * shoreF(p.t) - m; };
 const shorePt = (t, s, k = 1) => ({ x: Math.cos(t) * RX0 * s * shoreF(t) * k, z: Math.sin(t) * RZ0 * s * shoreF(t) * k });
 const MILESTONES = [0, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
-const SLOTS = MILESTONES.map((at, k) => { if (!k) return { at, x: 0, z: 0 }; const d = .5 * RX0 * growth(at), a = k * 2.39996 + .6; return { at, x: Math.cos(a) * d, z: Math.sin(a) * d * RZ0 / RX0 }; });
-const BX = 48, BZ = 28;
+// city sites are spread far enough apart that each city has room for everyone who arrives until the next city opens
+const SLOTS = MILESTONES.map((at, k) => { if (!k) return { at, x: 0, z: 0 }; const d = .72 * RX0 * growth(at), a = k * 2.39996 + .6; return { at, x: Math.cos(a) * d, z: Math.sin(a) * d * RZ0 / RX0 }; });
+const BX = 48, BZ = 36, SD = BZ - 6, HZ = SD / 2;   // a block: 48 x 36 with the street, its sidewalk SD deep (deep enough for a back garden behind each house)
 /* the city plan: a wide boulevard every 4 blocks in each direction (an extra gap between two block columns or rows), roundabouts where boulevards meet,
    squares and parks between the houses, pedestrian lanes through some blocks */
 const GAP = 22;   // how much wider a boulevard is than an ordinary street
@@ -394,9 +395,34 @@ const OFFX = new Map(), OFFZ = new Map(), BPX = bx => offAxis(bx, BX, blvX, OFFX
 const blvCX = e => BPX(e) - BX / 2 - GAP / 2, blvCZ = e => BPZ(e) - BZ / 2 - GAP / 2;   // center line of the boulevard before block e
 const invAxis = (v, B, Pf) => { const k = Math.round(v / (B + GAP / 4)); let best = k, bd = Infinity; for (let q = k - 3; q <= k + 3; q++) { const d = Math.abs(Pf(q) - v); if (d < bd) { bd = d; best = q; } } return best; };
 // what a block of houses becomes: most are houses, some are squares or parks, some have a lane through the middle
-const blockKind = (slot, bx, bz) => { if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 2 ? "square" : h < 4 ? "park" : h < 9 ? "lane" : "houses"; };
-const LOT_X = { houses: [-15, -5, 5, 15], lane: [-16.4, -8.2, 8.2, 16.4] };
-const blockLots = kind => { const xs = LOT_X[kind] || LOT_X.houses, w = kind === "lane" ? 8.1 : 9.3, out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < 4; i++) out.push({ dx: xs[i], dz: -5 + j * 10, i, j, w }); return out; };
+const blockKind = (slot, bx, bz) => { if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 2 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
+const OPEN_KINDS = ["square", "park", "round"];
+// a raised corner of sidewalk around a round junction: the quadrant [W..hw] x [W..hd] outside the circle RR
+function cornerPiece(sx, sz, W, hw, hd, RR, col, y0 = .3, y1 = CURB) {
+  const top = RR * RR - hd * hd > W * W, a0 = Math.asin(W / RR), a1 = top ? Math.asin(hd / RR) : Math.acos(W / RR), pts = [];
+  for (let i = 0; i <= 16; i++) { const a = a0 + (a1 - a0) * i / 16; pts.push([Math.cos(a) * RR, Math.sin(a) * RR]); }
+  if (!top) pts.push([W, hd]); pts.push([hw, hd], [hw, W]);
+  const sh = new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(sx * x, -sz * z)));
+  return part(new THREE.ExtrudeGeometry(sh, { depth: y1 - y0, bevelEnabled: false }).rotateX(-Math.PI / 2), col, 0, y0, 0);
+}
+// the capital's city square: its 9 middle blocks are one huge round square, with a ring road around it and tall buildings on the corners
+const CENTRAL = { RP: 26, RR: 34, W: 4.5, on: null, q: null, boxes: [] };
+const isCentral = (si, bx, bz) => si === 0 && Math.max(Math.abs(bx), Math.abs(bz)) <= 1;
+function centralBox(slot) { const x0 = slot.x + BPX(-1) - BX / 2, x1 = slot.x + BPX(1) + BX / 2, z0 = slot.z + BPZ(-1) - BZ / 2, z1 = slot.z + BPZ(1) + BZ / 2; return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hw: (x1 - x0) / 2 - 3, hd: (z1 - z0) / 2 - 3 }; }
+// the houses around the city square: in each corner two face the plaza and two face the side street; their address is the square itself
+function centralLots(slot) {
+  const C = centralBox(slot), name = S.blkCfg?.get(`blk_${slot.at}_c`)?.name || "כיכר העיר", out = []; let n = 0;
+  const ROWS = [[31, C.hd - 6.9, "z"], [44.5, C.hd - 6.9, "z"], [C.hw - 6.9, 13, "x"], [C.hw - 6.9, 26.5, "x"]];
+  for (const [sx, sz] of [[1, 1], [-1, 1], [-1, -1], [1, -1]]) for (const [ax, az, row] of ROWS) {
+    const x = C.cx + sx * ax, z = C.cz + sz * az;
+    out.push({ x, z, bx: 0, bz: 0, d: Math.hypot(x - slot.x, z - slot.z), i: 0, j: 0, dx: sx * ax, sq: { sx, sz, row }, face: row === "z" ? (sz > 0 ? Math.PI : 0) : (sx > 0 ? -Math.PI / 2 : Math.PI / 2), street: name, num: ++n });
+  }
+  return out;
+}
+const inCentral = (x, z, pad = 0) => { const c = CENTRAL.on; return !!c && Math.abs(x - c.cx) < c.hw + pad && Math.abs(z - c.cz) < c.hd + pad; };
+// every citizen gets a wide lot: 3 houses along a block (2 on a block with a lane), with room for a garden and the car beside the house
+const LOT_X = { houses: [-14, 0, 14], lane: [-12.5, 12.5] };
+const blockLots = kind => { const xs = LOT_X[kind] || LOT_X.houses, w = kind === "lane" ? 12.4 : 13.3, out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < xs.length; i++) out.push({ dx: xs[i], dz: -7 + j * 14, i, j, w }); return out; };
 const pickName = (list, key, si) => list[(hash(key) + si * 3) % list.length];
 const GOV = [
   { id: "knesset", name: "הכנסת", ic: "🏛️", bx: 0, bz: -1 },
@@ -412,7 +438,7 @@ function reservedBlocks(slot, si) {
     if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (nearestSlot(cx, cz).at !== slot.at) continue;
-    if (![[-22, -12], [22, -12], [-22, 12], [22, 12]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
+    if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
     cand.push({ bx, bz, d: Math.hypot(BPX(bx), BPZ(bz)) });
   }
   cand.sort((a, b) => a.d - b.d || a.bx - b.bx || a.bz - b.bz);
@@ -434,7 +460,7 @@ function extraBlocks(slot, si) {
     const d = Math.hypot(BPX(bx), BPZ(bz)); if (d < 150 || res.has(bx + "," + bz)) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (nearestSlot(cx, cz).at !== slot.at) continue;
-    if (![[-22, -12], [22, -12], [-22, 12], [22, 12]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
+    if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
     cand.push({ bx, bz, d });
   }
   cand.sort((a, b) => a.d - b.d || a.bx - b.bx || a.bz - b.bz);
@@ -450,19 +476,20 @@ function cityLots(slot, si, need) {
   for (let R = 260; ; R *= 1.6) {
     const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
     for (let bx = -nb; bx <= nb; bx++) for (let bz = -nz; bz <= nz; bz++) {
-      if ((bx === 0 && bz === 0) || res.has(bx + "," + bz)) continue;
-      const kind = blockKind(slot, bx, bz); if (kind === "square" || kind === "park") continue;
+      if ((bx === 0 && bz === 0) || isCentral(si, bx, bz) || res.has(bx + "," + bz)) continue;
+      const kind = blockKind(slot, bx, bz); if (OPEN_KINDS.includes(kind)) continue;
       const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
       for (const L of blockLots(kind)) {
         const x = cx + L.dx, z = cz + L.dz, d = Math.hypot(x - slot.x, z - slot.z);
         if (d > R || !onGrass(x, z, MAX_S, .04) || nearestSlot(x, z).at !== slot.at) continue;
-        lots.push({ x, z, bx, bz, d, j: L.j, i: L.i, face: L.j === 0 ? Math.PI : 0 });
+        lots.push({ x, z, bx, bz, d, j: L.j, i: L.i, dx: L.dx, face: L.j === 0 ? Math.PI : 0 });
       }
     }
     if (lots.length >= need || R > 6000) {
+      if (si === 0) lots.push(...centralLots(slot));
       lots.sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
       slot.st = { names: new Map(), next: 0, nextB: 0 };   // street names are handed out in order of first appearance, from the center out
-      for (const l of lots) { const e = l.j === 0 ? l.bz : l.bz + 1; l.street = streetName(slot, si, e, l.bx); l.num = houseNum(e, l.bx, l.i, l.j); }
+      for (const l of lots) { if (l.sq) continue; const e = l.j === 0 ? l.bz : l.bz + 1; l.street = streetName(slot, si, e, l.bx); l.num = houseNum(e, l.bx, l.i, l.j); }
       return lots;
     }
   }
@@ -478,7 +505,7 @@ function streetName(slot, si, e, bx) {
   return st.names.get(key);
 }
 // numbers run along the street: odd on the north side, even on the south side
-const houseNum = (e, bx, i, j) => { const n = blvZ(e) ? Math.max(0, bx + 12) * 4 + i + 1 : (((bx - 2) % 4) + 4) % 4 * 4 + i + 1; return j === 0 ? 2 * n - 1 : 2 * n; };
+const houseNum = (e, bx, i, j) => { const n = blvZ(e) ? Math.max(0, bx + 12) * 3 + i + 1 : (((bx - 2) % 4) + 4) % 4 * 3 + i + 1; return j === 0 ? 2 * n - 1 : 2 * n; };
 // the address of a whole block (a public building, a square): on the street in front of it
 const blockAddr = (slot, si, bx, bz) => `${streetName(slot, si, bz + 1, bx)} ${houseNum(bz + 1, bx, 1, 1) + 2}, ${slot.city?.name || ""}`;
 
@@ -719,7 +746,7 @@ function buildTerrain() {
 
 /* ============================ LAYOUT ============================ */
 function layout() {
-  S.houses = []; S.byUser.clear(); S.byAddr.clear();
+  S.houses = []; S.byUser.clear(); S.byAddr.clear(); CENTRAL.on = null;
   const byCity = new Map();
   for (const c of S.raw) { if (!byCity.has(c.city_id)) byCity.set(c.city_id, []); byCity.get(c.city_id).push(c); }
   let need = growth(S.total);
@@ -739,7 +766,8 @@ function layout() {
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
-    slot.blocks.set("0,0", { bx: 0, bz: 0, civic: "plaza" });
+    if (si === 0) { for (let bx = -1; bx <= 1; bx++) for (let bz = -1; bz <= 1; bz++) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "central" }); CENTRAL.on = centralBox(slot); }
+    else slot.blocks.set("0,0", { bx: 0, bz: 0, civic: "plaza" });
     slot.reserved = reservedBlocks(slot, si);
     for (const [bx, bz] of slot.reserved) {
       // an L-shaped street from the plaza: along the row, then up or down the column
@@ -760,12 +788,12 @@ function layout() {
     // squares and parks appear once the neighborhood around them is built
     const bl = [...slot.blocks.values()], xs = bl.map(b => b.bx), zs = bl.map(b => b.bz);
     for (let bx = Math.min(...xs); bx <= Math.max(...xs); bx++) for (let bz = Math.min(...zs); bz <= Math.max(...zs); bz++) {
-      const k = blockKind(slot, bx, bz), cur = slot.blocks.get(`${bx},${bz}`); if ((k !== "square" && k !== "park") || cur?.civic) continue;
+      const k = blockKind(slot, bx, bz), cur = slot.blocks.get(`${bx},${bz}`); if (!OPEN_KINDS.includes(k) || cur?.civic) continue;
       let n = 0; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) if (slot.blocks.has(`${bx + a},${bz + b}`)) n++;
       if ((cur || n >= 3) && onGrass(slot.x + BPX(bx), slot.z + BPZ(bz), MAX_S, .05) && nearestSlot(slot.x + BPX(bx), slot.z + BPZ(bz)).at === slot.at) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: k });
     }
     // the island must cover every block of this city
-    for (const b of slot.blocks.values()) for (const [dx, dz] of [[-26, -16], [26, -16], [-26, 16], [26, 16]]) {
+    for (const b of slot.blocks.values()) for (const [dx, dz] of [[-26, -HZ - 5], [26, -HZ - 5], [-26, HZ + 5], [26, HZ + 5]]) {
       const x = slot.x + BPX(b.bx) + dx, z = slot.z + BPZ(b.bz) + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0);
       need = Math.max(need, d / (GRASS * shoreF(t) - .05) + .02);
     }
@@ -785,7 +813,7 @@ const TRAFFIC_MIX = ["mini", "mini", "station", "station", "shakshuka", "pita", 
 const SHIRTS = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8", "#222831", "#ef7f9f", "#1f6f8b"];
 // pedestrians walk around the sidewalk of their block
 function placeWalker(w, o, t) {
-  const hx = 20.3, hz = 10.3, per = 4 * (hx + hz), d = ((w.p * per + w.dir * w.v * t) % per + per) % per;
+  const hx = 20.3, hz = HZ - .7, per = 4 * (hx + hz), d = ((w.p * per + w.dir * w.v * t) % per + per) % per;
   let x, z, r;
   if (d < 2 * hx) { x = -hx + d; z = -hz; r = Math.PI / 2; } else if (d < 2 * hx + 2 * hz) { x = hx; z = -hz + d - 2 * hx; r = 0; }
   else if (d < 4 * hx + 2 * hz) { x = hx - (d - 2 * hx - 2 * hz); z = hz; r = -Math.PI / 2; } else { x = -hx; z = hz - (d - 4 * hx - 2 * hz); r = Math.PI; }
@@ -809,23 +837,25 @@ function buildCities() {
     const si = S.slots.indexOf(slot), taken = new Set(S.houses.filter(h => h.slot === slot && h.lot).map(h => `${h.lot.x},${h.lot.z}`));
     for (const b of slot.blocks.values()) {
       const cx = slot.x + BPX(b.bx), cz = slot.z + BPZ(b.bz), green = b.civic === "park";
-      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, 22, b.civic ? (green ? "#cfc6b0" : "#d8cfbd") : "#c9c2b4"]); curbs.push([cx, cz, 42.6, 22.6, "#9b978f"]);
+      if (b.civic === "central") { asphalt.push([cx, cz, BX, BZ, "#4a5057"]); continue; }   // built as one piece by buildCentral
+      if (b.civic === "round") { asphalt.push([cx, cz, BX, BZ, "#4a5057"]); squares.push({ slot, si, b, cx, cz, kind: "round" }); continue; }   // a roundabout square in the middle of the road
+      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, SD, b.civic ? (green ? "#cfc6b0" : "#d8cfbd") : "#c9c2b4"]); curbs.push([cx, cz, 42.6, SD + .6, "#9b978f"]);
       if (b.civic === "square" || b.civic === "park") squares.push({ slot, si, b, cx, cz, kind: b.civic });
       if (!b.civic) {
         const kind = blockKind(slot, b.bx, b.bz), L = blockLots(kind);
         for (const l of L) {
           const x = cx + l.dx, z = cz + l.dz, t = taken.has(`${x},${z}`);
-          lawn.push([x, z, l.w, 9.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
+          lawn.push([x, z, l.w, 13.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
           if (!t) continue;
-          hedges.push([x, z + (l.j ? -4.55 : 4.55), l.w - .1, .8, .35]);
+          hedges.push([x, z + (l.j ? -6.55 : 6.55), l.w - .1, .8, .35]);
           const nx = L.find(q => q.j === l.j && q.i === l.i + 1);
-          if (nx && !(kind === "lane" && l.i === 1) && taken.has(`${cx + nx.dx},${z}`)) hedges.push([(x + cx + nx.dx) / 2, z, .35, .7, 8.6]);
+          if (nx && kind !== "lane" && taken.has(`${cx + nx.dx},${z}`)) hedges.push([(x + cx + nx.dx) / 2, z, .35, .7, 12.6]);
         }
         if (kind === "lane") lanes.push({ slot, si, b, cx, cz });
       }
       if (b.civic !== "work") for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
-      if (!blvZ(b.bz)) for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - 14, 3.2, .3, "#e8e3d4"]);
-      for (const [dx, dz] of [[-20.6, -10.6], [20.6, 10.6]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
+      if (!blvZ(b.bz)) for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - BZ / 2, 3.2, .3, "#e8e3d4"]);
+      for (const [dx, dz] of [[-20.6, -HZ + .4], [20.6, HZ - .4]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
     }
     // boulevards: a 28m wide avenue every 4 blocks, two lanes each way, a planted median with palms, roundabouts and zebra crossings at the junctions
     const bl = [...slot.blocks.values()]; if (!bl.length) continue;
@@ -854,8 +884,9 @@ function buildCities() {
     };
     // street names, once in the middle of every street between two boulevards, and along the boulevards
     for (const b of slot.blocks.values()) {
+      if (b.civic === "central") continue;
       if (blvZ(b.bz) ? ((b.bx % 3) + 3) % 3 !== 0 : ((((b.bx - 2) % 4) + 4) % 4) !== 1) continue;
-      const cx = slot.x + BPX(b.bx) + (blvZ(b.bz) ? 0 : BX / 2), cz = slot.z + (blvZ(b.bz) ? blvCZ(b.bz) + 7.5 : BPZ(b.bz) - 14);
+      const cx = slot.x + BPX(b.bx) + (blvZ(b.bz) ? 0 : BX / 2), cz = slot.z + (blvZ(b.bz) ? blvCZ(b.bz) + 7.5 : BPZ(b.bz) - BZ / 2);
       placeLabel(streetName(slot, si, b.bz, b.bx), cx, 1.2, cz, "st", 7);
     }
     for (let e = mnZ + 1; e <= mxZ; e++) if (blvZ(e)) avenue(false, slot.z + blvCZ(e), ax0, ax1, jX);
@@ -873,7 +904,7 @@ function buildCities() {
   // every square and park in a city gets a name of its own, handed out from the center outwards
   for (const slot of open) { const si = S.slots.indexOf(slot);
     for (const kind of ["square", "park"]) { const L = kind === "park" ? PARKS : SQUARES;
-      squares.filter(q => q.slot === slot && q.kind === kind).sort((a, b) => Math.hypot(a.cx - slot.x, a.cz - slot.z) - Math.hypot(b.cx - slot.x, b.cz - slot.z) || a.cx - b.cx)
+      squares.filter(q => q.slot === slot && (kind === "park") === (q.kind === "park")).sort((a, b) => Math.hypot(a.cx - slot.x, a.cz - slot.z) - Math.hypot(b.cx - slot.x, b.cz - slot.z) || a.cx - b.cx)
         .forEach((q, i) => q.autoName = L[(i + si * 3) % L.length] + (i >= L.length ? " " + (HEB[Math.floor(i / L.length)] || i) : "")); } }
   buildRoundabouts(rounds); squares.forEach(buildSquare); lanes.forEach(buildLane);
   traffic = [...blvTraffic];
@@ -916,8 +947,8 @@ function buildCities() {
   }
   // gardens
   const back = (h, k) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return [h.x - k * cs - k * sn, h.z + k * sn - k * cs]; };
-  instanced(P.olive, S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), (h, o) => { const [x, z] = back(h, 3.6); o.position.set(x, LAWN, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; });
-  instanced(P.palm, S.houses.filter(h => h.lot && h.tier === 3), (h, o) => { const [x, z] = back(h, 4.2); o.position.set(x, LAWN, z); });
+  instanced(P.olive, S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), (h, o) => { const [x, z] = back(h, 4.6); o.position.set(x, LAWN, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; });
+  instanced(P.palm, S.houses.filter(h => h.lot && h.tier === 3), (h, o) => { const [x, z] = back(h, 5.2); o.position.set(x, LAWN, z); });
   // street lamps + pools of light
   const L = [...lamps.values()];
   instanced(P.lamp, L, (l, o) => { o.position.set(l.x, CURB, l.z); o.rotation.y = l.r; });
@@ -932,15 +963,20 @@ function buildCities() {
     const r0 = rng(slot.at + 3);
     for (const [bz, r] of [...rows.entries()].sort((a, b) => Math.abs(a[0]) - Math.abs(b[0])).slice(0, 8)) {
       if (blvZ(bz)) continue;   // the boulevards have their own traffic
-      const z = slot.z + BPZ(bz) - 14, x0 = slot.x + BPX(r.min) - BX / 2, x1 = slot.x + BPX(r.max) + BX / 2;
-      for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
+      const z = slot.z + BPZ(bz) - BZ / 2, X0 = slot.x + BPX(r.min) - BX / 2, X1 = slot.x + BPX(r.max) + BX / 2, C = CENTRAL.on;
+      // a street that runs into the city square stops at its edge, on both sides
+      const segs = inCentral(C?.cx ?? 0, z) ? [[X0, C.cx - C.hw - 3], [C.cx + C.hw + 3, X1]] : [[X0, X1]];
+      for (const [x0, x1] of segs) if (x1 - x0 > 30) for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
     }
   }
+  // cars going round the ring road of the city square, counterclockwise as in Israel
+  if (CENTRAL.on) { const C = CENTRAL.on, r0 = rng(77); for (const r of [28, 31.6]) { const L = 2 * Math.PI * r; for (let k = 0; k < 5; k++)
+    traffic.push({ ring: { cx: C.cx, cz: C.cz, r }, x0: 0, x1: L, dir: -1, p: (k + r0() * .6) / 5 * L, v: 6 + r0() * 4, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); } }
   trafficSets = [...new Set(traffic.map(t => t.m))].map(k => { const list = traffic.filter(t => t.m === k);
     return { list, mesh: instanced(P["car_" + k], list, (t, o) => { placeCar(t, o); return t.c; }) }; });
   walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false });
 
-  open.forEach((slot, si) => { plaza(slot, si === 0); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
+  open.forEach((slot, si) => { if (slot === S.slots[0] && CENTRAL.on) buildCentral(slot); else plaza(slot, false); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
   // future city sites that are already on the island
   S.slots.filter(s => !s.city && onGrass(s.x, s.z, S.s, .02)).forEach(slot => {
     const ring = new THREE.Mesh(new THREE.RingGeometry(24, 26, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: .55 }));
@@ -954,12 +990,13 @@ function buildCities() {
 
 // a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z
 function placeCar(c, o) {
+  if (c.ring) { const { cx, cz, r } = c.ring, a = c.p / r; o.position.set(cx + Math.cos(a) * r, .3, cz + Math.sin(a) * r); o.rotation.set(0, Math.atan2(-c.dir * Math.sin(a), c.dir * Math.cos(a)), 0); return; }
   if (c.vert) { o.position.set(c.z, .3, c.x0 + c.p); o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
   else { o.position.set(c.x0 + c.p, .3, c.z); o.rotation.set(0, c.dir * Math.PI / 2, 0); }
 }
 /* ---------- items the admin places on squares, parks and public lots ---------- */
 const blkKey = (slot, bx, bz) => `blk_${slot.at}_${bx}_${bz}`;
-const SQ_NAMES = new Map(), BLK_META = new Map();
+const SQ_NAMES = new Map(), BLK_META = new Map(), ROUNDS = new Map();   // ROUNDS: the roundabout squares, for walking and the minimap
 // a hexagram: two extruded triangle frames, one pointing up and one down
 function hexagram(R, w, col) {
   const tri = rot => { const sh = new THREE.Shape(), hole = new THREE.Path(), ri = R - w * 2;
@@ -1008,7 +1045,8 @@ const ITEMS = {
 const ITEM_SIZES = { s: ["קטן", .6], m: ["רגיל", 1], l: ["גדול", 1.6], xl: ["ענק", 2.4] };
 const ITEM_X = [-15, -7.5, 0, 7.5, 15], ITEM_Z = [-6, 0, 6];
 // one GLB file, as many copies as needed, standing on the ground at (x, z), `height` tall
-function itemModel(url, x, y, z, height, ry, data) {
+const FINISH_MATS = { gold: ["#d9b65a", .85, .3], blue: ["#1f4fa8", .3, .35], marble: ["#f2efe8", 0, .55], patina: ["#5f9384", .55, .42], silver: ["#c9ced3", .9, .25] };
+function itemModel(url, x, y, z, height, ry, data, finish) {
   url = String(url || "").trim(); if (!url) return; const build = BUILD_NO;
   if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
   MODEL_CACHE.get(url).then(src => {
@@ -1017,15 +1055,25 @@ function itemModel(url, x, y, z, height, ry, data) {
     const bb = new THREE.Box3().setFromObject(m, true), size = bb.getSize(new THREE.Vector3()), k = height / (size.y || 1), c = bb.getCenter(new THREE.Vector3());
     m.position.set(-c.x * k, -bb.min.y * k, -c.z * k); m.scale.setScalar(k);
     const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry;
-    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (data) { n.userData = { ...data }; S.picks.push(n); } });
+    const F = FINISH_MATS[finish], fm = F && new THREE.MeshStandardMaterial({ color: F[0], metalness: F[1], roughness: F[2], envMapIntensity: 1.1 });
+    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (fm) n.material = fm; if (data) { n.userData = { ...data }; S.picks.push(n); } });
     world.add(grp);
   }).catch(() => { if (ADMIN) toast("לא הצלחנו לטעון את קובץ התלת־ממד. בדקו את הכתובת", 5000); });
 }
-function buildItems(items, cx, cz, y, data) {
+// what stands in the middle of a square: a fountain, a clock tower, a bandstand or a ring sculpture (built for a 9.5m plaza)
+function centerParts(d) {
+  if (d === 0) return [cyl(4, 4.2, .7, 32, "#d9cfb9"), cyl(3.7, 3.7, .1, 32, "#3fa8cf", 0, .62, 0), cyl(.5, .7, 2.4, 12, "#d9cfb9", 0, .7, 0), cyl(1.6, 1.3, .3, 18, "#d9cfb9", 0, 3.1, 0), cyl(1.4, 1.4, .06, 18, "#3fa8cf", 0, 3.38, 0), sph(.4, "#d9cfb9", 0, 3.8, 0)];
+  if (d === 1) return [box(2.6, 9, 2.6, "#d9c39a"), box(3, .3, 3, "#b9a47a", 0, 9, 0), ...[0, 1, 2, 3].map(i => cyl(.8, .8, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * 1.33, 7.7, Math.cos(i * Math.PI / 2) * 1.33)), part(new THREE.ConeGeometry(2, 2.4, 4), "#7a2a20", 0, 10.5, 0, { y: Math.PI / 4 })];
+  if (d === 2) { const Q = [cyl(4.2, 4.4, .6, 8, "#e9e2d3"), part(new THREE.ConeGeometry(4.8, 2, 8), "#2f6e7a", 0, 4.4, 0)];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.12, .12, 2.8, 6, "#ffffff", Math.cos(a) * 3.8, .6, Math.sin(a) * 3.8), sph(.14, "*#fff1c2", Math.cos(a) * 3.8, 3.3, Math.sin(a) * 3.8)); } return Q; }
+  return [box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 })];
+}
+function buildItems(items, cx, cz, y, data, fit) {
   for (const it of items || []) {
     const T = ITEMS[it.t]; if (!T) continue;
-    const k = (ITEM_SIZES[it.s]?.[1] || 1), x = cx + (+it.x || 0), z = cz + (+it.z || 0), ry = (+it.r || 0) * Math.PI / 180, col = it.c || T.col;
-    if (T.url) { itemModel(it.url, x, y, z, 6 * k, ry, data); continue; }
+    const [fx, fz] = fit ? fit(+it.x || 0, +it.z || 0) : [+it.x || 0, +it.z || 0];
+    const k = (ITEM_SIZES[it.s]?.[1] || 1), x = cx + fx, z = cz + fz, ry = (+it.r || 0) * Math.PI / 180, col = it.c || T.col;
+    if (T.url) { itemModel(it.url, x, y, z, 6 * k, ry, data, it.f); continue; }
     if (T.prefab) { instanced(P[T.prefab], [0], (_, o) => { o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(k); }); continue; }
     const g = solid(T.parts(col), x, z, ry, data, y); g.scale.setScalar(k * (T.scale || 1));
     if (T.text) { const sg = sign(it.text || "סבבה", 8, 2.2, { bg: col, fg: "#ffffff" }); mountSign(g, sg, 0, 3.3, .27); const bk = sign(it.text || "סבבה", 8, 2.2, { bg: col, fg: "#ffffff" }); mountSign(g, bk, 0, 3.3, -.27, Math.PI); }
@@ -1037,12 +1085,12 @@ function buildItems(items, cx, cz, y, data) {
 function blkEdit(key) {
   const M = BLK_META.get(key); if (!M || !ADMIN) return;
   const cfg = JSON.parse(JSON.stringify(S.blkCfg?.get(key) || {})); cfg.items ||= [];
-  const sq = M.kind === "square" || M.kind === "park", lot = M.kind === "lot";
+  const sq = ["square", "park", "central", "round"].includes(M.kind), lot = M.kind === "lot";
   const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}" ${String(k) === String(v ?? "") ? "selected" : ""}>${n}</option>`).join("");
   const draw = () => open(`✏️ ${M.title}`, `<div class="hero warn"><p><b>עריכת מנהל.</b> השינויים נכנסים לתוקף אצל כולם אחרי ״לשמור״.</p></div>
     <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
       ${M.kind !== "project" ? `<label>שם${M.kind === "lot" ? " (לא חובה)" : ""}<input id="bkName" value="${esc(cfg.name || (sq ? M.title : ""))}"></label>` : ""}
-      ${M.kind === "square" ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ["fountain", "⛲ מזרקה"], ["clock", "🕰️ מגדל שעון"], ["gazebo", "🎪 ביתן נגינה"], ["ring", "⭕ פסל טבעות"], ["none", "ריק (מקום לפריטים)"]], cfg.center)}</select></label>` : ""}
+      ${["square", "central", "round"].includes(M.kind) ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ["fountain", "⛲ מזרקה"], ["clock", "🕰️ מגדל שעון"], ["gazebo", "🎪 ביתן נגינה"], ["ring", "⭕ פסל טבעות"], ["none", "ריק (מקום לפריטים)"]], cfg.center)}</select></label>` : ""}
       ${sq ? `<label class="chk"><input type="checkbox" id="bkTrees" ${cfg.trees !== false ? "checked" : ""}> עצים</label><label class="chk"><input type="checkbox" id="bkBenches" ${cfg.benches !== false ? "checked" : ""}> ספסלים</label>
         ${M.kind === "square" ? `<label class="chk"><input type="checkbox" id="bkCafe" ${cfg.cafe !== false ? "checked" : ""}> בית קפה וקיוסק</label>` : ""}` : ""}
       ${lot ? `<label>הקרקע<select id="bkGround">${opt([["sand", "חול"], ["stone", "ריצוף אבן"], ["grass", "דשא"]], cfg.ground || "sand")}</select></label><label class="chk"><input type="checkbox" id="bkNoSign" ${cfg.noSign ? "checked" : ""}> להסתיר את השלט ״מה לבנות כאן?״</label>` : ""}
@@ -1062,14 +1110,14 @@ function blkEdit(key) {
     <div class="btns" style="margin-top:12px"><button class="btn" id="bkSave">💾 לשמור</button></div>`, () => {
     const extra = () => { const T = ITEMS[$("itT").value]; AVE.itT = $("itT").value;
       $("itExtra").innerHTML = (T.col ? `<label>צבע<input type="color" id="itC" value="${T.col}" style="height:44px;padding:4px 6px"></label>` : "") + (T.text ? `<label>הכיתוב<input id="itX" maxlength="30" placeholder="סבבה"></label>` : "")
-        + (T.url ? `<label>כתובת הקובץ (‎.glb)<input id="itU" dir="ltr" autocapitalize="off" placeholder="/models/my.glb"></label><p class="note">מעלים את הקובץ ל־GitHub ליד index.html, וכותבים כאן את השם שלו, למשל /models/my.glb</p>` : ""); };
+        + (T.url ? `<label>כתובת הקובץ (‎.glb)<input id="itU" dir="ltr" autocapitalize="off" placeholder="/models/my.glb"></label><label>גימור<select id="itF">${opt([["", "כמו בקובץ"], ["gold", "✨ זהב"], ["silver", "🥈 כסף"], ["blue", "🔵 כחול"], ["marble", "🤍 שיש לבן"], ["patina", "🗽 נחושת ירוקה"]], "")}</select></label><p class="note">מעלים את הקובץ ל־GitHub ליד index.html, וכותבים כאן את השם שלו, למשל /models/my.glb</p>` : ""); };
     $("itT").onchange = extra; extra();
     $("dBody").querySelectorAll("[data-pos]").forEach(b => b.onclick = () => { AVE.pos = b.dataset.pos; $("dBody").querySelectorAll("[data-pos]").forEach(q => q.classList.toggle("on", q === b)); });
     const keep = () => { if ($("bkName")) cfg.name = $("bkName").value.trim(); if ($("bkCenter")) cfg.center = $("bkCenter").value || undefined; if ($("bkTrees")) cfg.trees = $("bkTrees").checked;
       if ($("bkBenches")) cfg.benches = $("bkBenches").checked; if ($("bkCafe")) cfg.cafe = $("bkCafe").checked; if ($("bkGround")) cfg.ground = $("bkGround").value; if ($("bkNoSign")) cfg.noSign = $("bkNoSign").checked; };
     $("dBody").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { keep(); cfg.items.splice(+b.dataset.rm, 1); stack.pop(); draw(); });
     $("itAdd").onclick = () => { keep(); const t = $("itT").value, [x, z] = (AVE.pos || "0,0").split(",").map(Number), it = { t, x, z, s: $("itS").value, r: +$("itR").value };
-      if ($("itC")) it.c = $("itC").value; if ($("itX")) it.text = $("itX").value.trim() || "סבבה"; if ($("itU")) { it.url = $("itU").value.trim(); if (!it.url) return toast("צריך כתובת של קובץ GLB"); }
+      if ($("itC")) it.c = $("itC").value; if ($("itX")) it.text = $("itX").value.trim() || "סבבה"; if ($("itU")) { it.url = $("itU").value.trim(); if (!it.url) return toast("צריך כתובת של קובץ GLB"); if ($("itF").value) it.f = $("itF").value; }
       cfg.items.push(it); stack.pop(); draw(); toast(`${ITEMS[t].ic} נוסף לרשימה. לא לשכוח ״לשמור״`); };
     $("bkSave").onclick = async e => { keep(); e.target.disabled = true; e.target.textContent = "שומר…";
       if (await adminEdit("settings", key, { value: cfg })) { toast("✅ נשמר"); close(); const m2 = BLK_META.get(key); if (m2) flyTo(m2.cx, m2.cz, 7, 1200); } else { e.target.disabled = false; e.target.textContent = "💾 לשמור"; } };
@@ -1107,46 +1155,157 @@ function buildSquare(q) {
   q.name = cfg.name || q.autoName || pickName(kind === "park" ? PARKS : SQUARES, key, si); q.addr = blockAddr(slot, si, b.bx, b.bz); q.x = cx; q.z = cz; q.city_id = slot.city.id;
   SQ_NAMES.set(`${slot.at}:${b.bx},${b.bz}`, q.name); BLK_META.set(q.key, { title: q.name, kind, cx, cz, data: { type: "square", q } });
   const bench = (x, z, r = 0) => Q.push(box(2.2, .45, .7, "#7a5232", x, .2, z, { y: r }), box(2.2, .55, .12, "#7a5232", x - Math.sin(r) * .3, .65, z - Math.cos(r) * .3, { y: r }));
+  if (kind === "round") return buildRound(q, cfg);
+  let fit = null;
   if (kind === "square") {
-    Q.push(box(40, .04, 20, "#e3d7bf"), cyl(8.5, 8.5, .06, 40, "#d2c19e"), cyl(6.5, 6.5, .07, 40, "#e8dcc4"));
-    for (let i = 0; i < 8; i++) Q.push(box(40, .05, .12, "#d2c19e", 0, 0, -8.75 + i * 2.5));
+    // a round plaza, as big as what stands on it: small, medium or large, with lawn, trees and paths around it
+    const load = (cfg.items || []).reduce((t, it) => t + (ITEM_SIZES[it.s]?.[1] || 1), 0), R = Math.min(HZ - 2, Math.max([6.5, 9, 11.5][hash(key + "R") % 3], 6 + load * 1.6)); q.R = R;
+    fit = (x, z) => [x / 15 * R * .7, z / 6 * R * .55];
+    Q.push(box(40, .05, SD - 2, "#79a65a"), cyl(R + .4, R + .4, .1, 64, "#b9ab90"), cyl(R, R, .13, 64, "#e3d7bf"));
+    for (const f of [.42, .7]) Q.push(part(new THREE.RingGeometry(R * f, R * f + .3, 56).rotateX(-Math.PI / 2), "#cdbb98", 0, .14, 0));
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; Q.push(box(.12, .02, R * .28, "#cdbb98", Math.cos(a) * R * .56, .14, Math.sin(a) * R * .56, { y: Math.PI / 2 - a })); }
+    // paths from the street to the plaza on all four sides
+    Q.push(box(2.6, .12, HZ - 1 - R + .4, "#d8c7a8", 0, 0, (R + HZ - 1) / 2), box(2.6, .12, HZ - 1 - R + .4, "#d8c7a8", 0, 0, -(R + HZ - 1) / 2), box(20 - R + .4, .12, 2.6, "#d8c7a8", (R + 20) / 2, 0, 0), box(20 - R + .4, .12, 2.6, "#d8c7a8", -(R + 20) / 2, 0, 0));
     const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? h % 4;
-    if (d === 0) Q.push(cyl(4, 4.2, .7, 32, "#d9cfb9"), cyl(3.7, 3.7, .1, 32, "#3fa8cf", 0, .62, 0), cyl(.5, .7, 2.4, 12, "#d9cfb9", 0, .7, 0), cyl(1.6, 1.3, .3, 18, "#d9cfb9", 0, 3.1, 0), cyl(1.4, 1.4, .06, 18, "#3fa8cf", 0, 3.38, 0), sph(.4, "#d9cfb9", 0, 3.8, 0));
-    else if (d === 1) Q.push(box(2.6, 9, 2.6, "#d9c39a"), box(3, .3, 3, "#b9a47a", 0, 9, 0), ...[0, 1, 2, 3].map(i => cyl(.8, .8, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * 1.33, 7.7, Math.cos(i * Math.PI / 2) * 1.33)), part(new THREE.ConeGeometry(2, 2.4, 4), "#7a2a20", 0, 10.5, 0, { y: Math.PI / 4 }));
-    else if (d === 2) { Q.push(cyl(4.2, 4.4, .6, 8, "#e9e2d3"), part(new THREE.ConeGeometry(4.8, 2, 8), "#2f6e7a", 0, 4.4, 0));
-      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.12, .12, 2.8, 6, "#ffffff", Math.cos(a) * 3.8, .6, Math.sin(a) * 3.8), sph(.14, "*#fff1c2", Math.cos(a) * 3.8, 3.3, Math.sin(a) * 3.8)); } }
-    else if (d === 3) Q.push(box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 }));
-    if (cfg.trees !== false) for (const x of [-16, -11, 11, 16]) for (const z of [-7.5, 7.5]) trees.push([cx + x, cz + z]);
-    if (cfg.benches !== false) for (const x of [-7, 7]) { bench(x, -6.5, Math.PI); bench(x, 6.5); }
-    // a café with umbrellas, and a kiosk
-    if (cfg.cafe !== false) { for (const [x, z] of [[-14, -2.2], [-14, 2.2], [-10.5, 0]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
-      Q.push(box(3, 2.6, 2.4, "#f4e4c1", 14, 0, 0), box(3.6, .2, 3, "#e05a4f", 14, 2.6, 0), box(2.2, 1, .1, "*#ffe2a0", 14, 1.1, 1.22)); }
+    if (d >= 0) solid(centerParts(d), cx, cz, 0, { type: "square", q }, CURB).scale.setScalar(Math.max(.7, R / 9.5));
+    // trees in a ring around the plaza and in the corners, benches on its edge facing the middle
+    if (cfg.trees !== false) { for (let i = 0; i < 16; i++) { const a = (i + .5) / 16 * Math.PI * 2, r = R + 2.6, x = Math.cos(a) * r, z = Math.sin(a) * r; if (Math.abs(z) < HZ - 2 && Math.abs(x) < 19 && Math.abs(x) > 2.4 && Math.abs(z) > 2.4) trees.push([cx + x, cz + z]); }
+      for (const [x, z] of [[-17, -HZ + 3.5], [17, -HZ + 3.5], [-17, HZ - 3.5], [17, HZ - 3.5]]) trees.push([cx + x, cz + z]); }
+    if (cfg.benches !== false) for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + i * Math.PI / 2, r = R - 1.4; bench(Math.cos(a) * r, Math.sin(a) * r, Math.atan2(-Math.cos(a), -Math.sin(a))); }
+    if (cfg.cafe !== false) { for (const [x, z] of [[-15.5, -3.4], [-15.5, 3.4], [-12.8, -6.4]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
+      Q.push(box(3, 2.6, 2.4, "#f4e4c1", 15.5, 0, -5.5), box(3.6, .2, 3, "#e05a4f", 15.5, 2.6, -5.5), box(2.2, 1, .1, "*#ffe2a0", 15.5, 1.1, -4.28)); }
   } else {
-    Q.push(box(40, .06, 20, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, 20, "#d8c7a8"), cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
+    Q.push(box(40, .06, SD - 2, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, SD - 2, "#d8c7a8"), cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
     Q.push(box(.8, .3, .5, "#ffffff", -11, .12, -5), box(.3, .3, .3, "#f2c230", -10.6, .2, -5));                    // a duck
     Q.push(box(.12, 2.4, .12, "#e05a4f", 9, 0, 4), box(.12, 2.4, .12, "#e05a4f", 11, 0, 4), box(2.2, .12, .12, "#e05a4f", 10, 2.3, 4), box(.6, 2.6, 1.2, "#2f7fa8", 13, 0, 4.5, { x: .7 }), box(1.4, 1.6, 1.4, "#f2c230", 13, 0, 3.3));   // swings and a slide
-    const r = rng(h); if (cfg.trees !== false) for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -9 + r() * 18; if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue;
+    const r = rng(h); if (cfg.trees !== false) for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -(HZ - 2) + r() * (SD - 4); if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue;
       if ((cfg.items || []).some(it => Math.hypot(it.x - x, it.z - z) < 3.5)) continue; trees.push([cx + x, cz + z]); }
     if (cfg.benches !== false) for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
   }
   const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB); placeLabel(`${kind === "park" ? "🌳" : "⛲"} ${q.name}`, cx, 8, cz);
-  buildItems(cfg.items, cx, cz, CURB, { type: "square", q });
+  buildItems(cfg.items, cx, cz, CURB, { type: "square", q }, fit);
   // the name on a sign at the front, facing the street
-  Q.length = 0; const sg = solid([box(.18, 2.6, .18, "#5a4a32", -2.6, 0, 9.4), box(.18, 2.6, .18, "#5a4a32", 2.6, 0, 9.4)], cx, cz, 0, { type: "square", q }, CURB);
-  mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, 9.52);
+  Q.length = 0; const sg = solid([box(.18, 2.6, .18, "#5a4a32", -2.6, 0, HZ - 1.6), box(.18, 2.6, .18, "#5a4a32", 2.6, 0, HZ - 1.6)], cx, cz, 0, { type: "square", q }, CURB);
+  mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, HZ - 1.48);
   instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.8 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
   if (umbs.length) instanced(P.umbrella, umbs, ([x, z], o) => { o.position.set(x, CURB, z); return ["#e05a4f", "#f2c230", "#2f7fa8"][hash(Math.round(x + z)) % 3]; });
 }
+// a roundabout square: a round island in the middle of the road, as big as what stands on it, the traffic going round it,
+// with the four streets coming in and small lawns with trees on the corners
+function buildRound(q, cfg) {
+  const { slot, cx, cz, b } = q, data = { type: "square", q }, W = 3.5, hw = 21, hd = HZ, G = [], Q = [], trees = [], lamps = [], h = hash(q.key);
+  const load = (cfg.items || []).reduce((t, it) => t + (ITEM_SIZES[it.s]?.[1] || 1), 0), R = Math.min(9, Math.max([4.8, 6.4, 8][hash(q.key + "R") % 3], 4.4 + load * 1.2)), RR = R + 4.8;
+  q.R = R; ROUNDS.set(`${slot.at}:${b.bx},${b.bz}`, { R, RR });
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) G.push(cornerPiece(sx, sz, W, hw, hd, RR, "#d8cfbd"), cornerPiece(sx, sz, W + 1, hw - 1, hd - 1, RR + 1, "#79a65a", CURB, CURB + .03));
+  // the island: a curb, grass, a paved middle and a ring of flowers
+  G.push(cyl(R + .3, R + .3, CURB - .34, 56, "#9b978f", 0, .3, 0), cyl(R, R, CURB - .3, 56, "#79a65a", 0, .3, 0));
+  Q.push(cyl(R * .62, R * .62, .03, 48, "#e3d7bf"));
+  for (let i = 0; i < 22; i++) { const a = i / 22 * Math.PI * 2; Q.push(sph(.26, ["#e85c9a", "#f2c230", "#ffffff", "#e05a4f"][i % 4], Math.cos(a) * (R - .6), .14, Math.sin(a) * (R - .6))); }
+  // the road around it: edge lines, and zebra crossings on the streets that come in
+  G.push(part(new THREE.RingGeometry(R + .8, R + 1, 56).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0), part(new THREE.RingGeometry(RR - .6, RR - .4, 56).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0));
+  for (const e of [-1, 1]) for (let t = -W + .6; t < W - .3; t += 1.1) { G.push(box(2.4, .02, .55, "#f4f1e8", e * (RR + 1.9), .32, t)); if (RR + 3.2 < hd) G.push(box(.55, .02, 2.4, "#f4f1e8", t, .32, e * (RR + 1.9))); }
+  // what stands in the middle, and the name on a low stone at the front of the island
+  const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? h % 4;
+  if (d >= 0) solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(Math.min(.95, Math.max(.5, R / 8.5)));
+  const sw = Math.min(5.6, 2 * Math.sqrt(R * R - (R - 1.1) ** 2) * .92), wall = solid([box(sw + .3, 1, .5, "#d9cfb9", 0, 0, R - 1.1)], cx, cz, 0, data, CURB);
+  mountSign(wall, sign(q.name, sw, .72, { bg: "#1f6f8b", fg: "#ffffff" }), 0, .52, R - .84);
+  buildItems(cfg.items, cx, cz, CURB, data, (x, z) => [x / 15 * R * .62, z / 6 * R * .45]);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    if (cfg.trees !== false) for (const [x, z] of [[15.5, HZ - 3.6], [19, HZ - 3.6], [12, HZ - 2.8], [19, HZ - 8]]) if (Math.hypot(x, z) > RR + 2) trees.push([cx + sx * x, cz + sz * z]);
+    const a = Math.atan2(sz, sx), [lx, lz] = [Math.cos(a) * (RR + 1), Math.sin(a) * (RR + 1)]; if (Math.abs(lz) < hd - .4) lamps.push([cx + lx, cz + lz, Math.PI - a]);
+  }
+  solid(G, cx, cz, 0, data, 0); solid(Q, cx, cz, 0, data, CURB);
+  if (trees.length) instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.75 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
+  if (lamps.length) instanced(P.lamp, lamps, ([x, z, ry], o) => { o.position.set(x, CURB, z); o.rotation.y = ry; });
+  placeLabel(`⭕ ${q.name}`, cx, 6, cz);
+}
 // a pedestrian lane through the middle of a block: paving, strings of lights, planters, and its name over both ends
 function buildLane(q) {
-  const { slot, si, b, cx, cz } = q, name = pickName(LANES, `${slot.at}:${b.bx},${b.bz}`, si), Q = [box(7.8, .05, 21.6, "#d9c4a0")];
-  for (let z = -9; z <= 9; z += 4.5) { for (const x of [-3.6, 3.6]) Q.push(cyl(.07, .08, 3.3, 6, "#3a3a3a", x, 0, z));
+  const { slot, si, b, cx, cz } = q, name = pickName(LANES, `${slot.at}:${b.bx},${b.bz}`, si), Q = [box(7.8, .05, SD - .4, "#d9c4a0")];
+  for (let z = -(HZ - 2); z <= HZ - 2 + .01; z += (SD - 4) / 6) { for (const x of [-3.6, 3.6]) Q.push(cyl(.07, .08, 3.3, 6, "#3a3a3a", x, 0, z));
     for (let k = 1; k < 8; k++) Q.push(sph(.09, "*#ffd98a", -3.6 + k * .9, 3.2 - Math.sin(k / 8 * Math.PI) * .5, z + (k % 2) * .25)); }
   for (const z of [-6.8, -2.2, 2.2, 6.8]) Q.push(box(1, .6, 1, "#b8763a", (z > 0 ? 2.6 : -2.6), 0, z), sph(.5, ["#e85c9a", "#f2c230", "#e05a4f", "#ffffff"][Math.abs(Math.round(z)) % 4], (z > 0 ? 2.6 : -2.6), .9, z));
-  for (const e of [-1, 1]) Q.push(box(.2, 3.8, .2, "#5a4a32", -3.4, 0, e * 10.6), box(.2, 3.8, .2, "#5a4a32", 3.4, 0, e * 10.6), box(7, .2, .2, "#5a4a32", 0, 3.8, e * 10.6));
+  for (const e of [-1, 1]) Q.push(box(.2, 3.8, .2, "#5a4a32", -3.4, 0, e * (HZ - .4)), box(.2, 3.8, .2, "#5a4a32", 3.4, 0, e * (HZ - .4)), box(7, .2, .2, "#5a4a32", 0, 3.8, e * (HZ - .4)));
   const g = solid(Q, cx, cz, 0, null, CURB); placeLabel(`🏮 ${name}`, cx, 5, cz, "st", 6);
-  for (const e of [-1, 1]) { const s2 = sign(name, 5.4, .8, { bg: "#5a4a32", fg: "#fff4dc" }); s2.position.set(cx, CURB + 3.3, cz + e * 10.72); s2.rotation.y = e > 0 ? 0 : Math.PI; world.add(s2); }
+  for (const e of [-1, 1]) { const s2 = sign(name, 5.4, .8, { bg: "#5a4a32", fg: "#fff4dc" }); s2.position.set(cx, CURB + 3.3, cz + e * (HZ - .28)); s2.rotation.y = e > 0 ? 0 : Math.PI; world.add(s2); }
 }
+// an apartment building (kept for later, when the city square gets tall buildings): shops with awnings at street level, rows of windows, balconies, tanks and solar panels on the roof
+function squareBuilding(w, d, fl, col, awn, r) {
+  const H = 4 + fl * 3.1, Q = [box(w, H, d, col), box(w + .4, .5, d + .4, TRIM, 0, H, 0), box(w + .3, .35, d + .3, TRIM, 0, 3.9, 0)];
+  for (const [len, rot, off] of [[w, 0, d / 2], [w, Math.PI, d / 2], [d, Math.PI / 2, w / 2], [d, -Math.PI / 2, w / 2]]) {
+    const n = Math.max(2, Math.floor(len / 3.2)), step = len / n;
+    for (let i = 0; i < n; i++) { const x = -len / 2 + step * (i + .5), f = [box(step - .9, 2.5, .14, "*#ffe2a0", x, .5, off + .02), box(step - .5, .12, 1.4, awn, x, 3.15, off + .7, { x: .28 })];
+      for (let k = 0; k < fl; k++) { const y = 4.8 + k * 3.1; f.push(box(1.4, 1.7, .14, WIN, x, y, off + .02));
+        if (k % 2 === 1 && r() < .55) f.push(box(step - .7, .14, 1.1, TRIM, x, y - .3, off + .55), box(step - .7, .7, .06, "#cfd6da", x, y - .16, off + 1.08), box(step - .7, .08, .1, "#5a6066", x, y + .54, off + 1.08)); }
+      for (const g of f) Q.push(g.rotateY(rot)); }
+  }
+  Q.push(cyl(.7, .7, 1.3, 10, "#ececec", -w / 4, H + .5, d / 5), cyl(.7, .7, 1.3, 10, "#ececec", -w / 4 + 1.7, H + .5, d / 5), ...solar(w / 4, H + .5, -d / 6), box(2.4, 2.4, 2.4, "#d8d0c0", w / 4, H + .5, d / 4));
+  return Q;
+}
+// the capital's city square: a round plaza with a fountain and the state flag, lawns and trees, a ring road around it, and buildings on the four corners
+function buildCentral(slot) {
+  const C = CENTRAL.on, { cx, cz, hw, hd } = C, { RP, RR, W } = CENTRAL, key = `blk_${slot.at}_c`, cfg = S.blkCfg?.get(key) || {};
+  const name = cfg.name || "כיכר העיר", q = { kind: "central", slot, si: 0, key, name, addr: `${name}, ${slot.city.name}`, x: cx, z: cz, city_id: slot.city.id }, data = { type: "square", q };
+  CENTRAL.q = q; CENTRAL.boxes = []; BLK_META.set(key, { title: name, kind: "central", cx, cz, data });
+  const G = [], Q = [], trees = [], umbs = [], lamps = [], r = rng(hash(key)), at = (a, rr) => [Math.cos(a) * rr, Math.sin(a) * rr];
+  const bench = (x, z, ry) => Q.push(box(2.2, .45, .7, "#7a5232", x, .2, z, { y: ry }), box(2.2, .55, .12, "#7a5232", x - Math.sin(ry) * .3, .65, z - Math.cos(ry) * .3, { y: ry }));
+  // sidewalks: four corner pieces around the ring road, cut by the four streets that come in
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) G.push(cornerPiece(sx, sz, W, hw, hd, RR, "#d8cfbd"));
+  // the ring road: lane lines, and zebra crossings to the plaza on the diagonals and over each street that comes in
+  G.push(part(new THREE.RingGeometry(RP + .7, RP + .9, 72).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0), part(new THREE.RingGeometry(RR - .9, RR - .7, 72).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0));
+  for (let i = 0; i < 56; i++) { const a = i / 56 * Math.PI * 2, [x, z] = at(a, (RP + RR) / 2); if (i % 7) G.push(box(.25, .02, 2, "#e8e3d4", x, .31, z, { y: -a })); }
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
+    for (let rr = RP + 1.1; rr < RR - .8; rr += 1.15) { const [x, z] = at(a, rr); G.push(box(2.8, .02, .55, "#f4f1e8", x, .32, z, { y: -a - Math.PI / 2 })); }
+    const ax = k * Math.PI / 2;
+    for (let t = -W + .7; t < W - .3; t += 1.15) { const [x, z] = at(ax, RR + 3.2), [ox, oz] = at(ax + Math.PI / 2, t); G.push(box(2.6, .02, .55, "#f4f1e8", x + ox, .32, z + oz, { y: -ax })); }
+    for (let rr = RR + 7; rr < Math.max(hw, hd); rr += 4) { const [x, z] = at(ax, rr); if (Math.abs(x) < hw && Math.abs(z) < hd) G.push(box(2.2, .02, .25, "#e8e3d4", x, .31, z, { y: -ax })); } }
+  // the plaza: a raised round island paved in rings, with four lawns
+  G.push(cyl(RP + .3, RP + .3, CURB - .34, 80, "#9b978f", 0, .3, 0), cyl(RP, RP, CURB - .3, 80, "#e9dfc9", 0, .3, 0));
+  for (const rr of [8.5, 13.5, 23.6]) Q.push(part(new THREE.RingGeometry(rr, rr + .4, 72).rotateX(-Math.PI / 2), "#cdbb98", 0, .01, 0));
+  for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, [x, z] = at(a, 4.6); Q.push(box(.14, .02, 7.4, "#d8c8a6", x, .01, z, { y: Math.PI / 2 - a })); }
+  for (let k = 0; k < 4; k++) Q.push(part(new THREE.RingGeometry(14.6, 22.6, 24, 1, k * Math.PI / 2 - .58, 1.16).rotateX(-Math.PI / 2), "#79a65a", 0, .03, 0),
+    part(new THREE.RingGeometry(22.6, 23, 24, 1, k * Math.PI / 2 - .58, 1.16).rotateX(-Math.PI / 2), "#4d7d3b", 0, .05, 0));
+  const near = (x, z, d) => (cfg.items || []).some(it => { const [fx, fz] = fitC(+it.x || 0, +it.z || 0); return Math.hypot(fx - x, fz - z) < d; });
+  if (cfg.trees !== false) for (let k = 0; k < 4; k++) for (const da of [-.36, 0, .36]) { const [x, z] = at(k * Math.PI / 2 + da, 18.6); if (!near(x, z, 4)) trees.push([cx + x, cz + z]); }
+  if (cfg.benches !== false) for (let k = 0; k < 4; k++) for (const da of [-.3, .3]) { const a = k * Math.PI / 2 + da, [x, z] = at(a, 13.9); bench(x, z, Math.atan2(-Math.cos(a), -Math.sin(a))); }
+  for (let k = 0; k < 12; k++) { const a = (k + .5) / 12 * Math.PI * 2, [x, z] = at(a, 24.7); lamps.push([cx + x, CURB, cz + z, -a]); }
+  // in the middle: a big fountain (or what the admin chose), and the state flag on a tall pole
+  const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? 0;
+  if (d >= 0) { solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(1.6); CENTRAL.boxes.push([cx - 6.6, cz - 6.6, cx + 6.6, cz + 6.6]); }
+  Q.push(cyl(.7, .9, .5, 12, "#cfc6b0", 0, 0, -11.8), cyl(.16, .22, 19, 8, "#d0d0d0", 0, .5, -11.8), sph(.3, "#d9b65a", 0, 19.7, -11.8));
+  const f = flagMesh(7, 4.6); f.position.set(cx + 3.7, CURB + 16.8, cz - 11.8); world.add(f); FLAGS.push(f);
+  // the name on a low stone wall facing the southern street
+  const wall = solid([box(9, 1.6, .7, "#d9cfb9", 0, 0, RP - 1.4), box(9.4, .2, .9, "#c7bba2", 0, 1.6, RP - 1.4)], cx, cz, 0, data, CURB);
+  mountSign(wall, sign(name, 8.2, 1.15, { bg: "#1f6f8b", fg: "#ffffff" }), 0, .82, RP - 1.03);
+  CENTRAL.boxes.push([cx - 4.7, cz + RP - 1.9, cx + 4.7, cz + RP - .9]);
+  // the corners: the houses of citizens around the square (with gardens and hedges), a small lawn with trees, and cafe tables on the sidewalk
+  const AWN = ["#e05a4f", "#2f7fa8", "#3fae6a", "#f2b440", "#8a5ac8", "#1f6f8b"], lawns = [], hedges = [];
+  const CAFE = [[33, 21.5], [39, 21.5], [35.5, 15.5]], TREES = [[10, hd - 2], [19, hd - 2], [44.5, 11.5], [50.5, 17.5], [43.5, 19.5], [52, 32], [58, 40]];
+  const taken = new Set(S.houses.filter(h => h.lot?.sq).map(h => h.lot.num));
+  for (const l of centralLots(slot)) {
+    const zr = l.sq.row === "z", w = 13.3, dd = 13.3, has = taken.has(l.num); lawns.push([l.x, l.z, w, dd, has ? (l.num % 2 ? "#7fa85d" : "#77a057") : "#8fb46d"]);
+    const bs = -Math.sin(l.face) * 6.55, bc = -Math.cos(l.face) * 6.55;   // the back of the lot
+    hedges.push(zr ? [l.x + bs, l.z + bc, 13.2, .8, .35] : [l.x + bs, l.z + bc, .35, .8, 13.2]);
+    if (l.sq.row === "x" && Math.abs(l.z - C.cz) < 15) hedges.push([l.x, l.z + l.sq.sz * 6.75, 13.2, .7, .35]);   // between the two houses on the side street
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    lawns.push([cx + sx * 47, cz + sz * 15.5, 12, 13, "#79a65a"]);
+    for (const [x, z] of CAFE) { umbs.push([cx + sx * x, cz + sz * z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", sx * x, .75, sz * z), cyl(.05, .05, .75, 6, "#555555", sx * x, 0, sz * z)); }
+    bench(sx * 40.2, sz * 15.5, sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+    if (cfg.trees !== false) for (const [x, z] of TREES) if (x < hw && z < hd) trees.push([cx + sx * x, cz + sz * z]);
+  }
+  instanced(P.plane, lawns, ([x, z, w, d, c], o) => { o.position.set(x, LAWN, z); o.scale.set(w, 1, d); return c; }, { shadow: false });
+  instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
+  for (let k = 0; k < 24; k++) { const a = (k + .5) / 24 * Math.PI * 2, [x, z] = at(a, RR + 1.4); if (Math.abs(x) < W + 1.5 || Math.abs(z) < W + 1.5) continue; lamps.push([cx + x, CURB, cz + z, Math.PI - a]); }
+  solid(G, cx, cz, 0, data, 0); solid(Q, cx, cz, 0, data, CURB);
+  buildItems(cfg.items, cx, cz, CURB, data, fitC);
+  instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.95 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
+  if (umbs.length) instanced(P.umbrella, umbs, ([x, z], o) => { o.position.set(x, CURB, z); return AWN[hash(Math.round(x * 3 + z)) % AWN.length]; });
+  instanced(P.lamp, lamps, ([x, y, z, ry], o) => { o.position.set(x, y, z); o.rotation.y = ry; });
+  placeLabel(`⛲ ${name}`, cx, 14, cz);
+}
+// where an item the admin placed on the city square stands (the editor grid stretched over the plaza)
+function fitC(x, z) { return [x / 15 * 16, z / 6 * 12]; }
 function plaza(slot, isCap) {
   const x = slot.x, z = slot.z, posts = [[-8, -7], [8, -7], [-8, 7], [8, 7]];
   solid([cyl(5.5, 5.8, .8, 28, "#d6cab0"), cyl(4.8, 4.8, .3, 28, "#3fa8cf", 0, .62, 0), cyl(.8, 1, 2.2, 12, "#d6cab0"), cyl(1.6, 1.4, .3, 14, "#3fa8cf", 0, 2.2, 0),
@@ -1585,7 +1744,7 @@ function buildPublic() {
       const key = blkKey(slot, pbx, pbz), cfg = S.blkCfg?.get(key) || {};
       if (!p) {   // an empty public lot, waiting for ideas (or dressed by the admin)
         const data = { type: "lot", slot, key }, ground = { stone: "#d8cfbd", grass: "#79a65a", sand: "#d8c79f" }[cfg.ground] || "#d8c79f";
-        const g = solid([box(40, .1, 20, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
+        const g = solid([box(40, .1, SD - 2, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
         if (!cfg.noSign) mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
         if (cfg.name) placeLabel(`📍 ${cfg.name}`, cx, 8, cz);
         BLK_META.set(key, { title: cfg.name || "מגרש ציבורי", kind: "lot", cx, cz, data }); buildItems(cfg.items, cx, cz, Y0, data);
@@ -1857,20 +2016,26 @@ function walkBlockers() {
   for (const w of S.workplaces) if (w.x != null) rect(w.x, w.z - .5, 15, 11);
   for (const g of GOV) if (g.x != null) rect(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13);
   if (BALLOT.x != null) rect(BALLOT.x, BALLOT.z - 2.5, 22, 11);
+  if (CENTRAL.on) B.push(...CENTRAL.boxes);
   for (const p of S.projects) if (p.x != null && p.status === "done" && ["library", "mall", "community"].includes(p.kind)) rect(p.x, p.z - 2.5, 30, 12);
   return B;
 }
 // the ground under your feet: sidewalks and gardens are raised above the road
 function groundAt(x, z) {
+  if (inCentral(x, z, 3)) { const C = CENTRAL.on, dx = x - C.cx, dz = z - C.cz, r = Math.hypot(dx, dz);
+    if (r < CENTRAL.RP) return CURB; return r < CENTRAL.RR || Math.abs(dx) > C.hw || Math.abs(dz) > C.hd || Math.abs(dx) < CENTRAL.W || Math.abs(dz) < CENTRAL.W ? .3 : CURB; }
   const slot = nearestSlot(x, z), sl = S.slots.find(q => q.at === slot.at); if (!sl?.city) return .3;
   const bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dx = x - sl.x - BPX(bx), dz = z - sl.z - BPZ(bz);
-  return sl.blocks.has(`${bx},${bz}`) && Math.abs(dx) < 21 && Math.abs(dz) < 11 ? CURB : .3;
+  const rb = ROUNDS.get(`${sl.at}:${bx},${bz}`);
+  if (rb) { const r = Math.hypot(dx, dz); return r < rb.R + .3 || (r > rb.RR && Math.abs(dx) > 3.5 && Math.abs(dz) > 3.5 && Math.abs(dx) < 21 && Math.abs(dz) < HZ) ? CURB : .3; }
+  return sl.blocks.has(`${bx},${bz}`) && Math.abs(dx) < 21 && Math.abs(dz) < HZ ? CURB : .3;
 }
 function streetHere(x, z) {
   const sl = S.slots.find(q => q.city && q.at === nearestSlot(x, z).at); if (!sl) return "";
+  if (inCentral(x, z)) return `${CENTRAL.q?.name || "כיכר העיר"} · ${sl.city.name}`;
   const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dz = z - sl.z - BPZ(bz);
   const b = sl.blocks.get(`${bx},${bz}`);
-  if (b?.civic === "square" || b?.civic === "park") return SQ_NAMES.get(`${sl.at}:${bx},${bz}`) || pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
+  if (OPEN_KINDS.includes(b?.civic)) return SQ_NAMES.get(`${sl.at}:${bx},${bz}`) || pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
   return `${streetName(sl, si, dz < 0 ? bz : bz + 1, bx)} · ${sl.city.name}`;
 }
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
@@ -2006,6 +2171,7 @@ function walkButtons() {
 const NPC = new Map();   // username -> { h, fig, cx, cz, p, v, dir, ph }
 function npcAnchor(h) {
   const atWork = h.wp?.x != null && hash(h.u + israelDate()) % 3 === 0;   // today, a third of them are around their workplace
+  if (!atWork && h.lot.sq && CENTRAL.on) return { cx: CENTRAL.on.cx, cz: CENTRAL.on.cz };   // the people of the city square stroll on the plaza
   return atWork ? { cx: h.wp.x + 6, cz: h.wp.z } : { cx: h.slot.x + BPX(h.lot.bx), cz: h.slot.z + BPZ(h.lot.bz) };
 }
 function npcRefresh() {
@@ -2032,8 +2198,16 @@ function walkMinimap() {
   x.fillStyle = "#4a5057"; x.fillRect(-W, -W, W * 2, W * 2);
   for (const sl of S.slots) if (sl.city) for (const b of sl.blocks.values()) {
     const bxp = sl.x + BPX(b.bx) - cx0, bzp = sl.z + BPZ(b.bz) - cz0; if (Math.abs(bxp) > 160 || Math.abs(bzp) > 160) continue;
-    x.fillStyle = b.civic === "park" ? "#79a65a" : b.civic === "square" ? "#e3d7bf" : b.civic ? "#d8cfbd" : "#c9c2b4"; x.fillRect((bxp - 21) * sc, (bzp - 11) * sc, 42 * sc, 22 * sc);
+    if (b.civic === "central") continue;
+    if (b.civic === "round") { const r = ROUNDS.get(`${sl.at}:${b.bx},${b.bz}`) || { R: 6, RR: 10.6 }; x.fillStyle = "#79a65a"; x.fillRect((bxp - 21) * sc, (bzp - HZ) * sc, 42 * sc, SD * sc);
+      x.fillStyle = "#4a5057"; x.fillRect((bxp - 21) * sc, (bzp - 3.5) * sc, 42 * sc, 7 * sc); x.fillRect((bxp - 3.5) * sc, (bzp - HZ) * sc, 7 * sc, SD * sc); x.beginPath(); x.arc(bxp * sc, bzp * sc, r.RR * sc, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#e3d7bf"; x.beginPath(); x.arc(bxp * sc, bzp * sc, r.R * sc, 0, Math.PI * 2); x.fill(); continue; }
+    x.fillStyle = b.civic === "park" ? "#79a65a" : b.civic === "square" ? "#e3d7bf" : b.civic ? "#d8cfbd" : "#c9c2b4"; x.fillRect((bxp - 21) * sc, (bzp - HZ) * sc, 42 * sc, SD * sc);
   }
+  if (CENTRAL.on) { const C = CENTRAL.on, px = (C.cx - cx0) * sc, pz = (C.cz - cz0) * sc; if (Math.abs(px) < W * 1.5 && Math.abs(pz) < W * 1.5) {
+    x.fillStyle = "#d8cfbd"; x.fillRect(px - C.hw * sc, pz - C.hd * sc, C.hw * 2 * sc, C.hd * 2 * sc); x.fillStyle = "#4a5057"; x.fillRect(px - C.hw * sc, pz - CENTRAL.W * sc, C.hw * 2 * sc, CENTRAL.W * 2 * sc); x.fillRect(px - CENTRAL.W * sc, pz - C.hd * sc, CENTRAL.W * 2 * sc, C.hd * 2 * sc);
+    x.beginPath(); x.arc(px, pz, CENTRAL.RR * sc, 0, Math.PI * 2); x.fill(); x.fillStyle = "#e9dfc9"; x.beginPath(); x.arc(px, pz, CENTRAL.RP * sc, 0, Math.PI * 2); x.fill();
+    x.fillStyle = "#9b8f78"; for (const b of CENTRAL.boxes) x.fillRect((b[0] - cx0) * sc, (b[1] - cz0) * sc, (b[2] - b[0]) * sc, (b[3] - b[1]) * sc); } }
   if (WALK.car && WALK.mode !== "car") { x.fillStyle = WALK.h.cc; x.fillRect((WALK.car.x - cx0) * sc - 4, (WALK.car.z - cz0) * sc - 4, 8, 8); }
   x.fillStyle = "#e07a4f"; const hp = [(WALK.h.x - cx0) * sc, (WALK.h.z - cz0) * sc]; if (Math.hypot(...hp) < W) { x.beginPath(); x.arc(hp[0], hp[1], 6, 0, Math.PI * 2); x.fill(); }
   x.restore();
@@ -2143,6 +2317,8 @@ const GO = {
 };
 const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` : "";
 function showSquare(q) {
+  if (q.kind === "round") return open(`⭕ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת הכיכר</button></div>` : ""}<div class="hero"><p><b>כיכר תנועה</b> ב${esc(cityName(q.city_id))}: אי עגול באמצע הכביש, עם מה שעומד במרכזו, והתנועה מסתובבת סביבו.</p></div>`);
+  if (q.kind === "central") return open(`⛲ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת הכיכר</button></div>` : ""}<div class="hero"><p><b>הכיכר המרכזית של ${esc(q.slot.city.name)}</b>, הלב של הבירה. רחבה עגולה ענקית עם מזרקה, דגל המדינה, מדשאות וספסלים, כביש טבעתי מסביב ובניינים עם חנויות ובתי קפה בכל פינה.</p></div><div class="btns"><button class="btn ghost" data-go="slot" data-arg="${S.slots.indexOf(q.slot)}">🏙️ על העיר</button></div>`);
   open(`${q.kind === "park" ? "🌳" : "⛲"} ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת ${q.kind === "park" ? "הגן" : "הכיכר"}</button></div>` : ""}<div class="hero"><p>${q.kind === "park" ? `<b>גן ציבורי</b> ב${esc(cityName(q.city_id))}: דשא, בריכת ברווזים, נדנדות ומגלשה. פתוח לכולם, תמיד.` : `<b>כיכר עירונית</b> ב${esc(cityName(q.city_id))}: בית קפה, קיוסק, ספסלים ומקום להיפגש.`}</p></div>`);
 }
 function showProject(p) {
@@ -3446,18 +3622,46 @@ function figureProp(h, from = 0) {
 // routes that stay on the roads: along the lines between the blocks (never through a building)
 function cityBox(slot) { const bl = [...slot.blocks.values()]; return { mnX: Math.min(...bl.map(b => b.bx)), mxX: Math.max(...bl.map(b => b.bx)), mnZ: Math.min(...bl.map(b => b.bz)), mxZ: Math.max(...bl.map(b => b.bz)) }; }
 const nearestEdge = (lo, hi, v, f) => { let best = lo, bd = Infinity; for (let e = lo; e <= hi; e++) { const d = Math.abs(f(e) - v); if (d < bd) { bd = d; best = e; } } return best; };
-const frontRoad = h => { const slot = h.slot, eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, eV = h.lot.i < 2 ? h.lot.bx : h.lot.bx + 1; return { zH: roadZ(slot, eH), xV: roadX(slot, eV), stop: { x: h.x + (h.lot.i < 2 ? 2.5 : -2.5), z: roadZ(slot, eH) } }; };
+const frontRoad = h => { const slot = h.slot;
+  if (h.lot.sq) { const C = CENTRAL.on || centralBox(slot), X = C.hw + 1.6, Z = C.hd + 1.6, { sx, sz, row } = h.lot.sq;   // the houses on the city square: the street at its edge
+    return row === "z" ? { zH: C.cz + sz * Z, xV: C.cx + sx * X, stop: { x: h.x, z: C.cz + sz * Z } } : { zH: C.cz + sz * Z, xV: C.cx + sx * X, stop: { x: C.cx + sx * X, z: h.z } }; }
+  const eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, eV = h.lot.dx <= 0 ? h.lot.bx : h.lot.bx + 1; return { zH: roadZ(slot, eH), xV: roadX(slot, eV), stop: { x: h.x + (h.lot.dx <= 0 ? 2.5 : -2.5), z: roadZ(slot, eH) } }; };
 // from the harbor: the highway to the edge of the city, then the streets
 function routeFromHarbor(H, h) {
   const slot = h.slot, B = cityBox(slot), x0 = slot.x + BPX(B.mnX) - BX / 2 - 18, x1 = slot.x + BPX(B.mxX) + BX / 2 + 18, z0 = slot.z + BPZ(B.mnZ) - BZ / 2 - 18, z1 = slot.z + BPZ(B.mxZ) + BZ / 2 + 18;
   let P = { x: slot.x, z: slot.z };
   for (let k = 0; k <= 400; k++) { const t = k / 400, q = { x: H.x + (slot.x - H.x) * t, z: H.z + (slot.z - H.z) * t }; if (q.x > x0 && q.x < x1 && q.z > z0 && q.z < z1) { P = q; break; } }
   const { zH, xV, stop } = frontRoad(h), sideways = Math.min(Math.abs(P.x - x0), Math.abs(P.x - x1)) < Math.min(Math.abs(P.z - z0), Math.abs(P.z - z1));
-  if (sideways) { const zA = roadZ(slot, nearestEdge(B.mnZ, B.mxZ + 1, P.z, e => roadZ(slot, e))); return [H, P, { x: P.x, z: zA }, { x: xV, z: zA }, { x: xV, z: zH }, stop]; }
-  const xA = roadX(slot, nearestEdge(B.mnX, B.mxX + 1, P.x, e => roadX(slot, e))); return [H, P, { x: xA, z: P.z }, { x: xA, z: zH }, stop];
+  if (sideways) { const zA = roadZ(slot, nearestEdge(B.mnZ, B.mxZ + 1, P.z, e => roadZ(slot, e))); return aroundCentral([H, P, { x: P.x, z: zA }, { x: xV, z: zA }, { x: xV, z: zH }, stop]); }
+  const xA = roadX(slot, nearestEdge(B.mnX, B.mxX + 1, P.x, e => roadX(slot, e))); return aroundCentral([H, P, { x: xA, z: P.z }, { x: xA, z: zH }, stop]);
 }
 // from one new house to the next one, along the streets
-function routeBetween(a, h) { const A = frontRoad(a), { zH, xV, stop } = frontRoad(h); return [A.stop, { x: A.stop.x, z: A.zH }, { x: xV, z: A.zH }, { x: xV, z: zH }, stop]; }
+function routeBetween(a, h) { const A = frontRoad(a), { zH, xV, stop } = frontRoad(h); return aroundCentral([A.stop, { x: A.stop.x, z: A.zH }, { x: xV, z: A.zH }, { x: xV, z: zH }, stop]); }
+// a route that would cut through the city square goes around it instead, along the streets at its edge
+function aroundCentral(pts) {
+  const C = CENTRAL.on; if (!C) return pts;
+  const X0 = C.cx - C.hw - 1.6, X1 = C.cx + C.hw + 1.6, Z0 = C.cz - C.hd - 1.6, Z1 = C.cz + C.hd + 1.6, W2 = X1 - X0, D2 = Z1 - Z0, PER = 2 * (W2 + D2);
+  // where a segment is inside the rectangle: [t in, t out] (Liang–Barsky), or null
+  const clip = (a, b) => { let t0 = 0, t1 = 1; const dx = b.x - a.x, dz = b.z - a.z;
+    for (const [p, q] of [[-dx, a.x - X0], [dx, X1 - a.x], [-dz, a.z - Z0], [dz, Z1 - a.z]]) { if (Math.abs(p) < 1e-9) { if (q <= 0) return null; continue; } const r = q / p; if (p < 0) t0 = Math.max(t0, r); else t1 = Math.min(t1, r); }
+    return t1 - t0 > 1e-6 ? [t0, t1] : null; };
+  const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+  // a point on the edge as a distance along the perimeter (clockwise from the north-west corner), and back
+  const per = p => Math.abs(p.z - Z0) < .01 ? p.x - X0 : Math.abs(p.x - X1) < .01 ? W2 + p.z - Z0 : Math.abs(p.z - Z1) < .01 ? W2 + D2 + X1 - p.x : W2 * 2 + D2 + Z1 - p.z;
+  const CORNERS = [[0, { x: X0, z: Z0 }], [W2, { x: X1, z: Z0 }], [W2 + D2, { x: X1, z: Z1 }], [2 * W2 + D2, { x: X0, z: Z1 }]];
+  const walk = (a, b) => { const pa = per(a), pb = per(b), cw = ((pb - pa) % PER + PER) % PER, out = [];
+    if (cw <= PER / 2) { for (const [d, c] of [...CORNERS, ...CORNERS.map(([d, c]) => [d + PER, c])]) { const k = d - pa; if (k > .01 && k < cw - .01) out.push(c); } }
+    else { const ccw = PER - cw; for (const [d, c] of [...CORNERS, ...CORNERS.map(([d, c]) => [d - PER, c])].sort((u, v) => v[0] - u[0])) { const k = pa - d; if (k > .01 && k < ccw - .01) out.push(c); } }
+    return out; };
+  const out = [pts[0]]; let entry = null;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], c = clip(a, b);
+    if (!c) { if (!entry) out.push(b); continue; }
+    if (!entry) { entry = lerp(a, b, c[0]); out.push(entry); }
+    if (c[1] < 1 - 1e-6) { const ex = lerp(a, b, c[1]); out.push(...walk(entry, ex), ex, b); entry = null; }
+  }
+  return out;
+}
 // who the daily arrival reel is about: a citizen picked by the admin, or everyone who arrived in the last 24 hours (up to 5), else the newest 3
 function arrivalList(h) {
   if (h?.lot) return [h];
@@ -3485,10 +3689,10 @@ function arrivalProps(list) {
 }
 /* ---------- "what's new in the state": a reel that shows citizens the latest features ---------- */
 // each feature: is it available, and its shot (map shots, shots inside a building, or a figure / car moving through the street)
-const roadAhead = (h, len) => { const { zH, stop } = frontRoad(h), dir = h.lot.i < 2 ? -1 : 1; return route([{ x: stop.x, z: zH }, { x: stop.x + dir * len, z: zH }]); };
+const roadAhead = (h, len) => { const { zH, stop } = frontRoad(h), dir = h.lot.dx <= 0 ? -1 : 1; return route([{ x: stop.x, z: zH }, { x: stop.x + dir * len, z: zH }]); };
 const NEWS = {
   plan: { ic: "🏙️", t: "העיר קיבלה תכנון חדש", sub: "שדרות, כיכרות, סמטאות וגנים", ok: () => !!S.slots[0]?.city, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[0], 3.4, .4, .42) }) },
-  walk: { ic: "🚶", t: "עכשיו אפשר לטייל בעיר", sub: "עם הדמות שלך, בכל רחוב ושדרה", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 14), off = h.lot.j === 0 ? 2 : -5.2;   // on the sidewalk on the house's side
+  walk: { ic: "🚶", t: "עכשיו אפשר לטייל בעיר", sub: "עם הדמות שלך, בכל רחוב ושדרה", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 14), off = h.lot.sq ? -h.lot.sq.sz * 2.4 : h.lot.j === 0 ? 2 : -5.2;   // on the sidewalk on the house's side
     const f = avatarMesh(avatarOf(h), 1.25); world.add(f); f.visible = false;
     P.push({ update(el) { const k = (el - t0) / d; f.visible = k >= 0 && k <= 1; if (!f.visible) return; const q = path(k); f.position.set(q.x, CURB + Math.abs(Math.sin(el * 9)) * .07, q.z + off); f.rotation.y = q.ry; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); } });
     const m = path(.5); return { a: at({ x: m.x, z: m.z + off }, 40, -.5, .5), b: at({ x: m.x, z: m.z + off }, 48, .1, .45), pin: el => ({ x: f.position.x, y: CURB + 3.4, z: f.position.z, label: `🚶 ‎@${h.u}` }) }; } },
@@ -4183,7 +4387,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
