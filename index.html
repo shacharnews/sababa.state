@@ -383,7 +383,7 @@ const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < G
 const shorePt = (t, s, k = 1) => ({ x: Math.cos(t) * RX0 * s * shoreF(t) * k, z: Math.sin(t) * RZ0 * s * shoreF(t) * k });
 const MILESTONES = [0, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
 // city sites are spread far enough apart that each city has room for everyone who arrives until the next city opens
-const SLOTS = MILESTONES.map((at, k) => { if (!k) return { at, x: 0, z: 0 }; const d = .72 * RX0 * growth(at), a = k * 2.39996 + .6; return { at, x: Math.cos(a) * d, z: Math.sin(a) * d * RZ0 / RX0 }; });
+const SLOTS = MILESTONES.map((at, k) => { if (!k) return { at, x: 0, z: 0 }; const d = .86 * RX0 * growth(at), a = k * 2.39996 + .6; return { at, x: Math.cos(a) * d, z: Math.sin(a) * d * RZ0 / RX0 }; });
 const BX = 48, BZ = 36, SD = BZ - 6, HZ = SD / 2;   // a block: 48 x 36 with the street, its sidewalk SD deep (deep enough for a back garden behind each house)
 /* the city plan: a wide boulevard every 4 blocks in each direction (an extra gap between two block columns or rows), roundabouts where boulevards meet,
    squares and parks between the houses, pedestrian lanes through some blocks */
@@ -437,7 +437,7 @@ function reservedBlocks(slot, si) {
   for (let bx = -9; bx <= 9; bx++) for (let bz = -14; bz <= 14; bz++) {
     if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
-    if (nearestSlot(cx, cz).at !== slot.at) continue;
+    if (!inTerritory(cx, cz, slot)) continue;
     if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
     cand.push({ bx, bz, d: Math.hypot(BPX(bx), BPZ(bz)) });
   }
@@ -459,7 +459,7 @@ function extraBlocks(slot, si) {
   for (let bx = -12; bx <= 12; bx++) for (let bz = -18; bz <= 18; bz++) {
     const d = Math.hypot(BPX(bx), BPZ(bz)); if (d < 150 || res.has(bx + "," + bz)) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
-    if (nearestSlot(cx, cz).at !== slot.at) continue;
+    if (!inTerritory(cx, cz, slot)) continue;
     if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
     cand.push({ bx, bz, d });
   }
@@ -469,6 +469,9 @@ function extraBlocks(slot, si) {
   EXTRA_CACHE.set(key, out); return out;
 }
 const COAST = [{ id: "harbor", ic: "⚓", name: "נמל העולים", t: Math.PI / 2 }, { id: "light", ic: "🗼", name: "המגדלור", t: -.35 }, { id: "beach", ic: "🏖️", name: "חוף יהיה בסדר", t: Math.PI }];
+// each city builds only inside its own territory, leaving CITY_GAP meters of open country (fields, trees, the highway) to the next city
+const CITY_GAP = 120;
+const inTerritory = (x, z, slot) => { const d = Math.hypot(slot.x - x, slot.z - z); return SLOTS.every(s => s.at === slot.at || Math.hypot(s.x - x, s.z - z) >= d + CITY_GAP); };
 const nearestSlot = (x, z) => { let b = SLOTS[0], bd = Infinity; for (const s of SLOTS) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; b = s; } } return b; };
 
 function cityLots(slot, si, need) {
@@ -481,7 +484,7 @@ function cityLots(slot, si, need) {
       const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
       for (const L of blockLots(kind)) {
         const x = cx + L.dx, z = cz + L.dz, d = Math.hypot(x - slot.x, z - slot.z);
-        if (d > R || !onGrass(x, z, MAX_S, .04) || nearestSlot(x, z).at !== slot.at) continue;
+        if (d > R || !onGrass(x, z, MAX_S, .04) || !inTerritory(x, z, slot)) continue;
         lots.push({ x, z, bx, bz, d, j: L.j, i: L.i, dx: L.dx, face: L.j === 0 ? Math.PI : 0 });
       }
     }
@@ -790,7 +793,7 @@ function layout() {
     for (let bx = Math.min(...xs); bx <= Math.max(...xs); bx++) for (let bz = Math.min(...zs); bz <= Math.max(...zs); bz++) {
       const k = blockKind(slot, bx, bz), cur = slot.blocks.get(`${bx},${bz}`); if (!OPEN_KINDS.includes(k) || cur?.civic) continue;
       let n = 0; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) if (slot.blocks.has(`${bx + a},${bz + b}`)) n++;
-      if ((cur || n >= 3) && onGrass(slot.x + BPX(bx), slot.z + BPZ(bz), MAX_S, .05) && nearestSlot(slot.x + BPX(bx), slot.z + BPZ(bz)).at === slot.at) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: k });
+      if ((cur || n >= 3) && onGrass(slot.x + BPX(bx), slot.z + BPZ(bz), MAX_S, .05) && inTerritory(slot.x + BPX(bx), slot.z + BPZ(bz), slot)) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: k });
     }
     // the island must cover every block of this city
     for (const b of slot.blocks.values()) for (const [dx, dz] of [[-26, -HZ - 5], [26, -HZ - 5], [-26, HZ + 5], [26, HZ + 5]]) {
@@ -1104,7 +1107,7 @@ function blkEdit(key) {
       <label>איפה במגרש (המבט מהרחוב שמול המגרש)</label>
       <div class="itgrid">${ITEM_Z.map((z, zi) => ITEM_X.map((x, xi) => `<button data-pos="${x},${z}" class="${AVE.pos === `${x},${z}` || (!AVE.pos && x === 0 && z === 0) ? "on" : ""}">${xi === 2 && zi === 1 ? "●" : ""}</button>`).join("")).join("")}</div>
       <div class="row2"><label>גודל<select id="itS">${opt(Object.entries(ITEM_SIZES).map(([k, v]) => [k, v[0]]), "m")}</select></label><label>סיבוב<select id="itR">${opt([[0, "0°"], [45, "45°"], [90, "90°"], [180, "180°"], [270, "270°"], [315, "315°"]], 0)}</select></label></div>
-      <button class="btn ghost" id="itAdd">➕ להוסיף</button>
+      <button class="btn ghost" id="itAdd">➕ להוסיף לרשימה</button>
     </div>
     <style>.itgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:4px 0 10px;direction:ltr}.itgrid button{height:30px;border-radius:8px;background:var(--bg);border:2px solid transparent;font-size:12px;color:var(--fg2)}.itgrid button.on{border-color:var(--accent);background:var(--accent);color:#fff}</style>
     <div class="btns" style="margin-top:12px"><button class="btn" id="bkSave">💾 לשמור</button></div>`, () => {
@@ -1116,10 +1119,14 @@ function blkEdit(key) {
     const keep = () => { if ($("bkName")) cfg.name = $("bkName").value.trim(); if ($("bkCenter")) cfg.center = $("bkCenter").value || undefined; if ($("bkTrees")) cfg.trees = $("bkTrees").checked;
       if ($("bkBenches")) cfg.benches = $("bkBenches").checked; if ($("bkCafe")) cfg.cafe = $("bkCafe").checked; if ($("bkGround")) cfg.ground = $("bkGround").value; if ($("bkNoSign")) cfg.noSign = $("bkNoSign").checked; };
     $("dBody").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { keep(); cfg.items.splice(+b.dataset.rm, 1); stack.pop(); draw(); });
-    $("itAdd").onclick = () => { keep(); const t = $("itT").value, [x, z] = (AVE.pos || "0,0").split(",").map(Number), it = { t, x, z, s: $("itS").value, r: +$("itR").value };
-      if ($("itC")) it.c = $("itC").value; if ($("itX")) it.text = $("itX").value.trim() || "סבבה"; if ($("itU")) { it.url = $("itU").value.trim(); if (!it.url) return toast("צריך כתובת של קובץ GLB"); if ($("itF").value) it.f = $("itF").value; }
-      cfg.items.push(it); stack.pop(); draw(); toast(`${ITEMS[t].ic} נוסף לרשימה. לא לשכוח ״לשמור״`); };
-    $("bkSave").onclick = async e => { keep(); e.target.disabled = true; e.target.textContent = "שומר…";
+    // the item filled in the "add" form (null if it isn't complete)
+    const pending = () => { const t = $("itT").value, [x, z] = (AVE.pos || "0,0").split(",").map(Number), it = { t, x, z, s: $("itS").value, r: +$("itR").value };
+      if ($("itC")) it.c = $("itC").value; if ($("itX")) it.text = $("itX").value.trim() || "סבבה"; if ($("itU")) { it.url = $("itU").value.trim(); if (!it.url) return null; if ($("itF").value) it.f = $("itF").value; } return it; };
+    $("itAdd").onclick = () => { keep(); const it = pending(); if (!it) return toast("צריך כתובת של קובץ GLB"); cfg.items.push(it); stack.pop(); draw(); toast(`${ITEMS[it.t].ic} נוסף לרשימה. לא לשכוח ״לשמור״`); };
+    $("bkSave").onclick = async e => { keep();
+      // a 3D file whose address was typed but never added to the list is added now, so it isn't lost
+      const it = $("itU")?.value.trim() && pending(); if (it && !cfg.items.some(q => q.t === "model" && q.url === it.url)) cfg.items.push(it);
+      e.target.disabled = true; e.target.textContent = "שומר…";
       if (await adminEdit("settings", key, { value: cfg })) { toast("✅ נשמר"); close(); const m2 = BLK_META.get(key); if (m2) flyTo(m2.cx, m2.cz, 7, 1200); } else { e.target.disabled = false; e.target.textContent = "💾 לשמור"; } };
   }, true);
   draw();
@@ -1330,7 +1337,27 @@ function govBuilding(id, x, z) {
   const spec = { knesset: [16, 1.1, 9.4, 6.06, "#f6f2e8", "#2b3a4a"], pm: [12, 1.2, 10.6, 5.61, "#e5d6b8", "#3b2a1a"], interior: [13, 1.4, 7.6, 5.61, "#1f6f8b", "#ffffff"] }[id];
   mountSign(grp, sign(g.name, spec[0], spec[1], { bg: spec[4], fg: spec[5] }), 0, spec[2], spec[3]);
 }
+// the pink bow café: seen from above the whole building is a bow lying on the ground. Two glass wings under pink roofs,
+// a round knot in the middle with the door and a giant coffee cup on top, and a terrace with pink umbrellas in front
+function bowCafe(w, x, z, ry) {
+  const pink = w.color && w.color !== "#3c556b" ? w.color : "#f06fa4", dark = "#" + C(pink).clone().multiplyScalar(.7).getHexString(), Q = [];
+  const wing = k => { const sh = new THREE.Shape(); sh.moveTo(1.6 * k, -1.9 * k); sh.quadraticCurveTo(4.6 * k, -3.2 * k, 8.2 * k, -4.6 * k); sh.quadraticCurveTo(9.8 * k, 0, 8.2 * k, 4.6 * k); sh.quadraticCurveTo(4.6 * k, 3.2 * k, 1.6 * k, 1.9 * k); sh.closePath(); return sh; };
+  const layer = (k, h, y, col, bevel = false) => { for (const side of [0, Math.PI]) Q.push(part(new THREE.ExtrudeGeometry(wing(k), { depth: h, bevelEnabled: bevel, bevelSize: .15, bevelThickness: .15, bevelSegments: 2, curveSegments: 16 }).rotateX(-Math.PI / 2).rotateY(side), col, 0, y, 0)); };
+  layer(1, 1, 0, pink); layer(.97, 2.5, 1, GLASS); layer(1.06, .45, 3.5, pink, true);
+  for (const sx of [-1, 1]) for (const [zz, a] of [[-1.5, -.22], [0, 0], [1.5, .22]]) Q.push(box(5.6, .14, .28, dark, sx * 5, 4.1, zz, { y: sx * a }));   // the folds of the ribbon
+  // the knot: round, darker pink, with the door, the name, and a coffee cup on the roof
+  Q.push(cyl(2.4, 2.4, 4.6, 28, dark), cyl(2.65, 2.65, .4, 28, pink, 0, 4.6, 0), box(1.3, 2.4, .14, "#5a2a3a", 0, 0, 2.38), box(4.8, 1, .2, "#ffffff", 0, 3.05, 2.46),
+    cyl(1.05, .8, 1.5, 18, "#ffffff", 0, 5, 0), cyl(1, 1, .06, 18, "#6b4226", 0, 6.42, 0), part(new THREE.TorusGeometry(.5, .13, 8, 16), "#ffffff", 1.15, 5.75, 0), sph(.3, "#f6f2f4", .2, 7, .1), sph(.24, "#f6f2f4", -.15, 7.5, -.1));
+  // the terrace: a wooden deck, tables under pink and white umbrellas, flower boxes along the edge
+  Q.push(box(18, .14, 4.4, "#e9dccb", 0, 0, 7.2));
+  for (const [i, a] of [-6.4, -2.8, 2.8, 6.4].entries()) Q.push(cyl(.6, .6, .06, 12, "#ffffff", a, .75, 7.2), cyl(.06, .06, .75, 6, "#777777", a, 0, 7.2), cyl(.04, .04, 2.4, 6, "#dddddd", a, 0, 7.2), part(new THREE.ConeGeometry(1.5, .6, 10), i % 2 ? "#ffffff" : pink, a, 2.5, 7.2),
+    box(.45, .06, .45, "#ffffff", a - .9, .5, 7.2), box(.45, .06, .45, "#ffffff", a + .9, .5, 7.2));
+  for (const a of [-8.4, -4.6, 4.6, 8.4]) Q.push(box(1.4, .5, .6, "#ffffff", a, 0, 9.2), sph(.32, "#e8569a", a - .35, .6, 9.2), sph(.32, "#ffd1e3", a + .35, .6, 9.2));
+  const grp = solid(Q, x, z, ry, { type: "work", w }, CURB);
+  mountSign(grp, sign(w.name, 4.5, .78, { bg: "#ffffff", fg: dark }), 0, 3.55, 2.58);
+}
 function workBuilding(w, x, z, ry) {
+  if (w.look === "bow") return bowCafe(w, x, z, ry);
   const k = w.kind, Q = [];
   if (k === "tech") { Q.push(box(11, 24, 11, "*#5f8fa8")); for (let y = 3; y < 24; y += 3) Q.push(box(11.2, .4, 11.2, "#d7e2e8", 0, y, 0)); Q.push(box(4, 3, 4, "#8f979c", 2, 24, 2)); }
   else if (k === "school") Q.push(box(16, 7, 8, "#ecd3a2", 0, 0, -3), box(6, 7, 6, "#ecd3a2", -5, 0, 4), box(16.4, .5, 8.4, "#b9664a", 0, 7, -3), ...wins([-5, -1, 3, 7], 1.5, 1.05), ...wins([-1, 3, 7], 4.5, 1.05), box(9, .1, 6, "#b9664a", 4, .05, 5));
@@ -1389,20 +1416,41 @@ function ballotHouse() {
   goTo(BALLOT.x, BALLOT.z, 5, () => open("🗳️ קלפי מס׳ 1", `${addrHtml(BALLOT)}<div class="hero"><p><b>מבנה ועדת הבחירות.</b> ${n ? `יש עכשיו ${fmtN(n)} בחירות פתוחות.` : "כרגע אין בחירות פתוחות."} נכנסים פנימה, עוברים את ועדת הקלפי, ובוחרים מאחורי הפרגוד.</p></div>
     <div class="btns"><button class="btn" data-go="enter" data-arg="ballot">🚪 להיכנס לקלפי</button><button class="btn ghost" data-go="ballot">🗳️ להצביע</button>${editBtn("ballot")}</div>`));
 };
+// the address of a place anywhere on the island: the street of the block it stands on, or the open country near a city
+function addrAt(x, z, slot) {
+  for (const sl of S.slots) if (sl.city) { const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ);
+    if (sl.blocks.has(`${bx},${bz}`) && Math.abs(x - sl.x - BPX(bx)) < BX / 2 && Math.abs(z - sl.z - BPZ(bz)) < BZ / 2) return blockAddr(sl, si, bx, bz); }
+  return `מחוץ לעיר, ליד ${slot?.city?.name || ""}`;
+}
 function buildCivic() {
-  const parks = [], lots = [], parked = [];
+  const parks = [], lots = [], parked = [], gardens = [], drives = [];
   S.slots.filter(s => s.city).forEach((slot, si) => {
     const all = slot.reserved.map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz]), nGov = si === 0 ? GOV.length : 0;
     const spots = [...all.slice(nGov, nGov + N_WORK), ...(slot.extraUsed || []).filter(b => b !== slot.ballotBlock).map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz])]; slot.publicSpots = all.slice(nGov + N_WORK);
     if (slot.ballotBlock) { BALLOT.x = slot.x + BPX(slot.ballotBlock[0]); BALLOT.z = slot.z + BPZ(slot.ballotBlock[1]); BALLOT.addr = blockAddr(slot, si, ...slot.ballotBlock); BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); placeLabel(`🗳️ ${BALLOT.name}`, BALLOT.x, 11, BALLOT.z, "gov"); }
     if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; g.addr = blockAddr(slot, si, sp[2], sp[3]); govBuilding(g.id, sp[0], sp[1]); placeLabel(`${g.ic} ${g.name}`, sp[0], 17, sp[1], "gov"); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
-      const sp = spots[i]; if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
+      const cfg = S.wpCfg?.get(w.id) || {}, sp = spots[i]; w.look = cfg.look || null; w.ry = 0;
+      if (cfg.x != null) {   // placed on the map by the admin: its own block (if it had one) becomes a small garden
+        if (sp) gardens.push(sp);
+        w.x = cfg.x; w.z = cfg.z; w.ry = cfg.ry || 0; w.addr = addrAt(w.x, w.z, slot);
+        if (!cfg.lot) { solid([box(24, CURB, 21, "#d8cfbd", 0, 0, 1.5), box(24.4, .12, 21.4, "#c9c0ae", 0, CURB - .1, 1.5)], w.x, w.z, w.ry, null, 0);   // a paved plot in the open country
+          // and an access road to the nearest highway
+          let best = null; for (const [a, b, c, d] of highwaySegs()) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((w.x - a) * dx + (w.z - b) * dz) / (dx * dx + dz * dz || 1))), q = [a + dx * k, b + dz * k], dd = Math.hypot(q[0] - w.x, q[1] - w.z); if (!best || dd < best.d) best = { q, d: dd }; }
+          if (best && best.d < 220) drives.push([w.x, w.z, best.q[0], best.q[1]]); }
+        workBuilding(w, w.x, w.z, w.ry); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
+        const sn = Math.sin(w.ry), cs = Math.cos(w.ry); for (const [a, b] of [[-10.5, -6], [10.5, -6]]) parks.push([w.x + a * cs + b * sn, w.z - a * sn + b * cs]);
+        return;
+      }
+      if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
       const r = rng(w.id * 7 + 1); for (let k = 0; k < 4; k++) if (r() < .7) parked.push({ x: sp[0] + 10 + (k % 2) * 6, z: sp[1] - 4.5 + Math.floor(k / 2) * 9, c: COLORS[COLOR_KEYS[Math.floor(r() * 10)]][0], f: k < 2 ? 0 : Math.PI, m: TRAFFIC_MIX[Math.floor(r() * 6)] });
     });
   });
   instanced(P.plane, lots, ([x, z], o) => { o.position.set(x, CURB + .02, z); o.scale.set(13, 1, 19); return "#565c63"; }, { shadow: false });
+  if (drives.length) instanced(P.plane, drives, ([a, b, c, d], o) => { o.position.set((a + c) / 2, .25, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(6, 1, Math.hypot(c - a, d - b)); return "#4a5057"; }, { shadow: false });
+  if (gardens.length) { instanced(P.plane, gardens, ([x, z], o) => { o.position.set(x, CURB + .02, z); o.scale.set(40, 1, SD - 2); return "#79a65a"; }, { shadow: false });
+    instanced(P.tree, gardens.flatMap(([x, z]) => [[-14, -6], [-4, 5], [7, -5], [15, 6]].map(([a, b]) => [x + a, z + b])), ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.9); }); }
   instanced(P.tree, parks, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.9); });
   for (const k of new Set(parked.map(c => c.m))) instanced(P["car_" + k], parked.filter(c => c.m === k), (c, o) => { o.position.set(c.x, CURB + .02, c.z); o.rotation.y = c.f; return c.c; });
 }
@@ -1742,6 +1790,7 @@ function buildPublic() {
     slot.publicSpots.forEach(([cx, cz, pbx, pbz], i) => {
       const p = list[i];
       const key = blkKey(slot, pbx, pbz), cfg = S.blkCfg?.get(key) || {};
+      if (!p && [...(S.wpCfg?.values() || [])].some(c => c.lot === key && c.x != null)) return;   // a business the admin placed here
       if (!p) {   // an empty public lot, waiting for ideas (or dressed by the admin)
         const data = { type: "lot", slot, key }, ground = { stone: "#d8cfbd", grass: "#79a65a", sand: "#d8c79f" }[cfg.ground] || "#d8c79f";
         const g = solid([box(40, .1, SD - 2, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
@@ -1815,7 +1864,7 @@ function buildNature() {
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
     const x = (r() * 2 - 1) * Rx, z = (r() * 2 - 1) * Rz;
-    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z)) continue;
+    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z) || S.workplaces.some(w => w.x != null && Math.hypot(w.x - x, w.z - z) < 20)) continue;
     const n = Math.sin(x * .011) * Math.cos(z * .014) + Math.sin((x + z) * .005);
     if (n < -.25 && r() < .85) continue;
     const q = r(); (q < .45 ? sets.olive : q < .75 ? sets.tree : sets.cypress).push({ x, z, s: .7 + r() * .7 });
@@ -1923,10 +1972,57 @@ addEventListener("resize", () => { if (REEL.on) return; renderer.setSize(innerWi
   walkCam.aspect = innerWidth / innerHeight; walkCam.updateProjectionMatrix(); });
 
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+// the admin places a business anywhere: on an empty public lot (it snaps onto the lot) or in the open country between the cities
+const PLACE = { id: null, mark: null };
+function placeStart(id) {
+  const w = S.wpById.get(+id); if (!w || !ADMIN) return; PLACE.id = w.id; close();
+  toast(`📍 הקישו על המפה במקום החדש של ״${w.name}״. מגרש ציבורי ריק או שטח פתוח בין הערים`, 7000);
+}
+function highwaySegs() { const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return []; return [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))].map(t => [cap.x, cap.z, t.x, t.z]); }
+function placeCheck(x, z, id) {
+  for (const [key, m] of BLK_META) if (m.kind === "lot" && Math.abs(x - m.cx) < 21 && Math.abs(z - m.cz) < HZ) return { ok: true, x: m.cx, z: m.cz, lot: key, where: m.title };
+  for (const [dx, dz] of [[0, 0], [-12, -9], [12, -9], [-12, 11], [12, 11]]) { const px = x + dx, pz = z + dz;
+    if (!onGrass(px, pz, S.s, .015)) return { why: "המקום הזה בים או על החוף 🌊" };
+    for (const sl of S.slots) if (sl.city) { const B = cityBox(sl);
+      if (px > sl.x + BPX(B.mnX) - BX / 2 - 4 && px < sl.x + BPX(B.mxX) + BX / 2 + 4 && pz > sl.z + BPZ(B.mnZ) - BZ / 2 - 4 && pz < sl.z + BPZ(B.mxZ) + BZ / 2 + 4) return { why: "כאן כבר בנויה עיר. בוחרים מגרש ציבורי ריק, או שטח פתוח מחוץ לעיר" }; } }
+  for (const [a, b, c, d] of highwaySegs()) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); if (Math.hypot(x - a - dx * k, z - b - dz * k) < 18) return { why: "צמוד מדי לכביש המהיר. קצת הצידה" }; }
+  for (const w of S.workplaces) if (w.id !== id && w.x != null && Math.hypot(w.x - x, w.z - z) < 26) return { why: "צמוד מדי לבניין אחר" };
+  return { ok: true, x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, where: "שטח פתוח" };
+}
+function placeTap(e) {
+  const v = new THREE.Vector3(); if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), v)) return;
+  const w = S.wpById.get(PLACE.id), c = placeCheck(v.x, v.z, w.id); if (!c.ok) return toast(c.why, 4000);
+  if (PLACE.mark) PLACE.mark.removeFromParent();
+  PLACE.mark = new THREE.Mesh(new THREE.RingGeometry(9, 11, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#e8569a", transparent: true, opacity: .8, depthTest: false }));
+  PLACE.mark.position.set(c.x, CURB + .3, c.z); PLACE.mark.renderOrder = 5; world.add(PLACE.mark);
+  const cfg = S.wpCfg?.get(w.id) || {}, dirs = [[0, "⬇️ דרומה"], [90, "➡️ מזרחה"], [180, "⬆️ צפונה"], [270, "⬅️ מערבה"]];
+  const done = () => { PLACE.id = null; if (PLACE.mark) { PLACE.mark.removeFromParent(); PLACE.mark = null; } };
+  open(`📍 ${w.name}`, `<div class="hero"><p><b>${esc(c.where)}</b>. כאן יעמוד הבניין, במקום שמסומן בעיגול הוורוד.</p></div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px"><label>הכניסה פונה<select id="plR">${dirs.map(([d, n]) => `<option value="${d}" ${Math.round((cfg.ry || 0) * 180 / Math.PI) === d ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="plSave">💾 לבנות כאן</button><button class="btn ghost" id="plMore">👆 מקום אחר</button><button class="btn ghost" id="plNo">ביטול</button></div>`, () => {
+    $("plMore").onclick = () => { close(); toast("📍 הקישו על המקום החדש", 4000); };
+    $("plNo").onclick = () => { done(); close(); };
+    $("plSave").onclick = async e => { e.target.disabled = true; e.target.textContent = "בונים…"; const ry = +$("plR").value * Math.PI / 180, id = w.id;
+      const val = { ...cfg, x: c.x, z: c.z, ry }; delete val.lot; if (c.lot) val.lot = c.lot; done();
+      if (await adminEdit("settings", `wp_${id}`, { value: val })) { close(); toast("🏗️ הבניין עומד במקום החדש"); const w2 = S.wpById.get(id); if (w2?.x != null) flyTo(w2.x, w2.z, 6, 1200); }
+      else { e.target.disabled = false; e.target.textContent = "💾 לבנות כאן"; } };
+  });
+}
+// a special design for a business, and moving it back to its automatic place
+function wpLook(id) {
+  const w = S.wpById.get(+id); if (!w || !ADMIN) return; const cfg = S.wpCfg?.get(w.id) || {};
+  open(`🎨 ${w.name}`, `<div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px"><label>העיצוב<select id="lkSel">${[["", `רגיל (${KIND_NAMES[w.kind] || w.kind})`], ["bow", "🎀 בית קפה פפיון ורוד"]].map(([k, n]) => `<option value="${k}" ${(cfg.look || "") === k ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+    <p class="note">הפפיון בצבע של הבניין. ורוד אם לא נבחר צבע.</p></div>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="lkSave">💾 לשמור</button>${cfg.x != null ? `<button class="btn ghost" id="lkAuto">↩️ להחזיר למקום האוטומטי</button>` : ""}</div>`, () => {
+    $("lkSave").onclick = async e => { e.target.disabled = true; const val = { ...cfg }; if ($("lkSel").value) val.look = $("lkSel").value; else delete val.look; if (await adminEdit("settings", `wp_${w.id}`, { value: val })) { toast("✅ נשמר"); close(); } else e.target.disabled = false; };
+    if ($("lkAuto")) $("lkAuto").onclick = async e => { e.target.disabled = true; const val = { ...cfg }; delete val.x; delete val.z; delete val.ry; delete val.lot; if (await adminEdit("settings", `wp_${w.id}`, { value: val })) { toast("↩️ חזר למקום האוטומטי"); close(); } else e.target.disabled = false; };
+  });
+}
 renderer.domElement.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; fly = null; });
 renderer.domElement.addEventListener("pointerup", e => {
   if (INT.on || REEL.on || WALK.on || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  if (PLACE.id != null) return placeTap(e);
   const hit = ray.intersectObjects(S.picks, false)[0];
   if (!hit) { if (S.sel) { S.sel = null; mark(S.mine); } return; }
   const d = hit.object.userData;
@@ -2000,7 +2096,7 @@ const walkCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .3, 90
 function walkDoors() {
   const D = [], add = (x, z, r, id, label) => D.push({ x, z, r, id, label });
   for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, 2.7, 0); add(x, z, 2.6, "home:" + h.u, h === WALK.h ? "להיכנס הביתה" : `להציץ אל ‎@${h.u}`); }
-  for (const w of S.workplaces) if (w.x != null) add(w.x, w.z + 6, 4, w.id, `להיכנס: ${w.name}${S.mine?.wp === w ? " (העבודה שלך)" : ""}`);
+  for (const w of S.workplaces) if (w.x != null) add(w.x + Math.sin(w.ry || 0) * 6, w.z + Math.cos(w.ry || 0) * 6, 4, w.id, `להיכנס: ${w.name}${S.mine?.wp === w ? " (העבודה שלך)" : ""}`);
   for (const g of GOV) if (g.x != null) add(g.x, g.z + 7.5, 6, "gov:" + g.id, `להיכנס: ${g.name}`);
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
   for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
@@ -2013,7 +2109,7 @@ function walkDoors() {
 function walkBlockers() {
   const B = [], rect = (x, z, w, d, ry = 0) => { const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry)), W = w * c + d * sn, D = w * sn + d * c; B.push([x - W / 2, z - D / 2, x + W / 2, z + D / 2]); };
   for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, -1.4, 0); rect(x, z, h.hk === "3_2" ? 10.6 : 8.6, 6.4, h.lot.face); }
-  for (const w of S.workplaces) if (w.x != null) rect(w.x, w.z - .5, 15, 11);
+  for (const w of S.workplaces) if (w.x != null) rect(w.x - Math.sin(w.ry || 0) * .5, w.z - Math.cos(w.ry || 0) * .5, w.look === "bow" ? 18 : 15, w.look === "bow" ? 9.6 : 11, w.ry || 0);
   for (const g of GOV) if (g.x != null) rect(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13);
   if (BALLOT.x != null) rect(BALLOT.x, BALLOT.z - 2.5, 22, 11);
   if (CENTRAL.on) B.push(...CENTRAL.boxes);
@@ -2283,6 +2379,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
+  wpPlace: id => placeStart(id), wpLook: id => wpLook(id),
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -2365,6 +2462,7 @@ function showWork(w) {
   const staff = [...w.staff].sort((a, b) => b.level - a.level || a.id - b.id), boss = staff[0];
   open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `${addrHtml(w)}<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
     <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button>${editBtn("work:" + w.id)}</div>
+    ${ADMIN ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="wpPlace" data-arg="${w.id}">📍 למקם על המפה</button><button class="btn ghost" data-go="wpLook" data-arg="${w.id}">🎨 עיצוב</button></div>` : ""}
     <div class="list" style="margin-top:10px">${boss && boss.level > 1 ? person(boss, LEVEL[Math.min(4, boss.level)]) : info("👔", "אין עדיין הנהלה", "הקידום הבא בהגרלה יכול להגיע מכאן")}</div>
     ${staff.length ? `<div class="sec">הצוות</div><div class="list">${staff.slice(0, 40).map(h => person(h, h.level > 1 ? LEVEL[Math.min(4, h.level)] : ROLE[w.kind] || "")).join("")}</div>` : ""}`);
 }
@@ -2772,8 +2870,10 @@ function interiorOf(w) {
     sgn(name, 6, 1, 0, 4.3, -6.48, 0, "#5a2a1a", "#f6e7c8"); sgn("לחם טרי מהתנור כל בוקר", 4, .9, -8.98, 3, 0, Math.PI / 2, "#2b2b2b", "#ffffff");
     staff.push([1, -.2, 0], [4.3, -3.9, Math.PI], [-5, -.6, Math.PI], [-1.5, .8, 0], [3.2, .8, 0]);
   } else if (k === "cafe") {
-    room("#a77b52", "#efe3cf", "#2d6e4a", { planks: "#946b45" });
-    counter(0, -4.6, 9, 1.2, "#2d6e4a", "#d8c7a8");
+    const bw = w.look === "bow", G1 = bw ? "#e8569a" : "#2d6e4a";
+    room(bw ? "#f3d9e2" : "#a77b52", bw ? "#fde8ef" : "#efe3cf", G1, bw ? { tiles: "#ffffff" } : { planks: "#946b45" });
+    counter(0, -4.6, 9, 1.2, G1, bw ? "#ffffff" : "#d8c7a8");
+    if (bw) for (const s2 of [-1, 1]) add(part(new THREE.ConeGeometry(.45, 1.1, 4), "#f06fa4", s2 * .55, 4.72, -6.4, { z: s2 * Math.PI / 2 }), sph(.24, "#e8569a", 0, 4.72, -6.4));   // a big bow on the back wall
     add(box(1.6, .9, .7, "#c3c8cd", -2, 1.05, -4.7), box(1.5, .12, .6, "*#ffd9a0", -2, 1.95, -4.7), ...[-2.4, -1.6].map(x => cyl(.06, .06, .3, 8, "#333333", x, .75, -4.35)),
       cyl(.18, .14, .7, 10, "#2b2b2b", .2, 1.05, -4.7), box(2.4, .8, .9, "*#f6efe2", 2.8, 1.05, -4.6), ...Array.from({ length: 8 }, (_, i) => sph(.15, ["#8a4f20", "#e2b35a", "#f2c9d2"][i % 3], 1.9 + (i % 4) * .6, 1.25 + Math.floor(i / 4) * .35, -4.5, 1.3, .6, 1)),
       ...Array.from({ length: 6 }, (_, i) => cyl(.12, .1, .2, 10, "#ffffff", -4 + i * .35, 1.05, -4.3)));
@@ -2782,7 +2882,7 @@ function interiorOf(w) {
     for (const [x, z] of [[-5, 1], [-1, 3], [3.5, 1.6], [6, 4.2]]) { table(x, z); chair(x - .9, z, Math.PI / 2, "#5a3a26"); chair(x + .9, z, -Math.PI / 2, "#5a3a26"); }
     add(box(3.8, .5, 1.2, "#7a3a28", -6.6, 0, 4.6), box(3.8, .9, .3, "#7a3a28", -6.6, .5, 5.15), box(1.1, .45, .7, "#2d2d2d", -6.6, 0, 3.2));
     plant(7.8, -5.4, 1.3); plant(-8.2, -5.6, 1.1);
-    sgn("אספרסו 8 · הפוך 12 · מאפה 10", 5, 1.1, 0, 3.6, -6.48, 0, "#1f2a24", "#f1e6cf"); sgn(name, 4.6, .9, -8.98, 3.6, 0, Math.PI / 2, "#2d6e4a", "#ffffff");
+    sgn("אספרסו 8 · הפוך 12 · מאפה 10", 5, 1.1, 0, 3.6, -6.48, 0, "#1f2a24", "#f1e6cf"); sgn(name, 4.6, .9, -8.98, 3.6, 0, Math.PI / 2, G1, "#ffffff");
     staff.push([-1, -5.5, 0], [2, -5.5, 0], [-4.2, 1.6, -Math.PI / 2], [4.3, 2.2, -Math.PI / 2]);
   } else if (k === "market") {
     room("#eef1f2", "#ffffff", "#d9762b", { tiles: "#e1e6e8" });
@@ -3282,6 +3382,7 @@ GO.admin = () => {
       <div class="row2"><label>סוג<select id="wKind">${opt(Object.keys(KIND_NAMES).map(k => [k, `${KIND_IC[k]} ${KIND_NAMES[k]}`]), "office")}</select></label><label>עיר<select id="wCity">${cityOpts}</select></label></div>
       <label>שם (יופיע על השלט)<input id="wName" placeholder="מגדל סבבה"></label>
       <div class="row2"><label>צבע<input type="color" id="wColor" value="#3c556b"></label><label>קומות (למגדל/מלון)<input type="number" id="wFloors" min="2" max="30" value="8"></label></div>
+      <div class="row2"><label>עיצוב<select id="wLook"><option value="">רגיל לפי הסוג</option><option value="bow">🎀 בית קפה פפיון ורוד</option></select></label><label class="chk" style="align-self:end"><input type="checkbox" id="wPlace"> 📍 אני אמקם על המפה</label></div>
       <button class="btn" id="wAdd">🏗️ לבנות</button>
       <div class="sec">שיבוץ תושב לעבודה</div>
       <div class="row2"><label>שם משתמש<input id="jUser" dir="ltr" autocapitalize="off" placeholder="username"></label><label>מקום עבודה<select id="jWp">${opt(S.workplaces.map(w => [w.id, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]))}</select></label></div>
@@ -3333,7 +3434,11 @@ GO.admin = () => {
     };
     $("dBody").querySelectorAll("[data-close]").forEach(b => b.onclick = () => run(b, "election_close", { id: +b.dataset.close }, "הקלפי נסגרה והתוצאה נכנסה לתוקף"));
     $("dBody").querySelectorAll("[data-del]").forEach(b => b.onclick = () => confirm("למחוק את הבחירות האלה בלי תוצאה?") && run(b, "election_delete", { id: +b.dataset.del }, "נמחק"));
-    $("wAdd").onclick = e => { if (!v("wName")) return toast("איך קוראים לבניין?"); run(e.target, "workplace_add", { name: v("wName"), kind: v("wKind"), city_id: +v("wCity"), color: v("wColor"), floors: v("wFloors") }, "🏗️ הבניין עומד! מצאו אותו ב״עבודה״"); };
+    $("wAdd").onclick = async e => { if (!v("wName")) return toast("איך קוראים לבניין?"); const look = v("wLook"), place = $("wPlace").checked, b = e.target; b.disabled = true; b.textContent = "בונים…";
+      const r = await adminDo("workplace_add", { name: v("wName"), kind: v("wKind"), city_id: +v("wCity"), color: look === "bow" && v("wColor") === "#3c556b" ? "" : v("wColor"), floors: v("wFloors") });
+      b.disabled = false; b.textContent = "🏗️ לבנות"; if (!r) return;
+      if (look && r.id) await adminEdit("settings", `wp_${r.id}`, { value: { look } });
+      if (place && r.id) placeStart(r.id); else toast("🏗️ הבניין עומד! מצאו אותו ב״עבודה״", 4500); };
     $("jSet").onclick = e => run(e.target, "citizen_job", { username: v("jUser"), workplace_id: +v("jWp") }, "💼 שובץ/ה");
     $("lAdd").onclick = e => { if (!v("lTitle")) return toast("מה החוק?"); run(e.target, "law_add", { title: v("lTitle"), description: v("lDesc"), by: v("lBy") }, "📜 החוק בתוקף"); };
     $("pAdd").onclick = e => run(e.target, "project_add", { kind: v("pKind"), city_id: +v("pCity"), name: v("pName") || PROJECT_KINDS[v("pKind")][1], by: v("pBy"), status: v("pStatus") }, "🏗️ הפרויקט על המפה");
@@ -3367,6 +3472,8 @@ function applySettings(rows) {
   S.houseSign = new Map();   // house_<username> = { text, color }: the name and color on a special house
   S.blkCfg = new Map();      // blk_<city site>_<bx>_<bz> = { name, center, trees, benches, cafe, ground, noSign, items: [...] }: how the admin dressed a square or a public lot
   for (const r of rows || []) if (r.key?.startsWith("blk_") && r.value) S.blkCfg.set(r.key, r.value);
+  S.wpCfg = new Map();       // wp_<workplace id> = { look: "bow", x, z, ry, lot }: a special design, and a place on the map the admin picked
+  for (const r of rows || []) if (r.key?.startsWith("wp_") && r.value) S.wpCfg.set(+r.key.slice(3), r.value);
   for (const r of rows || []) if (r.key?.startsWith("house_") && r.value) S.houseSign.set(r.key.slice(6), r.value);
   for (const r of rows || []) { const v = typeof r.value === "string" ? r.value : r.value?.name;
     if (!v) continue; const g = GOV.find(q => "gov_" + q.id === r.key); if (g) g.name = v; if (r.key === "ballot_name") BALLOT.name = v; }
