@@ -418,7 +418,7 @@ const invAxis = (v, B, Pf) => { const k = Math.round(v / (B + GAP / 4)); let bes
 const blockKind = (slot, bx, bz) => S.zones?.get(`${slot.at}:${bx},${bz}`) || baseKind(slot, bx, bz);
 const baseKind = (slot, bx, bz) => { if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 2 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
 const OPEN_KINDS = ["square", "park", "round", "lot"];
-const ZONES = [["houses", "🏘️", "בתים"], ["lane", "🏮", "בתים עם סמטה באמצע"], ["square", "⛲", "כיכר"], ["round", "⭕", "כיכר תנועה עגולה"], ["park", "🌳", "גן ציבורי"], ["lot", "📍", "מגרש ציבורי ריק"]];
+const ZONES = [["garden", "🌿", "גינה (במקום של עסק שעבר)"], ["houses", "🏘️", "בתים"], ["lane", "🏮", "בתים עם סמטה באמצע"], ["square", "⛲", "כיכר"], ["round", "⭕", "כיכר תנועה עגולה"], ["park", "🌳", "גן ציבורי"], ["lot", "📍", "מגרש ציבורי ריק"]];
 // a raised corner of sidewalk around a round junction: the quadrant [W..hw] x [W..hd] outside the circle RR
 function cornerPiece(sx, sz, W, hw, hd, RR, col, y0 = .3, y1 = CURB) {
   const top = RR * RR - hd * hd > W * W, a0 = Math.asin(W / RR), a1 = top ? Math.asin(hd / RR) : Math.acos(W / RR), pts = [];
@@ -496,12 +496,21 @@ const CITY_GAP = 120;
 const inTerritory = (x, z, slot) => { const d = Math.hypot(slot.x - x, slot.z - z); return SLOTS.every(s => s.at === slot.at || Math.hypot(s.x - x, s.z - z) >= d + CITY_GAP); };
 const nearestSlot = (x, z) => { let b = SLOTS[0], bd = Infinity; for (const s of SLOTS) { const d = Math.hypot(s.x - x, s.z - z); if (d < bd) { bd = d; b = s; } } return b; };
 
+// the blocks of businesses the admin moved elsewhere on the map: they are free, a garden until the admin zones them
+function freedBlocks(slot, si) {
+  const out = new Set(), res = reservedBlocks(slot, si), nGov = si === 0 ? GOV.length : 0, ws = S.workplaces.filter(w => w.city_id === slot.city?.id).sort((a, b) => a.id - b.id);
+  const spots = [...res.slice(nGov, nGov + N_WORK), ...extraBlocks(slot, si).slice(0, Math.min(N_EXTRA - 1, Math.max(0, ws.length - N_WORK)))];
+  ws.forEach((w, i) => { if (spots[i] && S.wpCfg?.get(w.id)?.x != null) out.add(spots[i].join(",")); });
+  return out;
+}
+const HOUSE_ZONES = ["houses", "lane"];
 function cityLots(slot, si, need) {
   // all lots of the city sorted by distance from its plaza; generated in growing rings so the order is stable
   for (let R = 260; ; R *= 1.6) {
     const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
     for (let bx = -nb; bx <= nb; bx++) for (let bz = -nz; bz <= nz; bz++) {
-      if ((bx === 0 && bz === 0) || isCentral(si, bx, bz) || res.has(bx + "," + bz)) continue;
+      if ((bx === 0 && bz === 0) || isCentral(si, bx, bz)) continue;
+      if (res.has(bx + "," + bz) && !(slot.freed?.has(bx + "," + bz) && HOUSE_ZONES.includes(S.zones?.get(`${slot.at}:${bx},${bz}`)))) continue;
       const kind = blockKind(slot, bx, bz); if (OPEN_KINDS.includes(kind)) continue;
       const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
       for (const L of blockLots(kind)) {
@@ -779,6 +788,7 @@ function layout() {
   S.slots.forEach((slot, si) => {
     slot.blocks = new Map(); slot.pop = 0;
     if (!slot.city) return;
+    slot.freed = freedBlocks(slot, si);
     const list = (byCity.get(slot.city.id) || []).sort((a, b) => a.id - b.id), lots = cityLots(slot, si, list.length);
     slot.pop = list.length;
     list.forEach((c, i) => {
@@ -810,7 +820,9 @@ function layout() {
       for (let x = Math.sign(bx); x !== bx + Math.sign(bx) && bx; x += Math.sign(bx)) if (!slot.blocks.has(`${x},0`)) slot.blocks.set(`${x},0`, { bx: x, bz: 0 });
       for (let z = Math.sign(bz); z !== bz && bz; z += Math.sign(bz)) if (!slot.blocks.has(`${bx},${z}`)) slot.blocks.set(`${bx},${z}`, { bx, bz: z });
     }
-    for (const [bx, bz] of [...slot.reserved, ...slot.extraUsed]) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "work" });
+    for (const [bx, bz] of [...slot.reserved, ...slot.extraUsed]) { const k = `${bx},${bz}`, zk = slot.freed.has(k) && S.zones?.get(`${slot.at}:${k}`);
+      if (zk && HOUSE_ZONES.includes(zk)) { if (!slot.blocks.has(k)) slot.blocks.set(k, { bx, bz }); continue; }   // a freed business block zoned for houses
+      slot.blocks.set(k, { bx, bz, civic: zk || "work" }); }
     // squares and parks appear once the neighborhood around them is built
     const bl = [...slot.blocks.values()], xs = bl.map(b => b.bx), zs = bl.map(b => b.bz);
     for (let bx = Math.min(...xs); bx <= Math.max(...xs); bx++) for (let bz = Math.min(...zs); bz <= Math.max(...zs); bz++) {
@@ -1456,7 +1468,7 @@ function buildCivic() {
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
       const cfg = S.wpCfg?.get(w.id) || {}, sp = spots[i]; w.look = cfg.look || null; w.ry = 0;
       if (cfg.x != null) {   // placed on the map by the admin: its own block (if it had one) becomes a small garden
-        if (sp) gardens.push(sp);
+        if (sp && !S.zones?.has(`${slot.at}:${sp[2]},${sp[3]}`)) gardens.push(sp);
         w.x = cfg.x; w.z = cfg.z; w.ry = cfg.ry || 0; w.addr = addrAt(w.x, w.z, slot);
         if (!cfg.lot) { solid([box(24, CURB, 21, "#d8cfbd", 0, 0, 1.5), box(24.4, .12, 21.4, "#c9c0ae", 0, CURB - .1, 1.5)], w.x, w.z, w.ry, null, 0);   // a paved plot in the open country
           // and an access road to the nearest highway
@@ -2007,13 +2019,14 @@ function zoneAt(x, z) {
 function zoneEdit(zn) {
   if (!ADMIN || !zn) return;
   if (zn.civic === "central") return toast("זו כיכר העיר. עורכים אותה בלחיצה על הכיכר");
-  if (zn.civic === "work" || zn.civic === "plaza") return toast("כאן עומד בניין ציבורי או עסק. עסק אפשר להעביר עם ״📍 למקם על המפה״ בכרטיס שלו", 5000);
-  const { slot, bx, bz } = zn, cur = blockKind(slot, bx, bz), orig = baseKind(slot, bx, bz), set = S.zones.has(`${slot.at}:${bx},${bz}`);
+  const fk = `${zn.bx},${zn.bz}`, freed = zn.slot.freed?.has(fk);
+  if ((zn.civic === "work" && !freed) || zn.civic === "plaza") return toast("כאן עומד בניין ציבורי או עסק. עסק אפשר להעביר עם ״📍 למקם על המפה״ בכרטיס שלו", 5000);
+  const { slot, bx, bz } = zn, set = S.zones.has(`${slot.at}:${bx},${bz}`), orig = freed ? "garden" : baseKind(slot, bx, bz), cur = freed ? S.zones.get(`${slot.at}:${bx},${bz}`) || "garden" : blockKind(slot, bx, bz);
   const here = S.houses.filter(h => h.lot && !h.lot.sq && h.slot === slot && h.lot.bx === bx && h.lot.bz === bz).length;
   const name = OPEN_KINDS.includes(cur) ? SQ_NAMES.get(`${slot.at}:${bx},${bz}`) || BLK_META.get(blkKey(slot, bx, bz))?.title : null;
   open(`🧱 ${name || blockAddr(slot, zn.si, bx, bz)}`, `<div class="hero"><p>מה יהיה בבלוק הזה? עכשיו: <b>${ZONES.find(q => q[0] === cur)?.[1] || ""} ${ZONES.find(q => q[0] === cur)?.[2] || cur}</b>${set ? ` (במקור: ${ZONES.find(q => q[0] === orig)?.[2] || orig})` : ""}.</p></div>
     ${here ? `<div class="hero warn" style="margin-top:8px"><p>גרים כאן <b>${fmtN(here)} תושבים</b>. אם הבלוק כבר לא יהיה של בתים, הם יעברו לבתים חדשים בעיר והכתובות שלהם ישתנו.</p></div>` : ""}
-    <div class="list" style="margin-top:10px">${ZONES.map(([k, ic, n]) => `<button class="li" data-zone="${k}" style="width:100%;text-align:right${k === cur ? ";outline:2px solid var(--accent)" : ""}"><span class="ic">${ic}</span><span class="tx"><b>${n}</b>${k === cur ? "<small>עכשיו</small>" : ""}</span></button>`).join("")}</div>
+    <div class="list" style="margin-top:10px">${ZONES.filter(([k]) => k !== "garden" || freed).map(([k, ic, n]) => `<button class="li" data-zone="${k}" style="width:100%;text-align:right${k === cur ? ";outline:2px solid var(--accent)" : ""}"><span class="ic">${ic}</span><span class="tx"><b>${n}</b>${k === cur ? "<small>עכשיו</small>" : ""}</span></button>`).join("")}</div>
     ${set ? `<div class="btns" style="margin-top:10px"><button class="btn ghost" id="zReset">↩️ כמו בתכנון המקורי</button></div>` : ""}
     ${OPEN_KINDS.includes(cur) ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="blk" data-arg="${blkKey(slot, bx, bz)}">✏️ שם ופריטים</button></div>` : ""}`, () => {
     const go = async (b, kind) => { b.disabled = true; const ok = kind ? await adminEdit("settings", zn.key, { value: { kind } }) : await adminEdit("settings", zn.key, {}, true);
