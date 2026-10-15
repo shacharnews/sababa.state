@@ -295,6 +295,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 
 /* ============================ CONFIG ============================ */
 const SUPABASE_URL = "https://herjiivecdrwkzudzbap.supabase.co";
@@ -869,6 +870,11 @@ function buildCities() {
   if (medians.length) { slabs(medians.map(([x, z, w, d]) => [x, z, w, d, "#9b978f"]), .3, .5); flatList(medians.map(([x, z, w, d]) => [x, z, w - .5, d - .5, "#79a65a"]), .51); }
   if (palms.length) instanced(P.palm, palms, ([x, z], o) => { o.position.set(x, .5, z); o.rotation.y = x + z; o.scale.setScalar(.9 + (hash(Math.round(x * 3 + z)) % 3) / 10); });
   instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
+  // every square and park in a city gets a name of its own, handed out from the center outwards
+  for (const slot of open) { const si = S.slots.indexOf(slot);
+    for (const kind of ["square", "park"]) { const L = kind === "park" ? PARKS : SQUARES;
+      squares.filter(q => q.slot === slot && q.kind === kind).sort((a, b) => Math.hypot(a.cx - slot.x, a.cz - slot.z) - Math.hypot(b.cx - slot.x, b.cz - slot.z) || a.cx - b.cx)
+        .forEach((q, i) => q.autoName = L[(i + si * 3) % L.length] + (i >= L.length ? " " + (HEB[Math.floor(i / L.length)] || i) : "")); } }
   buildRoundabouts(rounds); squares.forEach(buildSquare); lanes.forEach(buildLane);
   traffic = [...blvTraffic];
 
@@ -951,6 +957,125 @@ function placeCar(c, o) {
   if (c.vert) { o.position.set(c.z, .3, c.x0 + c.p); o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
   else { o.position.set(c.x0 + c.p, .3, c.z); o.rotation.set(0, c.dir * Math.PI / 2, 0); }
 }
+/* ---------- items the admin places on squares, parks and public lots ---------- */
+const blkKey = (slot, bx, bz) => `blk_${slot.at}_${bx}_${bz}`;
+const SQ_NAMES = new Map(), BLK_META = new Map();
+// a hexagram: two extruded triangle frames, one pointing up and one down
+function hexagram(R, w, col) {
+  const tri = rot => { const sh = new THREE.Shape(), hole = new THREE.Path(), ri = R - w * 2;
+    for (let i = 0; i < 3; i++) { const a = rot + i * Math.PI * 2 / 3, [x, y] = [Math.cos(a) * R, Math.sin(a) * R]; i ? sh.lineTo(x, y) : sh.moveTo(x, y); }
+    for (let i = 2; i >= 0; i--) { const a = rot + i * Math.PI * 2 / 3, [x, y] = [Math.cos(a) * ri, Math.sin(a) * ri]; i === 2 ? hole.moveTo(x, y) : hole.lineTo(x, y); }
+    sh.holes.push(hole); return new THREE.ExtrudeGeometry(sh, { depth: w * .8, bevelEnabled: true, bevelSize: w * .12, bevelThickness: w * .12, bevelSegments: 2 }).translate(0, 0, -w * .4); };
+  return [part(tri(Math.PI / 2), col), part(tri(-Math.PI / 2), col, 0, 0, w * .02)];
+}
+// the flag of Israel, painted on a canvas
+let IL_TEX = null;
+function ilFlagTex() {
+  if (IL_TEX) return IL_TEX; const cv = document.createElement("canvas"); cv.width = 440; cv.height = 320; const x = cv.getContext("2d");
+  x.fillStyle = "#ffffff"; x.fillRect(0, 0, 440, 320); x.fillStyle = "#0038b8"; x.fillRect(0, 30, 440, 50); x.fillRect(0, 240, 440, 50);
+  x.strokeStyle = "#0038b8"; x.lineWidth = 11; for (const r of [Math.PI / 2, -Math.PI / 2]) { x.beginPath(); for (let i = 0; i < 3; i++) { const a = r + i * Math.PI * 2 / 3; x[i ? "lineTo" : "moveTo"](220 + Math.cos(a) * 62, 160 - Math.sin(a) * 62); } x.closePath(); x.stroke(); }
+  IL_TEX = new THREE.CanvasTexture(cv); IL_TEX.colorSpace = THREE.SRGBColorSpace; return IL_TEX;
+}
+const pedestalParts = (w = 2.6, h = 1, c = "#d9cfb9") => [box(w, h, w * .6, c), box(w + .3, .2, w * .6 + .3, "#c7bba2", 0, h, 0)];
+// the catalog: name, icon, default color (null = no color), base scale, and the parts (built at size 1)
+const ITEMS = {
+  magen: { ic: "✡️", n: "מגן דוד ענק", col: "#1f4fa8", parts: c => [...pedestalParts(3.4, 1.2), box(.3, 1.4, .3, "#9aa1a6", -.9, 1.4, 0), box(.3, 1.4, .3, "#9aa1a6", .9, 1.4, 0), ...hexagram(3, .32, c).map(g => g.translate(0, 5.6, 0))] },
+  menorah: { ic: "🕎", n: "מנורת שבעת הקנים", col: "#d9b65a", parts: c => { const Q = [...pedestalParts(3, 1.2), cyl(.7, .9, .4, 16, c, 0, 1.4, 0), cyl(.13, .16, 3.4, 10, c, 0, 1.8, 0)];
+    for (const r of [.7, 1.4, 2.1]) Q.push(part(new THREE.TorusGeometry(r, .11, 8, 28, Math.PI), c, 0, 3.6, 0, { z: Math.PI }), ...[-1, 1].map(sx => cyl(.11, .11, 1.6, 8, c, sx * r, 3.6, 0)));
+    for (const x of [-2.1, -1.4, -.7, 0, .7, 1.4, 2.1]) Q.push(cyl(.22, .14, .3, 10, c, x, 5.2, 0), sph(.12, "*#ffcf6a", x, 5.62, 0, 1, 1.6, 1)); return Q; } },
+  chanukiah: { ic: "🕯️", n: "חנוכייה", col: "#d9b65a", parts: c => { const Q = [...pedestalParts(4, 1), cyl(.15, .18, 2.6, 10, c, 0, 1.2, 0), box(5.2, .25, .4, c, 0, 3.8, 0)];
+    for (let i = 0; i < 9; i++) { const x = -2.4 + i * .6, y = i === 4 ? 4.6 : 4.05; Q.push(cyl(.09, .09, y - 3.8, 8, c, x, 3.8, 0), cyl(.16, .12, .22, 8, c, x, y, 0), sph(.1, "*#ffcf6a", x, y + .36, 0, 1, 1.7, 1)); } return Q; } },
+  flag_il: { ic: "🇮🇱", n: "דגל ישראל על תורן", col: null, special: "il", parts: () => [cyl(.5, .6, .4, 12, "#cfc6b0"), cyl(.1, .13, 10, 8, "#d0d0d0", 0, .4, 0), sph(.18, "#d9b65a", 0, 10.5, 0)] },
+  flag: { ic: "🏳️", n: "דגל המדינה על תורן", col: null, special: "state", parts: () => [cyl(.5, .6, .4, 12, "#cfc6b0"), cyl(.1, .13, 10, 8, "#d0d0d0", 0, .4, 0), sph(.18, "#d9b65a", 0, 10.5, 0)] },
+  heart: { ic: "❤️", n: "לב ענק", col: "#e0313f", parts: c => [...pedestalParts(3, .8), sph(1, c, -.72, 3.6, 0, 1, 1, .7), sph(1, c, .72, 3.6, 0, 1, 1, .7), part(new THREE.ConeGeometry(1.72, 2.6, 24), c, 0, 2.1, 0, { x: Math.PI }).scale(1, 1, .7)] },
+  text: { ic: "🔤", n: "שלט / כיתוב ענק", col: "#1f6f8b", text: true, parts: c => [box(.3, 2.2, .3, "#5a4a32", -3.8, 0, 0), box(.3, 2.2, .3, "#5a4a32", 3.8, 0, 0), box(8.4, 2.4, .5, c, 0, 2.1, 0)] },
+  statue: { ic: "🗿", n: "פסל דמות", col: null, scale: 3.2, parts: () => [box(1.2, .4, 1.2, "#cfc6b0"), ...patinate(personParts({})).map(g => g.translate(0, .4, 0))] },
+  obelisk: { ic: "🗼", n: "אובליסק", col: "#e6dcc8", scale: 2.4, parts: c => MONUMENTS.obelisk.build({ color: c }).parts },
+  clock: { ic: "🕰️", n: "מגדל שעון", col: "#d9c39a", scale: 2.2, parts: c => MONUMENTS.clock.build({ color: c }).parts },
+  fountain: { ic: "⛲", n: "מזרקה", col: "#3fa8cf", parts: c => [cyl(3, 3.2, .7, 28, "#d9cfb9"), cyl(2.7, 2.7, .1, 28, c, 0, .62, 0), cyl(.4, .55, 2, 12, "#d9cfb9", 0, .7, 0), cyl(1.3, 1, .25, 16, "#d9cfb9", 0, 2.7, 0), cyl(1.1, 1.1, .05, 16, c, 0, 2.95, 0)] },
+  gazebo: { ic: "🎪", n: "ביתן נגינה", col: "#2f6e7a", parts: c => { const Q = [cyl(3.4, 3.6, .5, 8, "#e9e2d3"), part(new THREE.ConeGeometry(3.9, 1.7, 8), c, 0, 3.7, 0)];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.1, .1, 2.4, 6, "#ffffff", Math.cos(a) * 3.1, .5, Math.sin(a) * 3.1), sph(.12, "*#fff1c2", Math.cos(a) * 3.1, 2.9, Math.sin(a) * 3.1)); } return Q; } },
+  balls: { ic: "🔮", n: "פסל כדורים צבעוני", col: null, parts: () => [...pedestalParts(3, .5), ...[["#c4432f", 0, 2.2, 1.1], ["#2a3f92", -1.1, 1.4, .8], ["#86a13c", 1.1, 1.4, .8], ["#cc7632", 0, 3.6, .7]].map(([c, x, y, r]) => sph(r, c, x, y, 0))] },
+  balloons: { ic: "🎈", n: "צרור בלונים", col: null, parts: () => [box(.6, .3, .6, "#5a4a32"), ...["#e0313f", "#f2c230", "#2f7fa8", "#3fae6a", "#e85c9a"].flatMap((c, i) => { const a = i * 1.26, x = Math.cos(a) * .9, z = Math.sin(a) * .5, y = 4.6 + (i % 2) * .6;
+    return [sph(.5, c, x, y, z, 1, 1.2, 1), box(.02, y - .5, .02, "#dddddd", x / 2, .3, z / 2)]; })] },
+  playground: { ic: "🛝", n: "מגלשה ונדנדות", col: "#e05a4f", parts: c => [box(.12, 2.4, .12, c, -2, 0, 0), box(.12, 2.4, .12, c, 0, 0, 0), box(2.2, .12, .12, c, -1, 2.3, 0), box(.6, 2.6, 1.2, "#2f7fa8", 2.4, 0, .4, { x: .7 }), box(1.4, 1.6, 1.4, "#f2c230", 2.4, 0, -.9)] },
+  flowers: { ic: "🌷", n: "ערוגת פרחים", col: "#e85c9a", parts: c => [cyl(2, 2.1, .4, 18, "#c9bb9e"), cyl(1.85, 1.85, .1, 18, "#6f9c4a", 0, .4, 0), ...Array.from({ length: 14 }, (_, i) => sph(.3, [c, "#ffffff", "#f2c230"][i % 3], Math.cos(i * 2.4) * (.5 + (i % 3) * .45), .6, Math.sin(i * 2.4) * (.5 + (i % 3) * .45)))] },
+  bench: { ic: "🪑", n: "ספסל", col: "#7a5232", parts: c => [box(2.2, .45, .7, c, 0, .2, 0), box(2.2, .55, .12, c, 0, .65, -.3)] },
+  palm: { ic: "🌴", n: "דקל", col: null, prefab: "palm" }, tree: { ic: "🌳", n: "עץ", col: null, prefab: "tree" }, olive: { ic: "🫒", n: "עץ זית", col: null, prefab: "olive" },
+  lamp: { ic: "💡", n: "פנס רחוב", col: null, prefab: "lamp" },
+  model: { ic: "📦", n: "קובץ תלת־ממד (GLB)", col: null, url: true }
+};
+const ITEM_SIZES = { s: ["קטן", .6], m: ["רגיל", 1], l: ["גדול", 1.6], xl: ["ענק", 2.4] };
+const ITEM_X = [-15, -7.5, 0, 7.5, 15], ITEM_Z = [-6, 0, 6];
+// one GLB file, as many copies as needed, standing on the ground at (x, z), `height` tall
+function itemModel(url, x, y, z, height, ry, data) {
+  url = String(url || "").trim(); if (!url) return; const build = BUILD_NO;
+  if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
+  MODEL_CACHE.get(url).then(src => {
+    if (build !== BUILD_NO) return;
+    const m = cloneSkinned(src); m.position.set(0, 0, 0);   // a real copy, also for rigged models m.rotation.set(0, 0, 0); m.scale.setScalar(1); m.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(m, true), size = bb.getSize(new THREE.Vector3()), k = height / (size.y || 1), c = bb.getCenter(new THREE.Vector3());
+    m.position.set(-c.x * k, -bb.min.y * k, -c.z * k); m.scale.setScalar(k);
+    const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry;
+    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (data) { n.userData = { ...data }; S.picks.push(n); } });
+    world.add(grp);
+  }).catch(() => { if (ADMIN) toast("לא הצלחנו לטעון את קובץ התלת־ממד. בדקו את הכתובת", 5000); });
+}
+function buildItems(items, cx, cz, y, data) {
+  for (const it of items || []) {
+    const T = ITEMS[it.t]; if (!T) continue;
+    const k = (ITEM_SIZES[it.s]?.[1] || 1), x = cx + (+it.x || 0), z = cz + (+it.z || 0), ry = (+it.r || 0) * Math.PI / 180, col = it.c || T.col;
+    if (T.url) { itemModel(it.url, x, y, z, 6 * k, ry, data); continue; }
+    if (T.prefab) { instanced(P[T.prefab], [0], (_, o) => { o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(k); }); continue; }
+    const g = solid(T.parts(col), x, z, ry, data, y); g.scale.setScalar(k * (T.scale || 1));
+    if (T.text) { const sg = sign(it.text || "סבבה", 8, 2.2, { bg: col, fg: "#ffffff" }); mountSign(g, sg, 0, 3.3, .27); const bk = sign(it.text || "סבבה", 8, 2.2, { bg: col, fg: "#ffffff" }); mountSign(g, bk, 0, 3.3, -.27, Math.PI); }
+    if (T.special === "il") { const f = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 2.4), new THREE.MeshStandardMaterial({ map: ilFlagTex(), side: THREE.DoubleSide, roughness: .8 })); f.position.set(1.7, 9.2, 0); f.userData.disposable = false; g.add(f); }
+    if (T.special === "state") { const f = flagMesh(3.3, 2.3); f.position.set(x + 1.7 * k * Math.cos(ry), y + 9.2 * k, z - 1.7 * k * Math.sin(ry)); f.rotation.y = ry; f.scale.setScalar(k); world.add(f); FLAGS.push(f); }
+  }
+}
+// the editor: name, what's in the middle, trees/benches/café on or off, the ground of a lot, and any number of items
+function blkEdit(key) {
+  const M = BLK_META.get(key); if (!M || !ADMIN) return;
+  const cfg = JSON.parse(JSON.stringify(S.blkCfg?.get(key) || {})); cfg.items ||= [];
+  const sq = M.kind === "square" || M.kind === "park", lot = M.kind === "lot";
+  const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}" ${String(k) === String(v ?? "") ? "selected" : ""}>${n}</option>`).join("");
+  const draw = () => open(`✏️ ${M.title}`, `<div class="hero warn"><p><b>עריכת מנהל.</b> השינויים נכנסים לתוקף אצל כולם אחרי ״לשמור״.</p></div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
+      ${M.kind !== "project" ? `<label>שם${M.kind === "lot" ? " (לא חובה)" : ""}<input id="bkName" value="${esc(cfg.name || (sq ? M.title : ""))}"></label>` : ""}
+      ${M.kind === "square" ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ["fountain", "⛲ מזרקה"], ["clock", "🕰️ מגדל שעון"], ["gazebo", "🎪 ביתן נגינה"], ["ring", "⭕ פסל טבעות"], ["none", "ריק (מקום לפריטים)"]], cfg.center)}</select></label>` : ""}
+      ${sq ? `<label class="chk"><input type="checkbox" id="bkTrees" ${cfg.trees !== false ? "checked" : ""}> עצים</label><label class="chk"><input type="checkbox" id="bkBenches" ${cfg.benches !== false ? "checked" : ""}> ספסלים</label>
+        ${M.kind === "square" ? `<label class="chk"><input type="checkbox" id="bkCafe" ${cfg.cafe !== false ? "checked" : ""}> בית קפה וקיוסק</label>` : ""}` : ""}
+      ${lot ? `<label>הקרקע<select id="bkGround">${opt([["sand", "חול"], ["stone", "ריצוף אבן"], ["grass", "דשא"]], cfg.ground || "sand")}</select></label><label class="chk"><input type="checkbox" id="bkNoSign" ${cfg.noSign ? "checked" : ""}> להסתיר את השלט ״מה לבנות כאן?״</label>` : ""}
+    </div>
+    <div class="sec">פריטים · ${fmtN(cfg.items.length)}</div>
+    <div class="list">${cfg.items.map((it, i) => `<div class="li"><span class="ic">${ITEMS[it.t]?.ic || "❓"}</span><span class="tx"><b>${ITEMS[it.t]?.n || it.t}${it.text ? `: ${esc(it.text)}` : ""}</b><small>${ITEM_SIZES[it.s]?.[0] || ""} · ${["שמאל", "שמאל", "מרכז", "ימין", "ימין"][ITEM_X.indexOf(+it.x)] || "מרכז"} ${["מאחור", "", "מקדימה"][ITEM_Z.indexOf(+it.z)] || ""} · ${it.r || 0}°</small></span><button class="mini" data-rm="${i}">🗑</button></div>`).join("") || `<p class="note">עוד אין פריטים. מוסיפים למטה 👇</p>`}</div>
+    <div class="sec">הוספת פריט</div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px">
+      <label>מה<select id="itT">${opt(Object.entries(ITEMS).map(([k, T]) => [k, `${T.ic} ${T.n}`]), AVE.itT || "magen")}</select></label>
+      <div id="itExtra"></div>
+      <label>איפה במגרש (המבט מהרחוב שמול המגרש)</label>
+      <div class="itgrid">${ITEM_Z.map((z, zi) => ITEM_X.map((x, xi) => `<button data-pos="${x},${z}" class="${AVE.pos === `${x},${z}` || (!AVE.pos && x === 0 && z === 0) ? "on" : ""}">${xi === 2 && zi === 1 ? "●" : ""}</button>`).join("")).join("")}</div>
+      <div class="row2"><label>גודל<select id="itS">${opt(Object.entries(ITEM_SIZES).map(([k, v]) => [k, v[0]]), "m")}</select></label><label>סיבוב<select id="itR">${opt([[0, "0°"], [45, "45°"], [90, "90°"], [180, "180°"], [270, "270°"], [315, "315°"]], 0)}</select></label></div>
+      <button class="btn ghost" id="itAdd">➕ להוסיף</button>
+    </div>
+    <style>.itgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:4px 0 10px;direction:ltr}.itgrid button{height:30px;border-radius:8px;background:var(--bg);border:2px solid transparent;font-size:12px;color:var(--fg2)}.itgrid button.on{border-color:var(--accent);background:var(--accent);color:#fff}</style>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="bkSave">💾 לשמור</button></div>`, () => {
+    const extra = () => { const T = ITEMS[$("itT").value]; AVE.itT = $("itT").value;
+      $("itExtra").innerHTML = (T.col ? `<label>צבע<input type="color" id="itC" value="${T.col}" style="height:44px;padding:4px 6px"></label>` : "") + (T.text ? `<label>הכיתוב<input id="itX" maxlength="30" placeholder="סבבה"></label>` : "")
+        + (T.url ? `<label>כתובת הקובץ (‎.glb)<input id="itU" dir="ltr" autocapitalize="off" placeholder="/models/my.glb"></label><p class="note">מעלים את הקובץ ל־GitHub ליד index.html, וכותבים כאן את השם שלו, למשל /models/my.glb</p>` : ""); };
+    $("itT").onchange = extra; extra();
+    $("dBody").querySelectorAll("[data-pos]").forEach(b => b.onclick = () => { AVE.pos = b.dataset.pos; $("dBody").querySelectorAll("[data-pos]").forEach(q => q.classList.toggle("on", q === b)); });
+    const keep = () => { if ($("bkName")) cfg.name = $("bkName").value.trim(); if ($("bkCenter")) cfg.center = $("bkCenter").value || undefined; if ($("bkTrees")) cfg.trees = $("bkTrees").checked;
+      if ($("bkBenches")) cfg.benches = $("bkBenches").checked; if ($("bkCafe")) cfg.cafe = $("bkCafe").checked; if ($("bkGround")) cfg.ground = $("bkGround").value; if ($("bkNoSign")) cfg.noSign = $("bkNoSign").checked; };
+    $("dBody").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { keep(); cfg.items.splice(+b.dataset.rm, 1); stack.pop(); draw(); });
+    $("itAdd").onclick = () => { keep(); const t = $("itT").value, [x, z] = (AVE.pos || "0,0").split(",").map(Number), it = { t, x, z, s: $("itS").value, r: +$("itR").value };
+      if ($("itC")) it.c = $("itC").value; if ($("itX")) it.text = $("itX").value.trim() || "סבבה"; if ($("itU")) { it.url = $("itU").value.trim(); if (!it.url) return toast("צריך כתובת של קובץ GLB"); }
+      cfg.items.push(it); stack.pop(); draw(); toast(`${ITEMS[t].ic} נוסף לרשימה. לא לשכוח ״לשמור״`); };
+    $("bkSave").onclick = async e => { keep(); e.target.disabled = true; e.target.textContent = "שומר…";
+      if (await adminEdit("settings", key, { value: cfg })) { toast("✅ נשמר"); close(); const m2 = BLK_META.get(key); if (m2) flyTo(m2.cx, m2.cz, 7, 1200); } else { e.target.disabled = false; e.target.textContent = "💾 לשמור"; } };
+  }, true);
+  draw();
+}
 // roundabouts: a raised island with a painted ring; every one is decorated differently, the big ones (two boulevards) get a landmark
 function buildRoundabouts(list) {
   const Q = [], seen = new Set(), pal = [];
@@ -978,30 +1103,34 @@ function buildRoundabouts(list) {
 // a town square or a park on a whole block, each with its own name and centerpiece
 function buildSquare(q) {
   const { slot, si, b, cx, cz, kind } = q, key = `${slot.at}:${b.bx},${b.bz}`, h = hash(key), Q = [], trees = [], umbs = [];
-  q.name = pickName(kind === "park" ? PARKS : SQUARES, key, si); q.addr = blockAddr(slot, si, b.bx, b.bz); q.x = cx; q.z = cz; q.city_id = slot.city.id;
+  q.key = blkKey(slot, b.bx, b.bz); const cfg = S.blkCfg?.get(q.key) || {};
+  q.name = cfg.name || q.autoName || pickName(kind === "park" ? PARKS : SQUARES, key, si); q.addr = blockAddr(slot, si, b.bx, b.bz); q.x = cx; q.z = cz; q.city_id = slot.city.id;
+  SQ_NAMES.set(`${slot.at}:${b.bx},${b.bz}`, q.name); BLK_META.set(q.key, { title: q.name, kind, cx, cz, data: { type: "square", q } });
   const bench = (x, z, r = 0) => Q.push(box(2.2, .45, .7, "#7a5232", x, .2, z, { y: r }), box(2.2, .55, .12, "#7a5232", x - Math.sin(r) * .3, .65, z - Math.cos(r) * .3, { y: r }));
   if (kind === "square") {
     Q.push(box(40, .04, 20, "#e3d7bf"), cyl(8.5, 8.5, .06, 40, "#d2c19e"), cyl(6.5, 6.5, .07, 40, "#e8dcc4"));
     for (let i = 0; i < 8; i++) Q.push(box(40, .05, .12, "#d2c19e", 0, 0, -8.75 + i * 2.5));
-    const d = h % 4;
+    const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? h % 4;
     if (d === 0) Q.push(cyl(4, 4.2, .7, 32, "#d9cfb9"), cyl(3.7, 3.7, .1, 32, "#3fa8cf", 0, .62, 0), cyl(.5, .7, 2.4, 12, "#d9cfb9", 0, .7, 0), cyl(1.6, 1.3, .3, 18, "#d9cfb9", 0, 3.1, 0), cyl(1.4, 1.4, .06, 18, "#3fa8cf", 0, 3.38, 0), sph(.4, "#d9cfb9", 0, 3.8, 0));
     else if (d === 1) Q.push(box(2.6, 9, 2.6, "#d9c39a"), box(3, .3, 3, "#b9a47a", 0, 9, 0), ...[0, 1, 2, 3].map(i => cyl(.8, .8, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * 1.33, 7.7, Math.cos(i * Math.PI / 2) * 1.33)), part(new THREE.ConeGeometry(2, 2.4, 4), "#7a2a20", 0, 10.5, 0, { y: Math.PI / 4 }));
     else if (d === 2) { Q.push(cyl(4.2, 4.4, .6, 8, "#e9e2d3"), part(new THREE.ConeGeometry(4.8, 2, 8), "#2f6e7a", 0, 4.4, 0));
       for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.12, .12, 2.8, 6, "#ffffff", Math.cos(a) * 3.8, .6, Math.sin(a) * 3.8), sph(.14, "*#fff1c2", Math.cos(a) * 3.8, 3.3, Math.sin(a) * 3.8)); } }
-    else Q.push(box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 }));
-    for (const x of [-16, -11, 11, 16]) for (const z of [-7.5, 7.5]) trees.push([cx + x, cz + z]);
-    for (const x of [-7, 7]) { bench(x, -6.5, Math.PI); bench(x, 6.5); }
+    else if (d === 3) Q.push(box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 }));
+    if (cfg.trees !== false) for (const x of [-16, -11, 11, 16]) for (const z of [-7.5, 7.5]) trees.push([cx + x, cz + z]);
+    if (cfg.benches !== false) for (const x of [-7, 7]) { bench(x, -6.5, Math.PI); bench(x, 6.5); }
     // a café with umbrellas, and a kiosk
-    for (const [x, z] of [[-14, -2.2], [-14, 2.2], [-10.5, 0]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
-    Q.push(box(3, 2.6, 2.4, "#f4e4c1", 14, 0, 0), box(3.6, .2, 3, "#e05a4f", 14, 2.6, 0), box(2.2, 1, .1, "*#ffe2a0", 14, 1.1, 1.22));
+    if (cfg.cafe !== false) { for (const [x, z] of [[-14, -2.2], [-14, 2.2], [-10.5, 0]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
+      Q.push(box(3, 2.6, 2.4, "#f4e4c1", 14, 0, 0), box(3.6, .2, 3, "#e05a4f", 14, 2.6, 0), box(2.2, 1, .1, "*#ffe2a0", 14, 1.1, 1.22)); }
   } else {
     Q.push(box(40, .06, 20, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, 20, "#d8c7a8"), cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
     Q.push(box(.8, .3, .5, "#ffffff", -11, .12, -5), box(.3, .3, .3, "#f2c230", -10.6, .2, -5));                    // a duck
     Q.push(box(.12, 2.4, .12, "#e05a4f", 9, 0, 4), box(.12, 2.4, .12, "#e05a4f", 11, 0, 4), box(2.2, .12, .12, "#e05a4f", 10, 2.3, 4), box(.6, 2.6, 1.2, "#2f7fa8", 13, 0, 4.5, { x: .7 }), box(1.4, 1.6, 1.4, "#f2c230", 13, 0, 3.3));   // swings and a slide
-    const r = rng(h); for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -9 + r() * 18; if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue; trees.push([cx + x, cz + z]); }
-    for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
+    const r = rng(h); if (cfg.trees !== false) for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -9 + r() * 18; if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue;
+      if ((cfg.items || []).some(it => Math.hypot(it.x - x, it.z - z) < 3.5)) continue; trees.push([cx + x, cz + z]); }
+    if (cfg.benches !== false) for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
   }
   const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB); placeLabel(`${kind === "park" ? "🌳" : "⛲"} ${q.name}`, cx, 8, cz);
+  buildItems(cfg.items, cx, cz, CURB, { type: "square", q });
   // the name on a sign at the front, facing the street
   Q.length = 0; const sg = solid([box(.18, 2.6, .18, "#5a4a32", -2.6, 0, 9.4), box(.18, 2.6, .18, "#5a4a32", 2.6, 0, 9.4)], cx, cz, 0, { type: "square", q }, CURB);
   mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, 9.52);
@@ -1453,11 +1582,16 @@ function buildPublic() {
     const list = S.projects.filter(p => p.city_id === slot.city.id && !p.params?.island).sort((a, b) => a.id - b.id);
     slot.publicSpots.forEach(([cx, cz, pbx, pbz], i) => {
       const p = list[i];
-      if (!p) {   // an empty public lot, waiting for ideas
-        const g = solid([box(40, .1, 20, "#d8c79f"), box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)], cx, cz, 0, { type: "lot", slot }, Y0);
-        mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
+      const key = blkKey(slot, pbx, pbz), cfg = S.blkCfg?.get(key) || {};
+      if (!p) {   // an empty public lot, waiting for ideas (or dressed by the admin)
+        const data = { type: "lot", slot, key }, ground = { stone: "#d8cfbd", grass: "#79a65a", sand: "#d8c79f" }[cfg.ground] || "#d8c79f";
+        const g = solid([box(40, .1, 20, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
+        if (!cfg.noSign) mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
+        if (cfg.name) placeLabel(`📍 ${cfg.name}`, cx, 8, cz);
+        BLK_META.set(key, { title: cfg.name || "מגרש ציבורי", kind: "lot", cx, cz, data }); buildItems(cfg.items, cx, cz, Y0, data);
         return;
       }
+      p.blkKey = key; BLK_META.set(key, { title: p.name || PROJECT_KINDS[p.kind]?.[1], kind: "project", cx, cz, data: { type: "project", p } }); buildItems(cfg.items, cx, cz, Y0, { type: "project", p });
       p.x = cx; p.z = cz; p.addr = blockAddr(slot, S.slots.indexOf(slot), pbx, pbz); const name = p.name || PROJECT_KINDS[p.kind]?.[1] || "";
       placeLabel(`${p.status === "done" ? PROJECT_KINDS[p.kind]?.[0] || "📍" : "🏗️"} ${name}`, cx, p.status === "done" ? (p.kind === "monument" ? 14 : 9) : 14, cz);
       if (p.status !== "done") { buildSite(p, name, cx, cz, 40, 20, Y0, 0, { craneH: p.kind === "monument" ? 34 : 26, jib: 22 }); return; }
@@ -1643,7 +1777,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
-  else if (d.type === "lot") GO.ideas();
+  else if (d.type === "lot") ADMIN ? open(`📍 ${BLK_META.get(d.key)?.title || "מגרש ציבורי"}`, `<div class="hero"><p>מגרש ציבורי. אפשר להקים עליו פרויקט מלוח הבקרה, או לקשט אותו בפריטים.</p></div><div class="btns"><button class="btn" data-go="blk" data-arg="${d.key}">✏️ עריכת המגרש</button><button class="btn ghost" data-go="ideas">💡 רעיונות</button></div>`) : GO.ideas();
   else if (d.type === "ballot") GO.ballotHouse();
   else if (d.type === "square") showSquare(d.q);
 });
@@ -1736,7 +1870,7 @@ function streetHere(x, z) {
   const sl = S.slots.find(q => q.city && q.at === nearestSlot(x, z).at); if (!sl) return "";
   const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dz = z - sl.z - BPZ(bz);
   const b = sl.blocks.get(`${bx},${bz}`);
-  if (b?.civic === "square" || b?.civic === "park") return pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
+  if (b?.civic === "square" || b?.civic === "park") return SQ_NAMES.get(`${sl.at}:${bx},${bz}`) || pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
   return `${streetName(sl, si, dz < 0 ? bz : bz + 1, bx)} · ${sl.city.name}`;
 }
 const angDiff = (a, b) => { let d = (a - b) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; };
@@ -2009,14 +2143,14 @@ const GO = {
 };
 const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` : "";
 function showSquare(q) {
-  open(`${q.kind === "park" ? "🌳" : "⛲"} ${q.name}`, `${addrHtml(q)}<div class="hero"><p>${q.kind === "park" ? `<b>גן ציבורי</b> ב${esc(cityName(q.city_id))}: דשא, בריכת ברווזים, נדנדות ומגלשה. פתוח לכולם, תמיד.` : `<b>כיכר עירונית</b> ב${esc(cityName(q.city_id))}: בית קפה, קיוסק, ספסלים ומקום להיפגש.`}</p></div>`);
+  open(`${q.kind === "park" ? "🌳" : "⛲"} ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת ${q.kind === "park" ? "הגן" : "הכיכר"}</button></div>` : ""}<div class="hero"><p>${q.kind === "park" ? `<b>גן ציבורי</b> ב${esc(cityName(q.city_id))}: דשא, בריכת ברווזים, נדנדות ומגלשה. פתוח לכולם, תמיד.` : `<b>כיכר עירונית</b> ב${esc(cityName(q.city_id))}: בית קפה, קיוסק, ספסלים ומקום להיפגש.`}</p></div>`);
 }
 function showProject(p) {
   const [ic, kindName] = PROJECT_KINDS[p.kind] || ["🏗️", ""], who = p.requested_by && S.byUser.get(p.requested_by);
   open(`${ic} ${p.name || kindName}`, `${addrHtml(p)}<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
-    <div class="btns">${p.kind !== "monument" && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}</div>`);
+    <div class="btns">${p.kind !== "monument" && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}${ADMIN && p.blkKey ? `<button class="btn ghost" data-go="blk" data-arg="${p.blkKey}">🧩 פריטים במגרש</button>` : ""}</div>`);
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
@@ -3055,6 +3189,8 @@ function applySettings(rows) {
   for (const g of GOV) { g.orig ||= g.name; g.name = g.orig; }
   BALLOT.orig ||= BALLOT.name; BALLOT.name = BALLOT.orig;
   S.houseSign = new Map();   // house_<username> = { text, color }: the name and color on a special house
+  S.blkCfg = new Map();      // blk_<city site>_<bx>_<bz> = { name, center, trees, benches, cafe, ground, noSign, items: [...] }: how the admin dressed a square or a public lot
+  for (const r of rows || []) if (r.key?.startsWith("blk_") && r.value) S.blkCfg.set(r.key, r.value);
   for (const r of rows || []) if (r.key?.startsWith("house_") && r.value) S.houseSign.set(r.key.slice(6), r.value);
   for (const r of rows || []) { const v = typeof r.value === "string" ? r.value : r.value?.name;
     if (!v) continue; const g = GOV.find(q => "gov_" + q.id === r.key); if (g) g.name = v; if (r.key === "ballot_name") BALLOT.name = v; }
@@ -3970,6 +4106,7 @@ GO.reel = k => startReel(k);
 GO.reelHome = u => startReel("home", u || S.mine?.u);
 GO.reelArrive = u => startReel("arrival", u || S.mine?.u);
 GO.walk = walkStart;
+GO.blk = blkEdit;
 
 /* ============================ DATA ============================ */
 // newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
