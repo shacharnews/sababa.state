@@ -229,6 +229,7 @@ body.inside #intUI{display:block}
 #loader p{margin:0;opacity:.8;font-size:14px}
 @keyframes float{50%{transform:translateY(-8px)}}
 .note.addr{margin:0 0 10px;font-size:14px;font-weight:600;opacity:.85}
+.idc{position:relative}.idc-av{position:absolute;left:14px;bottom:10px;height:48%;max-height:150px;border-radius:12px;background:rgba(255,255,255,.18)}
 </style>
 <script type="importmap">
 {"imports":{
@@ -718,7 +719,7 @@ function layout() {
       const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_BY_TIER[car][hash(u + "m") % CARS_BY_TIER[car].length];
       const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
       const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
-        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
+        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
@@ -1577,7 +1578,17 @@ const ring = new THREE.Mesh(new THREE.RingGeometry(5.6, 6.6, 40).rotateX(-Math.P
 ring.visible = false; scene.add(ring);
 const pinEl = document.createElement("div"); pinEl.className = "marker"; pinEl.innerHTML = `<div class="bub"></div><div class="stem"></div><div class="dot"></div>`;
 const pin = new CSS2DObject(pinEl); pin.center.set(.5, 1); pin.visible = false; scene.add(pin);
+// your own figure stands on the lawn in front of your house
+let MINE_FIG = null;
+function frontOf(h, d = 4.1, side = .6) { const s = Math.sin(h.lot.face), c = Math.cos(h.lot.face); return [h.x + d * s + side * c, h.z + d * c - side * s]; }
+function placeMineFig() {
+  const h = S.mine?.lot ? S.mine : null, key = h ? h.u + JSON.stringify(avatarOf(h)) : "";
+  if (MINE_FIG && (MINE_FIG.userData.key !== key || MINE_FIG.parent !== world)) { MINE_FIG.removeFromParent(); MINE_FIG.traverse(o => o.geometry?.dispose()); MINE_FIG = null; }
+  if (!h || MINE_FIG) return;
+  MINE_FIG = avatarMesh(avatarOf(h), 1.15); const [x, z] = frontOf(h); MINE_FIG.position.set(x, LAWN, z); MINE_FIG.rotation.y = h.lot.face; MINE_FIG.userData.key = key; world.add(MINE_FIG);
+}
 function mark(h) {
+  placeMineFig();
   if (!h || !h.lot) { ring.visible = pin.visible = false; return; }
   const me = h === S.mine;
   ring.material.color.set(me ? "#e07a4f" : "#0f8b8d"); ring.position.set(h.x, LAWN + .15, h.z); ring.visible = true;
@@ -1815,7 +1826,7 @@ function showHouse(h) {
   const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>`;
   const owner = !me || h.coins == null ? "" : key
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
-       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
+       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
   open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
     <div data-go="id" data-arg="${esc(h.u)}" style="cursor:pointer;max-width:420px;margin:0 auto">${idcHtml(h)}</div>
@@ -1831,9 +1842,136 @@ function showHouse(h) {
       ${S.projects.filter(p => p.requested_by === h.u).map(p => li("project", "💡", `יזם/ית: ${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}`, p.status === "done" ? "ההצעה שלו/ה נבנתה!" : "ההצעה שלו/ה בבנייה", p.id)).join("")}
     </div>
     ${achHtml(h)}
-    <div class="btns">${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>` : ""}${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">💼 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>`,
+    <div class="btns">${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button><button class="btn ghost" data-go="reelArrive" data-arg="${esc(h.u)}">🚢 ריל ההגעה</button>` : ""}${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">💼 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>`,
     () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
+/* ============================ AVATARS ============================ */
+// every citizen has a figure of their own: free basics, better items for sabbabonim (prices must match avatar_price() in upgrade-9.sql)
+const AV_ITEMS = {
+  hr: { t: "תסרוקת", o: { short: ["קצר", 0], long: ["ארוך", 0], curly: ["מתולתל", 0], bald: ["קרחת", 0], pony: ["קוקו", 150], afro: ["אפרו", 250], mohawk: ["מוהוק", 400] } },
+  tp: { t: "בגדים", o: { tee: ["טישרט", 0], shirt: ["חולצה מכופתרת", 0], hoodie: ["קפוצ׳ון", 200], jersey: ["חולצת כדורגל", 300], dress: ["שמלה", 400], leather: ["מעיל עור", 800], suit: ["חליפה ועניבה", 1500] } },
+  ht: { t: "על הראש", o: { none: ["בלי", 0], cap: ["כובע מצחייה", 0], beanie: ["כובע גרב", 150], chef: ["כובע שף", 300], cowboy: ["כובע בוקרים", 600], tiger: ["כובע נמר", 2000], crown: ["כתר", 5000] } },
+  ac: { t: "אביזר", o: { none: ["בלי", 0], glasses: ["משקפיים", 100], sun: ["משקפי שמש", 300], phones: ["אוזניות", 600], chain: ["שרשרת זהב", 1200], cape: ["גלימת גיבור", 2500] } }
+};
+const AV_SKIN = ["#f6d7bd", "#eac09a", "#d9a67c", "#c58c63", "#9c6644", "#6b4430"], AV_HAIR = ["#1e1a17", "#4a3222", "#8a5a2e", "#d9b26a", "#b8462e", "#d8d4cf"];
+const AV_BUILD = { slim: "רזה", reg: "רגיל", heavy: "מלא" }, AV_BEARD = { none: "בלי זקן", short: "זיפים", full: "זקן מלא" };
+// a citizen's figure: what they saved, or a free one picked from their name
+function avatarOf(h) {
+  if (h?.av?.tp) return h.av;
+  const k = hash((h?.u || "x") + "av"), C = Object.values(COLORS).map(c => c[0]);
+  return { b: ["slim", "reg", "reg", "heavy"][k % 4], sk: AV_SKIN[k % 6], hr: ["short", "long", "curly", "bald"][(k >> 3) % 4], hc: AV_HAIR[(k >> 5) % 5], bd: ["none", "none", "short", "full"][(k >> 7) % 4],
+    tp: ["tee", "shirt"][(k >> 9) % 2], tc: C[(k >> 10) % C.length], pc: ["#3b3f46", "#2b4f74", "#5b6b3a", "#6b5a48"][(k >> 12) % 4], ht: ["none", "none", "cap"][(k >> 14) % 3], ac: ["none", "none", "none"][0] };
+}
+const avPrice = (cat, v) => AV_ITEMS[cat].o[v]?.[1] ?? 0;
+// the figure, 1.8m tall with a slightly larger head so faces read from afar; feet at y = 0, facing +z
+function avatarParts(av) {
+  const Q = [], W = av.b === "heavy" ? 1.24 : av.b === "slim" ? .86 : 1, sk = av.sk, tc = av.tc, pc = av.pc, hc = av.hc, shoes = "#2a211b";
+  const dress = av.tp === "dress", suit = av.tp === "suit", leather = av.tp === "leather", top = leather ? "#1d1d1f" : tc, longSleeve = ["shirt", "hoodie", "suit", "leather"].includes(av.tp);
+  // legs, or a skirt over bare legs
+  Q.push(box(.24, .12, .4, shoes, -.14 * W, 0, .05), box(.24, .12, .4, shoes, .14 * W, 0, .05));
+  if (dress) Q.push(box(.14, .62, .14, sk, -.12 * W, .1, 0), box(.14, .62, .14, sk, .12 * W, .1, 0), part(new THREE.CylinderGeometry(.3 * W, .52 * W, .62, 16), tc, 0, 1.0, 0));
+  else Q.push(box(.24 * W, .74, .28, suit ? tc : pc, -.14 * W, .1, 0), box(.24 * W, .74, .28, suit ? tc : pc, .14 * W, .1, 0), box(.6 * W, .16, .32 * W, suit ? tc : pc, 0, .78, 0));
+  // torso
+  Q.push(box(.64 * W, .66, .34 * W, top, 0, .92, 0), box(.7 * W, .16, .36 * W, top, 0, 1.5, 0));
+  if (av.b === "heavy") Q.push(sph(.33, top, 0, 1.12, .12, 1.15, 1, 1));
+  if (av.tp === "shirt") Q.push(box(.3, .1, .05, "#ffffff", 0, 1.56, .19 * W), ...[1.1, 1.25, 1.4].map(y => sph(.025, "#f4f4f4", 0, y, .18 * W)));
+  if (av.tp === "hoodie") Q.push(sph(.24, top, 0, 1.66, -.16, 1.1, .7, .8), box(.3, .16, .04, top, 0, 1.0, .18 * W), cyl(.012, .012, .22, 4, "#f4f4f4", -.06, 1.3, .18 * W), cyl(.012, .012, .22, 4, "#f4f4f4", .06, 1.3, .18 * W));
+  if (av.tp === "jersey") Q.push(box(.65 * W, .12, .35 * W, "#ffffff", 0, 1.25, 0), box(.65 * W, .06, .35 * W, "#ffffff", 0, 1.05, 0));
+  if (suit) Q.push(part(new THREE.ConeGeometry(.16, .4, 3), "#ffffff", 0, 1.38, .17 * W, { x: Math.PI }), box(.07, .34, .03, "#c0392b", 0, 1.08, .2 * W), box(.12, .06, .03, "#c0392b", 0, 1.44, .2 * W));
+  if (leather) Q.push(box(.02, .6, .02, "#c9c9c9", 0, .95, .18 * W), box(.1, .3, .03, "#2e2e30", -.18 * W, 1.25, .18 * W, { z: .3 }), box(.1, .3, .03, "#2e2e30", .18 * W, 1.25, .18 * W, { z: -.3 }));
+  if (av.ac === "cape") Q.push(box(.62 * W, 1.15, .05, "#c0392b", 0, .45, -.22 * W, { x: .12 }), box(.7 * W, .08, .3, "#c0392b", 0, 1.55, -.05));
+  // arms hanging at the sides, hands
+  const ax = .36 * W + .06;
+  for (const sx of [-1, 1]) Q.push(box(.17, .36, .2, top, sx * ax, 1.18, 0), box(.15, .32, .18, longSleeve ? top : sk, sx * ax, .86, 0), sph(.08, sk, sx * ax, .8, 0));
+  if (av.ac === "chain") Q.push(part(new THREE.TorusGeometry(.13, .02, 6, 18), "#e3b341", 0, 1.53, .1, { x: 1.2 }), sph(.04, "#e3b341", 0, 1.4, .19 * W));
+  // the head (built life size, then enlarged a little around the neck)
+  const hy = 1.86, body = Q.length;
+  Q.push(cyl(.08, .09, .12, 10, sk, 0, 1.62, 0), sph(.19, sk, 0, hy, 0, 1, 1.07, 1), sph(.04, sk, -.19, hy, 0), sph(.04, sk, .19, hy, 0), sph(.035, sk, 0, hy - .01, .19, 1, .9, 1.1),
+    sph(.024, "#1b1b1b", -.065, hy + .03, .168), sph(.024, "#1b1b1b", .065, hy + .03, .168), box(.1, .022, .02, "#8a3a2a", 0, hy - .085, .172), box(.07, .02, .02, hc, -.065, hy + .085, .17, { z: .12 }), box(.07, .02, .02, hc, .065, hy + .085, .17, { z: -.12 }));
+  if (av.bd === "short") Q.push(sph(.17, hc, 0, hy - .08, .03, 1, .62, .98));
+  if (av.bd === "full") Q.push(sph(.18, hc, 0, hy - .12, .05, 1.02, .85, .95), box(.16, .04, .04, hc, 0, hy - .04, .175));
+  const cap = av.ht !== "none" && av.ht !== "crown";   // a hat hides most of the hair
+  if (av.hr !== "bald" && av.ht !== "tiger" && av.ht !== "chef") {
+    if (av.hr === "afro") Q.push(sph(.3, hc, 0, hy + .13, -.1, 1, .9, .85));
+    else if (av.hr === "curly") for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; Q.push(sph(.09, hc, Math.cos(a) * .14, hy + .14 + Math.sin(i * 2.1) * .03, Math.sin(a) * .12 - .03)); }
+    else if (!cap) Q.push(sph(.2, hc, 0, hy + .05, -.02, 1.02, .85, 1.02));
+    if (av.hr === "long") Q.push(box(.4, .44, .14, hc, 0, hy - .32, -.12), box(.08, .34, .1, hc, -.18, hy - .22, .02), box(.08, .34, .1, hc, .18, hy - .22, .02));
+    if (av.hr === "pony") Q.push(sph(.07, hc, 0, hy + .06, -.21), cyl(.05, .03, .32, 8, hc, 0, hy - .3, -.24));
+    if (av.hr === "mohawk") Q.push(box(.07, .16, .34, "#e8569a", 0, hy + .16, -.02));
+  }
+  if (av.ht === "cap") Q.push(sph(.2, "#c0392b", 0, hy + .07, 0, 1.03, .7, 1.03), box(.26, .025, .16, "#c0392b", 0, hy + .06, .2));
+  if (av.ht === "beanie") Q.push(sph(.2, "#2f7fa8", 0, hy + .08, 0, 1.04, .9, 1.04), box(.42, .07, .42, "#245f7e", 0, hy + .02, 0), sph(.06, "#ffffff", 0, hy + .29, 0));
+  if (av.ht === "chef") Q.push(cyl(.2, .2, .1, 16, "#ffffff", 0, hy + .06, 0), cyl(.24, .2, .26, 16, "#ffffff", 0, hy + .16, 0), sph(.24, "#ffffff", 0, hy + .44, 0, 1, .55, 1));
+  if (av.ht === "cowboy") Q.push(cyl(.4, .4, .03, 20, "#8a5a2e", 0, hy + .1, 0), cyl(.17, .2, .2, 14, "#8a5a2e", 0, hy + .12, 0), box(.36, .03, .36, "#5a3a1e", 0, hy + .13, 0));
+  if (av.ht === "tiger") { const Y = "#eab53c", K = "#3a3220"; Q.push(sph(.22, Y, 0, hy + .17, -.03, 1.05, .62, 1.05), sph(.06, Y, -.13, hy + .31, -.03), sph(.06, Y, .13, hy + .31, -.03), sph(.06, "#fbf3e3", 0, hy + .2, .17, 1.2, .7, .6), sph(.022, "#111111", 0, hy + .22, .2));
+    for (const z of [-.12, -.02, .08]) Q.push(box(.44, .025, .03, K, 0, hy + .24, z)); }
+  if (av.ht === "crown") { Q.push(cyl(.17, .16, .12, 16, "#e3b341", 0, hy + .15, 0)); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Q.push(part(new THREE.ConeGeometry(.035, .12, 6), "#e3b341", Math.sin(a) * .155, hy + .32, Math.cos(a) * .155), sph(.022, ["#c0392b", "#2f7fa8"][i % 2], Math.sin(a) * .165, hy + .2, Math.cos(a) * .165)); } }
+  if (av.ac === "glasses" || av.ac === "sun") { const g = av.ac === "sun" ? "#111111" : "#2b2b2b"; Q.push(box(.09, av.ac === "sun" ? .06 : .065, .015, av.ac === "sun" ? "#111111" : "#cfe7f2", -.065, hy + .03, .19), box(.09, av.ac === "sun" ? .06 : .065, .015, av.ac === "sun" ? "#111111" : "#cfe7f2", .065, hy + .03, .19), box(.05, .015, .015, g, 0, hy + .04, .19)); }
+  if (av.ac === "phones") Q.push(part(new THREE.TorusGeometry(.21, .02, 6, 18, Math.PI), "#2b2b2b", 0, hy + .02, 0), cyl(.06, .06, .05, 12, "#e05a4f", -.21, hy, 0, { z: Math.PI / 2 }), cyl(.06, .06, .05, 12, "#e05a4f", .21, hy, 0, { z: Math.PI / 2 }));
+  for (let i = body; i < Q.length; i++) Q[i].translate(0, -1.62, 0).scale(1.22, 1.22, 1.22).translate(0, 1.62, 0);
+  return Q;
+}
+// a picture of a figure (transparent background), cached
+const AV_THUMBS = new Map();
+function avatarThumb(av, w = 220, h = 300, face = false) {
+  const id = JSON.stringify(av) + w + "x" + h + face; if (AV_THUMBS.has(id)) return AV_THUMBS.get(id);
+  try {
+    thumb("1_0");   // sets up the shared little renderer
+    const pf = prefab(avatarParts(av), false), grp = new THREE.Group();
+    for (const k of BUCKETS) if (pf[k]) grp.add(new THREE.Mesh(pf[k], TH.mats[k]));
+    grp.rotation.y = face ? -.15 : -.35; TH.sc.add(grp); TH.r.setSize(w, h, false); TH.cam.aspect = w / h; TH.cam.updateProjectionMatrix();
+    const c = face ? new THREE.Vector3(0, 1.86, 0) : new THREE.Vector3(0, 1.12, 0), dist = face ? 2.6 : 5.6;
+    TH.cam.position.copy(c).add(new THREE.Vector3(0, face ? .05 : .22, 1).normalize().multiplyScalar(dist)); TH.cam.lookAt(c);
+    TH.r.render(TH.sc, TH.cam); const url = TH.r.domElement.toDataURL("image/png"); TH.sc.remove(grp);
+    for (const k of BUCKETS) pf[k]?.dispose();
+    TH.r.setSize(240, 150, false); TH.cam.aspect = 240 / 150; TH.cam.updateProjectionMatrix();
+    AV_THUMBS.set(id, url); return url;
+  } catch { return ""; }
+}
+// a figure in the 3D world (homes, workplaces, reels)
+function avatarMesh(av, scale = 1.25) {
+  const pf = prefab(avatarParts(av), false), grp = new THREE.Group();
+  for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = true; grp.add(m); }
+  grp.scale.setScalar(scale); return grp;
+}
+// the editor: pick, see it live, pay only for new premium items (items bought once stay yours)
+const AVE = { draft: null };
+GO.avatar = u => {
+  const h = S.byUser.get(u || S.mine?.u); if (!h) return;
+  const mine = h === S.mine && keyOf(h.u); if (!mine && !ADMIN) return toast("את הדמות אפשר לעצב מהקישור האישי שקיבלתם באינסטגרם");
+  if (!AVE.draft || AVE.u !== h.u) { AVE.draft = { ...avatarOf(h) }; AVE.u = h.u; }
+  const d = AVE.draft, owned = new Set(h.owned || []), cur = avatarOf(h);
+  const isOwned = (cat, v) => !avPrice(cat, v) || owned.has(`${cat}:${v}`) || cur[cat] === v && !!h.av;
+  const cost = Object.keys(AV_ITEMS).reduce((t, cat) => t + (isOwned(cat, d[cat]) ? 0 : avPrice(cat, d[cat])), 0);
+  const chips = (cat) => `<div class="sec">${AV_ITEMS[cat].t}</div><div class="avopts">${Object.entries(AV_ITEMS[cat].o).map(([v, [n, pr]]) =>
+    `<button class="avo${d[cat] === v ? " on" : ""}" data-av="${cat}" data-v="${v}"><img alt="" src="${avatarThumb({ ...d, [cat]: v }, 110, 150, cat !== "tp")}"><b>${n}</b><small>${isOwned(cat, v) ? (pr ? "✓ שלך" : "חינם") : `${fmtN(pr)} ${COIN}`}</small></button>`).join("")}</div>`;
+  const sw = (key, list) => `<div class="avsw">${list.map(c => `<button style="background:${c}" class="${d[key] === c ? "on" : ""}" data-av="${key}" data-v="${c}" aria-label="${c}"></button>`).join("")}</div>`;
+  const simple = (key, map) => `<div class="avtx">${Object.entries(map).map(([v, n]) => `<button class="${d[key] === v ? "on" : ""}" data-av="${key}" data-v="${v}">${n}</button>`).join("")}</div>`;
+  const C12 = Object.values(COLORS).map(c => c[0]);
+  open("🧍 הדמות שלי", `<style>.avprev{display:flex;justify-content:center;background:linear-gradient(#e9f4f8,#f7efe2);border-radius:20px;margin-bottom:6px}.avprev img{height:260px}
+    .avopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}.avo{background:var(--tint);border:2px solid transparent;border-radius:14px;padding:4px 4px 6px;font:inherit;color:inherit;display:flex;flex-direction:column;align-items:center}
+    .avo.on{border-color:var(--accent)}.avo img{height:84px}.avo b{font-size:12px}.avo small{font-size:11px;opacity:.8}
+    .avsw{display:flex;flex-wrap:wrap;gap:8px}.avsw button{width:32px;height:32px;border-radius:50%;border:3px solid rgba(0,0,0,.08)}.avsw button.on{border-color:var(--accent);transform:scale(1.12)}
+    .avtx{display:flex;flex-wrap:wrap;gap:6px}.avtx button{background:var(--tint);border:2px solid transparent;border-radius:999px;padding:6px 12px;font:inherit;color:inherit;font-size:13px}.avtx button.on{border-color:var(--accent);font-weight:700}
+    .avbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 2px;margin-top:12px}</style>
+    <div class="avprev"><img alt="הדמות" src="${avatarThumb(d, 220, 300)}"></div>
+    <div class="sec">גוף</div>${simple("b", AV_BUILD)}<div class="sec">צבע עור</div>${sw("sk", AV_SKIN)}
+    ${chips("hr")}<div class="sec">צבע שיער</div>${sw("hc", AV_HAIR)}<div class="sec">זקן</div>${simple("bd", AV_BEARD)}
+    ${chips("tp")}<div class="sec">צבע הבגד</div>${sw("tc", C12)}<div class="sec">מכנסיים</div>${sw("pc", ["#3b3f46", "#2b4f74", "#5b6b3a", "#6b5a48", "#d8d1c2", "#1b1b1b"])}
+    ${chips("ht")}${chips("ac")}
+    <div class="avbar"><div class="btns"><button class="btn" id="avSave">${cost ? `💾 לשמור · ${fmtN(cost)} ${COIN}` : "💾 לשמור"}</button><button class="btn ghost" id="avReset">↺ כמו שהיה</button></div>
+    <p class="note">${h.coins != null ? `בארנק: ${fmtN(h.coins)} ${COIN}. ` : ""}פריט שקנית נשאר שלך, גם אם תחליף/י ותחזור/י אליו.</p></div>`, () => {
+    $("dBody").querySelectorAll("[data-av]").forEach(b => b.onclick = () => { const top = $("dBody").scrollTop; d[b.dataset.av] = b.dataset.v; stack.pop(); GO.avatar(h.u); $("dBody").scrollTop = top; });
+    $("avReset").onclick = () => { AVE.draft = null; stack.pop(); GO.avatar(h.u); };
+    $("avSave").onclick = async e => { const b = e.target; if (cost && (h.coins || 0) < cost) return toast(ERR.funds);
+      b.disabled = true; b.textContent = "שומר…";
+      try { const r = await rpc("set_avatar", { username: h.u, key: keyOf(h.u), av: d });
+        if (!r.ok) { b.disabled = false; b.textContent = "💾 לשמור"; if (r.error === "unauthorized") dropKey(h.u); return toast(ERR[r.error] || "לא נשמר. נסו שוב"); }
+        const nh = patchCitizen(h, { coins: r.coins, avatar: { ...d }, avatar_owned: r.owned || [] }, true); S.mine = nh; AVE.draft = null;
+        toast(r.paid ? `🧍 הדמות החדשה שלך מוכנה! −${fmtN(r.paid)} ${COIN}` : "🧍 הדמות נשמרה!", 3500); close(); setTimeout(() => showHouse(nh), 300);
+      } catch { b.disabled = false; b.textContent = "💾 לשמור"; toast("אין חיבור כרגע. נסו שוב"); } };
+  }, true);
+};
 /* ============================ ACHIEVEMENTS ============================ */
 const daysSince = d => d ? Math.floor((Date.now() - new Date(d).getTime()) / 864e5) : 0;
 let ACH_IDX = null;   // who did what, rebuilt after every data load
@@ -2387,7 +2525,11 @@ function interiorScene(w) {
     const im = { ...P.walker }, list = people.map((p, i) => ({ ...p, pos: staff[i] }));
     const make = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat, list.length); m.castShadow = true; sc.add(m); return m; };
     const meshes = BUCKETS.filter(k => im[k]).map(k => [k, make(im[k], BMAT[k])]);
-    list.forEach((p, i) => { o3.position.set(p.pos[0], 0, p.pos[1]); o3.rotation.set(0, p.pos[2], 0); o3.scale.setScalar(1.25); o3.updateMatrix();
+    list.forEach((p, i) => {
+      // the resident of a home, and the visitor at their own workplace, appear as their own figure
+      const own = p.h === me || p.h === w.owner;
+      if (own) { const f = avatarMesh(avatarOf(p.h), 1.2); f.position.set(p.pos[0], 0, p.pos[1]); f.rotation.y = p.pos[2]; sc.add(f); }
+      o3.position.set(p.pos[0], own ? -50 : 0, p.pos[1]); o3.rotation.set(0, p.pos[2], 0); o3.scale.setScalar(1.25); o3.updateMatrix();
       for (const [k, m] of meshes) { m.setMatrixAt(i, o3.matrix); m.setColorAt(i, col3.set(k === "tint" ? p.c : "#ffffff")); } });
     for (const [, m] of meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
     if (me) { tag = sign("את/ה", 1.6, .55, { bg: "#e07a4f", fg: "#ffffff" }); tag.position.set(staff[0][0], 2.9, staff[0][1]); sc.add(tag); }
@@ -2753,7 +2895,7 @@ async function makeStory(h) {
 }
 const ID_STYLE = `<style>.idc-ach{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.idc-ach span{background:var(--tint);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600}</style>`;
 // the card itself: shown in the ID drawer, on top of every house, and inside every home
-const idcHtml = h => `<div class="idc"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
+const idcHtml = h => `<div class="idc"><img class="idc-av" alt="" src="${avatarThumb(avatarOf(h), 150, 170, true)}"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
       <div class="idc-num">${pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
       <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(h.u)}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
       <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>`;
@@ -2767,9 +2909,13 @@ function idTexture(h) {
   x.font = "800 58px Heebo, Arial"; x.fillText("רפובליקת סבבה", W - 190, 105); x.font = "500 32px Heebo, Arial"; x.globalAlpha = .85; x.fillText("תעודת זהות · IDENTITY CARD", W - 190, 152); x.globalAlpha = 1;
   x.font = "800 64px Heebo, Arial"; x.direction = "ltr"; x.textAlign = "left"; x.fillText(pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2"), 230, 270);
   const row = (lab, val, y, ltr) => { x.direction = "rtl"; x.textAlign = "right"; x.font = "500 28px Heebo, Arial"; x.globalAlpha = .75; x.fillText(lab, W - 70, y); x.globalAlpha = 1;
-    x.font = "700 40px Heebo, Arial"; let s = String(val); while (x.measureText(s).width > W - 140 && s.length > 4) s = s.slice(0, -2); if (ltr) { x.direction = "ltr"; x.textAlign = "right"; } x.fillText(s, W - 70, y + 46); };
+    x.font = "700 40px Heebo, Arial"; let s = String(val); while (x.measureText(s).width > W - 380 && s.length > 4) s = s.slice(0, -2); if (ltr) { x.direction = "ltr"; x.textAlign = "right"; } x.fillText(s, W - 70, y + 46); };
   row("שם משתמש", "@" + h.u, 350, true); row("כתובת", addressOf(h), 450); row("עיסוק", jobTitle(h), 550);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  // the citizen's portrait, bottom left
+  const img = new Image(); img.onload = () => { x.fillStyle = "rgba(255,255,255,.18)"; x.beginPath(); x.roundRect(64, 320, 230, 270, 24); x.fill(); x.drawImage(img, 64, 320, 230, 270); t.needsUpdate = true; };
+  img.src = avatarThumb(avatarOf(h), 230, 270, true);
+  return t;
 }
 function idCard(u) {
   const h = S.byUser.get(u); if (!h) return toast("לא הצלחנו לטעון את התעודה");
@@ -2840,8 +2986,58 @@ function tourShots(night) {
   return hours(chain(list), night ? 20.2 : 15.8, night ? 23.2 : 19.2);
 }
 
+// the arrival reel: who it is about (the house tapped, else the newest citizen), and the moving ship and car
+const arrivalOf = h => h?.lot ? h : (S.sel?.lot ? S.sel : [...S.houses].filter(q => q.lot).sort((a, b) => b.id - a.id)[0]);
+const roadZ = (slot, e) => slot.z + (blvZ(e) ? blvCZ(e) + 5.4 : BPZ(e) - BZ / 2 + 1.6);
+const roadX = (slot, e) => slot.x + (blvX(e) ? blvCX(e) + 5.4 : BPX(e) - BX / 2 + 1.6);
+// a route along a polyline, walked by distance: position and heading at any fraction
+function route(pts) {
+  const seg = []; let L = 0; for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]], d = Math.hypot(b.x - a.x, b.z - a.z); if (d > .01) { seg.push({ a, b, d, L0: L }); L += d; } }
+  return u => { const t = clamp01(u) * L, sg = seg.find(q => t <= q.L0 + q.d) || seg.at(-1), k = (t - sg.L0) / sg.d;
+    return { x: sg.a.x + (sg.b.x - sg.a.x) * k, z: sg.a.z + (sg.b.z - sg.a.z) * k, ry: Math.atan2(sg.b.x - sg.a.x, sg.b.z - sg.a.z) }; };
+}
+// one moving copy of a prefab (never culled, it travels far from where it was created)
+function mover(pf, color) {
+  const m = instanced(pf, [0], (_, o) => { o.position.set(0, -80, 0); return color; }), ms = [m, ...(m.userData.twins || [])];
+  for (const q of ms) q.frustumCulled = false;
+  return { set(x, y, z, ry) { o3.position.set(x, y, z); o3.rotation.set(0, ry, 0); o3.scale.set(1, 1, 1); o3.updateMatrix(); for (const q of ms) { q.setMatrixAt(0, o3.matrix); q.instanceMatrix.needsUpdate = true; } },
+    dispose() { for (const q of ms) { world.remove(q); q.dispose(); } } };
+}
+// the immigrants' ferry: dark blue hull, white decks with lit windows, a yellow funnel, lifeboats, and its name on both sides
+function shipParts() {
+  const Q = [box(9, 3.2, 32, "#1f3b5a", 0, -1.2, 0), box(6.4, 3.2, 6.4, "#1f3b5a", 0, -1.2, 16, { y: Math.PI / 4 }), box(9.2, .6, 32.2, "#ffffff", 0, 1.8, 0), box(8.6, .3, 31, "#e9e4da", 0, 2.4, 0),
+    box(7.4, 3.4, 13, "#ffffff", 0, 2.7, -5), box(7.6, .3, 13.2, "#d9dde1", 0, 6.1, -5), box(6.8, 2.4, 6, "#ffffff", 0, 6.4, -3), box(7, .3, 6.2, "#1f6f8b", 0, 8.8, -3),
+    box(7.5, .7, 12.4, "*#ffe2a0", 0, 4.2, -5), box(6.9, .7, 5.4, "*#cfe6f2", 0, 7.3, -3), cyl(1.3, 1.5, 4.2, 14, "#ffb627", 0, 6.4, -10), cyl(1.32, 1.32, .8, 14, "#1f6f8b", 0, 9.4, -10),
+    cyl(.12, .12, 7, 6, "#d0d0d0", 0, 2.6, 11), box(2.2, 1.4, .1, "#1f6f8b", 1.2, 8.2, 11), sph(.5, "#ffb627", 1.2, 8.9, 11.06)];
+  for (const sx of [-1, 1]) for (const z of [-9, -3, 3]) Q.push(box(.9, .8, 3, "#e8692b", sx * 4.1, 3, z));
+  return Q;
+}
+// the citizen's figure standing in front of their house in a reel, from second `from`
+function figureProp(h, from = 0) {
+  const f = avatarMesh(avatarOf(h), 1.6), [x, z] = frontOf(h); f.position.set(x, LAWN, z); f.rotation.y = h.lot.face; world.add(f);
+  if (MINE_FIG) MINE_FIG.visible = false;   // the bigger reel figure takes its place
+  return { update(el) { f.visible = el >= from; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); if (MINE_FIG) MINE_FIG.visible = true; } };
+}
+function arrivalProps(h) {
+  const hb = COAST.find(c => c.id === "harbor"), t = hb.t, p = shorePt(t, S.s, .97), out = Math.atan2(Math.cos(t) * RZ0, Math.sin(t) * RX0), cs = Math.cos(out), sn = Math.sin(out);
+  const W = (lx, lz) => ({ x: p.x + lx * cs + lz * sn, z: p.z - lx * sn + lz * cs });
+  // the ship: from far out at sea to its berth next to the pier, slowing down as it arrives
+  const ship = solid(shipParts(), 0, 0, 0, null, -2.7); ship.scale.setScalar(1.5);
+  const sailEnd = 6.6, shipAt = el => { const k = 1 - Math.pow(1 - clamp01(el / sailEnd), 2.2); return W(15, 760 - 690 * k); };
+  // the state car: from the harbor up the highway to the city, then along the streets to the front of the house
+  const slot = h.slot, si = S.slots.indexOf(slot), cap = S.slots[0], start = shorePt(t, S.s, .9);
+  const eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, zH = roadZ(slot, eH), eV = h.lot.i < 2 ? h.lot.bx : h.lot.bx + 1, xV = roadX(slot, eV);
+  const z0 = roadZ(slot, h.lot.bz > 0 ? 1 : 0), entry = slot === cap ? cap : slot;
+  const pts = [W(-6, -10), start, { x: entry.x, z: entry.z }, { x: entry.x, z: z0 }, { x: xV, z: z0 }, { x: xV, z: zH }, { x: h.x + (h.lot.i < 2 ? 2 : -2), z: zH }];
+  const path = route(pts), car = mover(P.car_caravan, "#ffffff"), drive = [6.6, 13.2];
+  const carAt = el => path(ease(clamp01((el - drive[0]) / (drive[1] - drive[0]))));
+  REEL.arr = { shipAt, carAt, dock: W(15, 70) };
+  REEL.card = idTexture(h);
+  return [figureProp(h, drive[1]), { update(el) { const q = shipAt(el); ship.position.set(q.x, -2.7, q.z); ship.rotation.y = out + Math.PI; const c = carAt(el); car.set(c.x, .3, c.z, c.ry); },
+    dispose() { world.remove(ship); ship.traverse(o => o.geometry?.dispose()); car.dispose(); REEL.card?.dispose(); REEL.card = null; REEL.arr = null; } }];
+}
 const TEMPLATES = {
-  home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", pub: true, ok: h => !!(h || S.mine)?.lot, shots(h = S.mine) {
+  home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", pub: true, ok: h => !!(h || S.mine)?.lot, props: h => (h || S.mine)?.lot ? [figureProp(h || S.mine)] : [], shots(h = S.mine) {
     const zf = reelFit(), got = achievements(h).got, list = [
       { d: 3, a: at(ORIGIN, zf, -.5), b: at(h.slot, 2.2, -.2), h: [6, 9], cap: "יש לי בית במדינה", sub: "רפובליקת סבבה 🏳️", say: "יש לי בית ברפובליקת סבבה!" },
       { d: 3.4, b: at(h, 10, .35, .55), h: [10, 12], cap: addressOf(h), sub: `תושב/ת #${fmtN(h.no || h.id)}`, mark: h },
@@ -2908,6 +3104,16 @@ const TEMPLATES = {
     shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
     return chain(shots);
   } },
+  // a new citizen arrives: a ship sails into the immigrants' harbor, a state car drives them along the highway and through the streets to their new house, then their ID card
+  arrival: { ic: "🚢", name: "ההגעה לאי", sub: "ספינה לנמל, רכב מדינה עד הבית החדש", pub: true, ok: h => !!arrivalOf(h)?.lot && COAST[0].x != null, why: "צריך תושב עם בית", props: h => arrivalProps(arrivalOf(h)), shots(h) {
+    h = arrivalOf(h); const A = REEL.arr, zf = reelFit();
+    return [
+      { d: 3.2, a: at(A.shipAt(0), 4.2, -.9, .3), b: at(A.shipAt(1.4), 5, -.55, .28), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: `🚢 ‎@${h.u}` }), h: [7, 7.6], cap: `‎@${h.u} בדרך למדינה 🚢`, sub: `תושב/ת #${fmtN(h.no || h.id)} של רפובליקת סבבה` },
+      { d: 3.4, a: at(A.shipAt(3.2), 5, -.55, .28), b: at(A.dock, 6, .15, .34), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: `🚢 ‎@${h.u}` }), h: [7.6, 8.4], cap: "נמל העולים ⚓", sub: "ברוכים הבאים לאי" },
+      { d: 6.6, a: at(A.carAt(6.6), 9, .2, .42), b: at(A.carAt(13.2), 10, .9, .4), follow: el => A.carAt(el), pin: el => ({ ...A.carAt(el), y: 5, label: `🚐 ‎@${h.u}` }), h: [8.6, 11], cap: "רכב המדינה מסיע הביתה 🚐", sub: `ל${h.lot.street} ${h.lot.num}` },
+      { d: 3.4, a: at(h, 7, .9, .46), b: at(h, 11, 1.4, .42), h: [11, 12.5], cap: addressOf(h), sub: jobTitle(h), mark: h },
+      { d: 4, a: at(h, 11, 1.4, .42), b: at(h, 4, 1.9, .6), h: [12.5, 14], cap: `ברוכים הבאים ‎@${h.u}!`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇", card: true }];
+  } },
   draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, why: "עוד לא נערכה הגרלה. מריצים ב־Supabase: select * from run_daily_draw();", shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
     const shots = [{ d: 3, a: at(ORIGIN, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
@@ -2954,8 +3160,9 @@ function reelFrame(el, dt) {
     if (s.build != null && s.build !== S.total) buildSubset(s.build);
     if (s.mark) { S.sel = s.mark; mark(s.mark); } else ring.visible = pin.visible = false;
   }
-  const L = (a, b) => a + (b - a) * k, ea = s.a.el ?? BASE_EL, eb = s.b.el ?? BASE_EL;
-  poseCam({ x: L(s.a.x, s.b.x), z: L(s.a.z, s.b.z), zoom: Math.exp(L(Math.log(s.a.zoom), Math.log(s.b.zoom))), az: L(s.a.az, s.b.az), el: L(ea, eb) });
+  for (const pr of REEL.props || []) pr.update(el);
+  const L = (a, b) => a + (b - a) * k, ea = s.a.el ?? BASE_EL, eb = s.b.el ?? BASE_EL, fo = s.follow && s.follow(el);
+  poseCam({ x: fo ? fo.x : L(s.a.x, s.b.x), z: fo ? fo.z : L(s.a.z, s.b.z), zoom: Math.exp(L(Math.log(s.a.zoom), Math.log(s.b.zoom))), az: L(s.a.az, s.b.az), el: L(ea, eb) });
   const h = L(s.h[0], s.h[1]); if (Math.abs(h - timeMode.h) > .02) { timeMode = { live: false, h }; applyTime(); scene.fog.color.copy(scene.background); }
   animate(dt);
   renderer.render(scene, reelCam);
@@ -3129,7 +3336,8 @@ async function startReel(key, u) {
   if (!tpl.pub && !ADMIN) return toast("התבנית הזו זמינה רק למנהל המדינה");
   if (!tpl.ok(h)) return toast("עוד אין מספיק תוכן לתבנית הזו");
   close();
-  if (key === "home" && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("ריל הבית זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
+  if ((key === "home" || key === "arrival") && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("הריל האישי זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
+  REEL.props = tpl.props ? tpl.props(h) : [];
   const shots = tpl.shots(h); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
   await document.fonts.ready;
   const enc = await pickEncoder(), mime = enc ? null : pickMime();
@@ -3189,16 +3397,23 @@ function reelComposite(el, s) {
   x.font = "500 32px Heebo, Arial, sans-serif"; x.globalAlpha = .85; x.fillText(`יום ${fmtN(dayNo())} · ${fmtN(S.total)} תושבים`, RW - 220, 196); x.globalAlpha = 1;
   const into = el - s.t0, left = s.t0 + s.d - el, a = clamp01(Math.min(into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
   // a pin over the house in focus
-  if (s.mark?.lot) {
-    pv.set(s.mark.x, LAWN + (s.mark.tier === 1 ? 7 : 10), s.mark.z).project(reelCam);
+  // ...or over the ship or the car being followed
+  const pn = s.mark?.lot ? { x: s.mark.x, y: LAWN + (s.mark.tier === 1 ? 7 : 10), z: s.mark.z, label: "@" + s.mark.u } : s.pin ? s.pin(el) : null;
+  if (pn) {
+    pv.set(pn.x, pn.y, pn.z).project(reelCam);
     const px = (pv.x + 1) / 2 * RW, py = (1 - pv.y) / 2 * RH;
     if (pv.z < 1 && px > 0 && px < RW && py > 300 && py < RH - 500) {
       x.save(); x.globalAlpha = clamp01(into / .5); x.direction = "ltr"; x.textAlign = "center"; x.font = "800 40px Heebo, Arial, sans-serif";
-      const label = "@" + s.mark.u, w = x.measureText(label).width + 48;
+      const label = pn.label, w = x.measureText(label).width + 48;
       x.fillStyle = "#e07a4f"; x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 18; rr(x, px - w / 2, py - 110, w, 64, 32); x.fill(); x.shadowBlur = 0;
       x.fillRect(px - 3, py - 48, 6, 40); x.beginPath(); x.arc(px, py, 10, 0, Math.PI * 2); x.fill();
       x.fillStyle = "#fff"; x.fillText(label, px, py - 64); x.restore();
     }
+  }
+  // the citizen's ID card, flying in at the end of the arrival reel
+  if (s.card && REEL.card) {
+    const k = ease(clamp01((el - s.t0) / .8)), cw = 880 * (.6 + .4 * k), ch = cw * 650 / 1024, cx0 = (RW - cw) / 2, cy0 = 330 + (1 - k) * 120;
+    x.save(); x.globalAlpha = k; x.shadowColor = "rgba(0,0,0,.45)"; x.shadowBlur = 40; rr(x, cx0, cy0, cw, ch, 36); x.clip(); x.drawImage(REEL.card.image, cx0, cy0, cw, ch); x.restore();
   }
   x.save(); x.globalAlpha = a; x.textAlign = "center";
   x.font = "900 88px Heebo, Arial, sans-serif"; const L1 = wrapText(x, s.cap, RW - 140);
@@ -3214,6 +3429,7 @@ function reelComposite(el, s) {
 }
 function restoreView() {
   REEL.busy = REEL.live = false;
+  for (const pr of REEL.props || []) pr.dispose(); REEL.props = [];
   if (REEL.full) { S.raw = REEL.full.raw; S.total = REEL.full.total; REEL.full = null; buildWorld(); }
   REEL.comp?.remove();
   renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight); frustum();
@@ -3386,10 +3602,12 @@ GO.editor = () => {
 TEMPLATES.custom = { ic: "✏️", name: "ריל בעריכה שלי", sub: "", ok: () => !!CUSTOM?.scenes?.length, shots: customShots };
 GO.reel = k => startReel(k);
 GO.reelHome = u => startReel("home", u || S.mine?.u);
+GO.reelArrive = u => startReel("arrival", u || S.mine?.u);
 
 /* ============================ DATA ============================ */
 // newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
-const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift",
+const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned",
+  "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level", "id,ig_username,city_id,created_at"];
 let colset = 0;
 async function fetchCitizens() {
@@ -3460,7 +3678,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
