@@ -734,7 +734,7 @@ function layout() {
       const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_BY_TIER[car][hash(u + "m") % CARS_BY_TIER[car].length];
       const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
       const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
-        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
+        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
@@ -1747,7 +1747,7 @@ function walkStart(u) {
   const [x, z] = frontOf(h, 6.6, 0);
   Object.assign(WALK, { on: true, h, x, z, head: h.lot.face, cy: h.lot.face + Math.PI, pitch: .3, t: 0, keys: {}, joy: { x: 0, y: 0 }, boxes: walkBlockers(), fog: [scene.fog.near, scene.fog.far], street: "", mode: "foot", car: null });
   WALK.doors = walkDoors();   // after WALK.h is set: your own home gets its own button
-  WALK.fig = avatarMesh(avatarOf(h), 1); world.add(WALK.fig); if (MINE_FIG) MINE_FIG.visible = false;
+  WALK.fig = avatarMesh(avatarOf(h), 1); holdIn(WALK.fig); world.add(WALK.fig); if (MINE_FIG) MINE_FIG.visible = false;
   scene.fog.near = 90; scene.fog.far = 520; walkCam.aspect = innerWidth / innerHeight; walkCam.updateProjectionMatrix();
   controls.enabled = false; fly = null; document.body.classList.add("walking");
   const touch = matchMedia("(pointer: coarse)").matches;
@@ -1768,15 +1768,17 @@ function walkStart(u) {
 function exitWalk() {
   if (!WALK.on) return;
   if (WALK.car) { WALK.car.mv.dispose(); WALK.car = null; hideParked(WALK.h, false); }
+  npcClear();
   WALK.on = false; WALK.fig.removeFromParent(); WALK.fig.traverse(o => o.geometry?.dispose()); if (MINE_FIG) MINE_FIG.visible = true;
   [scene.fog.near, scene.fog.far] = WALK.fog; document.body.classList.remove("walking"); $("walkUI").innerHTML = "";
   controls.enabled = true; controls.target.set(WALK.x, 0, WALK.z); camera.position.copy(controls.target).addScaledVector(VIEW_DIR, 1500); setZoom(9); lastZoom = -1;
 }
 // looking around: drag anywhere on the street
-renderer.domElement.addEventListener("pointerdown", e => { if (WALK.on && !INT.on) WALK.drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+renderer.domElement.addEventListener("pointerdown", e => { if (WALK.on && !INT.on) WALK.drag = { x: e.clientX, y: e.clientY, id: e.pointerId, sx: e.clientX, sy: e.clientY, t: performance.now() }; });
 addEventListener("pointermove", e => { const d = WALK.drag; if (!WALK.on || !d || d.id !== e.pointerId) return;
   WALK.cy -= (e.clientX - d.x) * .006; WALK.pitch = Math.max(.08, Math.min(.85, WALK.pitch + (e.clientY - d.y) * .004)); d.x = e.clientX; d.y = e.clientY; WALK.lastDrag = performance.now(); });
-addEventListener("pointerup", e => { if (WALK.drag?.id === e.pointerId) WALK.drag = null; });
+addEventListener("pointerup", e => { const d = WALK.drag; if (d?.id !== e.pointerId) return; WALK.drag = null;
+  if (WALK.on && !INT.on && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8 && performance.now() - d.t < 450) npcTap(e); });
 addEventListener("keydown", e => { if (!WALK.on) return; WALK.keys[e.code] = true; if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault(); if (e.code === "Escape") exitWalk(); });
 addEventListener("keyup", e => { WALK.keys[e.code] = false; });
 // the camera never ends up inside a building: it moves in closer until it has a clear spot
@@ -1866,6 +1868,29 @@ function walkButtons() {
   $("wSpd").hidden = true;
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
 }
+/* ---------- a living city: real citizens of the state walk the sidewalks around their homes and workplaces, each as their own figure ---------- */
+const NPC = new Map();   // username -> { h, fig, cx, cz, p, v, dir, ph }
+function npcAnchor(h) {
+  const atWork = h.wp?.x != null && hash(h.u + israelDate()) % 3 === 0;   // today, a third of them are around their workplace
+  return atWork ? { cx: h.wp.x + 6, cz: h.wp.z } : { cx: h.slot.x + BPX(h.lot.bx), cz: h.slot.z + BPZ(h.lot.bz) };
+}
+function npcRefresh() {
+  const want = [];
+  for (const h of S.houses) { if (!h.lot || h === WALK.h) continue; const a = npcAnchor(h), d = Math.hypot(a.cx - WALK.x, a.cz - WALK.z); if (d < 120) want.push({ h, a, d }); }
+  want.sort((x, y) => x.d - y.d); const keep = new Set(want.slice(0, 18).map(w => w.h.u));
+  for (const [u, n] of NPC) if (!keep.has(u)) { n.fig.removeFromParent(); n.fig.traverse(o => o.geometry?.dispose()); NPC.delete(u); }
+  let made = 0;
+  for (const { h, a } of want.slice(0, 18)) { if (NPC.has(h.u) || made >= 3) continue; made++;   // a few new ones per refresh, so walking stays smooth
+    const fig = avatarMesh(avatarOf(h), 1); fig.userData.u = h.u; world.add(fig);
+    NPC.set(h.u, { h, fig, ...a, p: (hash(h.u) % 1000) / 1000, v: .7 + (hash(h.u + "v") % 50) / 100, dir: hash(h.u) % 2 ? 1 : -1, ph: hash(h.u) % 7 }); }
+}
+function npcClear() { for (const n of NPC.values()) { n.fig.removeFromParent(); n.fig.traverse(o => o.geometry?.dispose()); } NPC.clear(); }
+// tap a citizen on the street: their ID card
+function npcTap(e) {
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, walkCam);
+  const hit = ray.intersectObjects([...NPC.values()].map(n => n.fig), true)[0]; if (!hit) return;
+  let o = hit.object; while (o && !o.userData.u) o = o.parent; if (o) idCard(o.userData.u);
+}
 function walkMinimap() {
   const cv = $("wMap"); if (!cv) return; const x = cv.getContext("2d"), W = cv.width, sc = 1.1, cx0 = WALK.x, cz0 = WALK.z;
   x.fillStyle = "#8bb36a"; x.fillRect(0, 0, W, W);
@@ -1885,6 +1910,8 @@ function walkFrame(dt, now) {
   if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
   sunFollow(WALK.fig.position, 90);
   if (WALK.frame % 3 === 0) walkButtons();
+  if (WALK.frame % 45 === 0) npcRefresh();
+  for (const n of NPC.values()) placeWalker(n, n.fig, simT);
   if (WALK.frame++ % 8 === 0) {
     walkMinimap();
     for (const l of LABELS) { const d = Math.hypot(l.position.x - WALK.x, l.position.z - WALK.z); l.visible = d < (l.element.classList.contains("st") ? 55 : l.element.classList.contains("city") ? 400 : 110); }
@@ -2052,9 +2079,54 @@ function showHouse(h) {
       ${S.projects.filter(p => p.requested_by === h.u).map(p => li("project", "💡", `יזם/ית: ${esc(p.name || PROJECT_KINDS[p.kind]?.[1])}`, p.status === "done" ? "ההצעה שלו/ה נבנתה!" : "ההצעה שלו/ה בבנייה", p.id)).join("")}
     </div>
     ${achHtml(h)}
-    <div class="btns">${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button><button class="btn ghost" data-go="reelArrive" data-arg="${esc(h.u)}">🚢 ריל ההגעה</button>` : ""}${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">💼 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>`,
+    <div class="btns">${key || ADMIN ? `<button class="btn ghost" data-go="reelHome" data-arg="${esc(h.u)}">🎬 ריל של הבית</button>${ADMIN ? `<button class="btn ghost" data-go="reelArrive" data-arg="${esc(h.u)}">🚢 ריל הגעה</button>` : ""}` : ""}${h.wp ? `<button class="btn ghost" data-go="enter" data-arg="${h.wp.id}">💼 ${me ? "להיכנס לעבודה" : "לבקר בעבודה"}</button>` : ""}${me ? "" : `<button class="btn ghost" id="itsMe">זה אני</button>`}${editBtn("cit:" + h.u)}</div>`,
     () => { wireAch(); const b = $("itsMe"); if (b) b.onclick = () => { S.mine = h; S.sel = null; mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); showHouse(h); }; });
 }
+/* ============================ BUYING IN THE CITY'S BUSINESSES ============================ */
+// prices must match menu_price() in upgrade-10.sql
+const MENUS = {
+  bakery: { t: "מאפייה", o: { croissant: ["🥐", "קרואסון חמאה", 15], burekas: ["🥟", "בורקס גבינה", 12], challah: ["🍞", "חלה מתוקה", 20], cake: ["🍰", "עוגת שוקולד", 35] } },
+  cafe: { t: "בית קפה", o: { espresso: ["☕", "אספרסו", 8], hafuch: ["☕", "הפוך גדול", 12], muffin: ["🧁", "מאפין", 14], shake: ["🥤", "שייק פירות", 22] } },
+  hummus: { t: "חומוסייה", o: { plate: ["🍲", "צלחת חומוס", 30], falafel: ["🧆", "מנת פלאפל", 18], sabich: ["🥙", "סביח", 25], lemonana: ["🍋", "לימונענע", 8] } },
+  restaurant: { t: "מסעדה", o: { schnitzel: ["🍗", "שניצל וצ׳יפס", 45], shakshuka: ["🍳", "שקשוקה", 38], salad: ["🥗", "סלט ישראלי", 22], malabi: ["🍮", "מלבי", 16] } },
+  kiosk: { t: "מכולת", o: { bamba: ["🥜", "במבה", 5], bisli: ["🥨", "ביסלי", 6], choco: ["🥛", "שוקו בשקית", 7], artik: ["🍦", "ארטיק", 9] } },
+  fuel: { t: "תחנת דלק", o: { coffee: ["☕", "קפה של תחנה", 10], toast: ["🥪", "טוסט", 18], artik: ["🍦", "ארטיק", 9] } }
+};
+const MENU_OF = { bakery: "bakery", cafe: "cafe", hummus: "hummus", restaurant: "restaurant", market: "kiosk", shop: "kiosk", fuel: "fuel" };
+// what you're holding: the last thing you bought, for the next 20 minutes (on this device)
+const HOLD = { e: null, until: 0 };
+const holding = () => HOLD.e && Date.now() < HOLD.until ? HOLD.e : null;
+function emojiSprite(e) {
+  const cv = document.createElement("canvas"); cv.width = cv.height = 128; const x = cv.getContext("2d"); x.font = "96px serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(e, 64, 70);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: true }));
+  sp.userData.disposable = true; sp.userData.hold = true; return sp;
+}
+// put the item in a figure's right hand (or take it away)
+function holdIn(fig) {
+  if (!fig) return; for (const c of [...fig.children]) if (c.userData.hold) { fig.remove(c); c.material.map.dispose(); c.material.dispose(); }
+  const e = holding(); if (!e) return; const sp = emojiSprite(e); sp.position.set(.5, .95, .28); sp.scale.setScalar(.42); fig.add(sp);
+}
+GO.menu = id => {
+  const w = S.wpById.get(+id), grp = w && MENU_OF[w.kind], M = grp && MENUS[grp]; if (!M) return;
+  const me = S.mine, key = me && keyOf(me.u);
+  open(`🛒 ${w.name}`, `<div class="hero"><p>${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>. בתיאבון!` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
+    <div class="list" style="margin-top:10px">${Object.entries(M.o).map(([k, [ic, n, pr]]) => `<div class="li"><span class="ic" style="font-size:26px">${ic}</span><span class="tx"><b>${n}</b><small>${fmtN(pr)} ${COIN}</small></span>${key ? `<button class="mini" data-buy="${grp}:${k}">קנייה</button>` : ""}</div>`).join("")}</div>
+    ${me?.food?.[grp] ? `<p class="note">קנית כאן ${fmtN(me.food[grp])} פעמים${me.food[grp] < 10 ? `. עוד ${fmtN(10 - me.food[grp])} ותקבל/י הישג 🏅` : " 🏅"}</p>` : ""}`, () => {
+    $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = async () => {
+      const item = b.dataset.buy, [g, k] = item.split(":"), [ic, n, pr] = MENUS[g].o[k];
+      if ((me.coins || 0) < pr) return toast(ERR.funds);
+      b.disabled = true; b.textContent = "…";
+      try { const r = await rpc("buy_food", { username: me.u, key: keyOf(me.u), item });
+        if (!r.ok) { b.disabled = false; b.textContent = "קנייה"; if (r.error === "unauthorized") dropKey(me.u); return toast(ERR[r.error] || "לא הצליח. נסו שוב"); }
+        const before = achievements(me).got.length;
+        patchCitizen(me, { coins: r.coins, food: r.food || me.food });
+        HOLD.e = ic; HOLD.until = Date.now() + 20 * 60e3; holdIn(INT.meFig); if (WALK.on) holdIn(WALK.fig);
+        const fresh = achievements(me).got.length > before ? achievements(me).got.find(a => ["bakery10", "cafe10", "hummus10", "foodie"].includes(a.id) && a.test(me)) : null;
+        toast(fresh ? `🏅 הישג חדש: ${fresh.ic} ${fresh.t}!` : `${ic} ${n} · בתיאבון! −${fmtN(pr)} ${COIN}`, 3500);
+        stack.pop(); GO.menu(id); if (INT.on) renderIntUI();
+      } catch { b.disabled = false; b.textContent = "קנייה"; toast("אין חיבור כרגע. נסו שוב"); } });
+  }, true);
+};
 /* ============================ AVATARS ============================ */
 // every citizen has a figure of their own: free basics, better items for sabbabonim (prices must match avatar_price() in upgrade-9.sql)
 const AV_ITEMS = {
@@ -2069,8 +2141,8 @@ const AV_BUILD = { slim: "רזה", reg: "רגיל", heavy: "מלא" }, AV_BEARD 
 function avatarOf(h) {
   if (h?.av?.tp) return h.av;
   const k = hash((h?.u || "x") + "av"), C = Object.values(COLORS).map(c => c[0]);
-  return { b: ["slim", "reg", "reg", "heavy"][k % 4], sk: AV_SKIN[k % 6], hr: ["short", "long", "curly", "bald"][(k >> 3) % 4], hc: AV_HAIR[(k >> 5) % 5], bd: ["none", "none", "short", "full"][(k >> 7) % 4],
-    tp: ["tee", "shirt"][(k >> 9) % 2], tc: C[(k >> 10) % C.length], pc: ["#3b3f46", "#2b4f74", "#5b6b3a", "#6b5a48"][(k >> 12) % 4], ht: ["none", "none", "cap"][(k >> 14) % 3], ac: ["none", "none", "none"][0] };
+  return { b: ["slim", "reg", "reg", "heavy"][k % 4], sk: AV_SKIN[k % 6], hr: ["short", "long", "curly", "bald"][(k >>> 3) % 4], hc: AV_HAIR[(k >>> 5) % 5], bd: ["none", "none", "short", "full"][(k >>> 7) % 4],
+    tp: ["tee", "shirt"][(k >>> 9) % 2], tc: C[(k >>> 10) % C.length], pc: ["#3b3f46", "#2b4f74", "#5b6b3a", "#6b5a48"][(k >>> 12) % 4], ht: ["none", "none", "cap"][(k >>> 14) % 3], ac: ["none", "none", "none"][0] };
 }
 const avPrice = (cat, v) => AV_ITEMS[cat].o[v]?.[1] ?? 0;
 // the figure, 1.8m tall with a slightly larger head so faces read from afar; feet at y = 0, facing +z
@@ -2210,7 +2282,11 @@ const ACH = [
   { id: "style", ic: "🎨", t: "בסטייל", how: "בחרו צבע לרכב בחנות", test: h => h.painted },
   { id: "rich", ic: "💰", t: "עשיר/ה", how: "צברו 10,000 סבבונים", test: h => (h.coins || 0) >= 10000, prog: h => [h.coins || 0, 10000] },
   { id: "streak", ic: "🔥", t: "שבוע ברצף", how: "אספו משכורת 7 ימים ברצף", test: h => h.best >= 7, prog: h => [h.best, 7] },
-  { id: "veteran", ic: "🗓️", t: "ותיק/ה", how: "30 יום במדינה", test: h => daysSince(h.joined) >= 30, prog: h => [daysSince(h.joined), 30] }
+  { id: "veteran", ic: "🗓️", t: "ותיק/ה", how: "30 יום במדינה", test: h => daysSince(h.joined) >= 30, prog: h => [daysSince(h.joined), 30] },
+  { id: "bakery10", ic: "🥐", t: "לקוח/ה קבוע/ה במאפייה", how: "10 קניות במאפייה", test: h => (h.food?.bakery || 0) >= 10, prog: h => [h.food?.bakery || 0, 10] },
+  { id: "cafe10", ic: "☕", t: "מכור/ה לקפה", how: "10 קניות בבית הקפה", test: h => (h.food?.cafe || 0) >= 10, prog: h => [h.food?.cafe || 0, 10] },
+  { id: "hummus10", ic: "🧆", t: "חומוסולוג/ית", how: "10 קניות בחומוסייה", test: h => (h.food?.hummus || 0) >= 10, prog: h => [h.food?.hummus || 0, 10] },
+  { id: "foodie", ic: "🛍️", t: "קונה גדול/ה", how: "30 קניות בעסקים של העיר", test: h => (h.food?.all || 0) >= 30, prog: h => [h.food?.all || 0, 30] }
 ];
 function achievements(h) { const got = [], todo = []; if (!h) return { got, todo }; for (const a of ACH) (a.test(h) ? got : todo).push(a); return { got, todo }; }
 const richest = () => S.houses.filter(h => h.coins != null && h.lot).sort((a, b) => b.coins - a.coins || a.id - b.id);
@@ -2241,7 +2317,7 @@ const rowOf = h => S.raw.find(c => c.id === h.id);
 function patchCitizen(h, patch, rebuild) {
   const row = rowOf(h); if (row) Object.assign(row, patch);
   if (rebuild) { buildWorld(); return S.byUser.get(h.u); }
-  if ("coins" in patch) h.coins = patch.coins; if ("streak" in patch) h.streak = patch.streak; if ("last_collected" in patch) h.last = patch.last_collected; if ("best_streak" in patch) h.best = patch.best_streak;
+  if ("food" in patch) h.food = patch.food; if ("coins" in patch) h.coins = patch.coins; if ("streak" in patch) h.streak = patch.streak; if ("last_collected" in patch) h.last = patch.last_collected; if ("best_streak" in patch) h.best = patch.best_streak;
   return h;
 }
 const ERR = { funds: "אין מספיק סבבונים 🪙", owned: "זה כבר שלך 😉", unauthorized: "הקישור האישי לא תקין. שלחו ״אזרחות״ באינסטגרם כדי לקבל קישור חדש", already: "כבר אספת היום. המשכורת הבאה מחר 🌅", bad_color: "צבע לא מוכר", bad_item: "המוצר לא קיים" };
@@ -2728,7 +2804,7 @@ function interiorScene(w) {
     const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(ix, iy, -6.35); card.userData.disposable = true; sc.add(card);
   }
   // people at work: the citizen in orange (if it's their workplace), colleagues around
-  const me = S.mine && (S.mine.wp === w || w.owner === S.mine) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
+  const me = S.mine && (S.mine.wp === w || w.owner === S.mine || (WALK.on && MENU_OF[w.kind])) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
   let tag = null;
   const people = [...(me ? [{ h: me, c: "#e07a4f" }] : []), ...crew.map(h => ({ h, c: SHIRTS[hash(h.u) % SHIRTS.length] }))].slice(0, staff.length);
   if (people.length) {
@@ -2738,7 +2814,7 @@ function interiorScene(w) {
     list.forEach((p, i) => {
       // the resident of a home, and the visitor at their own workplace, appear as their own figure
       const own = p.h === me || p.h === w.owner;
-      if (own) { const f = avatarMesh(avatarOf(p.h), 1.2); f.position.set(p.pos[0], 0, p.pos[1]); f.rotation.y = p.pos[2]; sc.add(f); }
+      if (own) { const f = avatarMesh(avatarOf(p.h), 1.2); f.position.set(p.pos[0], 0, p.pos[1]); f.rotation.y = p.pos[2]; sc.add(f); if (p.h === me) { INT.meFig = f; holdIn(f); } }
       o3.position.set(p.pos[0], own ? -50 : 0, p.pos[1]); o3.rotation.set(0, p.pos[2], 0); o3.scale.setScalar(1.25); o3.updateMatrix();
       for (const [k, m] of meshes) { m.setMatrixAt(i, o3.matrix); m.setColorAt(i, col3.set(k === "tint" ? p.c : "#ffffff")); } });
     for (const [, m] of meshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -2789,14 +2865,17 @@ function renderIntUI() {
     $("intX").onclick = exitWork; if ($("idB")) $("idB").onclick = () => idCard(w.owner.u); return;
   }
   const { w, me } = INT, key = me && keyOf(me.u), done = me && me.lastShift && String(me.lastShift).slice(0, 10) === israelDate();
+  const menu = MENU_OF[w.kind] ? `<button class="btn${me ? " ghost" : ""}" id="menuB" style="margin-bottom:8px">🛒 התפריט${holding() ? ` · ביד: ${holding()}` : ""}</button>` : "";
   const pay = me ? 30 + 10 * (Math.min(4, Math.max(1, me.level)) - 1) : 0;
   $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${KIND_IC[w.kind] || "💼"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(w.addr || cityName(w.city_id))} · ${fmtN(w.staff?.length || 0)} עובדים</small></span><button id="intX" aria-label="יציאה">✕</button></div>
-    <div class="ifoot glass">${me ? `<p><b>${esc(jobTitle(me))}</b> · משכורת יומית ${fmtN(salaryOf(me))} ${COIN}</p>
+    <div class="ifoot glass">${me && me.wp === w ? `<p><b>${esc(jobTitle(me))}</b> · משכורת יומית ${fmtN(salaryOf(me))} ${COIN}</p>
       ${key ? `<button class="btn" id="shiftB" ${done ? "disabled" : ""}>${done ? "✅ עשית משמרת היום. נתראה מחר" : `🕘 להתחיל משמרת · +${fmtN(pay)} ${COIN}`}</button>` : `<p class="note">כדי לקבל בונוס משמרת, היכנסו מהקישור האישי שלכם</p>`}`
-      : `<p>ביקור ב${esc(w.name)}. ${S.mine ? "זה לא מקום העבודה שלך, אבל תמיד אפשר להציץ 👀" : "חפשו את הבית שלכם כדי להיכנס לעבודה שלכם"}</p>`}
+      : `<p>ביקור ב${esc(w.name)}. ${S.mine ? (MENU_OF[w.kind] ? "מה מזמינים היום? 😋" : "זה לא מקום העבודה שלך, אבל תמיד אפשר להציץ 👀") : "חפשו את הבית שלכם כדי להיכנס לעבודה שלכם"}</p>`}
+      ${menu}
       <p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
   $("intX").onclick = exitWork;
   const b = $("shiftB"); if (b && !b.disabled) b.onclick = () => shift(me.u, b);
+  const mb = $("menuB"); if (mb) mb.onclick = () => GO.menu(w.id);
 }
 async function shift(u, b) {
   b.disabled = true; b.textContent = "רגע…";
@@ -2811,7 +2890,7 @@ function exitWork() {
   if (!INT.on) return;
   INT.ctl.dispose(); controls.enabled = !WALK.on;
   INT.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable || o.material?.map) { o.material.map?.dispose(); o.material.dispose(); } } });
-  INT.on = false; INT.sc = null; INT.tag = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
+  INT.on = false; INT.sc = null; INT.tag = null; INT.meFig = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
   const w = INT.w; if (w && !WALK.on) setTimeout(() => w.kind === "ballot" ? GO.ballotHouse() : w.back ? w.back() : showWork(w), 50);   // walking: back out on the street, at the same door
 }
 GO.enter = id => { const w = interiorTarget(id); if (!w) return toast("אי אפשר להיכנס לכאן"); if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
@@ -3228,24 +3307,93 @@ function figureProp(h, from = 0) {
   if (MINE_FIG) MINE_FIG.visible = false;   // the bigger reel figure takes its place
   return { update(el) { f.visible = el >= from; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); if (MINE_FIG) MINE_FIG.visible = true; } };
 }
-function arrivalProps(h) {
+// routes that stay on the roads: along the lines between the blocks (never through a building)
+function cityBox(slot) { const bl = [...slot.blocks.values()]; return { mnX: Math.min(...bl.map(b => b.bx)), mxX: Math.max(...bl.map(b => b.bx)), mnZ: Math.min(...bl.map(b => b.bz)), mxZ: Math.max(...bl.map(b => b.bz)) }; }
+const nearestEdge = (lo, hi, v, f) => { let best = lo, bd = Infinity; for (let e = lo; e <= hi; e++) { const d = Math.abs(f(e) - v); if (d < bd) { bd = d; best = e; } } return best; };
+const frontRoad = h => { const slot = h.slot, eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, eV = h.lot.i < 2 ? h.lot.bx : h.lot.bx + 1; return { zH: roadZ(slot, eH), xV: roadX(slot, eV), stop: { x: h.x + (h.lot.i < 2 ? 2.5 : -2.5), z: roadZ(slot, eH) } }; };
+// from the harbor: the highway to the edge of the city, then the streets
+function routeFromHarbor(H, h) {
+  const slot = h.slot, B = cityBox(slot), x0 = slot.x + BPX(B.mnX) - BX / 2 - 18, x1 = slot.x + BPX(B.mxX) + BX / 2 + 18, z0 = slot.z + BPZ(B.mnZ) - BZ / 2 - 18, z1 = slot.z + BPZ(B.mxZ) + BZ / 2 + 18;
+  let P = { x: slot.x, z: slot.z };
+  for (let k = 0; k <= 400; k++) { const t = k / 400, q = { x: H.x + (slot.x - H.x) * t, z: H.z + (slot.z - H.z) * t }; if (q.x > x0 && q.x < x1 && q.z > z0 && q.z < z1) { P = q; break; } }
+  const { zH, xV, stop } = frontRoad(h), sideways = Math.min(Math.abs(P.x - x0), Math.abs(P.x - x1)) < Math.min(Math.abs(P.z - z0), Math.abs(P.z - z1));
+  if (sideways) { const zA = roadZ(slot, nearestEdge(B.mnZ, B.mxZ + 1, P.z, e => roadZ(slot, e))); return [H, P, { x: P.x, z: zA }, { x: xV, z: zA }, { x: xV, z: zH }, stop]; }
+  const xA = roadX(slot, nearestEdge(B.mnX, B.mxX + 1, P.x, e => roadX(slot, e))); return [H, P, { x: xA, z: P.z }, { x: xA, z: zH }, stop];
+}
+// from one new house to the next one, along the streets
+function routeBetween(a, h) { const A = frontRoad(a), { zH, xV, stop } = frontRoad(h); return [A.stop, { x: A.stop.x, z: A.zH }, { x: xV, z: A.zH }, { x: xV, z: zH }, stop]; }
+// who the daily arrival reel is about: a citizen picked by the admin, or everyone who arrived in the last 24 hours (up to 5), else the newest 3
+function arrivalList(h) {
+  if (h?.lot) return [h];
+  const fresh = S.houses.filter(q => q.lot && recent(q.joined)).sort((a, b) => a.id - b.id).slice(0, 5);
+  return fresh.length ? fresh : [...S.houses].filter(q => q.lot).sort((a, b) => b.id - a.id).slice(0, 3).reverse();
+}
+function arrivalProps(list) {
   const hb = COAST.find(c => c.id === "harbor"), t = hb.t, p = shorePt(t, S.s, .97), out = Math.atan2(Math.cos(t) * RZ0, Math.sin(t) * RX0), cs = Math.cos(out), sn = Math.sin(out);
   const W = (lx, lz) => ({ x: p.x + lx * cs + lz * sn, z: p.z - lx * sn + lz * cs });
-  // the ship: from far out at sea to its berth next to the pier, slowing down as it arrives
   const ship = solid(shipParts(), 0, 0, 0, null, -2.7); ship.scale.setScalar(1.5);
   const sailEnd = 6.6, shipAt = el => { const k = 1 - Math.pow(1 - clamp01(el / sailEnd), 2.2); return W(15, 760 - 690 * k); };
-  // the state car: from the harbor up the highway to the city, then along the streets to the front of the house
-  const slot = h.slot, si = S.slots.indexOf(slot), cap = S.slots[0], start = shorePt(t, S.s, .9);
-  const eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, zH = roadZ(slot, eH), eV = h.lot.i < 2 ? h.lot.bx : h.lot.bx + 1, xV = roadX(slot, eV);
-  const z0 = roadZ(slot, h.lot.bz > 0 ? 1 : 0), entry = slot === cap ? cap : slot;
-  const pts = [W(-6, -10), start, { x: entry.x, z: entry.z }, { x: entry.x, z: z0 }, { x: xV, z: z0 }, { x: xV, z: zH }, { x: h.x + (h.lot.i < 2 ? 2 : -2), z: zH }];
-  const path = route(pts), car = mover(P.car_caravan, "#ffffff"), drive = [6.6, 13.2];
-  const carAt = el => path(ease(clamp01((el - drive[0]) / (drive[1] - drive[0]))));
-  REEL.arr = { shipAt, carAt, dock: W(15, 70) };
-  REEL.card = idTexture(h);
-  return [figureProp(h, drive[1]), { update(el) { const q = shipAt(el); ship.position.set(q.x, -2.7, q.z); ship.rotation.y = out + Math.PI; const c = carAt(el); car.set(c.x, .3, c.z, c.ry); },
-    dispose() { world.remove(ship); ship.traverse(o => o.geometry?.dispose()); car.dispose(); REEL.card?.dispose(); REEL.card = null; REEL.arr = null; } }];
+  // the state van: one leg from the harbor to the first house, then from house to house; a short stop at each
+  const legs = []; let tt = sailEnd, from = null;
+  for (const h of list) {
+    const pts = from ? routeBetween(from, h) : [W(-6, -10), ...routeFromHarbor(shorePt(t, S.s, .9), h)], path = route(pts);
+    let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+    const d = Math.max(3, Math.min(6.4, L / 70)); legs.push({ h, path, t0: tt, t1: tt + d, stop: 2.6 }); tt += d + 2.6; from = h;
+  }
+  const van = mover(P.car_caravan, "#ffffff");
+  const carAt = el => { let lg = legs[0]; for (const q of legs) if (el >= q.t0) lg = q; if (el < lg.t0) return lg.path(0); return lg.path(ease(clamp01((el - lg.t0) / (lg.t1 - lg.t0)))); };
+  REEL.arr = { shipAt, carAt, dock: W(15, 70), legs, end: tt };
+  REEL.card = list.length === 1 ? idTexture(list[0]) : null;
+  return [...legs.map(lg => figureProp(lg.h, lg.t1)), { update(el) { const q = shipAt(el); ship.position.set(q.x, -2.7, q.z); ship.rotation.y = out + Math.PI; const c = carAt(el); van.set(c.x, .3, c.z, c.ry); },
+    dispose() { world.remove(ship); ship.traverse(o => o.geometry?.dispose()); van.dispose(); REEL.card?.dispose(); REEL.card = null; REEL.arr = null; } }];
 }
+/* ---------- "what's new in the state": a reel that shows citizens the latest features ---------- */
+// each feature: is it available, and its shot (map shots, shots inside a building, or a figure / car moving through the street)
+const roadAhead = (h, len) => { const { zH, stop } = frontRoad(h), dir = h.lot.i < 2 ? -1 : 1; return route([{ x: stop.x, z: zH }, { x: stop.x + dir * len, z: zH }]); };
+const NEWS = {
+  plan: { ic: "🏙️", t: "העיר קיבלה תכנון חדש", sub: "שדרות, כיכרות, סמטאות וגנים", ok: () => !!S.slots[0]?.city, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[0], 3.4, .4, .42) }) },
+  walk: { ic: "🚶", t: "עכשיו אפשר לטייל בעיר", sub: "עם הדמות שלך, בכל רחוב ושדרה", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 14), off = h.lot.j === 0 ? 2 : -5.2;   // on the sidewalk on the house's side
+    const f = avatarMesh(avatarOf(h), 1.25); world.add(f); f.visible = false;
+    P.push({ update(el) { const k = (el - t0) / d; f.visible = k >= 0 && k <= 1; if (!f.visible) return; const q = path(k); f.position.set(q.x, CURB + Math.abs(Math.sin(el * 9)) * .07, q.z + off); f.rotation.y = q.ry; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); } });
+    const m = path(.5); return { a: at({ x: m.x, z: m.z + off }, 40, -.5, .5), b: at({ x: m.x, z: m.z + off }, 48, .1, .45), pin: el => ({ x: f.position.x, y: CURB + 3.4, z: f.position.z, label: `🚶 ‎@${h.u}` }) }; } },
+  drive: { ic: "🚗", t: "לנהוג ברכב שלך", sub: "בשדרות, ברחובות ובכיכרות", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 60), car = mover(P_["car_" + h.cm], h.cc);
+    P.push({ update(el) { const k = clamp01((el - t0) / d), q = path(ease(k)); car.set(q.x, .3, q.z, q.ry); }, dispose() { car.dispose(); } });
+    const at_ = el => path(ease(clamp01((el - t0) / d))); return { follow: at_, a: at(path(0), 20, -.4, .45), b: at(path(1), 22, .3, .42), pin: el => ({ ...at_(el), y: 3.6, label: `🚗 ${CARS[h.cm].name}` }) }; } },
+  enter: { ic: "🚪", t: "נכנסים לכל בניין", sub: "בית, עבודה, הכנסת, הקלפי", ok: () => !!GOV.find(g => g.id === "knesset")?.x, shot: () => ({ inside: interiorTarget("gov:knesset") }) },
+  buy: { ic: "🥐", t: "קונים במאפייה ובבית הקפה", sub: "בסבבונים · עם הישגים חדשים", ok: () => S.workplaces.some(w => w.kind === "bakery" && w.x != null), shot: () => ({ inside: S.workplaces.find(w => w.kind === "bakery" && w.x != null) }) },
+  avatar: { ic: "🧍", t: "דמות אישית לכל תושב", sub: "תסרוקות, בגדים, כובעים, וגם כתר 👑", ok: () => !!S.slots[0]?.city, shot: (t0, d, P) => {
+    const c = S.slots[0], looks = [{ tp: "suit", ht: "crown", ac: "sun" }, { tp: "dress", hr: "long", ht: "none", ac: "glasses" }, { tp: "hoodie", hr: "afro", ht: "cap", ac: "phones" }, { tp: "jersey", ht: "tiger", ac: "chain" }, { tp: "leather", hr: "mohawk", ht: "none", ac: "cape" }];
+    const figs = looks.map((l, i) => { const f = avatarMesh({ ...avatarOf({ u: "news" + i }), ...l }, 1.25); f.position.set(c.x - 6 + i * 3, CURB, c.z + 9.6); f.rotation.y = (i - 2) * .12; f.visible = false; world.add(f); return f; });
+    P.push({ update(el) { const on = el >= t0 && el <= t0 + d; for (const f of figs) f.visible = on; }, dispose() { for (const f of figs) { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); } } });
+    return { a: at({ x: c.x, z: c.z + 9.6 }, 40, -.25, .42), b: at({ x: c.x, z: c.z + 9.6 }, 46, .25, .38) }; } },
+  homes: { ic: "🛋️", t: "עיצוב פנימי לכל סוג בית", sub: "מבית קטן ועד וילה ואחוזה", ok: () => S.houses.some(h => h.lot && h.tier === 3), shot: () => ({ inside: interiorTarget("home:" + S.houses.find(h => h.lot && h.hk === "3_0" || h.lot && h.tier === 3).u) }) },
+  bowtie: { ic: "🎀", t: "בית הפפיון", sub: "בית מיוחד במתנה מהמדינה", ok: () => S.houses.some(h => h.lot && h.hk === "3_2"), shot: () => { const h = S.houses.find(q => q.lot && q.hk === "3_2"); return { a: at(h, 12, -.5, .32), b: at(h, 16, .4, .28), mark: h, sub: `של ‎@${h.u}` }; } },
+  balls: { ic: "⚽", t: "כיכר הכדורים", sub: "בהשראת הכיכר בלוד", ok: () => S.projects.some(p => p.params?.type === "balls" && p.x != null && p.status === "done"), shot: () => { const p = S.projects.find(q => q.params?.type === "balls" && q.x != null && q.status === "done"); return { a: at(p, 7, -.4, .3), b: at(p, 10, .3, .26) }; } },
+  arrival: { ic: "🚢", t: "תושבים חדשים מגיעים בספינה", sub: "ורכב המדינה מסיע אותם הביתה", ok: () => COAST[0].x != null, shot: () => { const c = COAST[0]; return { a: at(c, 3.2, -.5, .36), b: at(c, 4.4, .2, .32) }; } }
+};
+const P_ = P;   // the prefab table, also reachable from inside NEWS (whose shots take a parameter named P)
+const NEWS_SEL = { list: null };
+function newsList() { if (!NEWS_SEL.list) { try { NEWS_SEL.list = JSON.parse(pref("sababa_news", "null")); } catch {} } return (NEWS_SEL.list || Object.keys(NEWS)).filter(k => NEWS[k]?.ok()); }
+// build the shots and the moving props together, so the props know when their shot plays
+function newsPlan() {
+  const keys = newsList(), zf = reelFit(), shots = [], props = []; let t = 3;
+  shots.push({ d: 3, a: at(ORIGIN, zf, -.6), b: at(S.slots[0], 1.6, -.3, .5), cap: "מה חדש במדינה? 🆕", sub: `רפובליקת סבבה · יום ${fmtN(dayNo())}` });
+  for (const k of keys) { const N = NEWS[k], d = 3.4, sh = N.shot(t, d, props);
+    if (sh.inside) shots.push({ d, inside: sh.inside, a: { az: .25, dist: 18, el: .5 }, b: { az: .8, dist: 15, el: .45 }, cap: `${N.ic} ${N.t}`, sub: N.sub });
+    else shots.push({ d, ...sh, cap: `${N.ic} ${N.t}`, sub: sh.sub || N.sub });
+    t += d; }
+  shots.push({ d: 3.4, b: at(ORIGIN, zf, 1.6), cap: "עוד לא תושבים?", sub: "תגיבו ״אזרחות״ ותצטרפו 👇" });
+  REEL.news = hours(chain(shots), 9, 17.5); return props;
+}
+GO.newsPick = () => {
+  if (!ADMIN) return; const sel = new Set(newsList());
+  open("🆕 מה חדש במדינה", `<div class="hero"><p>מסמנים אילו עדכונים להראות. כל עדכון = סצנה של 3.4 שניות, בסדר הזה.</p></div>
+    <div class="list" style="margin-top:10px">${Object.entries(NEWS).map(([k, N]) => `<label class="li" style="cursor:pointer"><span class="ic">${N.ic}</span><span class="tx"><b>${N.t}</b><small>${N.ok() ? N.sub : "🔒 עוד לא קיים במדינה"}</small></span><input type="checkbox" data-n="${k}" ${sel.has(k) ? "checked" : ""} ${N.ok() ? "" : "disabled"}></label>`).join("")}</div>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="newsGo">🎬 ליצור את הריל</button></div>`, () => {
+    $("newsGo").onclick = () => { const list = [...$("dBody").querySelectorAll("[data-n]")].filter(c => c.checked).map(c => c.dataset.n);
+      if (!list.length) return toast("בחרו לפחות עדכון אחד"); NEWS_SEL.list = list; setPref("sababa_news", JSON.stringify(list)); startReel("news"); };
+  }, true);
+};
 const TEMPLATES = {
   home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", pub: true, ok: h => !!(h || S.mine)?.lot, props: h => (h || S.mine)?.lot ? [figureProp(h || S.mine)] : [], shots(h = S.mine) {
     const zf = reelFit(), got = achievements(h).got, list = [
@@ -3314,16 +3462,24 @@ const TEMPLATES = {
     shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
     return chain(shots);
   } },
-  // a new citizen arrives: a ship sails into the immigrants' harbor, a state car drives them along the highway and through the streets to their new house, then their ID card
-  arrival: { ic: "🚢", name: "ההגעה לאי", sub: "ספינה לנמל, רכב מדינה עד הבית החדש", pub: true, ok: h => !!arrivalOf(h)?.lot && COAST[0].x != null, why: "צריך תושב עם בית", props: h => arrivalProps(arrivalOf(h)), shots(h) {
-    h = arrivalOf(h); const A = REEL.arr, zf = reelFit();
-    return [
-      { d: 3.2, a: at(A.shipAt(0), 4.2, -.9, .3), b: at(A.shipAt(1.4), 5, -.55, .28), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: `🚢 ‎@${h.u}` }), h: [7, 7.6], cap: `‎@${h.u} בדרך למדינה 🚢`, sub: `תושב/ת #${fmtN(h.no || h.id)} של רפובליקת סבבה` },
-      { d: 3.4, a: at(A.shipAt(3.2), 5, -.55, .28), b: at(A.dock, 6, .15, .34), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: `🚢 ‎@${h.u}` }), h: [7.6, 8.4], cap: "נמל העולים ⚓", sub: "ברוכים הבאים לאי" },
-      { d: 6.6, a: at(A.carAt(6.6), 9, .2, .42), b: at(A.carAt(13.2), 10, .9, .4), follow: el => A.carAt(el), pin: el => ({ ...A.carAt(el), y: 5, label: `🚐 ‎@${h.u}` }), h: [8.6, 11], cap: "רכב המדינה מסיע הביתה 🚐", sub: `ל${h.lot.street} ${h.lot.num}` },
-      { d: 3.4, a: at(h, 7, .9, .46), b: at(h, 11, 1.4, .42), h: [11, 12.5], cap: addressOf(h), sub: jobTitle(h), mark: h },
-      { d: 4, a: at(h, 11, 1.4, .42), b: at(h, 4, 1.9, .6), h: [12.5, 14], cap: `ברוכים הבאים ‎@${h.u}!`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇", card: true }];
+  // the daily arrival reel (admin only): the immigrants' ship sails into the harbor, the state van drives the new citizens home one by one, along the streets
+  arrival: { ic: "🚢", name: "העולים של היום", sub: "ספינה לנמל, רכב מדינה לכל בית חדש", ok: h => arrivalList(h).length > 0 && COAST[0].x != null, why: "צריך תושבים עם בית", props: h => arrivalProps(arrivalList(h)), shots(h) {
+    const list = arrivalList(h), A = REEL.arr, one = list.length === 1, zf = reelFit(), who = list.map(q => "‎@" + q.u).join(" · ");
+    const shots = [
+      { d: 3.2, a: at(A.shipAt(0), 4.2, -.9, .3), b: at(A.shipAt(1.4), 5, -.55, .28), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: one ? `🚢 ‎@${list[0].u}` : `🚢 ${fmtN(list.length)} עולים` }),
+        cap: one ? `‎@${list[0].u} בדרך למדינה 🚢` : `${fmtN(list.length)} תושבים חדשים בדרך 🚢`, sub: one ? `תושב/ת #${fmtN(list[0].no || list[0].id)}` : who },
+      { d: 3.4, a: at(A.shipAt(3.2), 5, -.55, .28), b: at(A.dock, 6, .15, .34), follow: el => A.shipAt(el), cap: "נמל העולים ⚓", sub: `יום ${fmtN(dayNo())} · ברוכים הבאים לאי` }];
+    A.legs.forEach((lg, i) => {
+      const q = lg.h;
+      shots.push({ d: lg.t1 - lg.t0, a: at(lg.path(0), 8, .2 + i * .5, .42), b: at(lg.path(1), 9.5, .7 + i * .5, .4), follow: el => A.carAt(el), pin: el => ({ ...A.carAt(el), y: 5, label: `🚐 ‎@${q.u}` }),
+        cap: "רכב המדינה בדרך 🚐", sub: `‎@${q.u} · 🏠 ${q.lot.street} ${q.lot.num}` });
+      shots.push({ d: lg.stop, a: at(q, 9, .9 + i * .5, .46), b: at(q, 11, 1.3 + i * .5, .42), mark: q, cap: `ברוכים הבאים ‎@${q.u}!`, sub: `${addressOf(q)} · ${jobTitle(q)}` });
+    });
+    shots.push(one ? { d: 4, a: at(list[0], 11, 1.4, .42), b: at(list[0], 4, 1.9, .6), cap: `ברוכים הבאים ‎@${list[0].u}!`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇", card: true }
+      : { d: 3.6, b: at(ORIGIN, zf, 2), cap: `${fmtN(list.length)} תושבים חדשים היום`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇" });
+    return hours(chain(shots), 7, 15);
   } },
+  news: { ic: "🆕", name: "מה חדש במדינה", sub: "העדכונים החדשים של העיר", ok: () => newsList().length > 0, why: "אין עדכונים לבחירה", props: () => newsPlan(), shots: () => REEL.news },
   draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, why: "עוד לא נערכה הגרלה. מריצים ב־Supabase: select * from run_daily_draw();", shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
     const shots = [{ d: 3, a: at(ORIGIN, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
@@ -3546,7 +3702,7 @@ async function startReel(key, u) {
   if (!tpl.pub && !ADMIN) return toast("התבנית הזו זמינה רק למנהל המדינה");
   if (!tpl.ok(h)) return toast("עוד אין מספיק תוכן לתבנית הזו");
   close();
-  if ((key === "home" || key === "arrival") && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("הריל האישי זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
+  if (key === "home" && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("ריל הבית זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
   REEL.props = tpl.props ? tpl.props(h) : [];
   const shots = tpl.shots(h); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
   await document.fonts.ready;
@@ -3678,7 +3834,7 @@ GO.studio = () => {
     ${mine && keyOf(mine.u) ? "" : `<div class="hero" style="margin-top:12px"><p>ריל הבית נפתח מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם אותו? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>`}`, null, sub());
   open("סטודיו רילים · מנהל", `<div class="hero"><p><b>👑 מצב מנהל.</b> בוחרים תבנית, והאתר מרנדר ריל של 15–25 שניות, פריים אחרי פריים, מוכן לאינסטגרם. בזמן ההכנה השאירו את המסך פתוח.</p></div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="admin">👑 לוח בקרה: בחירות, בניינים, חוקים ועוד</button></div>
-    <div class="sec">ריל משלך</div><div class="tpl"><button class="hero-tpl" data-go="editor"><span>✏️</span><b>ריל בעריכה שלי</b><small>בוחרים סצנות, מקומות וכתוביות. כולל תבנית ״בחירת שם לעיר״</small></button></div>
+    <div class="sec">ריל משלך</div><div class="tpl"><button class="hero-tpl" data-go="editor"><span>✏️</span><b>ריל בעריכה שלי</b><small>בוחרים סצנות, מקומות וכתוביות. כולל תבנית ״בחירת שם לעיר״</small></button><button class="hero-tpl" data-go="newsPick"><span>🆕</span><b>מה חדש במדינה</b><small>ריל שמציג לתושבים את העדכונים החדשים: לבחור מה להראות</small></button></div>
     <div class="sec">תבניות מוכנות</div><div class="tpl">${Object.entries(TEMPLATES).filter(([k]) => k !== "custom").map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok();
       return ok ? `<button data-go="${k === "home" ? "reelHome" : "reel"}" data-arg="${k === "home" ? esc(S.mine?.u || "") : k}"><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`
         : `<button class="off" data-why="${esc(k === "home" ? "חפשו קודם את הבית שלכם" : t.why || "עוד אין מספיק תוכן")}"><span>${t.ic}</span><b>${t.name}</b><small>🔒 לחצו כדי לראות מה חסר</small></button>`; }).join("")}</div>
@@ -3817,7 +3973,8 @@ GO.walk = walkStart;
 
 /* ============================ DATA ============================ */
 // newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
-const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned",
+const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned,food",
+  "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level", "id,ig_username,city_id,created_at"];
 let colset = 0;
@@ -3889,7 +4046,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
