@@ -4550,6 +4550,11 @@ function placeList() {
   S.slots.forEach((sl, i) => { if (sl.city) o.push([`slot:${i}`, `🏙️ ${sl.city.name}`]); else if (i === nextSiteIdx() || sl.named || onGrass(sl.x, sl.z, S.s, .02)) o.push([`slot:${i}`, `🔜 ${sl.named?.name || "עיר עתידית"} (ב־${fmtN(sl.at)} תושבים)`]); });
   for (const g of GOV) if (g.x != null) o.push([`gov:${g.id}`, `${g.ic} ${g.name}`]);
   for (const c of COAST) if (c.x != null) o.push([`coast:${c.id}`, `${c.ic} ${c.name}`]);
+  // every square, roundabout and park (and blocks the admin made public lots), by name
+  const IC = { central: "⛲", square: "⛲", round: "⭕", park: "🌳", lot: "📍" };
+  [...BLK_META.entries()].filter(([, m]) => ["central", "square", "round", "park"].includes(m.kind) || (m.kind === "lot" && m.title !== "מגרש ציבורי"))
+    .sort((a, b) => (a[1].kind === "central" ? -1 : 0) - (b[1].kind === "central" ? -1 : 0) || a[1].title.localeCompare(b[1].title, "he"))
+    .forEach(([k, m]) => o.push([`blk:${k}`, `${IC[m.kind]} ${m.title} · ${cityName(m.data?.q?.city_id ?? m.data?.slot?.city?.id) || ""}`]));
   if (BALLOT.x != null) o.push(["ballot", "🗳️ מבנה הקלפי (מבחוץ)"], ["inside:ballot", "🚪 בתוך הקלפי"]);
   S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
@@ -4567,6 +4572,7 @@ function placeOf(sc) {
   if (t === "slot" && S.slots[+a]) { const sl = S.slots[+a]; return { o: sl, zoom: sl.city ? 2.6 : 3.4 }; }
   if (t === "gov") { const g = GOV.find(q => q.id === a); if (g?.x != null) return { o: g, zoom: 4.2 }; }
   if (t === "coast") { const c = COAST.find(q => q.id === a); if (c?.x != null) return { o: c, zoom: 3.4 }; }
+  if (t === "blk") { const m = BLK_META.get(a); if (m) return { o: { x: m.cx, z: m.cz }, zoom: m.kind === "central" ? 3.2 : m.kind === "round" ? 6 : 5 }; }
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
   if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
   if (t === "ballot" && BALLOT.x != null) return { o: BALLOT, zoom: 5 };
