@@ -410,15 +410,20 @@ const GAP = 22;   // how much wider a boulevard is than an ordinary street
 const blvX = e => ((e % 4) + 4) % 4 === 2, blvZ = e => ((e % 4) + 4) % 4 === 3;   // a boulevard runs between block e-1 and block e
 const offAxis = (k, B, isB, memo) => { if (memo.has(k)) return memo.get(k); let o = k * B;
   if (k > 0) { for (let e = 1; e <= k; e++) if (isB(e)) o += GAP; } else for (let e = k + 1; e <= 0; e++) if (isB(e)) o -= GAP; memo.set(k, o); return o; };
-const OFFX = new Map(), OFFZ = new Map(), BPX = bx => offAxis(bx, BX, blvX, OFFX), BPZ = bz => offAxis(bz, BZ, blvZ, OFFZ);
-const blvCX = e => BPX(e) - BX / 2 - GAP / 2, blvCZ = e => BPZ(e) - BZ / 2 - GAP / 2;   // center line of the boulevard before block e
-const invAxis = (v, B, Pf) => { const k = Math.round(v / (B + GAP / 4)); let best = k, bd = Infinity; for (let q = k - 3; q <= k + 3; q++) { const d = Math.abs(Pf(q) - v); if (d < bd) { bd = d; best = q; } } return best; };
+// block columns come in different widths, so blocks are not all the same rectangle: narrow and square (36), ordinary (48), long (60);
+// the ones around the city center are always ordinary. The width includes the street around the block
+const bwX = bx => Math.abs(bx) <= 2 ? BX : [48, 36, 60, 48, 42][hash("col" + bx) % 5];
+const OFFX = new Map(), OFFZ = new Map(), BPZ = bz => offAxis(bz, BZ, blvZ, OFFZ);
+const BPX = k => { if (OFFX.has(k)) return OFFX.get(k); const o = k === 0 ? 0 : k > 0 ? BPX(k - 1) + bwX(k - 1) / 2 + bwX(k) / 2 + (blvX(k) ? GAP : 0) : BPX(k + 1) - bwX(k + 1) / 2 - bwX(k) / 2 - (blvX(k + 1) ? GAP : 0); OFFX.set(k, o); return o; };
+const blvCX = e => BPX(e) - bwX(e) / 2 - GAP / 2, blvCZ = e => BPZ(e) - BZ / 2 - GAP / 2;   // center line of the boulevard before block e
+// which block a coordinate falls in (the one it is inside of, or the nearest edge)
+const invAxis = (v, B, Pf) => { const W = Pf === BPX ? bwX : () => B, k = Math.round(v / (B + GAP / 4)); let best = k, bd = Infinity; for (let q = k - 7; q <= k + 7; q++) { const d = Math.abs(Pf(q) - v) - W(q) / 2; if (d < bd) { bd = d; best = q; } } return best; };
 // what a block of houses becomes: most are houses, some are squares or parks, some have a lane through the middle
 // what the admin set for a block (settings zone_<site>_<bx>_<bz>), over the original plan
 const blockKind = (slot, bx, bz) => S.zones?.get(`${slot.at}:${bx},${bz}`) || baseKind(slot, bx, bz);
-const baseKind = (slot, bx, bz) => { if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 2 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
+const baseKind = (slot, bx, bz) => { if (bwX(bx) !== BX) return "houses"; if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${bx},${bz}`) % 24; return h < 1 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
 const OPEN_KINDS = ["square", "park", "round", "lot"];
-const ZONES = [["garden", "🌿", "גינה (במקום של עסק שעבר)"], ["houses", "🏘️", "בתים"], ["lane", "🏮", "בתים עם סמטה באמצע"], ["square", "⛲", "כיכר"], ["round", "⭕", "כיכר תנועה עגולה"], ["park", "🌳", "גן ציבורי"], ["lot", "📍", "מגרש ציבורי ריק"]];
+const ZONES = [["garden", "🌿", "גינה (במקום של עסק שעבר)"], ["houses", "🏘️", "בתים"], ["estate", "🏰", "אחוזות: 2 בתים גדולים עם בריכה וגינה"], ["lane", "🏮", "בתים עם סמטה באמצע"], ["square", "⛲", "כיכר"], ["round", "⭕", "כיכר תנועה עגולה"], ["park", "🌳", "גן ציבורי"], ["lot", "📍", "מגרש ציבורי ריק"]];
 // a raised corner of sidewalk around a round junction: the quadrant [W..hw] x [W..hd] outside the circle RR
 function cornerPiece(sx, sz, W, hw, hd, RR, col, y0 = .3, y1 = CURB) {
   const top = RR * RR - hd * hd > W * W, a0 = Math.asin(W / RR), a1 = top ? Math.asin(hd / RR) : Math.acos(W / RR), pts = [];
@@ -429,8 +434,119 @@ function cornerPiece(sx, sz, W, hw, hd, RR, col, y0 = .3, y1 = CURB) {
 }
 // the capital's city square: its 9 middle blocks are one huge round square, with a ring road around it and tall buildings on the corners
 const CENTRAL = { RP: 26, RR: 34, W: 4.5, on: null, q: null, boxes: [] };
+// the palm island off the northern coast: a trunk with fronds, a crescent around them with a hotel, villas on the fronds
+const PALM = { t: -1.25, geo: null };
 const isCentral = (si, bx, bz) => si === 0 && Math.max(Math.abs(bx), Math.abs(bz)) <= 1;
-function centralBox(slot) { const x0 = slot.x + BPX(-1) - BX / 2, x1 = slot.x + BPX(1) + BX / 2, z0 = slot.z + BPZ(-1) - BZ / 2, z1 = slot.z + BPZ(1) + BZ / 2; return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hw: (x1 - x0) / 2 - 3, hd: (z1 - z0) / 2 - 3 }; }
+function palmGeo() {
+  const O = shorePt(PALM.t, S.s, 1), n = Math.hypot(O.x, O.z) || 1, U = { x: O.x / n, z: O.z / n }, V = { x: -U.z, z: U.x };
+  const W = (u, v) => ({ x: O.x + U.x * u + V.x * v, z: O.z + U.z * u + V.z * v }), rect = (u0, u1, v0, v1) => [W(u0, v0), W(u1, v0), W(u1, v1), W(u0, v1)];
+  const fronds = [], polys = [rect(-34, 42, -5.5, 5.5), rect(40, 205, -11, 11)], lots = [], CC = { u: 130, v: 0 }, CR = 165;
+  for (let k = 0; k < 7; k++) for (const sd of [-1, 1]) {
+    const b = { u: 70 + k * 20, v: sd * 10 }, d = { u: .45, v: sd * .89 }, L = 82 - Math.abs(k - 3) * 9, nv = { u: -d.v, v: d.u };
+    fronds.push({ b, d, L }); polys.push([0, 1, 2, 3].map(q => { const s2 = q < 2 ? -2 : L, w2 = q === 1 || q === 2 ? 6 : -6; return W(b.u + d.u * s2 + nv.u * w2, b.v + d.v * s2 + nv.v * w2); }));
+    for (let s2 = 22; s2 < L - 6; s2 += 20) { const c = W(b.u + d.u * s2, b.v + d.v * s2), F = { x: U.x * nv.u + V.x * nv.v, z: U.z * nv.u + V.z * nv.v };
+      lots.push({ x: c.x, z: c.z, face: Math.atan2(F.x * sd, F.z * sd), palm: true, frond: fronds.length, bx: 0, bz: 0, i: 0, j: 0, dx: 0, street: "אי הדקל" }); }
+  }
+  lots.forEach((l, i) => l.num = i + 1);
+  const cres = [], A0 = -1.75, A1 = 1.75; for (let i = 0; i <= 40; i++) { const a = A0 + (A1 - A0) * i / 40; cres.push(W(CC.u + Math.cos(a) * (CR + 7), CC.v + Math.sin(a) * (CR + 7))); }
+  for (let i = 40; i >= 0; i--) { const a = A0 + (A1 - A0) * i / 40; cres.push(W(CC.u + Math.cos(a) * (CR - 7), CC.v + Math.sin(a) * (CR - 7))); }
+  polys.push(cres, rect(203, CC.u + CR - 26, -5, 5));
+  const ring = []; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; ring.push(W(CC.u + CR + Math.cos(a) * 32, Math.sin(a) * 32)); } polys.push(ring);
+  return { O, U, V, W, fronds, polys, lots, CC, CR, A0, A1, gate: W(-34, 0), hotel: W(CC.u + CR, 0), center: W(130, 0) };
+}
+// is a point on the palm island (or its bridge)?
+function onPalm(x, z) {
+  const g = PALM.geo; if (!g) return false; const dx = x - g.O.x, dz = z - g.O.z, u = dx * g.U.x + dz * g.U.z, v = dx * g.V.x + dz * g.V.z;
+  if ((u > -34 && u < 42 && Math.abs(v) < 5.5) || (u > 40 && u < 205 && Math.abs(v) < 11) || (u > 203 && u < g.CC.u + g.CR - 26 && Math.abs(v) < 5) || Math.hypot(u - g.CC.u - g.CR, v) < 32) return true;
+  for (const f of g.fronds) { const pu = u - f.b.u, pv = v - f.b.v, s2 = pu * f.d.u + pv * f.d.v; if (s2 > -2 && s2 < f.L && Math.abs(-pu * f.d.v + pv * f.d.u) < 6) return true; }
+  const r = Math.hypot(u - g.CC.u, v - g.CC.v), a = Math.atan2(v - g.CC.v, u - g.CC.u); return r > g.CR - 7 && r < g.CR + 7 && a > g.A0 && a < g.A1;
+}
+// a luxury villa on the palm (kept for later use): white cubes, a glass front, a roof terrace, its own pool
+function palmVilla(seed) {
+  const r = rng(seed), wall = ["#ffffff", "#f6f1e7", "#efe7d8", "#f4ece6"][Math.floor(r() * 4)], acc = ["#c9a46a", "#2f6e7a", "#7a5232", "#3a3f45"][Math.floor(r() * 4)];
+  return [box(9, 3.4, 6.4, wall, -.5, 0, -.3), box(6, 3, 5, wall, -2, 3.4, -1), box(9.4, .25, 6.8, acc, -.5, 3.35, -.3), box(6.3, .25, 5.3, acc, -2, 6.35, -1),
+    box(7.6, 2.4, .12, "*#bfe3f2", -.5, .5, 2.92), box(4.8, 2.1, .12, "*#bfe3f2", -2, 3.9, 1.52), box(2.6, .9, .06, "#cfd6da", 2.2, 3.9, 2.4), box(1.2, 2.2, .14, "#3b2a1a", 3.1, 0, 2.93),
+    box(3.6, .1, 5.6, "#ffffff", -6.4, 0, 0), box(3.1, .12, 5, "#45c2ea", -6.4, .02, 0), box(.8, .25, 1.8, "#ffffff", -4.3, .05, -2)];
+}
+function buildPalm() {
+  const g = PALM.geo; if (!g) return; const data = { type: "place", id: "palm" }, Q = [], palms = [], villaPads = [], umbs = [], rocks = [], lamps = [];
+  const ANG = Math.atan2(g.U.x, g.U.z), along = ANG - Math.PI / 2;   // a box with its length along the trunk
+  // the turquoise lagoon inside the crescent
+  const lag = new THREE.Mesh(new THREE.CircleGeometry(g.CR + 6, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#7fd8ea", transparent: true, opacity: .55, depthWrite: false }));
+  const lc = g.W(g.CC.u, 0); lag.position.set(lc.x, -2.75, lc.z); world.add(lag);
+  // the land: sand built up from the sea floor
+  for (const poly of g.polys) { const sh = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
+    Q.push(part(new THREE.ExtrudeGeometry(sh, { depth: 6.25, bevelEnabled: false }).rotateX(-Math.PI / 2), "#ecd7a4", 0, -6, 0)); }
+  const R = (u0, u1, v0, v1, y, col, h = .05) => { const c = g.W((u0 + u1) / 2, (v0 + v1) / 2); Q.push(box(u1 - u0, h, v1 - v0, col, c.x, y, c.z, { y: along })); };
+  // the trunk: a boulevard with a planted median, sidewalks, gardens; the bridge to the land and the bridge to the crescent
+  R(-34, 42, -4, 4, .25, "#4a5057"); R(40, 205, -6, 6, .25, "#4a5057"); R(40, 205, -.9, .9, .27, "#79a65a", .1); R(40, 205, -8.4, -6, .25, "#e3d7bf"); R(40, 205, 6, 8.4, .25, "#e3d7bf");
+  R(40, 205, -10.6, -8.4, .25, "#86b862"); R(40, 205, 8.4, 10.6, .25, "#86b862"); R(203, g.CC.u + g.CR - 26, -4, 4, .25, "#4a5057");
+  for (let u = 46; u < 204; u += 7) for (const v of [-3, 3]) R(u, u + 3, v - .08, v + .08, .26, "#e8e3d4", .02);
+  for (const [u0, u1] of [[-30, 40], [206, g.CC.u + g.CR - 28]]) { for (let u = u0; u < u1; u += 6) for (const v of [-4.6, 4.6]) { const c = g.W(u, v); Q.push(cyl(.06, .06, 1, 6, "#d0d0d0", c.x, .25, c.z)); }
+    for (let u = u0 + 2; u < u1; u += 12) { const c = g.W(u, 0); Q.push(cyl(1.2, 1.4, 6, 10, "#cfc6b0", c.x, -6, c.z)); } }
+  for (let u = 46; u < 204; u += 10) { palms.push(g.W(u, 0)); lamps.push([g.W(u + 5, -6.6), ANG + Math.PI / 2], [g.W(u + 5, 6.6), ANG - Math.PI / 2]); }
+  // shops and apartments along the base of the trunk: the palm's main street
+  for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { const u = 52 + k * 12, c = g.W(u, sd * 9.6), col = ["#f2e2c4", "#e9d3b0", "#f6eadb"][k];
+    const aw = g.W(u, sd * 8.1);
+    Q.push(box(9, 6 + k * 2, 1.6, col, c.x, .25, c.z, { y: along }), box(8, 2, .1, "*#ffe2a0", c.x - g.V.x * sd * .85, .55, c.z - g.V.z * sd * .85, { y: along }),
+      box(8.6, .14, 1.5, ["#e8569a", "#2f7fa8", "#f2b440"][k], aw.x, 2.9, aw.z, { y: along }), box(9.2, .5, 1.8, "#ffffff", c.x, 6.25 + k * 2, c.z, { y: along })); }
+  // monorail beam over the trunk, from the land to the hotel (the train runs on it)
+  const mr = [g.W(-24, -7.2), g.W(203, -7.2), g.W(g.CC.u + g.CR - 34, -7.2)];
+  for (let i = 0; i + 1 < mr.length; i++) { const A = mr[i], B = mr[i + 1], L = Math.hypot(B.x - A.x, B.z - A.z), ry = Math.atan2(B.x - A.x, B.z - A.z);
+    Q.push(box(1.4, .9, L, "#e9e6df", (A.x + B.x) / 2, 7, (A.z + B.z) / 2, { y: ry })); for (let k = 0; k < L; k += 18) Q.push(cyl(.5, .6, 7.2, 8, "#d8d3c8", A.x + (B.x - A.x) * k / L, -.2, A.z + (B.z - A.z) * k / L)); }
+  PALM.track = mr;
+  // fronds: beaches with umbrellas at the tips, breakwater rocks around the crescent
+  for (const f of g.fronds) for (let s2 = f.L - 14; s2 < f.L - 1; s2 += 4.5) for (const w of [-4.6, 4.6]) { const nv = { u: -f.d.v, v: f.d.u }; umbs.push(g.W(f.b.u + f.d.u * s2 + nv.u * w, f.b.v + f.d.v * s2 + nv.v * w)); }
+  for (const f of g.fronds) for (let s2 = 6; s2 < f.L - 16; s2 += 20) palms.push(g.W(f.b.u + f.d.u * (s2 + 10), f.b.v + f.d.v * (s2 + 10)));
+  for (let i = 0; i < 70; i++) { const a = g.A0 + (g.A1 - g.A0) * i / 69, p = g.W(g.CC.u + Math.cos(a) * (g.CR + 7.5), g.CC.v + Math.sin(a) * (g.CR + 7.5)); rocks.push([p.x, p.z, i]); }
+  for (let i = 0; i < 34; i++) { const a = g.A0 + (g.A1 - g.A0) * (i + .5) / 34; if (Math.abs(a) < .22) continue; palms.push(g.W(g.CC.u + Math.cos(a) * (g.CR + 2), g.CC.v + Math.sin(a) * (g.CR + 2)));
+    if (i % 2) umbs.push(g.W(g.CC.u + Math.cos(a) * (g.CR - 4), g.CC.v + Math.sin(a) * (g.CR - 4))); }
+  // small hotels along the crescent
+  for (const a of [-1.3, -.8, .8, 1.3]) { const p = g.W(g.CC.u + Math.cos(a) * g.CR, Math.sin(a) * g.CR), ry = Math.atan2(-(Math.cos(a) * g.U.x + Math.sin(a) * g.V.x), -(Math.cos(a) * g.U.z + Math.sin(a) * g.V.z));
+    const HQ = [box(16, 10, 8, ["#f4e3cf", "#e8eef2", "#f6eadb", "#efe0f0"][Math.round(a * 10) & 3], 0, 0, 0), box(16.4, .5, 8.4, "#c9a46a", 0, 10, 0)];
+    for (let y = 1.5; y < 10; y += 2.8) HQ.push(box(14, 1.3, .12, "*#ffe2a0", 0, y, 4.06));
+    solid(HQ, p.x, p.z, ry, data, .25); }
+  // the villa plots on the fronds: residents' houses, or a luxury villa waiting for its owner
+  for (const l of g.lots) { const h = S.houses.find(q => q.lot === l), cs = Math.cos(l.face), sn = Math.sin(l.face), P2 = (a, b) => [l.x + a * cs + b * sn, l.z - a * sn + b * cs];
+    if (h) { villaPads.push([l.x, l.z, l.face, "#86b862"]); const [px, pz] = P2(-6.4, 0); Q.push(box(3.6, .1, 5.6, "#ffffff", px, LAWN, pz, { y: l.face }), box(3.1, .12, 5, "#45c2ea", px, LAWN + .02, pz, { y: l.face })); }
+    else { const c = l.num % 3; if (c === 0) palms.push(...[[-4, 0], [4, 1]].map(([a, b]) => { const [x, z] = P2(a, b); return { x, z }; }));   // no villa until someone lives here: a palm garden, a beach or a lawn
+      else if (c === 1) umbs.push(...[[-3, -2], [2, 2], [5, -1]].map(([a, b]) => { const [x, z] = P2(a, b); return { x, z }; })); } }
+  instanced(P.slab, villaPads, ([x, z, r, c], o) => { o.position.set(x, .25, z); o.rotation.y = r; o.scale.set(17, LAWN - .25, 11.4); return c; }, { shadow: false });
+  // the hotel at the top of the crescent: two towers joined by an arch, a pool deck and fountains in front, facing the palm
+  const ry = Math.atan2(-g.U.x, -g.U.z), HQ = [box(46, 1, 20, "#d9cfb9"), box(13, 42, 16, "#f0c9a2", -15, 1, 0), box(13, 42, 16, "#f0c9a2", 15, 1, 0), box(17, 9, 16, "#f0c9a2", 0, 34, 0), box(18, 1.4, 17, "#e2b47e", 0, 43, 0),
+    box(9, 5, 3, "#e2b47e", 0, 1, 9), box(7, 4, .12, "*#ffe2a0", 0, 1.2, 10.56), box(46, .1, 14, "#e8dcc4", 0, 1, 18), box(18, .12, 7, "#45c2ea", -8, 1.05, 19), cyl(2.4, 2.6, .6, 20, "#d9cfb9", 14, 1, 18), cyl(2.1, 2.1, .1, 20, "#45c2ea", 14, 1.55, 18), cyl(.3, .4, 2.4, 8, "#d9cfb9", 14, 1.6, 18)];
+  for (const sx of [-15, 15]) for (let y = 4; y < 40; y += 3.2) HQ.push(box(10.5, 1.5, .12, "*#ffe2a0", sx, y, 8.06));
+  for (let y = 35; y < 42; y += 3) HQ.push(box(14, 1.4, .12, "*#ffe2a0", 0, y, 8.06));
+  for (const sx of [-15, 15]) HQ.push(part(new THREE.SphereGeometry(4.6, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), "#2f8fa0", sx, 43, 0), sph(.6, "#d9b65a", sx, 48, 0));
+  for (const x of [-20, -16, 20]) for (const z of [13, 23]) HQ.push(cyl(.12, .14, 1.4, 6, "#ffffff", x, 1, z));
+  const hg = solid(HQ, g.hotel.x, g.hotel.z, ry, data, .25);
+  mountSign(hg, sign("מלון הדקל", 12, 1.8, { bg: "#7a3b2a", fg: "#fff4dc" }), 0, 30.5, 8.2);
+  for (const sx of [-6, 6]) { const f = flagMesh(4, 2.6); const p = g.W(g.CC.u + g.CR - 26, sx); f.position.set(p.x + 2, 9, p.z); world.add(f); FLAGS.push(f); Q.push(cyl(.1, .12, 9, 6, "#d0d0d0", p.x, .25, p.z)); }
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 7) { const p = g.W(g.CC.u + g.CR + Math.cos(a) * 27, Math.sin(a) * 27); palms.push(p); }
+  solid(Q, 0, 0, 0, data, 0);
+  instanced(P.palm, palms, (p, o) => { o.position.set(p.x, .3, p.z); o.rotation.y = p.x * .1 + p.z; o.scale.setScalar(.95); });
+  instanced(P.umbrella, umbs, (p, o) => { o.position.set(p.x, .3, p.z); return ["#e05a4f", "#ffffff", "#2f7fa8", "#f2c230", "#e8569a"][Math.abs(Math.round(p.x + p.z)) % 5]; });
+  instanced(P.lamp, lamps, ([p, r2], o) => { o.position.set(p.x, .25, p.z); o.rotation.y = r2; });
+  const rk = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: "#8b8a86", flatShading: true }), rocks.length);
+  rocks.forEach(([x, z, i], k) => { o3.position.set(x, -.6, z); o3.rotation.set(i, i * 2, 0); o3.scale.setScalar(1.6 + (i % 3) * .5); o3.updateMatrix(); rk.setMatrixAt(k, o3.matrix); }); world.add(rk);
+  // yachts in the lagoon, and the monorail train
+  for (const [u, v, r2] of [[110, 70, .3], [150, -95, -.4], [90, -120, 1.2], [190, 110, -.2], [230, 40, 1.4], [230, -60, -1.6]]) { const p = g.W(u, v);
+    const yt = solid([box(2.6, 1.4, 9, "#ffffff", 0, -.3, 0), box(2, 1, 4.6, "#ffffff", 0, 1.1, -.6), box(2.1, .5, 3.4, "*#bfe3f2", 0, 1.3, -.2), box(.1, .1, 3, "#2f6e7a", 0, .8, 3), part(new THREE.ConeGeometry(1.3, 2.6, 4), "#ffffff", 0, .3, 5.4, { x: Math.PI / 2, y: Math.PI / 4 })], p.x, p.z, ANG + r2);
+    yt.position.y = -2.9; boats.push(yt); }
+  const tr = solid([box(2.2, 2.4, 14, "#f2f2f2", 0, 0, 0), box(2.25, .9, 13, "*#bfe3f2", 0, 1, 0), box(2.3, .4, 14, "#1f6f8b", 0, .2, 0)], mr[0].x, mr[0].z, 0, data, 7.5); PALM.train = tr;
+  placeLabel("🌴 אי הדקל", g.center.x, 14, g.center.z); placeLabel("🏨 מלון הדקל", g.hotel.x, 50, g.hotel.z);
+  const gate = solid([box(.6, 6, .6, "#d9cfb9", -6, 0, 0), box(.6, 6, .6, "#d9cfb9", 6, 0, 0), box(13, 1.6, .5, "#1f6f8b", 0, 5, 0)], g.W(-2, 0).x, g.W(-2, 0).z, ANG, data, .25);
+  mountSign(gate, sign("🌴 ברוכים הבאים לאי הדקל", 12, 1.3, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 5.8, -.27, Math.PI);
+}
+// the monorail: back and forth between the station on land and the hotel
+function palmTrain(t) {
+  const tr = PALM.train, m = PALM.track; if (!tr || !tr.parent || !m) return;
+  const L1 = Math.hypot(m[1].x - m[0].x, m[1].z - m[0].z), L2 = Math.hypot(m[2].x - m[1].x, m[2].z - m[1].z), L = L1 + L2, per = L * 2 / 11 + 16, k = (t % per) / per;
+  let d = k < .5 ? Math.min(1, Math.max(0, (k * per - 4) / (L / 11))) * L : (1 - Math.min(1, Math.max(0, ((k - .5) * per - 4) / (L / 11)))) * L;
+  const A = d < L1 ? m[0] : m[1], B = d < L1 ? m[1] : m[2], f = d < L1 ? d / L1 : (d - L1) / L2;
+  tr.position.set(A.x + (B.x - A.x) * f, 7.5, A.z + (B.z - A.z) * f); tr.rotation.y = Math.atan2(B.x - A.x, B.z - A.z);
+}
+function centralBox(slot) { const x0 = slot.x + BPX(-1) - bwX(-1) / 2, x1 = slot.x + BPX(1) + bwX(1) / 2, z0 = slot.z + BPZ(-1) - BZ / 2, z1 = slot.z + BPZ(1) + BZ / 2; return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hw: (x1 - x0) / 2 - 3, hd: (z1 - z0) / 2 - 3 }; }
 // the houses around the city square: in each corner two face the plaza and two face the side street; their address is the square itself
 function centralLots(slot) {
   const C = centralBox(slot), name = S.blkCfg?.get(`blk_${slot.at}_c`)?.name || "כיכר העיר", out = []; let n = 0;
@@ -444,7 +560,14 @@ function centralLots(slot) {
 const inCentral = (x, z, pad = 0) => { const c = CENTRAL.on; return !!c && Math.abs(x - c.cx) < c.hw + pad && Math.abs(z - c.cz) < c.hd + pad; };
 // every citizen gets a wide lot: 3 houses along a block (2 on a block with a lane), with room for a garden and the car beside the house
 const LOT_X = { houses: [-14, 0, 14], lane: [-12.5, 12.5] };
-const blockLots = kind => { const xs = LOT_X[kind] || LOT_X.houses, w = kind === "lane" ? 12.4 : 13.3, out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < xs.length; i++) out.push({ dx: xs[i], dz: -7 + j * 14, i, j, w }); return out; };
+const blockLots = (kind, W = 42) => {
+  if (kind === "estate") return [-W / 4, W / 4].map((dx, i) => ({ dx, dz: 0, i, j: 1, w: W / 2 - .6, d: SD - 2.4, est: true }));   // an estate: half a block, the whole depth
+  let xs, w;
+  if (kind === "lane") { const side = (W - 7.8) / 2, n = side >= 24 ? 2 : 1, lw = side / n; xs = []; for (let i = 0; i < n; i++) xs.push(-W / 2 + lw * (i + .5)); for (let i = n - 1; i >= 0; i--) xs.push(W / 2 - lw * (i + .5)); w = lw - .4; }
+  else { const n = W >= 50 ? 4 : W >= 39 ? 3 : 2; xs = Array.from({ length: n }, (_, i) => -W / 2 + W / n * (i + .5)); w = W / n - .7; }
+  const out = []; for (let j = 0; j < 2; j++) for (let i = 0; i < xs.length; i++) out.push({ dx: xs[i], dz: -7 + j * 14, i, j, w, d: 13.3 }); return out; };
+// where a citizen lives, as the admin set it: an estate, a villa on the palm island, or (by default) an ordinary lot
+const homePlace = u => S.houseSign?.get(u)?.place || "";
 const pickName = (list, key, si) => list[(hash(key) + si * 3) % list.length];
 const GOV = [
   { id: "knesset", name: "הכנסת", ic: "🏛️", bx: 0, bz: -1 },
@@ -457,7 +580,7 @@ const N_WORK = 10, N_PUBLIC = 8;
 function reservedBlocks(slot, si) {
   const want = (si === 0 ? GOV.length : 0) + N_WORK + N_PUBLIC, cand = [];
   for (let bx = -9; bx <= 9; bx++) for (let bz = -14; bz <= 14; bz++) {
-    if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) continue;
+    if (Math.max(Math.abs(bx), Math.abs(bz)) < 2 || bwX(bx) < BX) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (!inTerritory(cx, cz, slot)) continue;
     if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
@@ -479,7 +602,7 @@ function extraBlocks(slot, si) {
   const key = slot.at; if (EXTRA_CACHE.has(key)) return EXTRA_CACHE.get(key);
   const res = new Set(reservedBlocks(slot, si).map(b => b.join(","))), cand = [];
   for (let bx = -12; bx <= 12; bx++) for (let bz = -18; bz <= 18; bz++) {
-    const d = Math.hypot(BPX(bx), BPZ(bz)); if (d < 150 || res.has(bx + "," + bz)) continue;
+    const d = Math.hypot(BPX(bx), BPZ(bz)); if (d < 150 || res.has(bx + "," + bz) || bwX(bx) < BX) continue;
     const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
     if (!inTerritory(cx, cz, slot)) continue;
     if (![[-22, -HZ - 1], [22, -HZ - 1], [-22, HZ + 1], [22, HZ + 1]].every(([dx, dz]) => onGrass(cx + dx, cz + dz, MAX_S, .04))) continue;
@@ -503,27 +626,28 @@ function freedBlocks(slot, si) {
   ws.forEach((w, i) => { if (spots[i] && S.wpCfg?.get(w.id)?.x != null) out.add(spots[i].join(",")); });
   return out;
 }
-const HOUSE_ZONES = ["houses", "lane"];
+const HOUSE_ZONES = ["houses", "lane", "estate"];
 function cityLots(slot, si, need) {
   // all lots of the city sorted by distance from its plaza; generated in growing rings so the order is stable
   for (let R = 260; ; R *= 1.6) {
-    const lots = [], nb = Math.ceil(R / BX) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
+    const lots = [], est = [], nb = Math.ceil(R / 36) + 1, nz = Math.ceil(R / BZ) + 1, res = new Set([...reservedBlocks(slot, si), ...extraBlocks(slot, si)].map(b => b.join(",")));
     for (let bx = -nb; bx <= nb; bx++) for (let bz = -nz; bz <= nz; bz++) {
       if ((bx === 0 && bz === 0) || isCentral(si, bx, bz)) continue;
       if (res.has(bx + "," + bz) && !(slot.freed?.has(bx + "," + bz) && HOUSE_ZONES.includes(S.zones?.get(`${slot.at}:${bx},${bz}`)))) continue;
       const kind = blockKind(slot, bx, bz); if (OPEN_KINDS.includes(kind)) continue;
       const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
-      for (const L of blockLots(kind)) {
+      for (const L of blockLots(kind, bwX(bx) - 6)) {
         const x = cx + L.dx, z = cz + L.dz, d = Math.hypot(x - slot.x, z - slot.z);
         if (d > R || !onGrass(x, z, MAX_S, .04) || !inTerritory(x, z, slot)) continue;
-        lots.push({ x, z, bx, bz, d, j: L.j, i: L.i, dx: L.dx, face: L.j === 0 ? Math.PI : 0 });
+        (L.est ? est : lots).push({ x, z, bx, bz, d, j: L.j, i: L.i, dx: L.dx, face: L.j === 0 ? Math.PI : 0, w: L.w, ld: L.d, ...(L.est ? { est: true } : {}) });
       }
     }
     if (lots.length >= need || R > 6000) {
       if (si === 0) lots.push(...centralLots(slot));
       lots.sort((a, b) => a.d - b.d || a.x - b.x || a.z - b.z);
       slot.st = { names: new Map(), next: 0, nextB: 0 };   // street names are handed out in order of first appearance, from the center out
-      for (const l of lots) { if (l.sq) continue; const e = l.j === 0 ? l.bz : l.bz + 1; l.street = streetName(slot, si, e, l.bx); l.num = houseNum(e, l.bx, l.i, l.j); }
+      est.sort((a, b) => a.d - b.d || a.x - b.x); slot.estLots = est;
+      for (const l of [...lots, ...est]) { if (l.sq) continue; const e = l.j === 0 ? l.bz : l.bz + 1; l.street = streetName(slot, si, e, l.bx); l.num = houseNum(e, l.bx, l.i, l.j); }
       return lots;
     }
   }
@@ -539,7 +663,7 @@ function streetName(slot, si, e, bx) {
   return st.names.get(key);
 }
 // numbers run along the street: odd on the north side, even on the south side
-const houseNum = (e, bx, i, j) => { const n = blvZ(e) ? Math.max(0, bx + 12) * 3 + i + 1 : (((bx - 2) % 4) + 4) % 4 * 3 + i + 1; return j === 0 ? 2 * n - 1 : 2 * n; };
+const houseNum = (e, bx, i, j) => { const n = blvZ(e) ? Math.max(0, bx + 12) * 4 + i + 1 : (((bx - 2) % 4) + 4) % 4 * 4 + i + 1; return j === 0 ? 2 * n - 1 : 2 * n; };
 // the address of a whole block (a public building, a square): on the street in front of it
 const blockAddr = (slot, si, bx, bz) => `${streetName(slot, si, bz + 1, bx)} ${houseNum(bz + 1, bx, 1, 1) + 2}, ${slot.city?.name || ""}`;
 
@@ -791,14 +915,15 @@ function layout() {
     slot.freed = freedBlocks(slot, si);
     const list = (byCity.get(slot.city.id) || []).sort((a, b) => a.id - b.id), lots = cityLots(slot, si, list.length);
     slot.pop = list.length;
-    list.forEach((c, i) => {
-      const lot = lots[i] || null, tier = Math.min(3, Math.max(1, c.house_tier || 1)), car = Math.min(3, Math.max(1, c.car_tier || 1)), u = c.ig_username;
+    let li = 0, ei = 0; const eL = slot.estLots || [];
+    list.forEach(c => {
+      const pl = homePlace(c.ig_username), lot = pl === "palm" ? null : pl === "estate" && ei < eL.length ? eL[ei++] : lots[li++] || null, tier = Math.min(3, Math.max(1, c.house_tier || 1)), car = Math.min(3, Math.max(1, c.car_tier || 1)), u = c.ig_username;
       // the style/model the citizen bought, unless a draw moved them to another tier since then
       const hk = c.house_style && +c.house_style[0] === tier && P[c.house_style] ? c.house_style : `${tier}_${tier === 1 ? hash(u) % 3 : tier === 2 ? hash(u) % 2 : 0}`;
       const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_BY_TIER[car][hash(u + "m") % CARS_BY_TIER[car].length];
       const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
       const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
-        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, x: lot ? lot.x : slot.x, z: lot ? lot.z : slot.z };
+        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, x: lot ? lot.x : slot.x, z: lot ? lot.z - (lot.est ? 3 : 0) : slot.z };
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
@@ -837,6 +962,9 @@ function layout() {
     }
   });
   S.s = Math.min(MAX_S + .3, need);
+  PALM.geo = palmGeo(); let pk = 0;
+  for (const h of [...S.houses].sort((a, b) => a.id - b.id)) if (homePlace(h.u) === "palm" && PALM.geo.lots[pk]) {
+    const l = PALM.geo.lots[pk++]; h.lot = l; h.x = l.x; h.z = l.z; S.byAddr.set(`${l.street} ${l.num}`.toLowerCase(), h); }
   // citizen number = order of arrival (ids can have gaps)
   [...S.houses].sort((a, b) => a.id - b.id).forEach((h, i) => h.no = i + 1);
   for (const w of S.workplaces) w.staff = [];
@@ -851,7 +979,7 @@ const TRAFFIC_MIX = ["mini", "mini", "station", "station", "shakshuka", "pita", 
 const SHIRTS = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8", "#222831", "#ef7f9f", "#1f6f8b"];
 // pedestrians walk around the sidewalk of their block
 function placeWalker(w, o, t) {
-  const hx = 20.3, hz = HZ - .7, per = 4 * (hx + hz), d = ((w.p * per + w.dir * w.v * t) % per + per) % per;
+  const hx = w.hx || 20.3, hz = HZ - .7, per = 4 * (hx + hz), d = ((w.p * per + w.dir * w.v * t) % per + per) % per;
   let x, z, r;
   if (d < 2 * hx) { x = -hx + d; z = -hz; r = Math.PI / 2; } else if (d < 2 * hx + 2 * hz) { x = hx; z = -hz + d - 2 * hx; r = 0; }
   else if (d < 4 * hx + 2 * hz) { x = hx - (d - 2 * hx - 2 * hz); z = hz; r = -Math.PI / 2; } else { x = -hx; z = hz - (d - 4 * hx - 2 * hz); r = Math.PI; }
@@ -875,39 +1003,42 @@ function buildCities() {
     const si = S.slots.indexOf(slot), taken = new Set(S.houses.filter(h => h.slot === slot && h.lot).map(h => `${h.lot.x},${h.lot.z}`));
     for (const b of slot.blocks.values()) {
       const cx = slot.x + BPX(b.bx), cz = slot.z + BPZ(b.bz), green = b.civic === "park";
-      if (b.civic === "central") { asphalt.push([cx, cz, BX, BZ, "#4a5057"]); continue; }   // built as one piece by buildCentral
-      if (b.civic === "round") { asphalt.push([cx, cz, BX, BZ, "#4a5057"]); squares.push({ slot, si, b, cx, cz, kind: "round" }); continue; }   // a roundabout square in the middle of the road
-      asphalt.push([cx, cz, BX, BZ, "#4a5057"]); walk.push([cx, cz, 42, SD, b.civic ? (green ? "#cfc6b0" : "#d8cfbd") : "#c9c2b4"]); curbs.push([cx, cz, 42.6, SD + .6, "#9b978f"]);
+      const bw = bwX(b.bx);
+      if (b.civic === "central") { asphalt.push([cx, cz, bw, BZ, "#4a5057"]); continue; }   // built as one piece by buildCentral
+      if (b.civic === "round") { asphalt.push([cx, cz, bw, BZ, "#4a5057"]); squares.push({ slot, si, b, cx, cz, kind: "round" }); continue; }   // a roundabout square in the middle of the road
+      asphalt.push([cx, cz, bw, BZ, "#4a5057"]); walk.push([cx, cz, bw - 6, SD, b.civic ? (green ? "#cfc6b0" : "#d8cfbd") : "#c9c2b4"]); curbs.push([cx, cz, bw - 5.4, SD + .6, "#9b978f"]);
       if (b.civic === "square" || b.civic === "park") squares.push({ slot, si, b, cx, cz, kind: b.civic });
       if (b.civic === "lot") zLots.push({ slot, si, b, cx, cz });
       if (!b.civic) {
-        const kind = blockKind(slot, b.bx, b.bz), L = blockLots(kind);
+        const kind = blockKind(slot, b.bx, b.bz), L = blockLots(kind, bwX(b.bx) - 6);
         for (const l of L) {
           const x = cx + l.dx, z = cz + l.dz, t = taken.has(`${x},${z}`);
-          lawn.push([x, z, l.w, 13.3, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
+          lawn.push([x, z, l.w, l.d, t ? (hash(x * 7 + z) % 2 ? "#7fa85d" : "#77a057") : "#cdbb92"]);
           if (!t) continue;
+          if (l.est) { const fz = z + l.d / 2 - .2, w2 = l.w / 2;   // an estate: hedges all around, with a gap for the gate and the driveway
+            hedges.push([x, z - l.d / 2 + .2, l.w - .1, 1, .35], [x - w2 + .2, z, .35, 1, l.d - .4], [x + w2 - .2, z, .35, 1, l.d - .4], [x + (-w2 + 4.9) / 2, fz, w2 + 4.9, .9, .35], [x + (9.1 + w2) / 2, fz, w2 - 9.1, .9, .35]); continue; }
           hedges.push([x, z + (l.j ? -6.55 : 6.55), l.w - .1, .8, .35]);
           const nx = L.find(q => q.j === l.j && q.i === l.i + 1);
-          if (nx && kind !== "lane" && taken.has(`${cx + nx.dx},${z}`)) hedges.push([(x + cx + nx.dx) / 2, z, .35, .7, 12.6]);
+          if (nx && kind !== "lane" && taken.has(`${cx + nx.dx},${z}`)) hedges.push([(x + cx + nx.dx) / 2, z, .35, .7, l.d - .7]);
         }
         if (kind === "lane") lanes.push({ slot, si, b, cx, cz });
       }
-      if (b.civic !== "work") for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
-      if (!blvZ(b.bz)) for (let k = -2; k <= 2; k++) dashes.push([cx + k * 9.5, cz - BZ / 2, 3.2, .3, "#e8e3d4"]);
-      for (const [dx, dz] of [[-20.6, -HZ + .4], [20.6, HZ - .4]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
+      if (b.civic !== "work") for (let k = 0; k < 3; k++) if (hash(cx * 3 + cz * 7 + k) % 3 === 0) walkers.push({ cx, cz, hx: (bw - 6) / 2 - .7, p: (hash(cx + k * 17 + cz) % 1000) / 1000, v: .9 + (hash(cz + k * 5 + cx) % 60) / 100, dir: k % 2 ? 1 : -1, c: SHIRTS[hash(cx * 11 + k + cz) % SHIRTS.length], ph: k * 2.1 });
+      if (!blvZ(b.bz)) for (let k = -3; k <= 3; k++) if (Math.abs(k * 9.5) < bw / 2 - 3) dashes.push([cx + k * 9.5, cz - BZ / 2, 3.2, .3, "#e8e3d4"]);
+      for (const [dx, dz] of [[-(bw / 2 - 3.4), -HZ + .4], [bw / 2 - 3.4, HZ - .4]]) lamps.set(`${cx + dx},${cz + dz}`, { x: cx + dx, z: cz + dz, r: dx < 0 ? 0 : Math.PI });
     }
     // boulevards: a 28m wide avenue every 4 blocks, two lanes each way, a planted median with palms, roundabouts and zebra crossings at the junctions
     const bl = [...slot.blocks.values()]; if (!bl.length) continue;
     const mnX = Math.min(...bl.map(b => b.bx)), mxX = Math.max(...bl.map(b => b.bx)), mnZ = Math.min(...bl.map(b => b.bz)), mxZ = Math.max(...bl.map(b => b.bz));
-    const ax0 = slot.x + BPX(mnX) - BX / 2, ax1 = slot.x + BPX(mxX) + BX / 2, az0 = slot.z + BPZ(mnZ) - BZ / 2, az1 = slot.z + BPZ(mxZ) + BZ / 2;
+    const ax0 = slot.x + BPX(mnX) - bwX(mnX) / 2, ax1 = slot.x + BPX(mxX) + bwX(mxX) / 2, az0 = slot.z + BPZ(mnZ) - BZ / 2, az1 = slot.z + BPZ(mxZ) + BZ / 2;
     const jX = [], jZ = [];
-    for (let bx = mnX; bx < mxX; bx++) jX.push({ p: slot.x + (blvX(bx + 1) ? blvCX(bx + 1) : BPX(bx) + BX / 2), big: blvX(bx + 1) });
+    for (let bx = mnX; bx < mxX; bx++) jX.push({ p: slot.x + (blvX(bx + 1) ? blvCX(bx + 1) : BPX(bx) + bwX(bx) / 2), big: blvX(bx + 1) });
     for (let bz = mnZ; bz < mxZ; bz++) jZ.push({ p: slot.z + (blvZ(bz + 1) ? blvCZ(bz + 1) : BPZ(bz) + BZ / 2), big: blvZ(bz + 1) });
     const avenue = (vert, c, a0, a1, js) => {
       const P2 = (along, across) => vert ? [c + across, along] : [along, c + across];
       const len = a1 - a0, mid = (a0 + a1) / 2; asphalt.push(vert ? [c, mid, GAP + .4, len, "#4a5057"] : [mid, c, len, GAP + .4, "#4a5057"]);
       const stops = [{ p: a0, r: 0 }];
-      for (const j of js) { const round = j.big || hash(`${Math.round(j.p)}:${Math.round(c)}`) % 2 === 0, [x, z] = P2(j.p, 0);
+      for (const j of js) { const round = j.big || hash(`${Math.round(j.p)}:${Math.round(c)}`) % 6 === 0, [x, z] = P2(j.p, 0);
         stops.push({ p: j.p, r: round ? 7.4 : 4.2 });
         if (round) rounds.push({ x, z, big: j.big, slot, si }); else for (const sd of [-1, 1]) for (let k = -12.5; k <= 12.5; k += 1.6) { if (Math.abs(k) < 2.6) continue; const [zx, zz] = P2(j.p + sd * 4.2, k); zebras.push([zx, zz, vert ? .8 : 1.6, vert ? 1.6 : .8]); } }
       stops.push({ p: a1, r: 0 });
@@ -925,7 +1056,7 @@ function buildCities() {
     for (const b of slot.blocks.values()) {
       if (b.civic === "central") continue;
       if (blvZ(b.bz) ? ((b.bx % 3) + 3) % 3 !== 0 : ((((b.bx - 2) % 4) + 4) % 4) !== 1) continue;
-      const cx = slot.x + BPX(b.bx) + (blvZ(b.bz) ? 0 : BX / 2), cz = slot.z + (blvZ(b.bz) ? blvCZ(b.bz) + 7.5 : BPZ(b.bz) - BZ / 2);
+      const cx = slot.x + BPX(b.bx) + (blvZ(b.bz) ? 0 : bwX(b.bx) / 2), cz = slot.z + (blvZ(b.bz) ? blvCZ(b.bz) + 7.5 : BPZ(b.bz) - BZ / 2);
       placeLabel(streetName(slot, si, b.bz, b.bx), cx, 1.2, cz, "st", 7);
     }
     for (let e = mnZ + 1; e <= mxZ; e++) if (blvZ(e)) avenue(false, slot.z + blvCZ(e), ax0, ax1, jX);
@@ -944,18 +1075,19 @@ function buildCities() {
   for (const slot of open) { const si = S.slots.indexOf(slot);
     for (const kind of ["square", "park"]) { const L = kind === "park" ? PARKS : SQUARES;
       squares.filter(q => q.slot === slot && (kind === "park") === (q.kind === "park")).sort((a, b) => Math.hypot(a.cx - slot.x, a.cz - slot.z) - Math.hypot(b.cx - slot.x, b.cz - slot.z) || a.cx - b.cx)
-        .forEach((q, i) => q.autoName = L[(i + si * 3) % L.length] + (i >= L.length ? " " + (HEB[Math.floor(i / L.length)] || i) : "")); } }
-  buildRoundabouts(rounds); squares.forEach(buildSquare); lanes.forEach(buildLane); zLots.forEach(q => buildEmptyLot(q.slot, blkKey(q.slot, q.b.bx, q.b.bz), q.cx, q.cz, blockAddr(q.slot, q.si, q.b.bx, q.b.bz)));
+        .forEach((q, i) => { q.autoName = L[(i + si * 3) % L.length] + (i >= L.length ? " " + (HEB[Math.floor(i / L.length)] || i) : ""); q.design = i + si * 3; }); } }
+  buildRoundabouts(rounds); squares.forEach(buildSquare); lanes.forEach(buildLane); zLots.forEach(q => buildEmptyLot(q.slot, blkKey(q.slot, q.b.bx, q.b.bz), q.cx, q.cz, blockAddr(q.slot, q.si, q.b.bx, q.b.bz), bwX(q.b.bx) - 6));
   traffic = [...blvTraffic];
 
   // highways from the capital to every city and to the coast
   const cap = open[0];
   if (cap) {
-    const ends = [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))];
-    const segs = ends.map(t => [cap.x, cap.z, t.x, t.z]);
-    instanced(P.plane, segs, ([a, b, c, d], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(12, 1, Math.hypot(c - a, d - b)); return "#4a5057"; }, { shadow: false });
-    const hd = []; for (const [a, b, c, d] of segs) { const L = Math.hypot(c - a, d - b); for (let k = 20; k < L - 10; k += 14) hd.push([a + (c - a) * k / L, b + (d - b) * k / L, Math.atan2(c - a, d - b)]); }
+    const segs = highwaySegs();
+    instanced(P.plane, segs, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b)); return "#4a5057"; }, { shadow: false });
+    const hd = []; for (const [a, b, c, d, w] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r);
+      const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = 20; k < L - 10; k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
+    for (const sg of segs) if (sg[4] > 20) buildSababaLanes(sg, cap);
   }
 
   // houses
@@ -976,12 +1108,13 @@ function buildCities() {
       sg.userData = { type: "house", items: [h], disposable: true }; world.add(sg); S.picks.push(sg);
     }
   }
+  buildEstates();
   // parked cars: every model in the owner's color
   for (const key of CAR_KEYS) {
     const list = S.houses.filter(h => h.lot && h.cm === key); if (!list.length) continue;
     const zo = Math.min(2.6, 4.4 - CARS[key].L / 2);
     const m = instanced(P["car_" + key], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
-      o.position.set(h.x + 3.9 * cs + zo * sn, LAWN, h.z - 3.9 * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; });
+      const sx = h.lot.est ? 7 : 3.9; o.position.set(h.x + sx * cs + zo * sn, LAWN, h.z - sx * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; });
     Object.assign(m.userData, { type: "house", items: list, parked: key }); S.picks.push(m);
   }
   // gardens
@@ -1002,7 +1135,7 @@ function buildCities() {
     const r0 = rng(slot.at + 3);
     for (const [bz, r] of [...rows.entries()].sort((a, b) => Math.abs(a[0]) - Math.abs(b[0])).slice(0, 8)) {
       if (blvZ(bz)) continue;   // the boulevards have their own traffic
-      const z = slot.z + BPZ(bz) - BZ / 2, X0 = slot.x + BPX(r.min) - BX / 2, X1 = slot.x + BPX(r.max) + BX / 2, C = CENTRAL.on;
+      const z = slot.z + BPZ(bz) - BZ / 2, X0 = slot.x + BPX(r.min) - bwX(r.min) / 2, X1 = slot.x + BPX(r.max) + bwX(r.max) / 2, C = CENTRAL.on;
       // a street that runs into the city square stops at its edge, on both sides
       const segs = inCentral(C?.cx ?? 0, z) ? [[X0, C.cx - C.hw - 3], [C.cx + C.hw + 3, X1]] : [[X0, X1]];
       for (const [x0, x1] of segs) if (x1 - x0 > 30) for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
@@ -1027,8 +1160,33 @@ function buildCities() {
   });
 }
 
+// נתיבי סבבה: the 8-lane highway from the capital to the harbor. A planted median with a crash barrier, solid edge lines,
+// lamps on both sides, green gantry signs over the lanes, and traffic in all 8 lanes (outside the city only)
+function buildSababaLanes([a, b, c, d, w], cap) {
+  const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, vx = uz, vz = -ux, r = Math.atan2(ux, uz), P2 = (k, o) => [a + ux * k + vx * o, b + uz * k + vz * o];
+  let k0 = 0; while (k0 < L && inCityBox(...P2(k0, 0), 14)) k0 += 4;   // where it leaves the city
+  if (k0 >= L - 40) return; const len = L - k0, mid = P2(k0 + len / 2, 0);
+  const Q = [];
+  const strip = (o, wd, col, y = .3) => { const [x, z] = P2(k0 + len / 2, o); Q.push(box(wd, .02, len, col, x, y, z, { y: r })); };
+  strip(0, 2.6, "#79a65a", .31); strip(-1.5, .25, "#f2c230", .3); strip(1.5, .25, "#f2c230", .3); strip(-15.4, .3, "#f2efe6"); strip(15.4, .3, "#f2efe6");
+  { const [x, z] = P2(k0 + len / 2, 0); Q.push(box(.35, .8, len, "#c9ccd0", x, .3, z, { y: r })); }   // the barrier in the median
+  const lamps = [], gantries = [];
+  for (let k = k0 + 20; k < L - 10; k += 46) for (const o of [-17.2, 17.2]) lamps.push([...P2(k, o), o > 0 ? r + Math.PI : r]);
+  for (let k = k0 + 60; k < L - 40; k += 190) gantries.push(k);
+  solid(Q, 0, 0, 0, null, 0);
+  if (lamps.length) instanced(P.lamp, lamps, ([x, z, ry], o) => { o.position.set(x, .3, z); o.rotation.y = ry; o.scale.setScalar(1.3); });
+  for (const k of gantries) { const [x, z] = P2(k, 0);
+    const g = solid([box(.6, 8, .6, "#9aa0a6", -16.6, 0, 0), box(.6, 8, .6, "#9aa0a6", 16.6, 0, 0), box(34, .7, .7, "#9aa0a6", 0, 7.4, 0)], x, z, r, null, .3);
+    mountSign(g, sign(`נתיבי סבבה · ⚓ נמל העולים`, 12, 2.2, { bg: "#0f6b3a", fg: "#ffffff" }), -8, 6.2, -.4, Math.PI);
+    mountSign(g, sign(`נתיבי סבבה · 🏙️ ${cap.city.name}`, 12, 2.2, { bg: "#0f6b3a", fg: "#ffffff" }), 8, 6.2, .4); }
+  placeLabel("🛣️ נתיבי סבבה", mid[0], 6, mid[1]);
+  // 8 lanes of traffic: 4 toward the harbor, 4 back to the city
+  const r0 = rng(808); for (const [o, dir] of [[3.3, -1], [6.8, -1], [10.4, -1], [13.9, -1], [-3.3, 1], [-6.8, 1], [-10.4, 1], [-13.9, 1]]) for (let n = 0; n < 3; n++) {
+    const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: len, dir, p: r0() * len, v: 14 + r0() * 10, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
+}
 // a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z
 function placeCar(c, o) {
+  if (c.seg) { const { ax, az, ux, uz } = c.seg; o.position.set(ax + ux * c.p, .3, az + uz * c.p); o.rotation.set(0, Math.atan2(ux * c.dir, uz * c.dir), 0); return; }
   if (c.ring) { const { cx, cz, r } = c.ring, a = c.p / r; o.position.set(cx + Math.cos(a) * r, .3, cz + Math.sin(a) * r); o.rotation.set(0, Math.atan2(-c.dir * Math.sin(a), c.dir * Math.cos(a)), 0); return; }
   if (c.vert) { o.position.set(c.z, .3, c.x0 + c.p); o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
   else { o.position.set(c.x0 + c.p, .3, c.z); o.rotation.set(0, c.dir * Math.PI / 2, 0); }
@@ -1101,11 +1259,29 @@ function itemModel(url, x, y, z, height, ry, data, finish) {
 }
 // what stands in the middle of a square: a fountain, a clock tower, a bandstand or a ring sculpture (built for a 9.5m plaza)
 function centerParts(d) {
+  d = { fountain: 0, clock: 1, gazebo: 2, ring: 3 }[d] ?? d;
+  if (typeof d === "string") return centerMore(d);
   if (d === 0) return [cyl(4, 4.2, .7, 32, "#d9cfb9"), cyl(3.7, 3.7, .1, 32, "#3fa8cf", 0, .62, 0), cyl(.5, .7, 2.4, 12, "#d9cfb9", 0, .7, 0), cyl(1.6, 1.3, .3, 18, "#d9cfb9", 0, 3.1, 0), cyl(1.4, 1.4, .06, 18, "#3fa8cf", 0, 3.38, 0), sph(.4, "#d9cfb9", 0, 3.8, 0)];
   if (d === 1) return [box(2.6, 9, 2.6, "#d9c39a"), box(3, .3, 3, "#b9a47a", 0, 9, 0), ...[0, 1, 2, 3].map(i => cyl(.8, .8, .06, 20, "#ffffff", 0, 0, 0, { x: Math.PI / 2, y: i * Math.PI / 2 }).translate(Math.sin(i * Math.PI / 2) * 1.33, 7.7, Math.cos(i * Math.PI / 2) * 1.33)), part(new THREE.ConeGeometry(2, 2.4, 4), "#7a2a20", 0, 10.5, 0, { y: Math.PI / 4 })];
   if (d === 2) { const Q = [cyl(4.2, 4.4, .6, 8, "#e9e2d3"), part(new THREE.ConeGeometry(4.8, 2, 8), "#2f6e7a", 0, 4.4, 0)];
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(cyl(.12, .12, 2.8, 6, "#ffffff", Math.cos(a) * 3.8, .6, Math.sin(a) * 3.8), sph(.14, "*#fff1c2", Math.cos(a) * 3.8, 3.3, Math.sin(a) * 3.8)); } return Q; }
   return [box(3, .6, 3, "#cfc6b0"), part(new THREE.TorusGeometry(2.4, .45, 12, 32), "#e05a4f", 0, 3.4, 0), part(new THREE.TorusGeometry(1.5, .35, 12, 28), "#f2c230", 0, 3.4, 0, { y: Math.PI / 2 })];
+}
+// more centerpieces, so no two squares in a city look alike (built for a 9.5m plaza)
+const SQ_DESIGNS = [["fountain", "⛲ מזרקה"], ["clock", "🕰️ מגדל שעון"], ["gazebo", "🎪 ביתן נגינה"], ["obelisk", "🗼 אובליסק"], ["chess", "♟️ שחמט ענק"], ["jets", "💦 מזרקות רצפה"],
+  ["sundial", "☀️ שעון שמש"], ["balls", "🔮 פסל כדורים"], ["stage", "🎭 במה קטנה"], ["ring", "⭕ פסל טבעות"]];
+function centerMore(d) {
+  const Q = [];
+  if (d === "obelisk") Q.push(box(3, 1, 3, "#cfc6b0"), box(3.4, .2, 3.4, "#b9ab90", 0, 1, 0), part(new THREE.CylinderGeometry(.5, 1.2, 12, 4), "#ece4d2", 0, 7.2, 0, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.75, 1.4, 4), "#c9a24a", 0, 13.9, 0, { y: Math.PI / 4 }));
+  else if (d === "chess") { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) Q.push(box(1, .05, 1, (i + j) % 2 ? "#2b2b2b" : "#f4f1ea", -3.5 + i, .02, -3.5 + j));
+    for (const [x, z, c, k] of [[-2.5, -2.5, "#f4f1ea", 1], [1.5, -1.5, "#f4f1ea", 0], [-.5, 2.5, "#2b2b2b", 1], [2.5, 1.5, "#2b2b2b", 0]]) Q.push(cyl(.35, .4, k ? 1.3 : .9, 12, c, x, .05, z), sph(.3, c, x, k ? 1.6 : 1.15, z)); }
+  else if (d === "jets") { Q.push(cyl(4.2, 4.2, .05, 32, "#9fd3e6", 0, .02, 0)); for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) if (i * i + j * j <= 5) Q.push(cyl(.06, .12, 1.2 + ((i + j + 9) % 3) * .6, 6, "#bfe8f6", i * 1.5, .05, j * 1.5)); }
+  else if (d === "sundial") { Q.push(cyl(3.6, 3.8, .4, 32, "#d9cfb9"), part(new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(3, 0), new THREE.Vector2(0, 2.4)]), { depth: .2, bevelEnabled: false }).translate(0, 0, -.1).rotateY(-Math.PI / 2), "#9a7a3a", 0, .4, 0));
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; Q.push(box(.12, .05, .6, "#3a3f45", Math.cos(a) * 3.1, .42, Math.sin(a) * 3.1, { y: Math.PI / 2 - a })); } }
+  else if (d === "balls") Q.push(box(5, .4, 2.4, "#c96f3c"), ...[["#c4432f", 0, 2.6, 1.3], ["#2a3f92", -1.7, 1.6, 1], ["#86a13c", 1.7, 1.6, 1], ["#cc7632", 0, 4.4, .8], ["#e8b923", -1, 3.6, .6]].flatMap(([c, x, y, r]) => [cyl(.08, .08, y, 6, "#3a3f45", x, .4, 0), sph(r, c, x, y + .4, 0)]));
+  else if (d === "stage") { for (let i = 0; i < 3; i++) Q.push(part(new THREE.RingGeometry(2.6 + i * 1.1, 3.6 + i * 1.1, 24, 1, Math.PI * .15, Math.PI * .7).rotateX(-Math.PI / 2), "#d9cfb9", 0, .3 + i * .3, 0), cyl(2.6 + i * 1.1, 2.6 + i * 1.1, .01, 4, "#d9cfb9", 0, -50, 0));
+    Q.push(box(5, .6, 2.6, "#7a5232", 0, 0, -2.2), box(5, 3, .2, "#7a1c2c", 0, .6, -3.4), box(5.4, .3, .4, "#c9a24a", 0, 3.6, -3.4)); }
+  return Q;
 }
 function buildItems(items, cx, cz, y, data, fit) {
   for (const it of items || []) {
@@ -1124,12 +1300,14 @@ function buildItems(items, cx, cz, y, data, fit) {
 function blkEdit(key) {
   const M = BLK_META.get(key); if (!M || !ADMIN) return;
   const cfg = JSON.parse(JSON.stringify(S.blkCfg?.get(key) || {})); cfg.items ||= [];
-  const sq = ["square", "park", "central", "round"].includes(M.kind), lot = M.kind === "lot";
+  const sq = ["square", "park", "central", "round"].includes(M.kind), lot = M.kind === "lot";   // a junction roundabout (jround) has a name and a centerpiece only
   const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}" ${String(k) === String(v ?? "") ? "selected" : ""}>${n}</option>`).join("");
   const draw = () => open(`✏️ ${M.title}`, `<div class="hero warn"><p><b>עריכת מנהל.</b> השינויים נכנסים לתוקף אצל כולם אחרי ״לשמור״.</p></div>
     <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
       ${M.kind !== "project" ? `<label>שם${M.kind === "lot" ? " (לא חובה)" : ""}<input id="bkName" value="${esc(cfg.name || (sq ? M.title : ""))}"></label>` : ""}
-      ${["square", "central", "round"].includes(M.kind) ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ["fountain", "⛲ מזרקה"], ["clock", "🕰️ מגדל שעון"], ["gazebo", "🎪 ביתן נגינה"], ["ring", "⭕ פסל טבעות"], ["none", "ריק (מקום לפריטים)"]], cfg.center)}</select></label>` : ""}
+      ${["square", "central", "round"].includes(M.kind) ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ...SQ_DESIGNS.map(([k, n]) => [k, n]), ["none", "ריק (מקום לפריטים)"]], cfg.center)}</select></label>` : ""}
+      ${M.kind === "jround" ? `<label>במרכז הכיכר<select id="bkCenter">${opt([["", "אוטומטי"], ...JR_DESIGNS], cfg.center)}</select></label>` : ""}
+      ${M.kind === "park" ? `<label>סגנון הגן<select id="bkTheme">${opt([["", "אוטומטי"], ...PARK_THEMES], cfg.theme)}</select></label>` : ""}
       ${sq ? `<label class="chk"><input type="checkbox" id="bkTrees" ${cfg.trees !== false ? "checked" : ""}> עצים</label><label class="chk"><input type="checkbox" id="bkBenches" ${cfg.benches !== false ? "checked" : ""}> ספסלים</label>
         ${M.kind === "square" ? `<label class="chk"><input type="checkbox" id="bkCafe" ${cfg.cafe !== false ? "checked" : ""}> בית קפה וקיוסק</label>` : ""}` : ""}
       ${lot ? `<label>הקרקע<select id="bkGround">${opt([["sand", "חול"], ["stone", "ריצוף אבן"], ["grass", "דשא"]], cfg.ground || "sand")}</select></label><label class="chk"><input type="checkbox" id="bkNoSign" ${cfg.noSign ? "checked" : ""}> להסתיר את השלט ״מה לבנות כאן?״</label>` : ""}
@@ -1152,7 +1330,7 @@ function blkEdit(key) {
         + (T.url ? `<label>כתובת הקובץ (‎.glb)<input id="itU" dir="ltr" autocapitalize="off" placeholder="/models/my.glb"></label><label>גימור<select id="itF">${opt([["", "כמו בקובץ"], ["gold", "✨ זהב"], ["silver", "🥈 כסף"], ["blue", "🔵 כחול"], ["marble", "🤍 שיש לבן"], ["patina", "🗽 נחושת ירוקה"]], "")}</select></label><p class="note">מעלים את הקובץ ל־GitHub ליד index.html, וכותבים כאן את השם שלו, למשל /models/my.glb</p>` : ""); };
     $("itT").onchange = extra; extra();
     $("dBody").querySelectorAll("[data-pos]").forEach(b => b.onclick = () => { AVE.pos = b.dataset.pos; $("dBody").querySelectorAll("[data-pos]").forEach(q => q.classList.toggle("on", q === b)); });
-    const keep = () => { if ($("bkName")) cfg.name = $("bkName").value.trim(); if ($("bkCenter")) cfg.center = $("bkCenter").value || undefined; if ($("bkTrees")) cfg.trees = $("bkTrees").checked;
+    const keep = () => { if ($("bkName")) cfg.name = $("bkName").value.trim(); if ($("bkCenter")) cfg.center = $("bkCenter").value || undefined; if ($("bkTheme")) cfg.theme = $("bkTheme").value || undefined; if ($("bkTrees")) cfg.trees = $("bkTrees").checked;
       if ($("bkBenches")) cfg.benches = $("bkBenches").checked; if ($("bkCafe")) cfg.cafe = $("bkCafe").checked; if ($("bkGround")) cfg.ground = $("bkGround").value; if ($("bkNoSign")) cfg.noSign = $("bkNoSign").checked; };
     $("dBody").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { keep(); cfg.items.splice(+b.dataset.rm, 1); stack.pop(); draw(); });
     // the item filled in the "add" form (null if it isn't complete)
@@ -1167,28 +1345,41 @@ function blkEdit(key) {
   }, true);
   draw();
 }
-// roundabouts: a raised island with a painted ring; every one is decorated differently, the big ones (two boulevards) get a landmark
+// roundabouts on the boulevards: fewer of them, each one different (a fountain, an obelisk, the flag, an old olive tree, a sculpture...),
+// each with a name if the admin gives it one, and editable like any square (what stands in the middle, and items)
+const JR_DESIGNS = [["fountain", "⛲ מזרקה"], ["obelisk", "🗼 אובליסק"], ["flag", "🏳️ דגל המדינה"], ["olive", "🌳 עץ זית עתיק"], ["cubes", "🎲 פסל קוביות"], ["flowers", "🌷 כיפת פרחים"],
+  ["palms", "🌴 שלושה דקלים"], ["rings", "⭕ פסל טבעות"], ["anchor", "⚓ עוגן ענק"], ["lights", "💡 עמוד אורות"], ["none", "ריק (מקום לפריטים)"]];
+function jrParts(d, R, pal, x, z) {
+  const Q = [];
+  if (d === "fountain") Q.push(cyl(R - .9, R - .7, .7, 28, "#d9cfb9", 0, .3, 0), cyl(R - 1.2, R - 1.2, .1, 28, "#3fa8cf", 0, .92, 0), cyl(.45, .65, 3, 12, "#d9cfb9", 0, 1, 0), cyl(1.2, 1, .3, 18, "#3fa8cf", 0, 4, 0), sph(.35, "#d9cfb9", 0, 4.5, 0));
+  else if (d === "obelisk") Q.push(box(1.8, .7, 1.8, "#cfc6b0", 0, .3, 0), part(new THREE.CylinderGeometry(.35, .8, 10, 4), "#ece4d2", 0, 6, 0, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.5, 1, 4), "#c9a24a", 0, 11.5, 0, { y: Math.PI / 4 }));
+  else if (d === "flag") Q.push(cyl(.8, 1, .5, 12, "#cfc6b0", 0, .3, 0), cyl(.12, .15, 12, 8, "#d0d0d0", 0, .8, 0), sph(.2, "#d9b65a", 0, 12.9, 0));
+  else if (d === "olive") Q.push(cyl(R - 1, R - .8, .5, 24, "#b9a47a", 0, .3, 0), cyl(.5, .8, 2.4, 9, "#7a6650", 0, .7, 0), cyl(.25, .35, 1.6, 6, "#7a6650", .5, 2.6, .3, { z: -.5 }), part(new THREE.IcosahedronGeometry(2.2, 1), "#8aa070", 0, 4.2, 0), part(new THREE.IcosahedronGeometry(1.4, 1), "#97ad7c", 1.2, 3.6, .5));
+  else if (d === "cubes") Q.push(...["#e05a4f", "#f2c230", "#2f7fa8", "#3fae6a"].map((c, i) => box(1.5 - i * .25, 1.5 - i * .25, 1.5 - i * .25, c, 0, .6 + i * 1.3, 0, { y: i * .6, x: i * .3 })));
+  else if (d === "flowers") { Q.push(part(new THREE.SphereGeometry(R - 1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), "#6f9e4c", 0, .6, 0)); for (let i = 0; i < 40; i++) { const a = i * 2.4, rr = (R - 1.1) * Math.sqrt((i + .5) / 40), y = Math.sqrt(Math.max(0, (R - 1) ** 2 - rr * rr)); Q.push(sph(.22, ["#e85c9a", "#f2c230", "#ffffff", "#e05a4f", "#a26ad8"][i % 5], Math.cos(a) * rr, .6 + y, Math.sin(a) * rr)); } }
+  else if (d === "palms") pal.push([x - 1, z - .6], [x + 1.1, z + .2], [x - .2, z + 1.2]);
+  else if (d === "rings") Q.push(box(1.6, .6, 1.6, "#cfc6b0", 0, .3, 0), part(new THREE.TorusGeometry(1.8, .3, 10, 28), "#e05a4f", 0, 3.2, 0), part(new THREE.TorusGeometry(1.2, .25, 10, 24), "#f2c230", 0, 3.2, 0, { y: Math.PI / 2 }));
+  else if (d === "anchor") Q.push(box(1.6, .5, 1.6, "#cfc6b0", 0, .3, 0), box(.35, 4.2, .35, "#3a4752", 0, .8, 0), box(2.2, .3, .3, "#3a4752", 0, 4.2, 0), part(new THREE.TorusGeometry(.45, .12, 8, 16), "#3a4752", 0, 5.4, 0), part(new THREE.TorusGeometry(1.6, .2, 8, 20, Math.PI), "#3a4752", 0, 2.4, 0, { z: Math.PI }));
+  else if (d === "lights") { Q.push(cyl(.25, .35, 7, 8, "#4a5056", 0, .3, 0)); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; Q.push(sph(.3, "*#fff1c2", Math.cos(a) * 1.1, 4 + (i % 3) * 1.2, Math.sin(a) * 1.1)); } }
+  return Q;
+}
 function buildRoundabouts(list) {
-  const Q = [], seen = new Set(), pal = [];
-  for (const r of list) {
-    const key = `${Math.round(r.x)},${Math.round(r.z)}`; if (seen.has(key)) continue; seen.add(key);
-    const { x, z } = r, R = r.big ? 4.3 : 3.6, h = hash(key);
-    Q.push(cyl(R + .2, R + .3, .3, 32, "#9b978f", x, .3, z), cyl(R, R, .06, 32, "#79a65a", x, .6, z), part(new THREE.RingGeometry(R + 2.4, R + 2.7, 40).rotateX(-Math.PI / 2), "#f2efe6", x, .335, z));
-    if (r.big) {
-      const d = h % 3;
-      if (d === 0) Q.push(cyl(3.2, 3.4, .7, 28, "#d9cfb9", x, .6, z), cyl(2.9, 2.9, .1, 28, "#3fa8cf", x, 1.22, z), cyl(.5, .7, 3, 12, "#d9cfb9", x, 1.3, z), cyl(1.3, 1.1, .3, 18, "#3fa8cf", x, 4.3, z), sph(.35, "#d9cfb9", x, 4.8, z));
-      else if (d === 1) Q.push(box(1.6, .6, 1.6, "#cfc6b0", x, .6, z), part(new THREE.CylinderGeometry(.3, .7, 10, 4), "#ece4d2", x, 6.2, z, { y: Math.PI / 4 }), part(new THREE.ConeGeometry(.42, .9, 4), "#c9a24a", x, 11.6, z, { y: Math.PI / 4 }));
-      else { Q.push(cyl(.12, .14, 12, 8, "#d0d0d0", x, .6, z)); const f = flagMesh(4.5, 3); f.position.set(x + 2.25, 10.5, z); world.add(f); FLAGS.push(f); }
-      for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; Q.push(sph(.3, ["#e85c9a", "#f2c230", "#ffffff", "#e05a4f"][i % 4], x + Math.cos(a) * (R - .6), .75, z + Math.sin(a) * (R - .6))); }
-    } else {
-      const d = h % 4;
-      if (d === 0) pal.push([x - 1, z - .6], [x + 1.1, z + .2], [x - .2, z + 1.2]);
-      else if (d === 1) Q.push(cyl(.25, .35, 1.6, 6, "#7a6650", x, .6, z), part(new THREE.IcosahedronGeometry(1.6, 1), "#8aa070", x, 2.9, z));
-      else if (d === 2) Q.push(...["#e05a4f", "#f2c230", "#2f7fa8"].map((c, i) => box(1.3 - i * .25, 1.3 - i * .25, 1.3 - i * .25, c, x, .6 + i * 1.15, z, { y: i * .6, x: i * .3 })));
-      else for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, rr = 1 + (i % 2) * 1.2; Q.push(sph(.35, ["#e85c9a", "#f2c230", "#ffffff"][i % 3], x + Math.cos(a) * rr, .8, z + Math.sin(a) * rr)); }
-    }
-  }
-  if (Q.length) solid(Q, 0, 0, 0, null, 0);
+  const seen = new Set(), pal = [], order = new Map();
+  for (const r of list) { const key = `${Math.round(r.x)},${Math.round(r.z)}`; if (seen.has(key)) continue; seen.add(key);
+    const k = r.slot.at; if (!order.has(k)) order.set(k, []); order.get(k).push(r); }
+  for (const [, rs] of order) rs.sort((a, b) => Math.hypot(a.x - a.slot.x, a.z - a.slot.z) - Math.hypot(b.x - b.slot.x, b.z - b.slot.z)).forEach((r, i) => {
+    const { x, z, slot, si } = r, R = r.big ? 4.6 : 3.8, key = `blk_${slot.at}_j_${Math.round(x - slot.x)}_${Math.round(z - slot.z)}`, cfg = S.blkCfg?.get(key) || {};
+    const d = cfg.center || JR_DESIGNS[(i + si * 4) % (JR_DESIGNS.length - 1)][0], name = cfg.name || "";
+    const q = { kind: "jround", key, name: name || "כיכר תנועה", x, z, R, slot, city_id: slot.city.id, addr: `${streetHere(x, z + 8).split(" · ")[0]}, ${slot.city.name}` }, data = { type: "square", q };
+    BLK_META.set(key, { title: name || `כיכר תנועה ${i + 1} · ${slot.city.name}`, kind: "jround", cx: x, cz: z, data });
+    const Q = [cyl(R + .2, R + .3, .3, 32, "#9b978f", 0, 0, 0), cyl(R, R, .06, 32, "#79a65a", 0, .3, 0), part(new THREE.RingGeometry(R + 2.4, R + 2.7, 40).rotateX(-Math.PI / 2), "#f2efe6", 0, .035, 0)];
+    if (d !== "flowers" && d !== "olive") for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2; Q.push(sph(.28, ["#e85c9a", "#f2c230", "#ffffff", "#e05a4f"][(k + i) % 4], Math.cos(a) * (R - .6), .45, Math.sin(a) * (R - .6))); }
+    Q.push(...jrParts(d, R, pal, x, z));
+    solid(Q, x, z, 0, data, .3);
+    if (d === "flag") { const f = flagMesh(4.2, 2.8); f.position.set(x + 2.1, 11.3, z); world.add(f); FLAGS.push(f); }
+    if (name) placeLabel(`⭕ ${name}`, x, 7, z);
+    buildItems(cfg.items, x, z, .6, data, (ix, iz) => [ix / 15 * R * .55, iz / 6 * R * .45]);
+  });
   if (pal.length) instanced(P.palm, pal, ([x, z], o) => { o.position.set(x, .6, z); o.scale.setScalar(.75); o.rotation.y = x; });
 }
 // a town square or a park on a whole block, each with its own name and centerpiece
@@ -1209,8 +1400,8 @@ function buildSquare(q) {
     for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; Q.push(box(.12, .02, R * .28, "#cdbb98", Math.cos(a) * R * .56, .14, Math.sin(a) * R * .56, { y: Math.PI / 2 - a })); }
     // paths from the street to the plaza on all four sides
     Q.push(box(2.6, .12, HZ - 1 - R + .4, "#d8c7a8", 0, 0, (R + HZ - 1) / 2), box(2.6, .12, HZ - 1 - R + .4, "#d8c7a8", 0, 0, -(R + HZ - 1) / 2), box(20 - R + .4, .12, 2.6, "#d8c7a8", (R + 20) / 2, 0, 0), box(20 - R + .4, .12, 2.6, "#d8c7a8", -(R + 20) / 2, 0, 0));
-    const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? h % 4;
-    if (d >= 0) solid(centerParts(d), cx, cz, 0, { type: "square", q }, CURB).scale.setScalar(Math.max(.7, R / 9.5));
+    const d = cfg.center || SQ_DESIGNS[(q.design ?? h) % SQ_DESIGNS.length][0];
+    if (d !== "none") solid(centerParts(d), cx, cz, 0, { type: "square", q }, CURB).scale.setScalar(Math.max(.7, R / 9.5));
     // trees in a ring around the plaza and in the corners, benches on its edge facing the middle
     if (cfg.trees !== false) { for (let i = 0; i < 16; i++) { const a = (i + .5) / 16 * Math.PI * 2, r = R + 2.6, x = Math.cos(a) * r, z = Math.sin(a) * r; if (Math.abs(z) < HZ - 2 && Math.abs(x) < 19 && Math.abs(x) > 2.4 && Math.abs(z) > 2.4) trees.push([cx + x, cz + z]); }
       for (const [x, z] of [[-17, -HZ + 3.5], [17, -HZ + 3.5], [-17, HZ - 3.5], [17, HZ - 3.5]]) trees.push([cx + x, cz + z]); }
@@ -1218,12 +1409,15 @@ function buildSquare(q) {
     if (cfg.cafe !== false) { for (const [x, z] of [[-15.5, -3.4], [-15.5, 3.4], [-12.8, -6.4]]) { umbs.push([cx + x, cz + z]); Q.push(cyl(.6, .6, .06, 12, "#ffffff", x, .75, z), cyl(.05, .05, .75, 6, "#555555", x, 0, z)); }
       Q.push(box(3, 2.6, 2.4, "#f4e4c1", 15.5, 0, -5.5), box(3.6, .2, 3, "#e05a4f", 15.5, 2.6, -5.5), box(2.2, 1, .1, "*#ffe2a0", 15.5, 1.1, -4.28)); }
   } else {
-    Q.push(box(40, .06, SD - 2, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, SD - 2, "#d8c7a8"), cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
+    const th = cfg.theme || PARK_THEMES[(q.design ?? h) % PARK_THEMES.length][0];
+    Q.push(box(40, .06, SD - 2, "#79a65a"), box(40, .08, 2.2, "#d8c7a8"), box(2.2, .08, SD - 2, "#d8c7a8"));
+    if (th !== "pond") { parkTheme(th, Q, trees, cx, cz, bench); if (cfg.benches !== false) for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); } }
+    else { Q.push(cyl(4.4, 4.6, .1, 28, "#d8c7a8", -10, 0, -4.2), cyl(4, 4, .12, 28, "#3d8fb0", -10, 0, -4.2));
     Q.push(box(.8, .3, .5, "#ffffff", -11, .12, -5), box(.3, .3, .3, "#f2c230", -10.6, .2, -5));                    // a duck
     Q.push(box(.12, 2.4, .12, "#e05a4f", 9, 0, 4), box(.12, 2.4, .12, "#e05a4f", 11, 0, 4), box(2.2, .12, .12, "#e05a4f", 10, 2.3, 4), box(.6, 2.6, 1.2, "#2f7fa8", 13, 0, 4.5, { x: .7 }), box(1.4, 1.6, 1.4, "#f2c230", 13, 0, 3.3));   // swings and a slide
     const r = rng(h); if (cfg.trees !== false) for (let i = 0; i < 26; i++) { const x = -18 + r() * 36, z = -(HZ - 2) + r() * (SD - 4); if (Math.abs(x) < 2.5 || Math.abs(z) < 2.5 || Math.hypot(x + 10, z + 4.2) < 5.5 || (x > 7 && x < 15 && z > 1.5)) continue;
       if ((cfg.items || []).some(it => Math.hypot(it.x - x, it.z - z) < 3.5)) continue; trees.push([cx + x, cz + z]); }
-    if (cfg.benches !== false) for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); }
+    if (cfg.benches !== false) for (const x of [-6, 6]) { bench(x, -2.3, Math.PI); bench(x, 2.3); } }
   }
   const g = solid(Q, cx, cz, 0, { type: "square", q }, CURB); placeLabel(`${kind === "park" ? "🌳" : "⛲"} ${q.name}`, cx, 8, cz);
   buildItems(cfg.items, cx, cz, CURB, { type: "square", q }, fit);
@@ -1232,6 +1426,36 @@ function buildSquare(q) {
   mountSign(sg, sign(q.name, 5.6, .9, { bg: kind === "park" ? "#2f5e3a" : "#1f6f8b", fg: "#ffffff" }), 0, 2.2, HZ - 1.48);
   instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.8 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
   if (umbs.length) instanced(P.umbrella, umbs, ([x, z], o) => { o.position.set(x, CURB, z); return ["#e05a4f", "#f2c230", "#2f7fa8"][hash(Math.round(x + z)) % 3]; });
+}
+// every park has its own idea: a duck pond, a rose garden, sculptures, a picnic lawn, a Japanese garden, a dog park, sports, an orchard
+const PARK_THEMES = [["pond", "🦆 בריכת ברווזים ומגלשות"], ["roses", "🌹 גן ורדים עם פרגולה"], ["sculpture", "🗿 גן פסלים"], ["picnic", "🧺 מדשאת פיקניק"], ["japanese", "🏯 גן יפני"], ["dogs", "🐕 גינת כלבים"], ["sports", "🏀 גן ספורט"], ["orchard", "🍊 פרדס"]];
+function parkTheme(th, Q, trees, cx, cz, bench) {
+  const T = (x, z) => trees.push([cx + x, cz + z]);
+  if (th === "roses") { for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (let r = 0; r < 3; r++) { const z = sz * (4 + r * 3); Q.push(box(12, .3, 1.2, "#7a5232", sx * 10.5, 0, z), ...Array.from({ length: 8 }, (_, k) => sph(.4, ["#e0313f", "#e85c9a", "#ffffff", "#f2c230"][(k + r) % 4], sx * 10.5 - 5.2 + k * 1.5, .5, z))); }
+    for (let x = -16; x <= 16; x += 4) Q.push(box(.2, 2.8, .2, "#ffffff", x, 0, -1.4), box(.2, 2.8, .2, "#ffffff", x, 0, 1.4), box(.2, .2, 3, "#ffffff", x, 2.8, 0), ...[-1, 0, 1].map(k => sph(.35, "#e85c9a", x + k * .6, 3, k)));
+    Q.push(cyl(1.6, 1.8, .5, 20, "#d9cfb9", 0, 0, 0), cyl(1.4, 1.4, .06, 20, "#3fa8cf", 0, .46, 0)); T(-18, -12); T(18, -12); T(-18, 12); T(18, 12); }
+  else if (th === "sculpture") { for (const [x, z, k] of [[-12, -7, "rings"], [12, -7, "cubes"], [-12, 7, "balls"], [12, 7, "obelisk"], [0, -9, "heart"]]) {
+      Q.push(box(2.6, .9, 2.6, "#e9e4da", x, 0, z), box(9, .05, 9, "#d8cfbd", x, 0, z));
+      if (k === "rings") Q.push(part(new THREE.TorusGeometry(1.3, .25, 10, 24), "#e05a4f", x, 3, z), part(new THREE.TorusGeometry(.9, .2, 10, 20), "#f2c230", x, 3, z, { y: Math.PI / 2 }));
+      else if (k === "cubes") Q.push(...["#2f7fa8", "#e05a4f", "#f2c230"].map((c, i) => box(1.2 - i * .25, 1.2 - i * .25, 1.2 - i * .25, c, x, .9 + i * 1.05, z, { y: i * .7, x: i * .4 })));
+      else if (k === "balls") Q.push(sph(.9, "#c4432f", x, 1.8, z), sph(.6, "#2a3f92", x - .5, 2.9, z), sph(.45, "#86a13c", x + .4, 3.6, z));
+      else if (k === "obelisk") Q.push(part(new THREE.CylinderGeometry(.25, .55, 5, 4), "#cfc6b0", x, 3.4, z, { y: Math.PI / 4 }));
+      else Q.push(sph(.7, "#e0313f", x - .5, 2.4, z, 1, 1, .7), sph(.7, "#e0313f", x + .5, 2.4, z, 1, 1, .7), part(new THREE.ConeGeometry(1.2, 1.8, 20), "#e0313f", x, 1.5, z, { x: Math.PI }).scale(1, 1, .7)); }
+    T(-18, 0); T(18, 0); T(-6, 12); T(6, 12); }
+  else if (th === "picnic") { for (const [x, z] of [[-13, -8], [-6, -10], [7, -9], [14, -6], [-14, 8], [-5, 10], [6, 9], [14, 9]]) { Q.push(box(2.2, .1, 1, "#9a6a3a", x, .75, z), box(.1, .75, .9, "#7a5232", x - .9, 0, z), box(.1, .75, .9, "#7a5232", x + .9, 0, z), box(2.2, .08, .35, "#9a6a3a", x, .45, z - .8), box(2.2, .08, .35, "#9a6a3a", x, .45, z + .8)); T(x + 2.4, z + (z > 0 ? -2 : 2)); }
+    Q.push(box(1, .9, .7, "#3a3f45", 17, 0, 0), box(1.1, .1, .8, "#9aa0a6", 17, .9, 0)); }
+  else if (th === "japanese") { Q.push(cyl(6, 6.2, .1, 30, "#d8c7a8", -9, 0, -6), cyl(5.6, 5.6, .12, 30, "#3d8fb0", -9, 0, -6), part(new THREE.TorusGeometry(2.4, .25, 6, 16, Math.PI), "#c0392b", -9, .1, -6, { y: Math.PI / 2 }), box(.5, .08, 4.6, "#c0392b", -9, 1.8, -6, { x: 0 }));
+    for (const [x, z] of [[4, -8], [10, -4], [16, -10], [8, 9], [-12, 9]]) Q.push(box(.6, .4, .6, "#9aa0a6", x, 0, z), box(.4, .8, .4, "#b8bec4", x, .4, z), box(.9, .3, .9, "#9aa0a6", x, 1.2, z), sph(.15, "*#fff1c2", x, .9, z));
+    for (const [x, z, r] of [[-15, -12, .9], [-3, -11, .7], [13, 5, 1.1], [3, 12, .8]]) Q.push(part(new THREE.IcosahedronGeometry(r, 0), "#8b8a86", x, r * .5, z));
+    for (const [x, z] of [[-17, 4], [15, -2], [-2, 8], [17, 11]]) Q.push(cyl(.2, .3, 2, 6, "#5a3a26", x, 0, z), part(new THREE.IcosahedronGeometry(1.8, 1), "#f4b6c8", x, 2.8, z)); }
+  else if (th === "dogs") { for (const [w, d, x, z] of [[34, .1, 0, -12], [34, .1, 0, 12], [.1, 24, -17, 0], [.1, 24, 17, 0]]) Q.push(box(w, 1.1, d || .1, "#8a8f94", x, 0, z));
+    Q.push(...[[-10, -6], [-4, -6]].map(([x, z]) => part(new THREE.TorusGeometry(1, .1, 8, 20), "#f2c230", x, 1.1, z)), box(4, .8, 1.4, "#2f7fa8", 9, 0, -6, { z: .25 }), box(.2, .5, .2, "#e05a4f", 10, 0, 6), box(.2, .5, .2, "#e05a4f", 12, 0, 6), cyl(.4, .4, .2, 12, "#2fa8cf", -12, 0, 8));
+    T(-15, 10); T(15, -10); }
+  else if (th === "sports") { Q.push(box(14, .05, 10, "#c96f3c", 8, .02, 0), box(14, .06, .12, "#ffffff", 8, .05, 0), cyl(1.6, 1.6, .06, 20, "#ffffff", 8, .05, 0), cyl(1.5, 1.5, .07, 20, "#c96f3c", 8, .05, 0));
+    for (const x of [1.4, 14.6]) Q.push(box(.2, 3.4, .2, "#4a5056", x, 0, 0), box(.1, 1, 1.6, "#ffffff", x + (x < 8 ? .3 : -.3), 3, 0), part(new THREE.TorusGeometry(.35, .04, 6, 14), "#e05a4f", x + (x < 8 ? .8 : -.8), 3, 0, { x: Math.PI / 2 }));
+    Q.push(part(new THREE.RingGeometry(5, 6.6, 32).rotateX(-Math.PI / 2).scale(1.4, 1, 1), "#b24a3a", -10, .05, 0)); T(-17, -12); T(-17, 12); T(18, -12); }
+  else if (th === "orchard") { for (let x = -16; x <= 16; x += 5) for (const z of [-10, -5, 5, 10]) { T(x, z); Q.push(...[0, 1, 2].map(k => sph(.22, "#f28c28", x + Math.cos(k * 2.1) * 1.2, 3.2 + (k % 2) * .5, z + Math.sin(k * 2.1) * 1.2))); }
+    Q.push(cyl(1, 1, 1, 14, "#b9ab90", 0, 0, 0), box(2.4, .15, .15, "#5a3a26", 0, 2.4, 0), box(.15, 1.4, .15, "#5a3a26", -1, 1, 0), box(.15, 1.4, .15, "#5a3a26", 1, 1, 0)); }
 }
 // a roundabout square: a round island in the middle of the road, as big as what stands on it, the traffic going round it,
 // with the four streets coming in and small lawns with trees on the corners
@@ -1248,8 +1472,8 @@ function buildRound(q, cfg) {
   G.push(part(new THREE.RingGeometry(R + .8, R + 1, 56).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0), part(new THREE.RingGeometry(RR - .6, RR - .4, 56).rotateX(-Math.PI / 2), "#f2efe6", 0, .32, 0));
   for (const e of [-1, 1]) for (let t = -W + .6; t < W - .3; t += 1.1) { G.push(box(2.4, .02, .55, "#f4f1e8", e * (RR + 1.9), .32, t)); if (RR + 3.2 < hd) G.push(box(.55, .02, 2.4, "#f4f1e8", t, .32, e * (RR + 1.9))); }
   // what stands in the middle, and the name on a low stone at the front of the island
-  const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? h % 4;
-  if (d >= 0) solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(Math.min(.95, Math.max(.5, R / 8.5)));
+  const d = cfg.center || SQ_DESIGNS[((q.design ?? h) + 5) % SQ_DESIGNS.length][0];
+  if (d !== "none") solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(Math.min(.95, Math.max(.5, R / 8.5)));
   const sw = Math.min(5.6, 2 * Math.sqrt(R * R - (R - 1.1) ** 2) * .92), wall = solid([box(sw + .3, 1, .5, "#d9cfb9", 0, 0, R - 1.1)], cx, cz, 0, data, CURB);
   mountSign(wall, sign(q.name, sw, .72, { bg: "#1f6f8b", fg: "#ffffff" }), 0, .52, R - .84);
   buildItems(cfg.items, cx, cz, CURB, data, (x, z) => [x / 15 * R * .62, z / 6 * R * .45]);
@@ -1261,6 +1485,39 @@ function buildRound(q, cfg) {
   if (trees.length) instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, CURB, z); o.scale.setScalar(.75 + (hash(Math.round(x * 7 + z)) % 4) / 10); });
   if (lamps.length) instanced(P.lamp, lamps, ([x, z, ry], o) => { o.position.set(x, CURB, z); o.rotation.y = ry; });
   placeLabel(`⭕ ${q.name}`, cx, 6, cz);
+}
+// an estate: hedges all around, a gate with the family name over the driveway, a pool and a deck behind the house,
+// and the garden the admin picked (trees, palms or flower beds), with a fountain and a gazebo if wanted
+function buildEstates() {
+  const trees = [], palms = [];
+  for (const h of S.houses) if (h.lot?.est) {
+    const o = S.houseSign?.get(h.u)?.estate || {}, l = h.lot, Q = [], name = o.sign || (S.houseSign?.get(h.u)?.text ? `אחוזת ${S.houseSign.get(h.u).text}` : `האחוזה של @${h.u}`);
+    const W = l.w / 2 - 1.2, D = l.ld / 2 - .8;
+    Q.push(box(3.2, .04, D - 1, "#cfc6b0", 7, 0, (D + 1) / 2 + .5), box(1.4, .04, D - 1.5, "#d8cfbd", -1.2, 0, (D + 1.5) / 2 + .3));   // the driveway and the path to the door
+    Q.push(box(.7, 2.4, .7, "#d9cfb9", 5.1, 0, D + .6), box(.7, 2.4, .7, "#d9cfb9", 8.9, 0, D + .6), sph(.3, "*#fff1c2", 5.1, 2.6, D + .6), sph(.3, "*#fff1c2", 8.9, 2.6, D + .6), box(4.5, .45, .35, "#3a3f45", 7, 2.45, D + .6));
+    for (const zz of [3, 7, 11]) if (zz < D - 1) Q.push(cyl(.06, .06, 1.1, 6, "#3a3f45", 5.2, 0, zz), sph(.16, "*#fff1c2", 5.2, 1.15, zz));   // lamps along the driveway
+    // the pool, its deck and the sun loungers
+    if (o.pool !== "none") { const pz = -D + 3.4;
+      Q.push(box(12, .06, 7.4, "#e8dcc4", 0, 0, pz + .3));
+      if (o.pool === "round") Q.push(cyl(3.1, 3.1, .06, 32, "#ffffff", 0, .03, pz), cyl(2.7, 2.7, .08, 32, "#45c2ea", 0, .04, pz));
+      else Q.push(box(9.2, .06, 4.8, "#ffffff", 0, .03, pz), box(8.6, .08, 4.2, "#45c2ea", 0, .04, pz), box(.5, .3, 1.2, "#ffffff", 4.6, .05, pz - 1));
+      for (const ax of [-3.2, -1.2, 1.2]) Q.push(box(.75, .3, 1.8, "#ffffff", ax, .06, pz + 3.1), box(.75, .5, .15, "#ffffff", ax, .3, pz + 3.95, { x: -.6 }));
+      Q.push(cyl(.05, .05, 2.3, 6, "#dddddd", 3.6, 0, pz + 3.1), part(new THREE.ConeGeometry(1.4, .55, 8), "#e8569a", 3.6, 2.3, pz + 3.1)); }
+    if (o.gazebo) { const gx = -W + 1.8, gz = -D + 2.2; Q.push(cyl(1.7, 1.7, .2, 8, "#e9e2d3", gx, 0, gz), part(new THREE.ConeGeometry(2.1, 1.1, 8), "#7a4a2a", gx, 2.8, gz));
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Q.push(cyl(.07, .07, 2.4, 6, "#ffffff", gx + Math.cos(a) * 1.5, .2, gz + Math.sin(a) * 1.5)); } }
+    if (o.fountain) { const fx = -4.8, fz = D - 5; Q.push(cyl(1.7, 1.9, .5, 24, "#d9cfb9", fx, 0, fz), cyl(1.5, 1.5, .06, 24, "#45c2ea", fx, .46, fz), cyl(.25, .35, 1.6, 10, "#d9cfb9", fx, .5, fz), cyl(.7, .5, .2, 14, "#d9cfb9", fx, 2, fz), sph(.2, "#45c2ea", fx, 2.3, fz)); }
+    // the garden along the sides
+    const sides = []; for (let zz = -D + 2; zz < D - 2; zz += 4.4) sides.push([-W, zz], [W, zz]);
+    const g = o.garden || "trees", f = l.face, cs = Math.cos(f), sn = Math.sin(f), W2 = (a, b) => [l.x + a * cs + b * sn, l.z - a * sn + b * cs];
+    if (g === "flowers") { for (const [a, b] of sides) Q.push(box(1.6, .35, 3.2, "#7a5232", a, 0, b), ...[-1, 0, 1].map(k => sph(.38, ["#e85c9a", "#f2c230", "#e05a4f", "#ffffff", "#a26ad8"][Math.abs(Math.round(a + b + k * 3)) % 5], a, .55, b + k * .95)));
+      for (const [a, b] of [[-W, -D + 1], [W, -D + 1], [-W, D - 1], [W, D - 1]]) trees.push(W2(a, b)); }
+    else for (const [a, b] of sides.filter((_, k) => k % 2 === 0 || g === "palms")) (g === "palms" ? palms : trees).push(W2(a, b));
+    Q.push(box(3, .3, 1.2, "#7a5232", -5, 0, 2.8), ...[-6, -5, -4].map((a, k) => sph(.34, ["#e85c9a", "#f2c230", "#ffffff"][k], a, .45, 2.8)));   // flower boxes by the house
+    const grp = solid(Q, l.x, l.z, f, { type: "house", items: [h] }, LAWN);
+    mountSign(grp, sign(name, 5, .7, { bg: "#2b2f34", fg: "#f2d38a" }), 7, 3.05, D + .8);
+  }
+  if (trees.length) instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, LAWN, z); o.scale.setScalar(.85); });
+  if (palms.length) instanced(P.palm, palms, ([x, z], o) => { o.position.set(x, LAWN, z); o.rotation.y = x + z; });
 }
 // a pedestrian lane through the middle of a block: paving, strings of lights, planters, and its name over both ends
 function buildLane(q) {
@@ -1313,8 +1570,8 @@ function buildCentral(slot) {
   if (cfg.benches !== false) for (let k = 0; k < 4; k++) for (const da of [-.3, .3]) { const a = k * Math.PI / 2 + da, [x, z] = at(a, 13.9); bench(x, z, Math.atan2(-Math.cos(a), -Math.sin(a))); }
   for (let k = 0; k < 12; k++) { const a = (k + .5) / 12 * Math.PI * 2, [x, z] = at(a, 24.7); lamps.push([cx + x, CURB, cz + z, -a]); }
   // in the middle: a big fountain (or what the admin chose), and the state flag on a tall pole
-  const d = { fountain: 0, clock: 1, gazebo: 2, ring: 3, none: -1 }[cfg.center] ?? 0;
-  if (d >= 0) { solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(1.6); CENTRAL.boxes.push([cx - 6.6, cz - 6.6, cx + 6.6, cz + 6.6]); }
+  const d = cfg.center || "fountain";
+  if (d !== "none") { solid(centerParts(d), cx, cz, 0, data, CURB).scale.setScalar(1.6); CENTRAL.boxes.push([cx - 6.6, cz - 6.6, cx + 6.6, cz + 6.6]); }
   Q.push(cyl(.7, .9, .5, 12, "#cfc6b0", 0, 0, -11.8), cyl(.16, .22, 19, 8, "#d0d0d0", 0, .5, -11.8), sph(.3, "#d9b65a", 0, 19.7, -11.8));
   const f = flagMesh(7, 4.6); f.position.set(cx + 3.7, CURB + 16.8, cz - 11.8); world.add(f); FLAGS.push(f);
   // the name on a low stone wall facing the southern street
@@ -1413,9 +1670,17 @@ function workBuilding(w, x, z, ry) {
   else if (k === "pharmacy") { const c = w.color || "#ffffff"; Q.push(box(12, 4.6, 9, c, 0, 0, -.5), box(12.3, .4, 9.3, "#cfd8dc", 0, 4.6, -.5), box(8, 2.4, .14, GLASS, 0, 0, 4.07), box(.8, 2.4, .25, "*#2fae6a", 4.8, 4.9, 4.1), box(2.4, .8, .25, "*#2fae6a", 4.8, 5.7, 4.1)); }
   else if (k === "factory") { const c = w.color || "#9aa2a7"; Q.push(box(18, 7, 12, c, 0, 0, -1)); for (let i = 0; i < 4; i++) Q.push(box(4.5, 2.2, 12, "#7d858b", -6.75 + i * 4.5, 7, -1, { z: -.45 }), box(4.4, 1.6, .1, "*#cfe6f2", -6.75 + i * 4.5, 7.4, 5));
     Q.push(cyl(.9, 1.1, 16, 12, "#b5563a", 7, 0, -5), cyl(1, 1, .6, 12, "#ffffff", 7, 12, -5), box(6, 5, .12, "#56636f", -4, 0, 5.05)); }
-  else { const wall = w.color || { bakery: "#efe0c3", cafe: "#e6d3ab", hummus: "#f4e4c1", restaurant: "#f1e6d2", shop: "#f4f1ea" }[k] || "#eeeeee", aw = { bakery: "#a8382c", cafe: "#2d6e4a", hummus: "#d9a91a", restaurant: "#7a2a3a", shop: "#1f6f8b" }[k] || "#999999";
-    Q.push(box(13, 4.6, 9, wall, 0, 0, -.5), box(13.3, .4, 9.3, "#d1c1a0", 0, 4.6, -.5), box(9, 2.3, .14, GLASS, 0, 0, 4.07), box(13, .25, 2.6, aw, 0, 3.1, 5.2, { x: .25 }));
-    for (const a of [-4, 0, 4]) Q.push(cyl(.6, .6, .1, 12, "#ffffff", a, .9, 7.3), cyl(.08, .08, .9, 6, "#666666", a, 0, 7.3), cyl(.04, .04, 2.4, 6, "#dddddd", a, 0, 7.3), part(new THREE.ConeGeometry(1.4, .6, 8), aw, a, 2.5, 7.3)); }
+  else {   // shops, cafes, bakeries, restaurants: the second and third of a kind look different from the first (colors, roof, terrace)
+    const vi = S.workplaces.filter(q => q.kind === k && q.id < w.id).length, pal = { bakery: ["#efe0c3", "#f3d9c9", "#e8e1cf"], cafe: ["#e6d3ab", "#d8e3d0", "#efd9e2"], hummus: ["#f4e4c1", "#e9ddc0", "#f6e2b8"], restaurant: ["#f1e6d2", "#e6d9cc", "#eadfcf"], shop: ["#f4f1ea", "#e4ecf0", "#f1e6dc"] }[k] || ["#eeeeee", "#e6e6e6", "#f2ece4"];
+    const aws = { bakery: ["#a8382c", "#2f6e7a", "#c9a24a"], cafe: ["#2d6e4a", "#7a3b2a", "#2f7fa8"], hummus: ["#d9a91a", "#3fae6a", "#e05a4f"], restaurant: ["#7a2a3a", "#1f4e5f", "#5a3a26"], shop: ["#1f6f8b", "#e05a4f", "#3fae6a"] }[k] || ["#999999", "#777777", "#aa8866"];
+    const wall = w.color || pal[vi % 3], aw = aws[vi % 3], roof = vi % 3;
+    Q.push(box(13, 4.6, 9, wall, 0, 0, -.5), box(9, 2.3, .14, GLASS, 0, 0, 4.07));
+    if (roof === 0) Q.push(box(13.3, .4, 9.3, "#d1c1a0", 0, 4.6, -.5), box(13, .25, 2.6, aw, 0, 3.1, 5.2, { x: .25 }));
+    else if (roof === 1) Q.push(gable(13.6, 2.4, 9.6, "#b5563a", 0, 4.6, -.5), ...[-4.5, -1.5, 1.5, 4.5].map(x => box(2.6, .2, 1.6, x % 3 ? aw : "#ffffff", x, 3.1, 4.9, { x: .35 })));
+    else Q.push(box(13.3, .5, 9.3, aw, 0, 4.6, -.5), ...[-5.6, 5.6].map(x => cyl(.35, .35, 4.6, 12, "#ffffff", x, 0, 4.4)), box(12, .45, 1.4, aw, 0, 2.7, 4.6), box(4, 1.2, .4, "#ffffff", 0, 5.1, 3.9));
+    const tables = vi % 2 ? [[-5, 6.6], [-1.6, 7.6], [1.8, 6.6], [5.2, 7.6]] : [[-4, 7.3], [0, 7.3], [4, 7.3]];
+    for (const [a, zz] of tables) Q.push(cyl(.6, .6, .1, 12, "#ffffff", a, .9, zz), cyl(.08, .08, .9, 6, "#666666", a, 0, zz), cyl(.04, .04, 2.4, 6, "#dddddd", a, 0, zz), part(new THREE.ConeGeometry(1.4, .6, 8), vi % 2 ? "#ffffff" : aw, a, 2.5, zz));
+    if (vi % 3 === 2) for (const x of [-6, 6]) Q.push(box(1, .6, 1, "#b8763a", x, 0, 5.4), sph(.55, "#4f8a3a", x, 1, 5.4)); }
   // [width, height, y, z, background, text color] of the sign on each kind of building
   const SG = { tech: [9, 1.4, 22.3, 5.66, "#1b2a3a", "#e8f4ff"], school: [8, 1.2, 5.8, 1.1, "#ffffff", "#7a3a22"], fuel: [10, .8, 5.3, 6.13, "#c0392b", "#ffffff"],
     clinic: [8, 1.2, 3.5, 5.12, "#ffffff", "#c0392b"], garage: [10, 1, 4.4, 5.3, "#e2b33a", "#1b1b1b"], police: [9, 1, 5.15, 5.17, "#1f4e9e", "#ffffff"],
@@ -1455,7 +1720,7 @@ function ballotHouse() {
 // the address of a place anywhere on the island: the street of the block it stands on, or the open country near a city
 function addrAt(x, z, slot) {
   for (const sl of S.slots) if (sl.city) { const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ);
-    if (sl.blocks.has(`${bx},${bz}`) && Math.abs(x - sl.x - BPX(bx)) < BX / 2 && Math.abs(z - sl.z - BPZ(bz)) < BZ / 2) return blockAddr(sl, si, bx, bz); }
+    if (sl.blocks.has(`${bx},${bz}`) && Math.abs(x - sl.x - BPX(bx)) < bwX(bx) / 2 && Math.abs(z - sl.z - BPZ(bz)) < BZ / 2) return blockAddr(sl, si, bx, bz); }
   return `מחוץ לעיר, ליד ${slot?.city?.name || ""}`;
 }
 function buildCivic() {
@@ -1820,10 +2085,10 @@ function buildMonument(p, cx, cz) {
 }
 const Y0 = CURB + .01; // public lots sit on top of the city's paving
 // an empty public lot, waiting for ideas (or dressed by the admin, or with a business the admin placed on it)
-function buildEmptyLot(slot, key, cx, cz, addr) {
+function buildEmptyLot(slot, key, cx, cz, addr, W = 42) {
   if ([...(S.wpCfg?.values() || [])].some(c => c.lot === key && c.x != null)) return;
   const cfg = S.blkCfg?.get(key) || {}, data = { type: "lot", slot, key, addr }, ground = { stone: "#d8cfbd", grass: "#79a65a", sand: "#d8c79f" }[cfg.ground] || "#d8c79f";
-  const g = solid([box(40, .1, SD - 2, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
+  const g = solid([box(W - 2, .1, SD - 2, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
   if (!cfg.noSign) mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
   if (cfg.name) placeLabel(`📍 ${cfg.name}`, cx, 8, cz);
   BLK_META.set(key, { title: cfg.name || "מגרש ציבורי", kind: "lot", cx, cz, data }); buildItems(cfg.items, cx, cz, Y0, data);
@@ -1896,7 +2161,7 @@ function buildNature() {
   const r = rng(7), open = S.slots.filter(s => s.city), keys = open.map(s => new Set(s.blocks.keys()));
   const inCity = (x, z) => open.some((s, i) => { const bx = invAxis(x - s.x, BX, BPX), bz = invAxis(z - s.z, BZ, BPZ); return keys[i].has(`${bx},${bz}`); });
   const cap = open[0], ends = cap ? [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))] : [];
-  const nearRoad = (x, z) => ends.some(t => { const dx = t.x - cap.x, dz = t.z - cap.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - cap.x) * dx + (z - cap.z) * dz) / L2)); return Math.hypot(x - cap.x - dx * k, z - cap.z - dz * k) < 12; });
+  const HW = highwaySegs(), nearRoad = (x, z) => HW.some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / L2)); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + (w > 20 ? 8 : 6); });
   const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(6000, Math.max(900, area / 320)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
@@ -1922,7 +2187,7 @@ function clearWorld() {
 }
 function buildWorld() {
   BUILD_NO++; clearWorld(); layout(); ACH_IDX = null;
-  buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildNature();
+  buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildPalm(); buildNature();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
   $("hudSub").textContent = `${fmtN(S.total)} תושבים · ${km2.toLocaleString("he-IL", { maximumFractionDigits: 1 })} קמ״ר`;
@@ -2012,7 +2277,7 @@ const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 // the block of a city at a point on the map (with what it is now), or null outside the cities
 function zoneAt(x, z) {
   for (const sl of S.slots) if (sl.city) { const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), cx = sl.x + BPX(bx), cz = sl.z + BPZ(bz);
-    if (Math.abs(x - cx) > BX / 2 || Math.abs(z - cz) > BZ / 2 || !inTerritory(cx, cz, sl)) continue;
+    if (Math.abs(x - cx) > bwX(bx) / 2 || Math.abs(z - cz) > BZ / 2 || !inTerritory(cx, cz, sl)) continue;
     const b = sl.blocks.get(`${bx},${bz}`); return { slot: sl, si, bx, bz, cx, cz, civic: b?.civic || null, key: `zone_${sl.at}_${bx}_${bz}` }; }
   return null;
 }
@@ -2026,7 +2291,7 @@ function zoneEdit(zn) {
   const name = OPEN_KINDS.includes(cur) ? SQ_NAMES.get(`${slot.at}:${bx},${bz}`) || BLK_META.get(blkKey(slot, bx, bz))?.title : null;
   open(`🧱 ${name || blockAddr(slot, zn.si, bx, bz)}`, `<div class="hero"><p>מה יהיה בבלוק הזה? עכשיו: <b>${ZONES.find(q => q[0] === cur)?.[1] || ""} ${ZONES.find(q => q[0] === cur)?.[2] || cur}</b>${set ? ` (במקור: ${ZONES.find(q => q[0] === orig)?.[2] || orig})` : ""}.</p></div>
     ${here ? `<div class="hero warn" style="margin-top:8px"><p>גרים כאן <b>${fmtN(here)} תושבים</b>. אם הבלוק כבר לא יהיה של בתים, הם יעברו לבתים חדשים בעיר והכתובות שלהם ישתנו.</p></div>` : ""}
-    <div class="list" style="margin-top:10px">${ZONES.filter(([k]) => k !== "garden" || freed).map(([k, ic, n]) => `<button class="li" data-zone="${k}" style="width:100%;text-align:right${k === cur ? ";outline:2px solid var(--accent)" : ""}"><span class="ic">${ic}</span><span class="tx"><b>${n}</b>${k === cur ? "<small>עכשיו</small>" : ""}</span></button>`).join("")}</div>
+    <div class="list" style="margin-top:10px">${ZONES.filter(([k]) => (k !== "garden" || freed) && (bwX(bx) === BX || ["houses", "lot", "garden", ...(bwX(bx) > BX ? ["estate"] : [])].includes(k))).map(([k, ic, n]) => `<button class="li" data-zone="${k}" style="width:100%;text-align:right${k === cur ? ";outline:2px solid var(--accent)" : ""}"><span class="ic">${ic}</span><span class="tx"><b>${n}</b>${k === cur ? "<small>עכשיו</small>" : ""}</span></button>`).join("")}</div>
     ${set ? `<div class="btns" style="margin-top:10px"><button class="btn ghost" id="zReset">↩️ כמו בתכנון המקורי</button></div>` : ""}
     ${OPEN_KINDS.includes(cur) ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="blk" data-arg="${blkKey(slot, bx, bz)}">✏️ שם ופריטים</button></div>` : ""}`, () => {
     const go = async (b, kind) => { b.disabled = true; const ok = kind ? await adminEdit("settings", zn.key, { value: { kind } }) : await adminEdit("settings", zn.key, {}, true);
@@ -2035,20 +2300,52 @@ function zoneEdit(zn) {
     if ($("zReset")) $("zReset").onclick = e => go(e.target, null);
   });
 }
+// where a citizen lives and what the estate looks like (saved with the house settings: house_<username>)
+function estateEdit(u) {
+  const h = S.byUser.get(u); if (!h || !ADMIN) return; const cur = S.houseSign?.get(u) || {}, e = cur.estate || {};
+  const total = (h.slot.estLots || []).length, used = S.houses.filter(q => q.slot === h.slot && q.lot?.est && q !== h).length, free = total - used;
+  const palmFree = PALM.geo ? PALM.geo.lots.length - S.houses.filter(q => q.lot?.palm && q !== h).length : 0;
+  const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}" ${String(k) === String(v ?? "") ? "selected" : ""}>${n}</option>`).join("");
+  open(`🏰 ‎@${h.u}`, `<div class="hero"><p>איפה הבית של ‎@${esc(h.u)}, ואיך נראית האחוזה. בעיר ${esc(h.city.name)} יש <b>${fmtN(Math.max(0, free))}</b> אחוזות פנויות, ובאי הדקל <b>${fmtN(palmFree)}</b> מגרשים פנויים.</p></div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
+      <label>איפה גר/ה<select id="esPlace">${opt([["", "🏠 מגרש רגיל"], ["estate", "🏰 אחוזה (חצי בלוק עם בריכה וגינה)"], ["palm", "🌴 וילה באי הדקל"]], cur.place)}</select></label>
+      <p class="note" id="esWarn"></p>
+      <div class="row2"><label>בריכה<select id="esPool">${opt([["rect", "מלבנית"], ["round", "עגולה"], ["none", "בלי בריכה"]], e.pool || "rect")}</select></label><label>גינה<select id="esGarden">${opt([["trees", "🌳 עצים"], ["palms", "🌴 דקלים"], ["flowers", "🌷 ערוגות פרחים"]], e.garden || "trees")}</select></label></div>
+      <label class="chk"><input type="checkbox" id="esFountain" ${e.fountain ? "checked" : ""}> ⛲ מזרקה בחצר</label><label class="chk"><input type="checkbox" id="esGazebo" ${e.gazebo ? "checked" : ""}> 🎪 ביתן בגינה</label>
+      <label>השלט על השער (ריק = אוטומטי)<input id="esSign" maxlength="26" value="${esc(e.sign || "")}" placeholder="${esc(cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${h.u}`)}"></label>
+    </div><div class="btns" style="margin-top:12px"><button class="btn" id="esSave">💾 לשמור</button></div>`, () => {
+    const warn = () => { const p = $("esPlace").value; $("esWarn").textContent = p === "estate" && free <= 0 && !h.lot?.est ? `אין אחוזה פנויה ב${h.city.name}. לוחצים על בלוק במפה (🧱) ובוחרים ״אחוזות״, ואז שומרים כאן שוב.` : p === "palm" && palmFree <= 0 && !h.lot?.palm ? "כל המגרשים באי הדקל תפוסים." : p ? "התושב/ת יעבור/תעבור לשם, והכתובת תשתנה." : ""; };
+    $("esPlace").onchange = warn; warn();
+    $("esSave").onclick = async ev => { ev.target.disabled = true;
+      const value = { ...cur, place: $("esPlace").value || undefined, estate: { pool: $("esPool").value, garden: $("esGarden").value, fountain: $("esFountain").checked, gazebo: $("esGazebo").checked, sign: $("esSign").value.trim() || undefined } };
+      if (await adminEdit("settings", "house_" + h.u, { value })) { close(); toast("✅ נשמר"); const h2 = S.byUser.get(u); if (h2?.lot) flyTo(h2.x, h2.z, 6, 1200); } else ev.target.disabled = false; };
+  });
+}
 // the admin places a business anywhere: on an empty public lot (it snaps onto the lot) or in the open country between the cities
 const PLACE = { id: null, mark: null };
 function placeStart(id) {
   const w = S.wpById.get(+id); if (!w || !ADMIN) return; PLACE.id = w.id; close();
   toast(`📍 הקישו על המפה במקום החדש של ״${w.name}״. מגרש ציבורי ריק או שטח פתוח בין הערים`, 7000);
 }
-function highwaySegs() { const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return []; return [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))].map(t => [cap.x, cap.z, t.x, t.z]); }
+// the highways from the capital: to every city, to the harbor (נתיבי סבבה, 8 lanes), to the lighthouse and to the palm island. [x0, z0, x1, z1, width, id]
+function highwaySegs() {
+  const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return [];
+  const out = open.slice(1).map(t => [cap.x, cap.z, t.x, t.z, 12, "city"]);
+  for (const c of COAST) if (c.id !== "beach") { const q = shorePt(c.t, S.s, .9); out.push([cap.x, cap.z, q.x, q.z, c.id === "harbor" ? 32 : 12, c.id]); }
+  if (PALM.geo) out.push([cap.x, cap.z, PALM.geo.gate.x, PALM.geo.gate.z, 12, "palm"]);
+  return out;
+}
+// is a point inside (or right next to) a built city?
+const inCityBox = (x, z, m = 10) => S.slots.some(sl => { if (!sl.city || !sl.blocks?.size) return false; const B = cityBox(sl);
+  return x > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - m && x < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + m && z > sl.z + BPZ(B.mnZ) - BZ / 2 - m && z < sl.z + BPZ(B.mxZ) + BZ / 2 + m; });
 function placeCheck(x, z, id) {
   for (const [key, m] of BLK_META) if (m.kind === "lot" && Math.abs(x - m.cx) < 21 && Math.abs(z - m.cz) < HZ) return { ok: true, x: m.cx, z: m.cz, lot: key, where: m.title };
   for (const [dx, dz] of [[0, 0], [-12, -9], [12, -9], [-12, 11], [12, 11]]) { const px = x + dx, pz = z + dz;
     if (!onGrass(px, pz, S.s, .015)) return { why: "המקום הזה בים או על החוף 🌊" };
     for (const sl of S.slots) if (sl.city) { const B = cityBox(sl);
-      if (px > sl.x + BPX(B.mnX) - BX / 2 - 4 && px < sl.x + BPX(B.mxX) + BX / 2 + 4 && pz > sl.z + BPZ(B.mnZ) - BZ / 2 - 4 && pz < sl.z + BPZ(B.mxZ) + BZ / 2 + 4) return { why: "כאן כבר בנויה עיר. בוחרים מגרש ציבורי ריק, או שטח פתוח מחוץ לעיר" }; } }
-  for (const [a, b, c, d] of highwaySegs()) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); if (Math.hypot(x - a - dx * k, z - b - dz * k) < 18) return { why: "צמוד מדי לכביש המהיר. קצת הצידה" }; }
+      if (px > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 4 && px < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 4 && pz > sl.z + BPZ(B.mnZ) - BZ / 2 - 4 && pz < sl.z + BPZ(B.mxZ) + BZ / 2 + 4) return { why: "כאן כבר בנויה עיר. בוחרים מגרש ציבורי ריק, או שטח פתוח מחוץ לעיר" }; } }
+  if (onPalm(x, z)) return { why: "על אי הדקל בונים רק וילות" };
+  for (const [a, b, c, d, w] of highwaySegs()) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); if (Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 12) return { why: "צמוד מדי לכביש המהיר. קצת הצידה" }; }
   for (const w of S.workplaces) if (w.id !== id && w.x != null && Math.hypot(w.x - x, w.z - z) < 26) return { why: "צמוד מדי לבניין אחר" };
   return { ok: true, x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, where: "שטח פתוח" };
 }
@@ -2094,6 +2391,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   if (d.type === "house") { const h = d.items[hit.instanceId ?? 0]; S.sel = h; mark(h); showHouse(h); }
   else if (d.type === "work") showWork(d.w);
   else if (d.type === "gov") openGov(d.id);
+  else if (d.type === "place" && d.id === "palm") showPalm();
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
@@ -2118,6 +2416,7 @@ function animate(dt) {
     for (const m of ms) m.instanceMatrix.needsUpdate = true;
   }
   boats.forEach((b, i) => { b.position.y = -2.9 + Math.sin(t * 1.3 + i) * .25; b.rotation.z = Math.sin(t * .9 + i * 2) * .04; });
+  palmTrain(t);
   for (const j of JETS) {   // fountains: the spray flickers, the splash rings pulse
     if (j.ring) j.m.scale.setScalar(1 + .12 * Math.sin(t * 5 + j.ph)); else j.m.material.opacity = .5 + .1 * Math.sin(t * 11) + .05 * Math.sin(t * 23); }
   for (const f of FLAGS) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w;
@@ -2189,11 +2488,13 @@ function groundAt(x, z) {
   const bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dx = x - sl.x - BPX(bx), dz = z - sl.z - BPZ(bz);
   const rb = ROUNDS.get(`${sl.at}:${bx},${bz}`);
   if (rb) { const r = Math.hypot(dx, dz); return r < rb.R + .3 || (r > rb.RR && Math.abs(dx) > 3.5 && Math.abs(dz) > 3.5 && Math.abs(dx) < 21 && Math.abs(dz) < HZ) ? CURB : .3; }
-  return sl.blocks.has(`${bx},${bz}`) && Math.abs(dx) < 21 && Math.abs(dz) < HZ ? CURB : .3;
+  return sl.blocks.has(`${bx},${bz}`) && Math.abs(dx) < bwX(bx) / 2 - 3 && Math.abs(dz) < HZ ? CURB : .3;
 }
 function streetHere(x, z) {
+  if (onPalm(x, z)) return "🌴 אי הדקל";
   const sl = S.slots.find(q => q.city && q.at === nearestSlot(x, z).at); if (!sl) return "";
   if (inCentral(x, z)) return `${CENTRAL.q?.name || "כיכר העיר"} · ${sl.city.name}`;
+  if (onPalm(x, z)) return "🌴 אי הדקל";
   const si = S.slots.indexOf(sl), bx = invAxis(x - sl.x, BX, BPX), bz = invAxis(z - sl.z, BZ, BPZ), dz = z - sl.z - BPZ(bz);
   const b = sl.blocks.get(`${bx},${bz}`);
   if (OPEN_KINDS.includes(b?.civic) && b.civic !== "lot") return SQ_NAMES.get(`${sl.at}:${bx},${bz}`) || pickName(b.civic === "park" ? PARKS : SQUARES, `${sl.at}:${bx},${bz}`, si);
@@ -2265,7 +2566,7 @@ function walkStep(dt) {
       if (d > 0 && d < r) { nx = qx + ex / d * r; nz = qz + ez / d * r; }
       else if (d === 0) { const pen = [[nx - b[0] + r, -1, 0], [b[2] - nx + r, 1, 0], [nz - b[1] + r, 0, -1], [b[3] - nz + r, 0, 1]].sort((a, b2) => a[0] - b2[0])[0]; nx += pen[1] * pen[0]; nz += pen[2] * pen[0]; }
     }
-    if (onGrass(nx, nz, S.s, .005)) { WALK.x = nx; WALK.z = nz; }
+    if (onGrass(nx, nz, S.s, .005) || onPalm(nx, nz)) { WALK.x = nx; WALK.z = nz; }
     WALK.head += angDiff(Math.atan2(dx, dz), WALK.head) * Math.min(1, dt * 10);
     if (performance.now() - WALK.lastDrag > 900 && fy > .2) WALK.cy += angDiff(WALK.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);   // the camera swings in behind you
   }
@@ -2275,7 +2576,7 @@ function walkStep(dt) {
 }
 /* ---------- driving your own car ---------- */
 // where your car is parked: in front of your house, or wherever you left it
-function parkedSpot(h) { const zo = Math.min(2.6, 4.4 - CARS[h.cm].L / 2), cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return { x: h.x + 3.9 * cs + zo * sn, z: h.z - 3.9 * sn + zo * cs, head: h.lot.face }; }
+function parkedSpot(h) { const zo = Math.min(2.6, 4.4 - CARS[h.cm].L / 2), cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face), sx = h.lot.est ? 7 : 3.9; return { x: h.x + sx * cs + zo * sn, z: h.z - sx * sn + zo * cs, head: h.lot.face }; }
 const carHere = () => WALK.car ? { x: WALK.car.x, z: WALK.car.z, head: WALK.car.head } : parkedSpot(WALK.h);
 // lift the parked copy of your car off the lawn while you drive it (and put it back at the end)
 function hideParked(h, hide) {
@@ -2299,17 +2600,25 @@ function exitCar() {
   WALK.x = c.x + Math.cos(c.head) * 1.9; WALK.z = c.z - Math.sin(c.head) * 1.9; WALK.head = c.head; WALK.fig.visible = true; WALK.pitch = .3; walkButtons();
 }
 function driveStep(dt) {
-  const k = WALK.keys, c = WALK.car; let steer = WALK.joy.x, gas = WALK.joy.y;
+  const k = WALK.keys, c = WALK.car; let steer = 0, gas = 0;
   if (k.ArrowUp || k.KeyW) gas += 1; if (k.ArrowDown || k.KeyS) gas -= 1; if (k.ArrowLeft || k.KeyA) steer -= 1; if (k.ArrowRight || k.KeyD) steer += 1;
+  // the joystick points where you want to drive (on the screen): the car steers that way by itself, pulling the stick back brakes and reverses
+  const jx = WALK.joy.x, jy = WALK.joy.y, jm = Math.min(1, Math.hypot(jx, jy));
+  if (jm > .15) {
+    const sn = Math.sin(WALK.cy), co = Math.cos(WALK.cy), want = Math.atan2(-sn * jy + co * jx, -co * jy - sn * jx), diff = angDiff(want, c.head);
+    if (Math.abs(diff) > 2.3) { const d2 = angDiff(want + Math.PI, c.head); gas = c.v > 1.5 ? -1 : -jm * .7; steer = c.v > 1.5 ? 0 : Math.max(-1, Math.min(1, d2 * 1.6)); }
+    else { gas = jm * (1 - Math.min(.65, Math.abs(diff) / 2.2)); steer = Math.max(-1, Math.min(1, -diff * 1.8)); }
+  }
   gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer));
-  const top = CARS[WALK.h.cm].tier === 3 ? 34 : CARS[WALK.h.cm].tier === 2 ? 27 : 22;
-  if (gas > .05) c.v += (c.v < 0 ? 30 : 13) * gas * dt; else if (gas < -.05) c.v += (c.v > 0 ? 30 : 8) * gas * dt; else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 9 * dt);
-  c.v = Math.max(-7, Math.min(top, c.v));
-  c.head -= steer * Math.min(1, Math.abs(c.v) / 6) * 1.6 * dt * Math.sign(c.v || 1);
+  // gentle, realistic acceleration: 50-72 km/h at the most in town
+  const top = CARS[WALK.h.cm].tier === 3 ? 20 : CARS[WALK.h.cm].tier === 2 ? 17 : 14;
+  if (gas > .05) c.v += (c.v < 0 ? 16 : 5.5 * (1 - Math.max(0, c.v) / top * .6)) * gas * dt; else if (gas < -.05) c.v += (c.v > 0 ? 16 : 4) * gas * dt; else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 5 * dt);
+  c.v = Math.max(-5, Math.min(top, c.v));
+  c.head -= steer * Math.min(1, Math.abs(c.v) / 5) * 1.35 * dt * Math.sign(c.v || 1);
   const nx = c.x + Math.sin(c.head) * c.v * dt, nz = c.z + Math.cos(c.head) * c.v * dt, r = 1.2;
   // blocked only when driving into a wall (a car that starts against a house can always drive away from it)
   const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
-  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !onGrass(nx, nz, S.s, .01);
+  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz));
   if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
   c.mv.set(c.x, groundAt(c.x, c.z), c.z, c.head);
   WALK.x = c.x; WALK.z = c.z;
@@ -2334,11 +2643,11 @@ const NPC = new Map();   // username -> { h, fig, cx, cz, p, v, dir, ph }
 function npcAnchor(h) {
   const atWork = h.wp?.x != null && hash(h.u + israelDate()) % 3 === 0;   // today, a third of them are around their workplace
   if (!atWork && h.lot.sq && CENTRAL.on) return { cx: CENTRAL.on.cx, cz: CENTRAL.on.cz };   // the people of the city square stroll on the plaza
-  return atWork ? { cx: h.wp.x + 6, cz: h.wp.z } : { cx: h.slot.x + BPX(h.lot.bx), cz: h.slot.z + BPZ(h.lot.bz) };
+  return atWork ? { cx: h.wp.x + 6, cz: h.wp.z } : { cx: h.slot.x + BPX(h.lot.bx), cz: h.slot.z + BPZ(h.lot.bz), hx: (bwX(h.lot.bx) - 6) / 2 - .7 };
 }
 function npcRefresh() {
   const want = [];
-  for (const h of S.houses) { if (!h.lot || h === WALK.h) continue; const a = npcAnchor(h), d = Math.hypot(a.cx - WALK.x, a.cz - WALK.z); if (d < 120) want.push({ h, a, d }); }
+  for (const h of S.houses) { if (!h.lot || h === WALK.h || h.lot.palm) continue; const a = npcAnchor(h), d = Math.hypot(a.cx - WALK.x, a.cz - WALK.z); if (d < 120) want.push({ h, a, d }); }
   want.sort((x, y) => x.d - y.d); const keep = new Set(want.slice(0, 18).map(w => w.h.u));
   for (const [u, n] of NPC) if (!keep.has(u)) { n.fig.removeFromParent(); n.fig.traverse(o => o.geometry?.dispose()); NPC.delete(u); }
   let made = 0;
@@ -2366,6 +2675,7 @@ function mapPlaces() {
     add({ park: "🌳", round: "⭕", lot: "📍", central: "⛲" }[m.kind] || "⛲", m.title, m.cx, m.cz, m.data?.q?.addr || m.data?.addr, "sq"); }
   for (const p of S.projects) if (p.x != null) add(PROJECT_KINDS[p.kind]?.[0] || "📍", p.name || PROJECT_KINDS[p.kind]?.[1], p.x, p.z, p.addr, "proj");
   for (const c of COAST) add(c.ic, c.name, c.x, c.z, "על החוף", "coast");
+  if (PALM.geo) { add("🌴", "אי הדקל", PALM.geo.center.x, PALM.geo.center.z, "מול החוף הצפוני", "sq"); add("🏨", "מלון הדקל", PALM.geo.hotel.x, PALM.geo.hotel.z, "אי הדקל", "sq"); }
   return out;
 }
 function cmapOpen(focus) {
@@ -2393,26 +2703,29 @@ function cmapDraw() {
     x.save(); x.translate(X(cx), Z(cz)); x.rotate(-ry); x.fillRect(-w * s / 2, -d * s / 2, w * s, d * s); x.restore(); };
   const O = (cx, cz, r, col) => { x.fillStyle = col; x.beginPath(); x.arc(X(cx), Z(cz), Math.max(.5, r * s), 0, Math.PI * 2); x.fill(); };
   // the highways
-  x.strokeStyle = "#5b6169"; x.lineCap = "round"; x.lineWidth = Math.max(2, 12 * s);
-  for (const [a, b, c, d] of highwaySegs()) { x.beginPath(); x.moveTo(X(a), Z(b)); x.lineTo(X(c), Z(d)); x.stroke(); }
+  x.strokeStyle = "#5b6169"; x.lineCap = "round";
+  for (const [a, b, c, d, w] of highwaySegs()) { x.lineWidth = Math.max(w > 20 ? 4 : 2, w * s); x.beginPath(); x.moveTo(X(a), Z(b)); x.lineTo(X(c), Z(d)); x.stroke(); }
+  if (PALM.geo) { x.fillStyle = "#e6cf98"; for (const poly of PALM.geo.polys) { x.beginPath(); poly.forEach((p, i) => i ? x.lineTo(X(p.x), Z(p.z)) : x.moveTo(X(p.x), Z(p.z))); x.closePath(); x.fill(); }
+    R(PALM.geo.hotel.x, PALM.geo.hotel.z, 40, 18, "#f0c9a2", Math.atan2(-PALM.geo.U.x, -PALM.geo.U.z)); }
   for (const w of S.workplaces) if (w.x != null && S.wpCfg?.get(w.id)?.x != null && !S.wpCfg.get(w.id).lot) { /* the access road of a business in the country */ }
   // the blocks: streets (with the boulevards between them), sidewalks, and what each block is
   for (const sl of S.slots) if (sl.city) for (const b of sl.blocks.values()) {
-    const cx = sl.x + BPX(b.bx), cz = sl.z + BPZ(b.bz), x0 = cx - BX / 2 - (blvX(b.bx) ? GAP : 0), x1 = cx + BX / 2 + (blvX(b.bx + 1) ? GAP : 0), z0 = cz - BZ / 2 - (blvZ(b.bz) ? GAP : 0), z1 = cz + BZ / 2 + (blvZ(b.bz + 1) ? GAP : 0);
+    const cx = sl.x + BPX(b.bx), cz = sl.z + BPZ(b.bz), bw = bwX(b.bx), x0 = cx - bw / 2 - (blvX(b.bx) ? GAP : 0), x1 = cx + bw / 2 + (blvX(b.bx + 1) ? GAP : 0), z0 = cz - BZ / 2 - (blvZ(b.bz) ? GAP : 0), z1 = cz + BZ / 2 + (blvZ(b.bz + 1) ? GAP : 0);
     R((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, "#5b6169");
     if (b.civic === "central") continue;
     if (b.civic === "round") { const r = ROUNDS.get(`${sl.at}:${b.bx},${b.bz}`) || { R: 6, RR: 10.6 }; R(cx, cz, 42, SD, "#9cc77a"); R(cx, cz, 42, 7, "#5b6169"); R(cx, cz, 7, SD, "#5b6169"); O(cx, cz, r.RR, "#5b6169"); O(cx, cz, r.R, "#86b862"); O(cx, cz, r.R * .6, "#e3d7bf"); continue; }
     const kind = b.civic || blockKind(sl, b.bx, b.bz);
-    R(cx, cz, 42, SD, { park: "#86b862", square: "#9cc77a", lot: "#e2d1a6", work: "#d9d3c7", plaza: "#e3d7bf" }[b.civic] || "#e9e3d6");
+    R(cx, cz, bw - 6, SD, { park: "#86b862", square: "#9cc77a", lot: "#e2d1a6", work: "#d9d3c7", plaza: "#e3d7bf" }[b.civic] || "#e9e3d6");
     if (b.civic === "square") { const q = BLK_META.get(blkKey(sl, b.bx, b.bz))?.data?.q; O(cx, cz, q?.R || 8, "#e3d7bf"); }
     if (b.civic === "park") O(cx - 10, cz - 4.2, 4, "#5fb0d6");
     if (!b.civic && kind === "lane") R(cx, cz, 7.8, SD, "#d9c4a0");
+    if (!b.civic && kind === "estate") R(cx, cz, .4, SD, "#4d7d3b");
   }
   const C = CENTRAL.on;
   if (C) { R(C.cx, C.cz, C.hw * 2, C.hd * 2, "#e9e3d6"); R(C.cx, C.cz, C.hw * 2, CENTRAL.W * 2, "#5b6169"); R(C.cx, C.cz, CENTRAL.W * 2, C.hd * 2, "#5b6169"); O(C.cx, C.cz, CENTRAL.RR, "#5b6169"); O(C.cx, C.cz, CENTRAL.RP, "#efe6d2");
     x.strokeStyle = "#86b862"; x.lineWidth = 8 * s; x.beginPath(); x.arc(X(C.cx), Z(C.cz), 18.6 * s, 0, Math.PI * 2); x.stroke(); O(C.cx, C.cz, 6.5, "#5fb0d6"); }
   // houses, businesses, public buildings
-  for (const h of S.houses) if (h.lot) { R(h.x, h.z, 12.6, 12.6, "#b7d796", h.lot.face); R(h.x, h.z, h.hk === "3_2" ? 10.6 : 7.4, h.hk === "3_2" ? 5.4 : 7, h === S.mine ? "#e07a4f" : h.hk === "3_2" ? "#e8569a" : h.tier === 3 ? "#c9a46a" : "#bcae98", h.lot.face); }
+  for (const h of S.houses) if (h.lot) { if (h.lot.est) { R(h.lot.x, h.lot.z, h.lot.w, h.lot.ld, "#9fcf7c"); R(h.lot.x, h.lot.z - h.lot.ld / 2 + 3.6, 8.6, 4.2, "#45c2ea"); } else R(h.x, h.z, h.lot.palm ? 17 : 12.6, h.lot.palm ? 11.4 : 12.6, "#b7d796", h.lot.face); R(h.x, h.z, h.hk === "3_2" ? 10.6 : 7.4, h.hk === "3_2" ? 5.4 : 7, h === S.mine ? "#e07a4f" : h.hk === "3_2" ? "#e8569a" : h.tier === 3 ? "#c9a46a" : "#bcae98", h.lot.face); }
   for (const w of S.workplaces) if (w.x != null) { if (S.wpCfg?.get(w.id)?.x != null && !S.wpCfg.get(w.id).lot) R(w.x, w.z + 1.5, 24, 21, "#e3dccd", w.ry || 0); R(w.x, w.z - .5, w.look === "bow" ? 17 : 15, w.look === "bow" ? 9 : 11, w.look === "bow" ? "#f06fa4" : "#98a6b5", w.ry || 0); }
   for (const g of GOV) if (g.x != null) R(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13, "#d8cdb5");
   if (BALLOT.x != null) R(BALLOT.x, BALLOT.z - 2.5, 22, 11, "#9db5cf");
@@ -2499,7 +2812,7 @@ function walkMinimap() {
     if (b.civic === "round") { const r = ROUNDS.get(`${sl.at}:${b.bx},${b.bz}`) || { R: 6, RR: 10.6 }; x.fillStyle = "#79a65a"; x.fillRect((bxp - 21) * sc, (bzp - HZ) * sc, 42 * sc, SD * sc);
       x.fillStyle = "#4a5057"; x.fillRect((bxp - 21) * sc, (bzp - 3.5) * sc, 42 * sc, 7 * sc); x.fillRect((bxp - 3.5) * sc, (bzp - HZ) * sc, 7 * sc, SD * sc); x.beginPath(); x.arc(bxp * sc, bzp * sc, r.RR * sc, 0, Math.PI * 2); x.fill();
       x.fillStyle = "#e3d7bf"; x.beginPath(); x.arc(bxp * sc, bzp * sc, r.R * sc, 0, Math.PI * 2); x.fill(); continue; }
-    x.fillStyle = b.civic === "park" ? "#79a65a" : b.civic === "square" ? "#e3d7bf" : b.civic ? "#d8cfbd" : "#c9c2b4"; x.fillRect((bxp - 21) * sc, (bzp - HZ) * sc, 42 * sc, SD * sc);
+    const hw2 = bwX(b.bx) / 2 - 3; x.fillStyle = b.civic === "park" ? "#79a65a" : b.civic === "square" ? "#e3d7bf" : b.civic ? "#d8cfbd" : "#c9c2b4"; x.fillRect((bxp - hw2) * sc, (bzp - HZ) * sc, hw2 * 2 * sc, SD * sc);
   }
   if (CENTRAL.on) { const C = CENTRAL.on, px = (C.cx - cx0) * sc, pz = (C.cz - cz0) * sc; if (Math.abs(px) < W * 1.5 && Math.abs(pz) < W * 1.5) {
     x.fillStyle = "#d8cfbd"; x.fillRect(px - C.hw * sc, pz - C.hd * sc, C.hw * 2 * sc, C.hd * 2 * sc); x.fillStyle = "#4a5057"; x.fillRect(px - C.hw * sc, pz - CENTRAL.W * sc, C.hw * 2 * sc, CENTRAL.W * 2 * sc); x.fillRect(px - CENTRAL.W * sc, pz - C.hd * sc, CENTRAL.W * 2 * sc, C.hd * 2 * sc);
@@ -2582,7 +2895,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), estate: u => estateEdit(u), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -2616,7 +2929,13 @@ const GO = {
   project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, p.params?.island ? 1.3 : 4, () => showProject(p)); else showProject(p); }
 };
 const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` : "";
+function showPalm() {
+  const g = PALM.geo, res = S.houses.filter(h => h.lot?.palm).sort((a, b) => a.lot.num - b.lot.num);
+  open("🌴 אי הדקל", `<div class="hero"><p><b>אי מלאכותי בצורת דקל</b> מול החוף הצפוני: גזע עם ${g.fronds.length} ענפים, סהר מסביב ומלון הדקל בקצה. על הענפים ${fmtN(g.lots.length)} מגרשים לווילות עם בריכה, ${fmtN(res.length)} כבר מאוכלסים.</p></div>
+    ${res.length ? `<div class="sec">התושבים של האי</div><div class="list">${res.map(h => person(h, `אי הדקל ${h.lot.num}`)).join("")}</div>` : `<p class="note">עוד אין תושבים באי. מי יהיה הראשון?</p>`}`);
+}
 function showSquare(q) {
+  if (q.kind === "jround") return open(`⭕ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ שם, מרכז ופריטים</button></div>` : ""}<div class="hero"><p><b>כיכר תנועה</b> בשדרה ב${esc(cityName(q.city_id))}.</p></div>`);
   if (q.kind === "round") return open(`⭕ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת הכיכר</button><button class="btn ghost" data-go="zone" data-arg="${q.x},${q.z}">🧱 לשנות את הבלוק</button></div>` : ""}<div class="hero"><p><b>כיכר תנועה</b> ב${esc(cityName(q.city_id))}: אי עגול באמצע הכביש, עם מה שעומד במרכזו, והתנועה מסתובבת סביבו.</p></div>`);
   if (q.kind === "central") return open(`⛲ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת הכיכר</button></div>` : ""}<div class="hero"><p><b>הכיכר המרכזית של ${esc(q.slot.city.name)}</b>, הלב של הבירה. רחבה עגולה ענקית עם מזרקה, דגל המדינה, מדשאות וספסלים, כביש טבעתי מסביב ובניינים עם חנויות ובתי קפה בכל פינה.</p></div><div class="btns"><button class="btn ghost" data-go="slot" data-arg="${S.slots.indexOf(q.slot)}">🏙️ על העיר</button></div>`);
   open(`${q.kind === "park" ? "🌳" : "⛲"} ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ עריכת ${q.kind === "park" ? "הגן" : "הכיכר"}</button><button class="btn ghost" data-go="zone" data-arg="${q.x},${q.z}">🧱 לשנות את הבלוק</button></div>` : ""}<div class="hero"><p>${q.kind === "park" ? `<b>גן ציבורי</b> ב${esc(cityName(q.city_id))}: דשא, בריכת ברווזים, נדנדות ומגלשה. פתוח לכולם, תמיד.` : `<b>כיכר עירונית</b> ב${esc(cityName(q.city_id))}: בית קפה, קיוסק, ספסלים ומקום להיפגש.`}</p></div>`);
@@ -2671,7 +2990,7 @@ function showWork(w) {
 }
 function showHouse(h) {
   const me = S.mine === h, key = me && keyOf(h.u), mins = S.gov.filter(m => m.citizens?.ig_username === h.u), wins = S.draws.filter(d => d.citizens?.ig_username === h.u), done = collectedToday(h);
-  const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>`;
+  const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>${lawLine(h)}`;
   const owner = !me || h.coins == null ? "" : key
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="walk" data-arg="${esc(h.u)}">🚶 לצאת לטייל</button><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
@@ -2679,7 +2998,7 @@ function showHouse(h) {
   open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
     <div data-go="id" data-arg="${esc(h.u)}" style="cursor:pointer;max-width:420px;margin:0 auto">${idcHtml(h)}</div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="home:${esc(h.u)}">🚪 ${me ? "להיכנס הביתה" : "להיכנס לבית"}</button><button class="btn ghost" data-go="id" data-arg="${esc(h.u)}">🪪 תעודה מלאה ושיתוף</button></div>
-    ${ADMIN && h.lot && !h.lot.sq ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="zone" data-arg="${h.x},${h.z}">🧱 לשנות את הבלוק</button></div>` : ""}
+    ${ADMIN ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="estate" data-arg="${esc(h.u)}">🏰 אחוזה / וילה באי הדקל</button>${h.lot && !h.lot.sq && !h.lot.palm ? `<button class="btn ghost" data-go="zone" data-arg="${h.x},${h.z}">🧱 לשנות את הבלוק</button>` : ""}</div>` : ""}
     <p class="note" style="margin-top:6px">תושב/ת #${fmtN(h.no || h.id)} · ${esc(HOUSE_NAMES[h.hk])}</p>
     ${wallet}${owner}
     <div class="list" style="margin-top:10px">
@@ -2933,13 +3252,19 @@ function patchCitizen(h, patch, rebuild) {
   return h;
 }
 const ERR = { funds: "אין מספיק סבבונים 🪙", owned: "זה כבר שלך 😉", unauthorized: "הקישור האישי לא תקין. שלחו ״אזרחות״ באינסטגרם כדי לקבל קישור חדש", already: "כבר אספת היום. המשכורת הבאה מחר 🌅", bad_color: "צבע לא מוכר", bad_item: "המוצר לא קיים" };
+// the streak law: every 3rd day in a row of collecting the salary pays a prize of 1000
+function lawLine(h) {
+  if (S.mine !== h) return ""; const st = collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0, inCycle = collectedToday(h) ? (st % 3 || 3) : st % 3, left = 3 - inCycle;
+  const dots = [0, 1, 2].map(i => i < inCycle ? "🟢" : "⚪").join("");
+  return `<p class="note" style="margin-top:6px">🏛️ חוק הרצף: 3 ימי משכורת ברצף = 1,000 ${COIN} · ${dots} ${collectedToday(h) && inCycle === 3 ? "קיבלת את הפרס היום! 🎉" : left === 1 && !collectedToday(h) ? "היום זה היום! אספו משכורת וקבלו את הפרס" : `עוד ${fmtN(collectedToday(h) ? left : left)} ימים`}</p>`;
+}
 async function collect(u) {
   const h = S.byUser.get(u), k = keyOf(u); if (!h || !k) return;
   try {
     const r = await rpc("collect_salary", { username: u, key: k });
     if (!r.ok) { if (r.error === "unauthorized") dropKey(u); if (r.error === "already") patchCitizen(h, { last_collected: israelDate() }); toast(ERR[r.error] || "משהו השתבש"); return showHouse(h); }
     const nh = patchCitizen(h, { coins: r.coins, streak: r.streak, best_streak: Math.max(h.best, r.streak), last_collected: israelDate() });
-    toast(`💼 +${fmtN(r.paid)} ${COIN} נכנסו לארנק${r.days > 1 ? ` (${fmtN(r.days)} ימים)` : ""}${r.bonus ? ` · 🔥 בונוס רצף ${fmtN(r.bonus)}` : ""}`, 4000);
+    toast(`💼 +${fmtN(r.paid)} ${COIN} נכנסו לארנק${r.days > 1 ? ` (${fmtN(r.days)} ימים)` : ""}${r.bonus ? ` · 🔥 בונוס רצף ${fmtN(r.bonus)}` : ""}${r.law ? ` · 🏛️ פרס החוק: ${fmtN(r.law)}!` : ""}`, r.law ? 6000 : 4000);
     showHouse(nh);
   } catch { toast("אין חיבור כרגע. נסו שוב בעוד רגע"); }
 }
@@ -3279,7 +3604,39 @@ function interiorOf(w) {
     const art = (x, y, wd, h, cols) => cols.forEach((c, i) => add(box(wd / cols.length - .06, h, .05, c, x - wd / 2 + (i + .5) * wd / cols.length, y, -6.47)));
     const lamp = (x, z) => add(cyl(.18, .25, .1, 12, "#2b2b2b", x, 0, z), cyl(.03, .03, 1.6, 6, "#2b2b2b", x, .1, z), cyl(.25, .35, .4, 14, "*#fff1c2", x, 1.7, z));
 
-    if (st === "3_2") {   // the bow tie house: pink and polka dots, a bow tie sofa, a giant bow tie on the wall in the owner's color
+    if (ow?.lot?.est) {   // an estate: a grand double-height hall with a split staircase to the gallery upstairs, a chandelier, a fireplace, a dining hall and glass doors to the pool
+      const gold = "#c9a24a", bw = st === "3_2", acc = bw ? houseLook(ow).color : "#9b1c2c", acc2 = bw ? "#" + new THREE.Color(houseLook(ow).color).multiplyScalar(.6).getHexString() : "#7a1c2c", wall = bw ? "#fbe7ef" : "#f5efe4", cur = S.houseSign?.get(u) || {}, name = cur.estate?.sign || (cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${u}`);
+      add(box(28.6, .3, 19.6, "#f1ede6", 0, -.3, 0)); for (let i = 0; i < 14; i++) for (let j = 0; j < 10; j++) if ((i + j) % 2) add(box(2, .02, 1.94, "#d6cfc2", -13 + i * 2, 0, -8.73 + j * 1.94));
+      add(box(28.6, 8.4, .3, wall, 0, 0, -9.95), box(.3, 8.4, 19.6, wall, -14.45, 0, 0), box(28.6, 1.2, .34, "#e6dccb", 0, 0, -9.94), box(.34, 1.2, 19.6, "#e6dccb", -14.44, 0, 0),
+        box(28.6, .5, .36, gold, 0, 8.4, -9.95), box(.36, .5, 19.6, gold, -14.45, 8.4, 0));
+      // the gallery upstairs along the back wall: a floor, a white balustrade with a gold rail, the doors of the bedrooms, the family crest
+      add(box(28.4, .4, 3.4, "#e9e2d6", 0, 4.2, -8.1)); for (let x = -13.6; x <= 13.6; x += .6) if (Math.abs(x) > 4.6 || Math.abs(x) < 1.6) add(cyl(.06, .06, 1, 6, "#ffffff", x, 4.6, -6.45));
+      add(box(28.4, .12, .2, gold, 0, 5.6, -6.45)); for (const x of [-11, -7, 7, 11]) add(box(1.4, 2.6, .1, "#7a5232", x, 4.6, -9.78), box(1.7, .2, .12, gold, x, 7.25, -9.77));
+      for (const x of [-13.4, 13.4]) add(cyl(.4, .45, 4.2, 16, "#fbf9f4", x, 0, -6.6), cyl(.55, .55, .3, 16, gold, x, 3.9, -6.6));
+      // the split staircase, with a red carpet and gold rails, rising from the hall to the gallery
+      for (const sx of [-3.1, 3.1]) { for (let i = 0; i < 12; i++) add(box(2.6, .35, .5, "#fbf9f4", sx, i * .35, -1.3 - i * .43), box(1.4, .02, .5, acc, sx, i * .35 + .35, -1.3 - i * .43));
+        const ox = sx + Math.sign(sx) * 1.35, len = Math.hypot(12 * .43, 4.2); add(box(.12, .12, len, gold, ox, 2.1 + 1, -3.9, { x: Math.atan2(4.2, 12 * .43) })); }
+      add(box(2.4, .03, 9.2, acc, 0, 0, 4.2), box(2.6, .02, 9.4, gold, 0, 0, 4.2));   // the red carpet from the door
+      // a crystal chandelier over the hall
+      add(cyl(.03, .03, 1.6, 4, gold, 0, 6.9, 1)); for (let t = 0; t < 4; t++) for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, rr = .5 + t * .45; add(sph(.1, "*#fff4d6", Math.cos(a) * rr, 6.8 - t * .35, 1 + Math.sin(a) * rr)); }
+      // the fireplace on the side wall with a painting above it, and a lounge with sofas on a rug
+      add(box(.8, 2.6, 3.6, "#ece6da", -14, 0, 3.5), box(.5, 1.4, 2.2, "#1c1c1c", -13.85, .2, 3.5), box(.2, .5, 1.6, "*#ff9d42", -13.7, .3, 3.5), box(1, .2, 4, "#d9cfb9", -13.9, 2.6, 3.5),
+        box(.1, 2.4, 3.4, gold, -14.25, 3.4, 3.5), box(.06, 2.1, 3.1, "#2f5e7a", -14.2, 3.55, 3.5), box(.07, .9, 1.4, "#c99a4a", -14.18, 4, 3));
+      rug(-8.6, 3.6, 6.4, 5, acc2, "#c9a24a"); sofa(-8.6, 6, 4.4, "#efe6d6", Math.PI, gold); sofa(-8.6, 1.2, 4.4, "#efe6d6", 0, gold); add(box(2.2, .45, 1.2, "#3a2a1e", -8.6, 0, 3.6), box(2.3, .05, 1.3, gold, -8.6, .45, 3.6));
+      // a long dining table with eight chairs and candles, under its own chandelier
+      add(box(6.4, .1, 1.6, "#5a3a26", 8.4, .85, 3.4), ...[-2.8, 2.8].flatMap(dx => [box(.12, .85, .12, "#3a2a1e", 8.4 + dx, 0, 2.8), box(.12, .85, .12, "#3a2a1e", 8.4 + dx, 0, 4)]));
+      for (let i = 0; i < 4; i++) for (const e of [-1, 1]) chair(6 + i * 1.6, 3.4 + e * 1.2, e > 0 ? Math.PI : 0, acc2);
+      for (const dx of [-1.6, 0, 1.6]) add(cyl(.05, .07, .5, 6, gold, 8.4 + dx, .95, 3.4), sph(.07, "*#ffcf6a", 8.4 + dx, 1.5, 3.4));
+      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; add(sph(.09, "*#fff4d6", 8.4 + Math.cos(a) * .6, 4.6, 3.4 + Math.sin(a) * .6)); }
+      // a grand piano, tall glass doors at the back opening to the pool terrace
+      add(cyl(1.2, 1.2, .3, 3, "#111111", 8.6, .7, -3.4, { y: .4 }), box(1.6, .3, 1.4, "#111111", 8.4, .7, -3.9), box(1.5, .06, .4, "#f4f4f4", 8.2, 1, -4.6), ...[[7.8, -4.4], [9, -4.2], [8.8, -2.6]].map(([x, z]) => cyl(.06, .06, .7, 6, "#111111", x, 0, z)));
+      for (const x of [-9, 9]) add(box(4, 3.4, .12, "*#8fcde6", x, .5, -9.78), box(4.3, .18, .16, gold, x, 3.9, -9.76), box(.14, 3.6, .16, gold, x, .4, -9.76));
+      add(box(10, .1, 2.6, "#2fb9e0", 9, .15, -11.6), box(10, .1, 2.6, "#2fb9e0", -9, .15, -11.6));
+      plant(-13, -5.4, 1.6); plant(13, 8.6, 1.5); plant(-13, 8.6, 1.5); plant(13, -5.4, 1.6);
+      sgn(name, 6.4, 1, 0, 6.7, -9.76, 0, "#2b2f34", "#f2d38a"); sgn(`ברוכים הבאים ל${name}`, 5, .8, -14.25, 6.4, -3, Math.PI / 2, acc2, "#f2d38a");
+      staff.push([0, 6.4, Math.PI], [3.2, 7.6, Math.PI + .4], [-6.4, 3.6, Math.PI / 2]);
+      frame = { idAt: [3.6, 2.4], idZ: -9.76, scale: 1.5, target: [0, 2.4, -1.2], shadow: 24 };
+    } else if (st === "3_2") {   // the bow tie house: pink and polka dots, a bow tie sofa, a giant bow tie on the wall in the owner's color
       const { color, text } = houseLook(ow), dark = "#" + new THREE.Color(color).multiplyScalar(.55).getHexString();
       room("#f6e3ea", "#fbe7ef", dark, { tiles: "#f0d0dc" });
       for (let i = 0; i < 9; i++) for (let j = 0; j < 3; j++) add(cyl(.16, .16, .04, 12, "#ffffff", -8 + i * 2 + (j % 2), 0, 0, { x: Math.PI / 2 }).translate(0, 1.7 + j * 1.1, -6.47));
@@ -3414,8 +3771,8 @@ function interiorScene(w) {
   for (const [text, sw, sh, x, y, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, y, z); s.rotation.y = ry; sc.add(s); }
   for (const f of INT.flags) sc.add(f);
   if (w.owner) {   // the resident's ID card, framed on the back wall
-    const fr = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.95, .08), new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: .6 })); const [ix, iy] = frame?.idAt || [-1.3, 3.15]; fr.position.set(ix, iy, -6.4); fr.userData.disposable = true; sc.add(fr);
-    const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(ix, iy, -6.35); card.userData.disposable = true; sc.add(card);
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.95, .08), new THREE.MeshStandardMaterial({ color: "#6b4a2f", roughness: .6 })); const [ix, iy] = frame?.idAt || [-1.3, 3.15], iz = frame?.idZ ?? -6.4; fr.position.set(ix, iy, iz); fr.userData.disposable = true; sc.add(fr);
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.65), new THREE.MeshBasicMaterial({ map: idTexture(w.owner), toneMapped: false })); card.position.set(ix, iy, iz + .05); card.userData.disposable = true; sc.add(card);
   }
   // people at work: the citizen in orange (if it's their workplace), colleagues around
   const me = S.mine && (S.mine.wp === w || w.owner === S.mine || (WALK.on && MENU_OF[w.kind])) ? S.mine : null, pool = w.owner ? [w.owner] : !S.wpById.has(w.id) ? [...S.houses].sort((a, b) => hash(a.u + w.kind) - hash(b.u + w.kind)) : (w.staff || []), crew = pool.filter(h => h !== me).slice(0, staff.length - (me ? 1 : 0));
@@ -3740,7 +4097,7 @@ GO.edit = arg => {
       { house: h.hk, car: h.cm, color: h.ck, wp: h.wp?.id ?? "", level: h.level, coins: h.coins ?? 0, sign_text: S.houseSign?.get(h.u)?.text || "", sign_color: houseLook(h).color },
       async v => {
         if (v.house === "3_2") {   // the name and color live in settings, the house itself in the citizen's row
-          const r = await rpc("admin_edit", { secret: pref("sababa_admin", ""), entity: "settings", rid: "house_" + h.u, patch: { value: { text: v.sign_text, color: v.sign_color } }, remove: false }).catch(() => ({}));
+          const r = await rpc("admin_edit", { secret: pref("sababa_admin", ""), entity: "settings", rid: "house_" + h.u, patch: { value: { ...(S.houseSign?.get(h.u) || {}), text: v.sign_text, color: v.sign_color } }, remove: false }).catch(() => ({}));
           if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "הכיתוב לא נשמר", 5000); return false; }
         }
         return adminEdit("citizens", h.id, { house_style: v.house, house_tier: +v.house[0], car_model: v.car, car_tier: CARS[v.car].tier, car_color: v.color, workplace_id: v.wp ? +v.wp : null, job_level: +v.level, coins: v.coins ?? 0 }); },
@@ -3903,7 +4260,7 @@ function tourShots(night) {
 // the arrival reel: who it is about (the house tapped, else the newest citizen), and the moving ship and car
 const arrivalOf = h => h?.lot ? h : (S.sel?.lot ? S.sel : [...S.houses].filter(q => q.lot).sort((a, b) => b.id - a.id)[0]);
 const roadZ = (slot, e) => slot.z + (blvZ(e) ? blvCZ(e) + 5.4 : BPZ(e) - BZ / 2 + 1.6);
-const roadX = (slot, e) => slot.x + (blvX(e) ? blvCX(e) + 5.4 : BPX(e) - BX / 2 + 1.6);
+const roadX = (slot, e) => slot.x + (blvX(e) ? blvCX(e) + 5.4 : BPX(e) - bwX(e) / 2 + 1.6);
 // a route along a polyline, walked by distance: position and heading at any fraction
 function route(pts) {
   const seg = []; let L = 0; for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]], d = Math.hypot(b.x - a.x, b.z - a.z); if (d > .01) { seg.push({ a, b, d, L0: L }); L += d; } }
@@ -3936,12 +4293,13 @@ function figureProp(h, from = 0) {
 function cityBox(slot) { const bl = [...slot.blocks.values()]; return { mnX: Math.min(...bl.map(b => b.bx)), mxX: Math.max(...bl.map(b => b.bx)), mnZ: Math.min(...bl.map(b => b.bz)), mxZ: Math.max(...bl.map(b => b.bz)) }; }
 const nearestEdge = (lo, hi, v, f) => { let best = lo, bd = Infinity; for (let e = lo; e <= hi; e++) { const d = Math.abs(f(e) - v); if (d < bd) { bd = d; best = e; } } return best; };
 const frontRoad = h => { const slot = h.slot;
+  if (h.lot.palm) { const g = PALM.geo.gate; return { zH: g.z, xV: g.x, stop: { x: g.x, z: g.z } }; }
   if (h.lot.sq) { const C = CENTRAL.on || centralBox(slot), X = C.hw + 1.6, Z = C.hd + 1.6, { sx, sz, row } = h.lot.sq;   // the houses on the city square: the street at its edge
     return row === "z" ? { zH: C.cz + sz * Z, xV: C.cx + sx * X, stop: { x: h.x, z: C.cz + sz * Z } } : { zH: C.cz + sz * Z, xV: C.cx + sx * X, stop: { x: C.cx + sx * X, z: h.z } }; }
   const eH = h.lot.j === 0 ? h.lot.bz : h.lot.bz + 1, eV = h.lot.dx <= 0 ? h.lot.bx : h.lot.bx + 1; return { zH: roadZ(slot, eH), xV: roadX(slot, eV), stop: { x: h.x + (h.lot.dx <= 0 ? 2.5 : -2.5), z: roadZ(slot, eH) } }; };
 // from the harbor: the highway to the edge of the city, then the streets
 function routeFromHarbor(H, h) {
-  const slot = h.slot, B = cityBox(slot), x0 = slot.x + BPX(B.mnX) - BX / 2 - 18, x1 = slot.x + BPX(B.mxX) + BX / 2 + 18, z0 = slot.z + BPZ(B.mnZ) - BZ / 2 - 18, z1 = slot.z + BPZ(B.mxZ) + BZ / 2 + 18;
+  const slot = h.slot, B = cityBox(slot), x0 = slot.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 18, x1 = slot.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 18, z0 = slot.z + BPZ(B.mnZ) - BZ / 2 - 18, z1 = slot.z + BPZ(B.mxZ) + BZ / 2 + 18;
   let P = { x: slot.x, z: slot.z };
   for (let k = 0; k <= 400; k++) { const t = k / 400, q = { x: H.x + (slot.x - H.x) * t, z: H.z + (slot.z - H.z) * t }; if (q.x > x0 && q.x < x1 && q.z > z0 && q.z < z1) { P = q; break; } }
   const { zH, xV, stop } = frontRoad(h), sideways = Math.min(Math.abs(P.x - x0), Math.abs(P.x - x1)) < Math.min(Math.abs(P.z - z0), Math.abs(P.z - z1));
@@ -4050,8 +4408,8 @@ GO.newsPick = () => {
 const TEMPLATES = {
   home: { ic: "🏠", name: "הבית שלי", sub: "ריל אישי לשתף בסטורי", pub: true, ok: h => !!(h || S.mine)?.lot, props: h => (h || S.mine)?.lot ? [figureProp(h || S.mine)] : [], shots(h = S.mine) {
     const zf = reelFit(), got = achievements(h).got, list = [
-      { d: 3, a: at(ORIGIN, zf, -.5), b: at(h.slot, 2.2, -.2), h: [6, 9], cap: "יש לי בית במדינה", sub: "רפובליקת סבבה 🏳️", say: "יש לי בית ברפובליקת סבבה!" },
-      { d: 3.4, b: at(h, 10, .35, .55), h: [10, 12], cap: addressOf(h), sub: `תושב/ת #${fmtN(h.no || h.id)}`, mark: h },
+      { d: 3.2, a: at(h, 17, -.35, .2), b: at(h, 10, .35, .42), h: [6, 9], cap: "יש לי בית במדינה", sub: addressOf(h), say: "יש לי בית ברפובליקת סבבה!", mark: h },
+      { d: 3.2, b: at(h.slot, 2.4, .1, .5), h: [10, 12], cap: "רפובליקת סבבה 🏳️", sub: `תושב/ת #${fmtN(h.no || h.id)} · ${h.city.name}` },
       { d: 3.4, b: at(h, 13, 1.1, .38), h: [13, 15], cap: jobTitle(h), sub: `${CARS[h.cm].name} ב${COLORS[h.ck][1]} חונה בחוץ`, mark: h }];
     if (got.length) list.push({ d: 3, b: at(h, 9, 1.7, .5), h: [16, 17.5], cap: got.slice(0, 5).map(a => a.ic).join(" "), sub: `${fmtN(got.length)} הישגים במדינה`, mark: h });
     list.push({ d: 3.4, b: at(ORIGIN, zf, 2.2), h: [18, 20.5], cap: "גם לך מחכה בית", sub: `‎@${INSTAGRAM}`, say: "גם לך מחכה בית. תגיבו אזרחות!" });
@@ -4064,7 +4422,8 @@ const TEMPLATES = {
     const proj = S.projects.filter(p => p.x != null && recent(p.created_at, 48)).sort((a, b) => b.id - a.id)[0];
     const law = S.laws[0] && recent(S.laws[0].enacted_at, 48) ? S.laws[0] : null, kn = GOV.find(g => g.id === "knesset");
     const rich = richest()[0];
-    list.push({ d: 3, a: at(ORIGIN, zf * .9, -.6), b: at(cap, 1.6, -.3), cap: `עדכון יומי · יום ${fmtN(dayNo())}`, sub: new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }), say: `עדכון יומי מרפובליקת סבבה. יום ${dayNo()} למדינה.` });
+    const sq = CENTRAL.on ? { x: CENTRAL.on.cx, z: CENTRAL.on.cz } : cap;
+    list.push({ d: 3.2, a: at(sq, 8, -.7, .22), b: at(cap, 1.8, -.2, .45), cap: `עדכון יומי · יום ${fmtN(dayNo())}`, sub: new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }), say: `עדכון יומי מרפובליקת סבבה. יום ${dayNo()} למדינה.` });
     if (fresh.length) list.push({ d: 3.2, b: at(fresh[0], 8, 0, .5), cap: `+${fmtN(fresh.length)} תושבים חדשים`, sub: "ברוכים הבאים " + fresh.slice(0, 3).map(h => "‎@" + h.u).join(", "), mark: fresh[0] });
     else list.push({ d: 3, b: at(cap, 3, .2, .5), cap: `${fmtN(S.total)} תושבים במדינה`, sub: "מחכים לתושבים החדשים של מחר" });
     if (wins.length) list.push({ d: 3.2, b: at(wins[0].h, 8, .5, .5), cap: `🎟️ ${fmtN(wins.length)} זוכים בהגרלה`, sub: wins.slice(0, 3).map(({ d, h }) => `${(PRIZES[d.prize] || ["🎁"])[0]} ‎@${h.u}`).join("  "), mark: wins[0].h });
@@ -4086,15 +4445,16 @@ const TEMPLATES = {
   } },
   rich: { ic: "💰", name: "עשירי המדינה", sub: "5 התושבים עם הכי הרבה סבבונים", ok: () => richest().length >= 3, why: "צריך לפחות 3 תושבים עם ארנק", shots() {
     const zf = reelFit(), top = richest().slice(0, 5).reverse();
-    const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(top[0], 3, 0, .5), cap: "💰 עשירי המדינה", sub: "מי צבר הכי הרבה סבבונים?" }];
+    const list = [{ d: 3.2, a: at(top.at(-1), 16, -.5, .18), b: at(top[0], 3, 0, .5), cap: "💰 עשירי המדינה", sub: "מי צבר הכי הרבה סבבונים?" }];
     top.forEach((h, i) => list.push({ d: 2.7, b: at(h, 9, .3 + i * .35, .5), cap: `#${top.length - i} ‎@${h.u}`, sub: `${fmtN(h.coins)} ${COIN} · ${CARS[h.cm].name}`, mark: h }));
     list.push({ d: 3, b: at(ORIGIN, zf, 2.2), cap: "כל יום עבודה = משכורת", sub: "תגיבו ״אזרחות״ ותתחילו להרוויח 👇" });
     return hours(chain(list), 10, 18.5);
   } },
   law: { ic: "📜", name: "חוק חדש", sub: "החוק האחרון שנכנס לספר החוקים", ok: () => S.laws.length > 0 && GOV[0].x != null, why: "ספר החוקים עדיין ריק. מוסיפים חוק בטבלה laws ב־Supabase", shots() {
     const zf = reelFit(), l = S.laws[0], kn = GOV[0], by = l.proposed_by && S.byUser.get(l.proposed_by);
-    const list = [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(kn, 3.2, -.2, .5), cap: "📜 חוק חדש במדינה", sub: `חוק מספר ${fmtN(S.laws.length)}` },
-      { d: 4.2, b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }];
+    const inK = interiorTarget("gov:knesset"), list = inK ? [{ d: 3.6, inside: inK, a: { az: .2, dist: 19, el: .5 }, b: { az: .85, dist: 13, el: .4 }, cap: "📜 חוק חדש במדינה", sub: `נחקק בכנסת · חוק מספר ${fmtN(S.laws.length)}` },
+      { d: 4.4, a: at(kn, 9, -.3, .22), b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }]
+      : [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(kn, 3.2, -.2, .5), cap: "📜 חוק חדש במדינה", sub: `חוק מספר ${fmtN(S.laws.length)}` }, { d: 4.2, b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }];
     if (by?.lot) list.push({ d: 3.2, b: at(by, 9, 1.1, .5), cap: "הוצע ע״י", sub: `‎@${by.u} 🏅`, mark: by });
     list.push({ d: 3.4, b: at(ORIGIN, zf, 1.9), cap: "מה החוק הבא?", sub: "תציעו בתגובות, הכי אהוב נכנס 👇" });
     return hours(chain(list), 11, 18.8);
@@ -4110,7 +4470,7 @@ const TEMPLATES = {
   } },
   newcomers: { ic: "👋", name: "תושבים חדשים", sub: "מי הגיע לאי ב־24 השעות האחרונות", ok: () => S.houses.some(h => h.lot), shots() {
     const fresh = S.houses.filter(h => h.lot && recent(h.joined)).sort((a, b) => b.id - a.id), pick = (fresh.length ? fresh : [...S.houses].filter(h => h.lot).sort((a, b) => b.id - a.id)).slice(0, 3), zf = reelFit();
-    const shots = [{ d: 3.2, a: at(ORIGIN, zf * .9, -.4), b: at(pick[0], 2.4, 0), h: [9, 11], cap: fresh.length ? `${fmtN(fresh.length)} תושבים חדשים הגיעו היום` : "התושבים החדשים של המדינה", sub: `סה״כ ${fmtN(S.total)} תושבים · יום ${fmtN(dayNo())}` }];
+    const hb = COAST.find(c => c.id === "harbor"), shots = [{ d: 3.4, a: hb?.x != null ? at(hb, 5, -.9, .26) : at(ORIGIN, zf * .9, -.4), b: at(pick[0], 2.4, 0), h: [9, 11], cap: fresh.length ? `${fmtN(fresh.length)} תושבים חדשים הגיעו היום` : "התושבים החדשים של המדינה", sub: `סה״כ ${fmtN(S.total)} תושבים · יום ${fmtN(dayNo())}` }];
     pick.forEach((h, i) => shots.push({ d: 3, b: at(h, 9, .2 * i + .35, .5), h: [11 + i, 12 + i], cap: `ברוכים הבאים ‎@${h.u}`, sub: addressOf(h), mark: h }));
     shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
     return chain(shots);
@@ -4135,7 +4495,7 @@ const TEMPLATES = {
   news: { ic: "🆕", name: "מה חדש במדינה", sub: "העדכונים החדשים של העיר", ok: () => newsList().length > 0, why: "אין עדכונים לבחירה", props: () => newsPlan(), shots: () => REEL.news },
   draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, why: "עוד לא נערכה הגרלה. מריצים ב־Supabase: select * from run_daily_draw();", shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
-    const shots = [{ d: 3, a: at(ORIGIN, zf, -.3), b: at(list[0]?.h || S.slots[0], 2.2, 0), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
+    const sq = CENTRAL.on ? { x: CENTRAL.on.cx, z: CENTRAL.on.cz } : S.slots[0], shots = [{ d: 3.2, a: at(sq, 9, -.9, .3), b: at(sq, 6, .9, .38), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
     list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, b: at(h, 9.5, .25 * i + .3, .5), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${h.u}${d.details ? " · " + d.details : ""}`, mark: h }); });
     shots.push({ d: 3.2, b: at(ORIGIN, zf, 1.2), h: [20.5, 21.5], cap: "מחר זה יכול להיות את/ה", sub: "רק תושבים משתתפים · תגיבו ״אזרחות״" });
     return chain(shots);
@@ -4144,7 +4504,7 @@ const TEMPLATES = {
     const p = [...S.projects].filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0], zf = reelFit();
     const name = p.name || PROJECT_KINDS[p.kind]?.[1], who = p.requested_by ? `לבקשת ‎@${p.requested_by}` : "לבקשת התושבים";
     return chain([
-      { d: 3, a: at(ORIGIN, zf, -.5), b: at(p, 2, -.2), h: [10, 12], cap: p.status === "done" ? "ביקשתם, בנינו 🎉" : "ביקשתם, מתחילים לבנות 🏗️", sub: who },
+      { d: 3.2, a: at(p, 10, -.7, .18), b: at(p, 3, -.2, .45), h: [10, 12], cap: p.status === "done" ? "ביקשתם, בנינו 🎉" : "ביקשתם, מתחילים לבנות 🏗️", sub: who },
       { d: 5, b: at(p, 5.5, .9, LOW + .05), h: [12, 15], cap: name, sub: `${PROJECT_KINDS[p.kind]?.[0] || ""} ${cityName(p.city_id)}` },
       { d: 3.6, b: at(ORIGIN, zf, 1.4), h: [16, 19.5], cap: "מה לבנות עכשיו?", sub: "תכתבו בתגובות 👇" }]);
   } }
@@ -4556,6 +4916,7 @@ function placeList() {
     .sort((a, b) => (a[1].kind === "central" ? -1 : 0) - (b[1].kind === "central" ? -1 : 0) || a[1].title.localeCompare(b[1].title, "he"))
     .forEach(([k, m]) => o.push([`blk:${k}`, `${IC[m.kind]} ${m.title} · ${cityName(m.data?.q?.city_id ?? m.data?.slot?.city?.id) || ""}`]));
   if (BALLOT.x != null) o.push(["ballot", "🗳️ מבנה הקלפי (מבחוץ)"], ["inside:ballot", "🚪 בתוך הקלפי"]);
+  if (PALM.geo) o.push(["palm", "🌴 אי הדקל"], ["palm:hotel", "🏨 מלון הדקל"]);
   S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
   for (const w of S.workplaces) if (w.x != null) o.push([`work:${w.id}`, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]);
@@ -4572,6 +4933,7 @@ function placeOf(sc) {
   if (t === "slot" && S.slots[+a]) { const sl = S.slots[+a]; return { o: sl, zoom: sl.city ? 2.6 : 3.4 }; }
   if (t === "gov") { const g = GOV.find(q => q.id === a); if (g?.x != null) return { o: g, zoom: 4.2 }; }
   if (t === "coast") { const c = COAST.find(q => q.id === a); if (c?.x != null) return { o: c, zoom: 3.4 }; }
+  if (t === "palm" && PALM.geo) return a === "hotel" ? { o: PALM.geo.hotel, zoom: 3.2 } : { o: PALM.geo.center, zoom: 1.5 };
   if (t === "blk") { const m = BLK_META.get(a); if (m) return { o: { x: m.cx, z: m.cz }, zoom: m.kind === "central" ? 3.2 : m.kind === "round" ? 6 : 5 }; }
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
   if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
@@ -4706,7 +5068,7 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, palm: () => PALM, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
