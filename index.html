@@ -678,7 +678,11 @@ const S = { projects: [], cities: [], slots: [], houses: [], raw: [], byUser: ne
 
 /* ============================ THREE SETUP ============================ */
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+// quality: phones that struggle step down by themselves (sharpness, surface grain, shadows), and the step is remembered on that device
+const QUAL = { tier: 0, acc: 0, n: 0, t0: 0, quiet: 0 };
+try { const q = localStorage.getItem("sababa_q"); QUAL.tier = q != null ? +q : (Math.min(innerWidth, innerHeight) < 700 && (devicePixelRatio || 1) >= 2 ? 1 : 0); } catch {}
+const qualDpr = () => Math.min([2, 1.5, 1.25, 1][QUAL.tier] || 1, devicePixelRatio || 1);
+renderer.setPixelRatio(qualDpr());
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
@@ -702,6 +706,22 @@ controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.maxZ
 const hemi = new THREE.HemisphereLight("#ffffff", "#7a6a50", 1.4); scene.add(hemi);
 const sun = new THREE.DirectionalLight("#fff2dc", 2.6);
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -.0005; sun.shadow.normalBias = .5;
+function qualApply() {
+  renderer.setPixelRatio(qualDpr()); renderer.setSize(innerWidth, innerHeight); labelRenderer?.setSize(innerWidth, innerHeight);
+  DETAIL_U.value = QUAL.tier >= 2 ? 0 : 1;
+  const ms = QUAL.tier >= 2 ? 1024 : 2048; if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+  sun.castShadow = QUAL.tier < 3;
+  world.traverse(o => { if (o.userData.country) o.castShadow = QUAL.tier < 2; });
+}
+if (QUAL.tier >= 2) sun.shadow.mapSize.set(1024, 1024); sun.castShadow = QUAL.tier < 3;
+// called every frame on the map and on walks: 2-second windows of frame time; a slow window steps quality down
+function qualWatch(raw) {
+  if (document.hidden || REEL.on || performance.now() - QUAL.t0 < 4000) { QUAL.acc = QUAL.n = 0; return; }
+  QUAL.acc += raw; QUAL.n++; if (QUAL.acc < 2) return;
+  const avg = QUAL.acc / QUAL.n; QUAL.acc = QUAL.n = 0;
+  if (avg > .036 && QUAL.tier < 3) { QUAL.tier++; QUAL.t0 = performance.now(); try { localStorage.setItem("sababa_q", QUAL.tier); } catch {} qualApply(); }
+  else if (avg < .011 && QUAL.tier > 0 && ++QUAL.quiet > 5) { QUAL.quiet = 0; QUAL.tier--; QUAL.t0 = performance.now(); try { localStorage.setItem("sababa_q", QUAL.tier); } catch {} qualApply(); }
+}
 scene.add(sun, sun.target);
 const SUN_DIR = new THREE.Vector3(.4, .8, .3).normalize();
 // anything new on the island gets the organic bend before it is drawn for the first time
@@ -833,36 +853,40 @@ function unbendRay(r) {
 // realism without image textures: each surface gets a fine pattern by what it is, worked out from its color and its slope in world space.
 // green and flat = grass with patches, green and round = leaves, dark grey and flat = asphalt, light and flat = paving stones,
 // sloped = rows of roof tiles, brown and standing = bark or wood, anything else = plaster with a little grain. Walls darken where they meet the ground.
+const DETAIL_U = { value: QUAL.tier >= 2 ? 0 : 1 };   // 0 on slow phones: plain colors, no grain (the quality governor decides)
 const DETAIL_GLSL = `
-varying vec3 vWP; varying vec3 vWN;
-float dh3(vec3 p) { p = fract(p * .3183099 + .1); p *= 17.; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-float dn3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
-  return mix(mix(mix(dh3(i), dh3(i + vec3(1, 0, 0)), f.x), mix(dh3(i + vec3(0, 1, 0)), dh3(i + vec3(1, 1, 0)), f.x), f.y),
-             mix(mix(dh3(i + vec3(0, 0, 1)), dh3(i + vec3(1, 0, 1)), f.x), mix(dh3(i + vec3(0, 1, 1)), dh3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
+varying vec3 vWP; varying vec3 vWN; uniform float uDetail;
+float dh2(vec2 p) { p = fract(p * vec2(.1031, .1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
+float dn2(vec2 x) { vec2 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
+  return mix(mix(dh2(i), dh2(i + vec2(1, 0)), f.x), mix(dh2(i + vec2(0, 1)), dh2(i + vec2(1, 1)), f.x), f.y); }
+// one cheap 2D noise, on the plane the surface faces (top, front or side)
+float dnf(vec3 p, vec3 n) { vec3 a = abs(n); return a.y > max(a.x, a.z) ? dn2(p.xz) : a.x > a.z ? dn2(p.zy) : dn2(p.xy); }
 vec3 detail(vec3 c, vec3 p, vec3 n) {
-  vec3 s = pow(max(c, vec3(0.)), vec3(.4545)); float l = dot(s, vec3(.299, .587, .114)), mx = max(s.r, max(s.g, s.b)), mn = min(s.r, min(s.g, s.b)), sat = mx > .001 ? (mx - mn) / mx : 0.;
+  float up = n.y;
+  if (uDetail < .5) return up < .2 ? c * (.8 + .2 * smoothstep(.15, 1.7, p.y)) : c;
+  vec3 s = sqrt(max(c, vec3(0.))); float l = dot(s, vec3(.299, .587, .114)), mx = max(s.r, max(s.g, s.b)), mn = min(s.r, min(s.g, s.b)), sat = mx > .001 ? (mx - mn) / mx : 0.;
   bool green = s.g > s.r * 1.05 && s.g > s.b * 1.04 && sat > .16;
-  float up = n.y, mid = dn3(p * .6), fine = dn3(p * 4.1), k = 1.;
-  if (green && (up > .97 || DETAIL_TERRAIN)) {   // grass: big patches, a few dry spots, blades of noise
-    k = .84 + .2 * dn3(p * .05) + .1 * mid + .08 * fine; c *= mix(vec3(1.), vec3(1.12, 1.05, .78), smoothstep(.55, .85, dn3(p * .013)) * .7);
+  float k = 1.;
+  if (green && (up > .97 || DETAIL_TERRAIN)) {   // grass: big patches, dry spots, fine grain
+    float big = dn2(p.xz * .05); k = .84 + .22 * big + .1 * dn2(p.xz * 3.1); c *= mix(vec3(1.), vec3(1.12, 1.05, .78), smoothstep(.62, .92, big) * .6);
   } else if (green) {        // leaves: clumps of light and shade
-    k = .58 + .5 * dn3(p * 1.7) + .3 * dn3(p * 5.3); c *= mix(vec3(.92, 1., .9), vec3(1.08, 1.04, .9), dn3(p * .4));
+    k = .6 + .55 * dnf(p * 1.9, n) + .25 * dnf(p * 5.3, n);
   } else if (DETAIL_ROOFS && up > .2 && up < .965 && l > .1) {   // a sloped roof: rows of tiles, every other row shifted, each tile a little different
     vec2 hz = normalize(n.xz + vec2(1e-4)); float row = p.y * 3.3, col = dot(p.xz, vec2(-hz.y, hz.x)) * 2.4 + floor(row) * .5;
-    k = (.74 + .26 * smoothstep(0., .35, fract(row))) * (.9 + .1 * smoothstep(0., .07, fract(col)) * smoothstep(1., .93, fract(col))) * (.9 + .18 * dh3(vec3(floor(row), floor(col), 7.)));
+    k = (.74 + .26 * smoothstep(0., .35, fract(row))) * (.9 + .1 * smoothstep(0., .07, fract(col)) * smoothstep(1., .93, fract(col))) * (.9 + .18 * dh2(vec2(floor(row), floor(col))));
   } else if (up > .965) {
-    if (sat < .16 && l < .45) k = .88 + .12 * mid + .12 * fine + .1 * (dh3(floor(p * 16.)) - .5);   // asphalt
-    else if (DETAIL_PAVING && l > .45) { vec2 g = fract(p.xz * .85); float gr = min(min(g.x, 1. - g.x), min(g.y, 1. - g.y)); k = (.88 + .12 * smoothstep(0., .05, gr)) * (.95 + .1 * dh3(vec3(floor(p.xz * .85), 1.))); }   // paving stones
-    else k = .92 + .1 * dn3(p * .08) + .06 * mid + .04 * fine;
+    if (sat < .16 && l < .45) k = .9 + .14 * dn2(p.xz * .6) + .1 * (dh2(floor(p.xz * 16.)) - .5);   // asphalt
+    else if (DETAIL_PAVING && l > .45) { vec2 g = fract(p.xz * .85); float gr = min(min(g.x, 1. - g.x), min(g.y, 1. - g.y)); k = (.88 + .12 * smoothstep(0., .05, gr)) * (.95 + .1 * dh2(floor(p.xz * .85))); }   // paving stones
+    else k = .93 + .1 * dn2(p.xz * .4);
   } else {                   // walls and everything standing up
     bool wood = s.r > s.g * 1.05 && s.g > s.b && l < .5 && sat > .25;
-    k = wood ? .8 + .2 * dn3(vec3(p.x * 7., p.y * .5, p.z * 7.)) + .07 * fine : .95 + .06 * mid + .035 * fine;
+    k = wood ? .82 + .22 * dnf(vec3(p.x * 7., p.y * .5, p.z * 7.), n) : .96 + .07 * dnf(p * .8, n);
     k *= .74 + .26 * smoothstep(.15, 1.7, p.y);   // contact shade at the foot of walls
   }
   return c * k;
 }`;
 function realism(mat, { paving = true, roofs = true, terrain = false } = {}) {
-  mat.onBeforeCompile = sh => {
+  mat.onBeforeCompile = sh => { sh.uniforms.uDetail = DETAIL_U;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWP; varying vec3 vWN;").replace("#include <fog_vertex>", `#include <fog_vertex>
       { vec4 dwp = vec4(transformed, 1.); vec3 dwn = objectNormal;
       #ifdef USE_INSTANCING
@@ -2465,7 +2489,7 @@ function buildNature() {
   const inCity = (x, z) => open.some((s, i) => { const bx = invAxis(x - s.x, BX, BPX), bz = invAxis(z - s.z, BZ, BPZ); return keys[i].has(`${bx},${bz}`); });
   const cap = open[0], ends = cap ? [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))] : [];
   const HW = highwaySegs(), nearRoad = (x, z) => HW.some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / L2)); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + (w > 20 ? 8 : 6); });
-  const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(6000, Math.max(900, area / 320)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
+  const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(4200, Math.max(900, area / 380)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
     const x = (r() * 2 - 1) * Rx, z = (r() * 2 - 1) * Rz;
@@ -2476,7 +2500,8 @@ function buildNature() {
   }
   for (let i = 0; i < 4000 && palms.length < 70 * S.s; i++) { const t = r() * Math.PI * 2, q = shorePt(t, S.s, GRASS + .015 + r() * .06);
     if (!inCity(q.x, q.z) && !COAST.some(c => c.x != null && Math.hypot(c.x - q.x, c.z - q.z) < 40)) palms.push({ x: q.x, z: q.z, s: .8 + r() * .5 }); }
-  for (const [k, list] of Object.entries(sets)) instanced(P[k + "_lo"], list, (t, o) => { o.position.set(t.x, .12, t.z); o.scale.setScalar(t.s); o.rotation.y = t.x; });
+  for (const [k, list] of Object.entries(sets)) { const m = instanced(P[k + "_lo"], list, (t, o) => { o.position.set(t.x, .12, t.z); o.scale.setScalar(t.s); o.rotation.y = t.x; });
+    for (const t of [m, ...(m.userData.twins || [])]) { t.userData.country = true; t.castShadow = QUAL.tier < 2; } }
   instanced(P.palm, palms, (t, o) => { o.position.set(t.x, .05, t.z); o.scale.setScalar(t.s); o.rotation.y = t.z; });
 }
 
@@ -2489,7 +2514,7 @@ function clearWorld() {
   }
 }
 function buildWorld() {
-  BUILD_NO++; clearWorld(); layout(); ACH_IDX = null;
+  BUILD_NO++; clearWorld(); layout(); ACH_IDX = null; QUAL.t0 = performance.now();
   buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildPalm(); buildNature();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
@@ -2803,6 +2828,7 @@ function loop(now) {
     if (INT.tag) { INT.tag.quaternion.copy(INT.cam.quaternion); INT.tag.position.y = 2.9 + Math.sin(simT * 2.5) * .08; }
     return renderer.render(INT.sc, INT.cam);
   }
+  qualWatch(raw);
   if (WALK.on) return walkFrame(Math.min(.12, raw), now);   // walking keeps its real speed even when the phone draws few frames
   if (fly) fly(now); else controls.update();
   const tg = controls.target, lim = (v, m) => Math.max(-m, Math.min(m, v)), cx = lim(tg.x, RX0 * S.s * 1.05), cz = lim(tg.z, RZ0 * S.s * 1.05);
@@ -5376,7 +5402,7 @@ function restoreView() {
   for (const pr of REEL.props || []) pr.dispose(); REEL.props = [];
   if (REEL.full) { S.raw = REEL.full.raw; S.total = REEL.full.total; REEL.full = null; buildWorld(); }
   REEL.comp?.remove();
-  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight); frustum();
+  renderer.setPixelRatio(qualDpr()); renderer.setSize(innerWidth, innerHeight); frustum();
   [scene.fog.near, scene.fog.far] = REEL.fog; sunFollow(controls.target, camera.right * 2 / camera.zoom);
   document.body.classList.remove("rec"); timeMode = { live: true, h: 12 }; applyTime();
   S.mine = REEL.prevMine && S.byUser.get(REEL.prevMine.u) || null; S.sel = REEL.prevSel && S.byUser.get(REEL.prevSel.u) || null; mark(S.sel || S.mine);
