@@ -786,8 +786,9 @@ function warpAng(x, z) {
 function unwarpXZ(x, z) { if (!WRP.on) return [x, z]; let u = x, v = z; for (let i = 0; i < 10; i++) { const d = warpD(u, v); u = x - d[0]; v = z - d[1]; } return [u, v]; }
 /* ---------- hills, mountains and valleys: the land rises between the cities and falls back to the beach.
    The cities themselves (and a margin around them) stay level, so streets and houses stand straight. ---------- */
-const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 10 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) } }, HT_PEAK = 95;
-function terrainH(x, z) {
+const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 10 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) } }, HT_PEAK = 95;
+function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
+function terrainBase(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
   let dm = 1e9; for (const b of HT_U.uCity.value) dm = Math.min(dm, Math.hypot(Math.max(b.x - x, x - b.z, 0), Math.max(b.y - z, z - b.w, 0)));
   const f = smooth01(20, 200, dm); if (f <= 0) return 0;
@@ -803,13 +804,16 @@ function terrainUpdate() {
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
   let i = open.length; for (const m of S.mallSpots) if (m && i < 10) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
+  S.ykSpot = ykSpot(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[10];
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[10]; uniform vec4 uMound;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
-float terrainH(vec2 p) {
+float terrainBase(vec2 p);
+float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
+float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
   float dm = 1e9; for (int i = 0; i < 10; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   float f = wsm0(20., 200., dm); if (f <= 0.) return 0.;
@@ -845,7 +849,7 @@ const WARP_WPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined (
 function warpMat(m) {
   if (!m || m.userData.warpOk || m.isShaderMaterial || m.isSpriteMaterial || m.isRawShaderMaterial) return; m.userData.warpOk = true;
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
-  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity;
+  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + warpGLSL()).replace("#include <project_vertex>", WARP_PROJ).replace("#include <worldpos_vertex>", WARP_WPOS); };
   m.customProgramCacheKey = () => key.call(m) + "|warp"; m.needsUpdate = true;
 }
@@ -1161,9 +1165,9 @@ function solid(parts, x, z, ry = 0, data, y = 0) {
   grp.position.set(x, y, z); grp.rotation.y = ry; world.add(grp); return grp;
 }
 // a sign painted on a building: a canvas texture on a flat board, lit like a real shop sign
-function sign(text, w, h, { bg = "#ffffff", fg = "#1b2430", font = "800" } = {}) {
+function sign(text, w, h, { bg = "#ffffff", fg = "#1b2430", font = "800", res = 1100 } = {}) {
   // the canvas keeps the sign's exact proportions (no stretched letters) with enough pixels for the letters to stay sharp up close
-  const asp = w / h, H = Math.max(72, Math.min(320, Math.round(1100 / asp))), W = Math.min(4096, Math.round(H * asp)), cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const asp = w / h, H = Math.max(res < 1100 ? 40 : 72, Math.min(320, Math.round(res / asp))), W = Math.min(4096, Math.round(H * asp)), cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const x = cv.getContext("2d"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
   let size = Math.round(H * .68); x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle";
   do { x.font = `${font} ${size}px Heebo, Arial, sans-serif`; size -= 2; } while (x.measureText(text).width > W * .9 && size > 10);
@@ -1209,7 +1213,7 @@ function buildHills() {
   terrainUpdate();
   const C = 10, X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
   // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
-  const HW = highwaySegs(), roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
+  const HW = [...highwaySegs(), ...extraRoads()], roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : 0; }
   const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
   const vtx = (i, j) => { const h = H[j * (nx + 1) + i], x = -X + i * C, z = -Z + j * C;
@@ -2171,6 +2175,386 @@ function projectModel(kind) {
   }
   return Q;
 }
+/* ============================ YALLKEA: the furniture store on the hill ============================ */
+// the standard furniture catalog: every piece in sizes (s, m, l) and styles (modern, wood, classic), built in local coords: centered, standing on y=0, its front facing +z
+const FSTY = { modern: { n: "מודרני", wood: "#e2ddd5", dark: "#2b2b2b", fab: "#8d939a", acc: "#f2efe9", metal: "#c9ced3", k: 1 },
+  wood: { n: "עץ טבעי", wood: "#b9834f", dark: "#8a5a30", fab: "#cdb892", acc: "#efe4cf", metal: "#8a5a30", k: 1.15 },
+  classic: { n: "קלאסי", wood: "#5a3a26", dark: "#3d2716", fab: "#7a1c2c", acc: "#d9b65a", metal: "#c9a24a", k: 1.35 } };
+const FSIZE = { s: ["קטן", 1], m: ["בינוני", 1.4], l: ["גדול", 2] };
+const FROOMS = { living: ["🛋️", "סלון"], bedroom: ["🛏️", "חדר שינה"], kitchen: ["🍳", "מטבח"], dining: ["🍽️", "פינת אוכל"], kids: ["🧸", "חדר ילדים"], office: ["💻", "משרד ביתי"], bath: ["🛁", "אמבטיה"], garden: ["🌿", "גינה ומרפסת"], decor: ["🖼️", "עיצוב ואביזרים"] };
+const flegs = (w, d, h, col, inset = .08, r = .03) => [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => cyl(r, r, h, 6, col, a * (w / 2 - inset), 0, b * (d / 2 - inset)));
+const FURN = {
+  sofa: { room: "living", n: "ספה", price: 1400, dims: { s: [1.8, .9], m: [2.4, .95], l: [2.9, 1.6] }, build(o) {
+    const S = FSTY[o.style], c = o.color || S.fab, [w, d] = this.dims[o.size], Q = [], legH = o.style === "modern" ? .18 : .1, dd = o.size === "l" ? .95 : d;
+    Q.push(box(w, .32, dd, c, 0, legH, 0), box(w, .55, .22, c, 0, legH + .3, -dd / 2 + .11), box(.2, .3, dd, c, -w / 2 + .1, legH + .3, 0), box(.2, .3, dd, c, w / 2 - .1, legH + .3, 0));
+    const n = o.size === "s" ? 2 : 3; for (let i = 0; i < n; i++) { const cw = (w - .44) / n; Q.push(box(cw - .04, .14, dd - .3, c, -w / 2 + .22 + cw * (i + .5), legH + .32, .08), box(cw - .1, .38, .14, c, -w / 2 + .22 + cw * (i + .5), legH + .48, -dd / 2 + .3, { x: -.15 })); }
+    if (o.size === "l") Q.push(box(.95, .32, d - dd + .05, c, w / 2 - .5, legH, dd / 2 + (d - dd) / 2 - .02), box(.85, .14, d - dd, c, w / 2 - .5, legH + .32, dd / 2 + (d - dd) / 2 - .02));   // the chaise
+    if (o.style === "classic") { for (let i = 0; i < 6; i++) Q.push(sph(.025, S.acc, -w / 2 + .4 + i * (w - .8) / 5, legH + .62, -dd / 2 + .23)); Q.push(cyl(.14, .14, dd, 10, c, -w / 2 + .1, legH + .62, 0, { x: Math.PI / 2 }), cyl(.14, .14, dd, 10, c, w / 2 - .1, legH + .62, 0, { x: Math.PI / 2 })); }
+    Q.push(...flegs(w, dd, legH, o.style === "modern" ? S.metal : S.dark, .1, o.style === "modern" ? .015 : .035)); return Q; } },
+  armchair: { room: "living", n: "כורסה", price: 650, dims: { s: [.75, .8], m: [.85, .85], l: [1, .95] }, build(o) {
+    const S = FSTY[o.style], c = o.color || S.fab, [w, d] = this.dims[o.size], h = o.style === "classic" ? .75 : .5;
+    return [box(w, .3, d, c, 0, .14, 0), box(w, h, .18, c, 0, .4, -d / 2 + .09), box(.14, .26, d, c, -w / 2 + .07, .44, 0), box(.14, .26, d, c, w / 2 - .07, .44, 0), box(w - .3, .12, d - .25, c, 0, .44, .06), ...flegs(w, d, .14, o.style === "modern" ? S.metal : S.dark, .07, .025)]; } },
+  coffee: { room: "living", n: "שולחן סלון", price: 380, dims: { s: [.8, .8], m: [1.1, .6], l: [1.4, .8] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size];
+    if (o.size === "s") return [cyl(.4, .4, .04, 24, o.style === "modern" ? "*#cfe6ee" : S.wood, 0, .42, 0), cyl(.03, .03, .42, 8, S.dark, 0, 0, 0), cyl(.25, .25, .03, 16, S.dark, 0, 0, 0)];
+    return [box(w, .05, d, o.style === "modern" ? "*#cfe6ee" : S.wood, 0, .4, 0), box(w - .1, .03, d - .1, S.wood, 0, .15, 0), ...flegs(w, d, .4, o.style === "modern" ? S.metal : S.dark, .05, .025)]; } },
+  tvunit: { room: "living", n: "מזנון וטלוויזיה", price: 900, dims: { s: [1.4, .4], m: [1.8, .42], l: [2.4, .45] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], tw = w * .62;
+    return [box(w, .45, d, S.wood, 0, .08, 0), box(w - .04, .02, .02, S.dark, 0, .3, d / 2), box(.02, .4, .02, S.dark, -w / 6, .1, d / 2), box(.02, .4, .02, S.dark, w / 6, .1, d / 2), ...flegs(w, d, .08, S.dark, .06, .02),
+      box(tw, tw * .58, .05, "#111111", 0, .7, -.02), box(tw - .06, tw * .58 - .06, .01, "*#1e3a52", 0, .73, .01), box(.25, .05, .18, "#111111", 0, .53, -.02), box(.04, .17, .04, "#111111", 0, .55, -.02)]; } },
+  bookcase: { room: "living", n: "ספרייה", price: 520, dims: { s: [.8, .32], m: [.8, .32], l: [1.6, .32] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], h = o.size === "s" ? 1.2 : 2, n = o.size === "s" ? 3 : 5, Q = [box(w, h, .03, S.wood, 0, 0, -d / 2 + .015), box(.03, h, d, S.wood, -w / 2, 0, 0), box(.03, h, d, S.wood, w / 2, 0, 0)];
+    for (let i = 0; i <= n; i++) { const y = i * (h - .03) / n; Q.push(box(w, .03, d, S.wood, 0, y, 0)); if (i < n) for (let j = 0; j < Math.floor(w / .09) - 2; j++) if ((i * 7 + j * 3) % 5) Q.push(box(.06, .18 + ((i + j) % 3) * .04, d * .75, ["#c0392b", "#2f6e7a", "#e8c547", "#4a4a4a", "#8a5a30"][(i + j) % 5], -w / 2 + .1 + j * .09, y + .03, 0)); }
+    return Q; } },
+  rug: { room: "living", n: "שטיח", price: 260, dims: { s: [1.6, 1.2], m: [2.4, 1.7], l: [3, 2.2] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], c = o.color || (o.style === "classic" ? "#7a1c2c" : o.style === "wood" ? "#c9a46a" : "#b9bec4");
+    return [box(w, .015, d, c, 0, 0, 0), box(w - .3, .016, d - .3, o.style === "classic" ? "#d9b65a" : "#ffffff", 0, 0, 0), box(w - .4, .017, d - .4, c, 0, 0, 0)]; } },
+  floorlamp: { room: "living", n: "מנורה עומדת", price: 190, dims: { s: [.35, .35], m: [.4, .4], l: [.5, .5] }, build(o) {
+    const S = FSTY[o.style], h = { s: 1.3, m: 1.6, l: 1.9 }[o.size]; return [cyl(.17, .17, .03, 16, S.dark, 0, 0, 0), cyl(.015, .015, h, 6, S.metal, 0, 0, 0), cyl(.13, .2, .28, 16, o.style === "classic" ? "#efe0b8" : "#f4f1ea", 0, h - .1, 0), sph(.06, "*#fff1c2", 0, h, 0)]; } },
+  bed: { room: "bedroom", n: "מיטה", price: 1600, dims: { s: [.95, 2.05], m: [1.65, 2.1], l: [2.05, 2.15] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], c = o.color || (o.style === "classic" ? "#7a1c2c" : o.style === "wood" ? "#6f8f6a" : "#4a5a6a"), hb = o.style === "classic" ? 1.25 : o.style === "wood" ? .95 : .8;
+    const Q = [box(w, .3, d, S.wood, 0, .12, 0), box(w - .06, .22, d - .1, "#f6f3ec", 0, .42, .03), box(w - .02, .08, d * .58, c, 0, .62, d * .2), box(w + .06, hb, .1, S.wood, 0, 0, -d / 2 - .02), ...flegs(w, d, .12, S.dark, .06, .03)];
+    const np = o.size === "s" ? 1 : 2; for (let i = 0; i < np; i++) Q.push(box(np === 1 ? w * .7 : w * .42, .14, .4, "#ffffff", np === 1 ? 0 : (i ? 1 : -1) * w * .24, .64, -d / 2 + .32));
+    if (o.style === "classic") for (let i = 0; i < 5; i++) Q.push(sph(.03, S.acc, -w / 2 + .25 + i * (w - .5) / 4, .9, -d / 2 + .04));
+    return Q; } },
+  nightstand: { room: "bedroom", n: "שידת לילה", price: 220, dims: { s: [.4, .35], m: [.5, .4], l: [.6, .45] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; return [box(w, .5, d, S.wood, 0, .08, 0), box(w - .06, .18, .01, S.dark, 0, .3, d / 2), sph(.02, S.metal, 0, .4, d / 2 + .01), ...flegs(w, d, .08, S.dark, .04, .02), cyl(.07, .1, .22, 12, "#efe7d6", .05, .58, -.03), sph(.04, "*#fff1c2", .05, .76, -.03)]; } },
+  wardrobe: { room: "bedroom", n: "ארון בגדים", price: 1300, dims: { s: [1, .6], m: [1.5, .6], l: [2.2, .62] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], n = o.size === "s" ? 2 : o.size === "m" ? 3 : 4, Q = [box(w, 2.1, d, S.wood, 0, .05, 0), box(w + .04, .05, d + .04, S.dark, 0, 2.15, 0)];
+    for (let i = 0; i < n; i++) { const x = -w / 2 + w / n * (i + .5); Q.push(box(w / n - .03, 2, .02, o.style === "modern" && i === 1 ? "*#c9d6dc" : S.wood, x, .1, d / 2), box(.02, .3, .03, S.metal, x + (i % 2 ? -1 : 1) * (w / n / 2 - .08), 1, d / 2 + .02)); }
+    return Q; } },
+  dresser: { room: "bedroom", n: "שידה ומראה", price: 750, dims: { s: [.8, .45], m: [1.1, .45], l: [1.5, .5] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], Q = [box(w, .8, d, S.wood, 0, .08, 0), ...flegs(w, d, .08, S.dark, .05, .025)];
+    for (let i = 0; i < 3; i++) Q.push(box(w - .06, .22, .01, S.dark, 0, .14 + i * .25, d / 2), sph(.02, S.metal, -w / 4, .25 + i * .25, d / 2 + .01), sph(.02, S.metal, w / 4, .25 + i * .25, d / 2 + .01));
+    Q.push(box(w * .7, .8, .03, o.style === "classic" ? S.acc : S.wood, 0, .9, -d / 2 + .05), box(w * .7 - .08, .72, .01, "*#dbe9ef", 0, .94, -d / 2 + .07)); return Q; } },
+  kitchen: { room: "kitchen", n: "מטבח", price: 4200, dims: { s: [1.8, .62], m: [2.6, .62], l: [3.4, .62] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], n = Math.round(w / .6), Q = [box(w, .86, d, S.wood, 0, .04, 0), box(w + .02, .04, d + .02, o.style === "modern" ? "#2b2b2b" : "#e9e4d9", 0, .9, 0), box(w, .7, .35, S.wood, 0, 1.5, -d / 2 + .17), box(w, .6, .02, "#e9eef0", 0, .94, -d / 2 + .01)];
+    for (let i = 0; i < n; i++) { const x = -w / 2 + w / n * (i + .5); Q.push(box(w / n - .02, .75, .01, S.acc === "#d9b65a" ? "#4a2f1e" : S.wood, x, .1, d / 2), box(.12, .015, .02, S.metal, x, .78, d / 2 + .01), box(w / n - .02, .62, .01, S.wood, x, 1.54, -d / 2 + .35)); }
+    Q.push(box(.5, .02, .38, "#c9ced3", -w / 4, .93, .02), cyl(.02, .02, .25, 6, S.metal, -w / 4, .94, -.2), box(.02, .02, .14, S.metal, -w / 4, 1.18, -.13));   // the sink
+    if (o.size !== "s") Q.push(box(.58, .015, .5, "#1a1a1a", w / 4, .93, 0), ...[[-.13, -.12], [.13, -.12], [-.13, .12], [.13, .12]].map(([a, b]) => cyl(.08, .08, .01, 14, "#555555", w / 4 + a, .95, b)));
+    if (o.size === "l") Q.push(box(.6, .35, .4, S.metal, w / 4, 1.8, -d / 2 + .2));
+    return Q; } },
+  fridge: { room: "kitchen", n: "מקרר", price: 2100, dims: { s: [.6, .65], m: [.7, .7], l: [.9, .72] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], h = { s: 1.5, m: 1.8, l: 1.85 }[o.size], c = o.style === "classic" ? "#e9dfc8" : o.style === "wood" ? "#f4f1ea" : "#c9ced3";
+    const Q = [box(w, h, d, c, 0, 0, 0), box(w - .02, .01, .01, "#8a8e93", 0, h * .62, d / 2 + .005), box(.03, .35, .04, S.metal, w / 2 - .08, h * .7, d / 2 + .02), box(.03, .35, .04, S.metal, w / 2 - .08, h * .4, d / 2 + .02)];
+    if (o.size === "l") Q.push(box(.01, h * .62, .01, "#8a8e93", 0, 0, d / 2 + .005)); return Q; } },
+  island: { room: "kitchen", n: "אי מטבח", price: 1900, dims: { s: [1.2, .7], m: [1.6, .8], l: [2.2, .9] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], Q = [box(w, .86, d, S.wood, 0, .04, 0), box(w + .3, .05, d + .1, o.style === "modern" ? "#f2f2f2" : "#e2d8c6", .15, .9, 0)];
+    for (let i = 0; i < Math.round(w / .55); i++) Q.push(cyl(.17, .17, .05, 14, S.dark, -w / 2 + .35 + i * .55, .68, d / 2 + .35), cyl(.025, .025, .68, 6, S.metal, -w / 2 + .35 + i * .55, 0, d / 2 + .35));
+    return Q; } },
+  dtable: { room: "dining", n: "שולחן אוכל", price: 1200, dims: { s: [1.2, .8], m: [1.8, .9], l: [2.4, 1] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], Q = [box(w, .05, d, S.wood, 0, .74, 0), ...flegs(w, d, .74, o.style === "modern" ? S.dark : S.wood, .08, o.style === "classic" ? .045 : .03)];
+    const per = o.size === "s" ? 2 : o.size === "m" ? 3 : 4;   // the chairs come with it
+    for (let i = 0; i < per; i++) for (const sd of [-1, 1]) { const x = -w / 2 + w / per * (i + .5); Q.push(...FURN.chair.build({ ...o, size: "m" }).map(g => g.rotateY(sd > 0 ? Math.PI : 0).translate(x, 0, sd * (d / 2 + .25)))); }
+    if (o.size === "l") for (const sx of [-1, 1]) Q.push(...FURN.chair.build({ ...o, size: "m" }).map(g => g.rotateY(sx > 0 ? -Math.PI / 2 : Math.PI / 2).translate(sx * (w / 2 + .3), 0, 0)));
+    return Q; } },
+  chair: { room: "dining", n: "כיסא", price: 160, dims: { s: [.42, .42], m: [.46, .46], l: [.52, .5] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], c = o.style === "classic" ? (o.color || S.fab) : S.wood, bh = o.style === "classic" ? .55 : .42;
+    return [box(w, .05, d, c, 0, .45, 0), box(w, bh, .04, o.style === "modern" ? S.dark : S.wood, 0, .5, -d / 2 + .02), ...flegs(w, d, .45, o.style === "modern" ? S.metal : S.dark, .03, .018)]; } },
+  bunk: { room: "kids", n: "מיטת קומתיים", price: 1100, dims: { s: [.95, 2], m: [1, 2.05], l: [1.05, 2.1] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], c = o.color || ["#2f7fa8", "#e05a4f", "#3fae6a"][["modern", "wood", "classic"].indexOf(o.style)];
+    const Q = [...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => box(.07, 1.8, .07, S.wood, a * (w / 2 - .03), 0, b * (d / 2 - .03)))];
+    for (const y of [.25, 1.25]) Q.push(box(w, .1, d, S.wood, 0, y, 0), box(w - .06, .14, d - .06, "#f6f3ec", 0, y + .1, 0), box(w - .02, .06, d * .55, c, 0, y + .24, d * .2), box(w * .6, .1, .3, "#ffffff", 0, y + .26, -d / 2 + .25));
+    Q.push(box(w, .2, .04, S.wood, 0, 1.55, d / 2 - .03), ...[.5, .8, 1.1].map(y => box(.04, .04, .4, S.wood, w / 2 - .02, y, d / 2 - .3)));
+    return Q; } },
+  toybox: { room: "kids", n: "ארגז צעצועים", price: 180, dims: { s: [.6, .4], m: [.8, .45], l: [1, .5] }, build(o) {
+    const [w, d] = this.dims[o.size]; return [box(w, .45, d, o.color || "#f2b440", 0, 0, 0), box(w + .02, .05, d + .02, "#e05a4f", 0, .45, 0), sph(.08, "#2f7fa8", -w / 4, .55, 0), box(.12, .12, .12, "#3fae6a", w / 5, .5, .05)]; } },
+  kidsdesk: { room: "kids", n: "שולחן ילדים", price: 240, dims: { s: [.7, .5], m: [.9, .55], l: [1.1, .6] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; return [box(w, .04, d, "#f4f1ea", 0, .55, 0), ...flegs(w, d, .55, o.color || "#2f7fa8", .04, .025), box(.35, .03, .35, o.color || "#e05a4f", 0, .3, d / 2 + .3), ...flegs(.35, .35, .3, "#e05a4f", .03, .015).map(g => g.translate(0, 0, d / 2 + .3))]; } },
+  desk: { room: "office", n: "שולחן עבודה", price: 680, dims: { s: [.9, .55], m: [1.3, .65], l: [1.8, .75] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; return [box(w, .04, d, S.wood, 0, .73, 0), ...flegs(w, d, .73, o.style === "modern" ? S.dark : S.wood, .04, .025), box(.45, .6, d - .1, S.wood, w / 2 - .26, .1, 0),
+      box(.55, .35, .03, "#111111", 0, .9, -d / 2 + .12), box(.51, .31, .01, "*#2a5a7a", 0, .92, -d / 2 + .14), box(.04, .16, .04, "#111111", 0, .76, -d / 2 + .12), box(.4, .015, .14, "#e8e8e8", 0, .77, .05)]; } },
+  officechair: { room: "office", n: "כיסא משרדי", price: 420, dims: { s: [.55, .55], m: [.6, .6], l: [.66, .66] }, build(o) {
+    const S = FSTY[o.style], c = o.color || (o.style === "classic" ? "#3d2716" : "#2b2b2b"); return [cyl(.3, .3, .04, 5, "#444444", 0, .05, 0), cyl(.03, .03, .4, 6, "#888888", 0, .08, 0), box(.5, .08, .48, c, 0, .48, 0), box(.48, .6, .07, c, 0, .6, -.22, { x: -.1 })]; } },
+  bathtub: { room: "bath", n: "אמבטיה", price: 1500, dims: { s: [1.5, .7], m: [1.7, .75], l: [1.9, .9] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; const Q = [box(w, .55, d, "#ffffff", 0, o.style === "classic" ? .12 : 0, 0), box(w - .12, .02, d - .12, "*#bfe3f2", 0, (o.style === "classic" ? .12 : 0) + .5, 0), cyl(.02, .02, .25, 6, S.metal, w / 2 - .12, (o.style === "classic" ? .12 : 0) + .55, 0)];
+    if (o.style === "classic") Q.push(...flegs(w, d, .12, S.acc, .1, .05)); return Q; } },
+  vanity: { room: "bath", n: "ארון כיור ומראה", price: 800, dims: { s: [.6, .45], m: [.9, .48], l: [1.4, .5] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; return [box(w, .75, d, S.wood, 0, .1, 0), box(w + .02, .05, d + .02, "#f4f4f4", 0, .85, 0), box(w * .45, .1, d * .6, "#ffffff", 0, .9, .03), cyl(.015, .015, .2, 6, S.metal, 0, .9, -d / 2 + .08),
+      box(w * .8, .7, .03, S.metal, 0, 1.25, -d / 2 + .02), box(w * .8 - .06, .64, .01, "*#dbe9ef", 0, 1.28, -d / 2 + .04)]; } },
+  shower: { room: "bath", n: "מקלחון", price: 1100, dims: { s: [.8, .8], m: [.9, .9], l: [1.2, .9] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size]; return [box(w, .08, d, "#f4f4f4", 0, 0, 0), box(w, 2, .02, "*#d6eef6", 0, .08, d / 2), box(.02, 2, d, "*#d6eef6", w / 2, .08, 0), box(.03, 2.05, .03, S.metal, w / 2, 0, d / 2), cyl(.12, .12, .02, 14, S.metal, -w / 4, 1.95, -d / 4), cyl(.015, .015, .3, 6, S.metal, -w / 4, 1.95, -d / 2 + .04, { x: Math.PI / 2 })]; } },
+  lounger: { room: "garden", n: "מיטת שיזוף", price: 450, dims: { s: [.65, 1.8], m: [.7, 1.95], l: [.8, 2.05] }, build(o) {
+    const S = FSTY[o.style], [w, d] = this.dims[o.size], c = o.color || "#f4f1ea"; return [box(w, .08, d * .68, S.wood, 0, .3, .15 * d), box(w, .08, d * .36, S.wood, 0, .5, -d * .3, { x: .6 }), box(w - .06, .06, d * .65, c, 0, .38, .15 * d), ...flegs(w, d * .9, .3, S.dark, .05, .025)]; } },
+  parasol: { room: "garden", n: "שמשייה", price: 300, dims: { s: [2, 2], m: [2.6, 2.6], l: [3.2, 3.2] }, build(o) {
+    const [w] = this.dims[o.size]; return [cyl(.3, .3, .1, 14, "#555555", 0, 0, 0), cyl(.03, .03, 2.3, 8, "#dddddd", 0, 0, 0), part(new THREE.ConeGeometry(w / 2, .45, 8), o.color || "#e05a4f", 0, 2.35, 0)]; } },
+  outdoorset: { room: "garden", n: "פינת ישיבה לגינה", price: 950, dims: { s: [1.6, 1.6], m: [2, 2], l: [2.6, 2.6] }, build(o) {
+    const S = FSTY[o.style], r = this.dims[o.size][0] / 4, Q = [cyl(r * .9, r * .9, .04, 18, S.wood, 0, .72, 0), cyl(.04, .04, .72, 6, S.dark, 0, 0, 0)];
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4; Q.push(...FURN.chair.build({ style: o.style === "classic" ? "wood" : o.style, size: "m" }).map(g => g.rotateY(-a + Math.PI).translate(Math.sin(a) * (r + .45), 0, Math.cos(a) * (r + .45)))); }
+    return Q; } },
+  planter: { room: "garden", n: "עציץ ענק", price: 140, dims: { s: [.4, .4], m: [.6, .6], l: [.9, .9] }, build(o) {
+    const S = FSTY[o.style], [w] = this.dims[o.size]; return [cyl(w / 2, w * .4, w * .8, 14, o.style === "classic" ? "#b5563a" : o.style === "wood" ? S.wood : "#e9e9e9", 0, 0, 0), sph(w * .55, "#4f8a3a", 0, w * 1.2, 0, 1, 1.3, 1), sph(w * .4, "#5f9a45", w * .2, w * 1.65, -.05, 1, 1.2, 1)]; } },
+  wallart: { room: "decor", n: "תמונה לקיר", price: 120, dims: { s: [.5, .05], m: [.9, .05], l: [1.4, .05] }, build(o) {
+    const S = FSTY[o.style], [w] = this.dims[o.size], h = w * .7, c = o.color || ["#e05a4f", "#2f7fa8", "#f2b440"][["modern", "wood", "classic"].indexOf(o.style)];
+    return [box(w, h, .04, o.style === "classic" ? S.acc : S.dark, 0, 1.3, 0), box(w - .08, h - .08, .01, "#f4f1ea", 0, 1.34, .02), sph(h * .2, c, -w * .12, 1.3 + h * .5, .03, 1, 1, .1), box(w * .45, h * .25, .01, "#3a6e8a", w * .1, 1.36, .03)]; } },
+  mirror: { room: "decor", n: "מראה", price: 210, dims: { s: [.4, .05], m: [.6, .05], l: [.9, .05] }, build(o) {
+    const S = FSTY[o.style], [w] = this.dims[o.size], h = w * 2.1; return [box(w, h, .04, o.style === "classic" ? S.acc : S.wood, 0, .2, 0), box(w - .06, h - .06, .01, "*#dbe9ef", 0, .23, .02)]; } },
+  plant: { room: "decor", n: "צמח בית", price: 90, dims: { s: [.3, .3], m: [.45, .45], l: [.6, .6] }, build(o) {
+    const [w] = this.dims[o.size]; return [cyl(w / 2, w * .38, w * .7, 12, o.color || "#e9e4da", 0, 0, 0), sph(w * .6, "#4f8a3a", 0, w * 1.2, 0, 1, 1.5, 1), sph(w * .45, "#5f9a45", w * .25, w * 1.7, .05, 1, 1.3, 1), sph(w * .35, "#6aa64a", -w * .2, w * 2, -.05)]; } }
+};
+// ---- unique designs (one of a kind per piece): each waits for the founder's OK before it goes on sale ("ok": false = a sketch only)
+const FUNIQ = {
+  sofa: { n: "ספת הגל", by: "סבבהום סטודיו", price: 4900, ok: false, note: "ספה מעוגלת כמו גל, כריות בירוק־כתום, שולחן צד מובנה ומנורה", build(o = {}) {
+    const R = 2.3, N = 7, A = Math.PI * .72, Q = [], blue = o.color || "#2d6b45", yel = "#f08a24", cream = "#f2ede2", brass = "#c9a24a";
+    for (let i = 0; i < N; i++) { const a = -A / 2 + A * (i + .5) / N, sw = 2 * R * Math.sin(A / N / 2) + .02, rot = { y: a };
+      const at = (r, y, g) => { g.rotateY(-a); return g.translate(Math.sin(a) * r, 0, -Math.cos(a) * r + R - .5); };   // around a centre in front: everyone faces the coffee table
+      Q.push(at(R, 0, box(sw, .3, .95, blue, 0, .16, 0)), at(R + .4, 0, box(sw, .62, .22, blue, 0, .3, 0)), at(R - .08, 0, box(sw - .06, .14, .78, i % 2 ? yel : cream, 0, .46, 0)),
+        at(R + .22, 0, cyl(.13, .13, sw - .08, 12, i % 2 ? cream : yel, 0, .7 - (sw - .08) / 2, 0, { z: Math.PI / 2 })), at(R + .38, 0, cyl(.02, .02, .16, 6, brass, 0, 0, 0)), at(R - .38, 0, cyl(.02, .02, .16, 6, brass, 0, 0, 0)));
+    }
+    for (const sd of [-1, 1]) { const a = sd * (A / 2 + .045), at = g => { g.rotateY(-a); return g.translate(Math.sin(a) * R, 0, -Math.cos(a) * R + R - .5); };   // the rounded arms
+      Q.push(at(box(.2, .5, 1.05, blue, 0, .12, 0)), at(cyl(.1, .1, 1.05, 12, blue, 0, .62 - .525, 0, { x: Math.PI / 2 })), at(cyl(.02, .02, .14, 6, brass, 0, 0, .4)), at(cyl(.02, .02, .14, 6, brass, 0, 0, -.4))); }
+    const tx = Math.sin(A / 2 + .32) * R, tz = -Math.cos(A / 2 + .32) * R + R - .5;   // the built-in side table and its lamp
+    Q.push(cyl(.32, .32, .04, 24, "#b9834f", tx, .55, tz), cyl(.04, .04, .55, 8, brass, tx, 0, tz), cyl(.2, .2, .02, 18, brass, tx, 0, tz), cyl(.015, .015, .5, 6, brass, tx, .59, tz), cyl(.09, .16, .2, 16, yel, tx, 1.05, tz), sph(.05, "*#fff1c2", tx, 1.05, tz));
+    Q.push(cyl(1.15, 1.15, .015, 32, cream, 0, 0, 1.3), cyl(1, 1, .016, 32, yel, 0, 0, 1.3), cyl(.45, .45, .04, 24, "*#cfe6ee", 0, .38, 1.3), cyl(.03, .03, .38, 8, brass, 0, 0, 1.3));   // the round rug and a glass coffee table
+    return Q; } },
+};
+const furnPrice = (id, size, style) => Math.round(FURN[id].price * FSIZE[size][1] * FSTY[style].k / 10) * 10;
+const furnParts = it => FURN[it.id] ? FURN[it.id].build({ size: it.size || "m", style: it.style || "modern", color: it.color }) : [];
+// ---- the store: where it stands. On a hill of its own beside a highway, out of the capital; the hill is raised under it (a flat top, gentle slopes)
+const YK = { name: "סבבהום", slogan: "מרגישים בבית 🏡", R0: 98, R1: 235, H: 18 };
+function ykSpot() {
+  const segs = highwaySegs().filter(sg => sg[5] !== "palm"); if (!segs.length) return null;
+  for (const [a, b, c, d, w] of segs) {
+    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 30)) t0 += 5;
+    for (let t = t0 + 260; t < L - 120; t += 40) for (const sd of [-1, 1]) {
+      const off = w / 2 + YK.R1 + 12, x = a + ux * t + nx * sd * off, z = b + uz * t + nz * sd * off;
+      let ok = true; for (let i = 0; i < 16 && ok; i++) { const an = i / 16 * Math.PI * 2, X = x + Math.cos(an) * YK.R1, Z = z + Math.sin(an) * YK.R1;
+        ok = onGrass(X, Z, S.s, .03) && !inCityBox(X, Z, 40) && !onPalm(X, Z) && !(S.mallSpots || []).some(m => m && Math.hypot(m.x - X, m.z - Z) < 110); }
+      if (!ok) continue;
+      const fx = -nx * sd, fz = -nz * sd, ry = Math.atan2(fx, fz);
+      return { x, z, ry, road: [x + fx * 64, z + fz * 64, a + ux * t + nx * sd * (w / 2 - 1), b + uz * t + nz * sd * (w / 2 - 1)] };
+    }
+  }
+  return null;
+}
+const moundW = (x, z) => { const m = HT_U.uMound.value; if (m.w < .5) return 0; const d = Math.hypot(x - m.x, z - m.y); return d >= YK.R1 ? 0 : 1 - smooth01(YK.R0, YK.R1, d); };
+// roads that aren't highways but must stay clear of the hills and the trees: the mall's and the store's access roads
+const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : [])];
+// ---- סבבהום: a street of ten houses under a glass roof (five on each side, one for every kind of room) and a tall entrance house at the front.
+//      Outside and inside are built from the same plan: each house you see from the road is a showroom you walk into.
+//      Inside coords: x along the street (the door at XB), z across it (north houses z < 0). Outside: the street runs toward the road (local +z)
+const SH = { XA: -38, XB: 54, XH: 42, ZS: 4, ZW: 24, HW: 6, HR: 11, HH: 12, HT: 20, GL: 12, GR: 13.5,
+  houses: [["living", "bedroom"], ["kitchen", "dining"], ["kids", "office"], ["bath", "garden"], ["decor", "food"]] };   // [north, south] for each house, from the door inward
+const shX = i => SH.XH - 16 * i - 8;   // the middle of the i-th house along the street
+const SH_COL = (i, s) => (i + s) % 2 ? ["#3e9b5f", "#e0662a"] : ["#f08a24", "#2d6b45"];   // [walls, roof]: orange houses with green roofs, green houses with orange roofs
+const SH_FEAT = { living: "modern", bedroom: "wood", kitchen: "modern", dining: "wood", kids: "modern", office: "modern", bath: "classic", garden: "wood", decor: "classic" };   // the style of each house's room set; the other two styles stand on the display rows
+const SH_FLOOR = { living: "#c9a47a", bedroom: "#e8dcc6", kitchen: "#e9e9e6", dining: "#b9875a", kids: "#bfe0ef", office: "#d6d0c4", bath: "#e1eef2", garden: "#86b862", decor: "#d9c7a6", food: "#efe6d6" };
+const shTri = (base, h, t, col, x, y, z, ry = 0) => { const sh = new THREE.Shape(); sh.moveTo(-base / 2, 0); sh.lineTo(base / 2, 0); sh.lineTo(0, h); sh.closePath(); const g = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false }); g.translate(0, 0, -t / 2); return part(g, col, x, y, z, { y: ry }); };
+// the room set at the back of each house, in house coords: u across (-8..8, as seen from the street), v from the street (0) to the back wall (20); turn 0 = facing the street
+const SH_P2 = Math.PI / 2;
+const SH_ROOM = {
+  living: [["rug", "l", -3.8, 15.5, SH_P2], ["sofa", "l", -6.3, 15.5, -SH_P2], ["coffee", "m", -3.8, 15.5], ["tvunit", "m", -.9, 15.5, SH_P2], ["armchair", "m", -3.8, 18.6], ["floorlamp", "m", -7.2, 18.8],
+    ["bookcase", "l", 3.2, 19.6], ["armchair", "s", 5, 16], ["floorlamp", "s", 6.4, 17.4], ["plant", "l", 7, 19.2]],
+  bedroom: [["rug", "m", -3, 16.4], ["bed", "l", -3, 18.8], ["nightstand", "m", -4.5, 19.5], ["nightstand", "m", -1.5, 19.5], ["wardrobe", "l", 4.2, 19.6], ["dresser", "m", 7.5, 15.5, SH_P2], ["plant", "m", 7, 19.2]],
+  kitchen: [["kitchen", "l", -2, 19.6], ["fridge", "l", .45, 19.6], ["island", "m", -2, 16.3], ["dtable", "s", 4.5, 15.2], ["plant", "m", 7.2, 19.2]],
+  dining: [["rug", "l", -2.5, 15.5], ["dtable", "l", -2.5, 15.5], ["chair", "m", 4.4, 19.5], ["chair", "m", 5.2, 19.5], ["wallart", "l", -2.5, 19.8], ["dtable", "s", 4.8, 14.5], ["plant", "l", 7.2, 19.2]],
+  kids: [["rug", "m", 0, 16], ["bunk", "m", -6.6, 18.8], ["toybox", "m", -4.4, 19.5], ["kidsdesk", "m", 3.5, 19.3], ["toybox", "s", 1.2, 19.5], ["bunk", "s", 6.6, 18.8], ["plant", "s", -1.2, 19.5]],
+  office: [["rug", "m", -3, 17], ["desk", "l", -3, 19.3], ["officechair", "m", -3, 18.4, Math.PI], ["bookcase", "l", 3.2, 19.6], ["desk", "m", 5.6, 15.5, SH_P2], ["officechair", "m", 4.7, 15.5, -SH_P2], ["plant", "m", 7.2, 19.2]],
+  bath: [["bathtub", "l", -5.2, 19.4], ["vanity", "m", -1.6, 19.6], ["vanity", "s", .4, 19.6], ["shower", "m", 6.9, 18.9], ["plant", "s", 3.2, 19.5]],
+  garden: [["lounger", "m", -6.6, 16.5], ["lounger", "m", -5.4, 16.5], ["parasol", "m", -6, 19], ["outdoorset", "m", 2.5, 15.8], ["parasol", "l", 2.5, 15.8], ["planter", "l", 7, 19.1], ["planter", "m", -1.8, 19.3], ["planter", "s", 5.2, 19.4]],
+  decor: [["sofa", "m", -1.5, 18.3, 0, "classic"], ["coffee", "l", -1.5, 16.6, 0, "classic"], ["wallart", "l", -4.8, 19.8], ["wallart", "m", -1.2, 19.8], ["wallart", "s", 1.6, 19.8], ["mirror", "l", 4.4, 19.8], ["mirror", "s", 6.6, 19.8],
+    ["plant", "l", 6.8, 16.5], ["plant", "m", -6.8, 17], ["plant", "s", 3.5, 17]]
+};
+// the display rows at the front of each house: every piece of the house's kind in the two other styles, packed in a row on each side of a middle aisle
+function shPack(items) {
+  const sz = items.map(() => "m"), wid = () => items.reduce((a, id, k) => a + FURN[id].dims[sz[k]][0] + .5, 0);
+  while (wid() > 12.4) { let bi = -1, bw = 0; items.forEach((id, k) => { if (sz[k] === "m" && FURN[id].dims.m[0] > bw) { bw = FURN[id].dims.m[0]; bi = k; } }); if (bi < 0) break; sz[bi] = "s"; }
+  const out = []; let u = -7.6; items.forEach((id, k) => { const w = FURN[id].dims[sz[k]][0] + .5; if (u < 0 && u + w > -1.4) u = 1.4; out.push([id, sz[k], u + w / 2, w]); u += w; }); return out;
+}
+// ---- outside: the entrance house facing the road with the name on its gable, the street of houses behind it under a glass roof, the parking lot in front
+function buildYallkea() {
+  const sp = S.ykSpot; if (!sp) return; const cs = Math.cos(sp.ry), sn = Math.sin(sp.ry), W = (a, b) => ({ x: sp.x + a * cs + b * sn, z: sp.z - a * sn + b * cs }), data = { type: "place", id: "yallkea" };
+  YK.x = sp.x; YK.z = sp.z; YK.door = W(0, 23); YK.ry = sp.ry;
+  const Q = [], cars = [], trees = [], lamps = [], { HW, HR, HH, HT, GL, GR } = SH, th = Math.atan2(HR - HW, 8), ps = Math.atan2(HT - HH, 24), ph = Math.atan2(GR - GL, 4);
+  Q.push(box(116, .12, 140, "#d8d1c2", 0, 0, -10), box(104, .05, 42, "#4a5057", 0, .12, 46), box(10, .05, 14, "#4a5057", 0, .12, 66));
+  for (const zc of [36, 56]) { Q.push(box(100, .3, 1, "#79a65a", 0, .12, zc)); for (let x = -48; x <= 48; x += 12) trees.push(W(x, zc)); for (let x = -42; x <= 48; x += 18) lamps.push([W(x, zc), sp.ry]);
+    for (let i = 0; i <= 34; i++) { const x = -48 + i * 2.8; Q.push(box(.12, .02, 5, "#f4f1e8", x, .17, zc - 3), box(.12, .02, 5, "#f4f1e8", x, .17, zc + 3));
+      if (i < 34) for (const [dz, r] of [[-3, 0], [3, Math.PI]]) if (hash(`yk:${zc}:${i}:${dz}`) % 10 < 6) cars.push({ ...W(x + 1.4, zc + dz), ry: sp.ry + r, m: CAR_KEYS[hash(`ykm${zc}${i}${dz}`) % CAR_KEYS.length], c: COLORS[COLOR_KEYS[hash(`ykc${zc}${i}${dz}`) % COLOR_KEYS.length]][0] }); } }
+  // the houses: inside house i spans x 42-16(i+1)..42-16i -> outside z -16i ± 8; the north houses stand on the right (+x), the south ones on the left
+  SH.houses.forEach((pair, i) => pair.forEach((rk, s) => {
+    const zc = -16 * i, sg = s ? -1 : 1, [wc, rc] = SH_COL(i, s), X = sg * 14.3;
+    Q.push(box(.4, HW, 16, wc, sg * 23.8, .12, zc), shTri(16, HR - HW, .4, wc, sg * 23.8, HW + .12, zc, SH_P2),
+      box(20.6, .35, 9.7, rc, X, (HW + HR) / 2 - .05, zc + 4, { x: th }), box(20.6, .35, 9.7, rc, X, (HW + HR) / 2 - .05, zc - 4, { x: -th }), box(20.6, .3, .6, "#3b3b3b", X, HR - .05, zc),
+      cyl(.9, .9, .12, 20, "*#cfe6f2", sg * 24.05, 8.3, zc, { z: SH_P2 }), part(new THREE.TorusGeometry(.95, .1, 6, 20), "#ffffff", sg * 24.08, 8.36, zc, { y: SH_P2 }));
+    for (const dz of [-4, 4]) Q.push(box(.1, 2.4, 3, "*#cfe6f2", sg * 24.02, 1.7, zc + dz), box(.14, .14, 3.3, "#ffffff", sg * 24.04, 1.56, zc + dz), box(.14, .14, 3.3, "#ffffff", sg * 24.04, 4.1, zc + dz), box(.14, 2.5, .14, "#ffffff", sg * 24.04, 1.6, zc + dz));
+    if ((i + s) % 2) Q.push(box(1.2, 3.2, 1.2, "#8a5a3c", sg * 15, 8.6, zc + 3), box(1.4, .2, 1.4, "#5a3a26", sg * 15, 11.8, zc + 3));   // a chimney on every other house
+    if (i === 4) Q.push(box(20, HW, .4, wc, sg * 14, .12, -71.8));
+  }));
+  // the glass street between the houses: high walls on both sides and a pitched glass roof on steel ribs
+  for (const sd of [-1, 1]) { Q.push(box(.4, GL, 80, "#f3ead8", sd * 4, .12, -32), box(4.4, .14, 80, "%#a8d4ea", sd * 2, (GL + GR) / 2 + .05, -32, { z: -sd * ph }));
+    for (let z = -72; z <= 8; z += 4) Q.push(box(4.4, .2, .2, "#4a5057", sd * 2, (GL + GR) / 2 + .12, z, { z: -sd * ph })); }
+  Q.push(box(8, GL, .4, "#f3ead8", 0, .12, -71.8), shTri(8, GR - GL, .4, "#f3ead8", 0, GL + .12, -71.8), box(.3, .3, 80, "#4a5057", 0, GR + .05, -32));
+  // the entrance house: twice as tall, its gable facing the road, a green roof, a glass door shaped like a little house under a green canopy
+  Q.push(box(48, HH, .4, "#f08a24", 0, .12, 19.8), box(.4, HH, 12, "#f08a24", 23.8, .12, 14), box(.4, HH, 12, "#f08a24", -23.8, .12, 14), shTri(48, HT - HH, .4, "#f08a24", 0, HH + .12, 19.8), shTri(48, HT - HH, .4, "#f08a24", 0, HH + .12, 8.2),
+    box(26.2, .4, 13.2, "#2d6b45", -12.3, (HH + HT) / 2 - .1, 14, { z: ps }), box(26.2, .4, 13.2, "#2d6b45", 12.3, (HH + HT) / 2 - .1, 14, { z: -ps }), box(.7, .45, 13.2, "#245a3a", 0, HT, 14),
+    box(1.6, 4, 1.6, "#8a5a3c", 15, 15.5, 11), box(1.9, .25, 1.9, "#5a3a26", 15, 19.5, 11),
+    box(9, 5.2, .15, "*#bfe0ee", 0, .12, 20.05), shTri(9.6, 2.6, .15, "*#bfe0ee", 0, 5.32, 20.05), box(.4, 5.4, .3, "#2d6b45", -4.7, .12, 20.1), box(.4, 5.4, .3, "#2d6b45", 4.7, .12, 20.1), box(.2, 5.2, .2, "#2d6b45", 0, .12, 20.12),
+    box(14, .5, 6, "#2d6b45", 0, 6.6, 23), box(13.6, .05, 5.6, "*#fff1c2", 0, 6.55, 23), cyl(.3, .3, 6.6, 10, "#2d6b45", -6.5, .12, 25.6), cyl(.3, .3, 6.6, 10, "#2d6b45", 6.5, .12, 25.6), box(16, .25, 5, "#c9bfae", 0, .12, 22.5),
+    cyl(1.6, 1.6, .15, 24, "*#cfe6f2", 0, 17.3, 20.05, { x: SH_P2 }), part(new THREE.TorusGeometry(1.65, .16, 6, 24), "#ffffff", 0, 17.38, 20.1));
+  for (const sd of [-1, 1]) Q.push(box(10, 4, .12, "*#cfe6f2", sd * 14, 1.5, 20.05), box(10.3, .2, .2, "#ffffff", sd * 14, 1.4, 20.1), box(10.3, .2, .2, "#ffffff", sd * 14, 5.5, 20.1), ...[-5, 0, 5].map(dx => box(.2, 4.1, .2, "#ffffff", sd * 14 + dx, 1.4, 20.1)));
+  // a giant orange shopping bag, flags and planters along the front
+  Q.push(box(4, 4.6, 2.6, "#f08a24", 15, .12, 27), part(new THREE.TorusGeometry(1.1, .18, 8, 20, Math.PI), "#2d6b45", 15, 4.72, 27));
+  for (const x of [-20, -16, -12]) Q.push(cyl(.1, .12, 10, 6, "#d0d0d0", x, .12, 26), box(.05, 1.8, 2.8, x === -16 ? "#f08a24" : "#2d6b45", x, 8.2, 27.4));
+  for (const x of [-21, -9, 9, 21]) trees.push(W(x, 29.5));
+  const g = solid(Q, sp.x, sp.z, sp.ry, data, .25);
+  mountSign(g, sign(YK.name, 20, 4.2, { bg: "#2d6b45", fg: "#ffffff", font: "900" }), 0, 13.6, 20.12);
+  mountSign(g, sign(YK.slogan, 15, 1.7, { bg: "#ffffff", fg: "#e0662a" }), 0, 9.3, 20.12);
+  mountSign(g, sign("כניסה 🚪", 6, 1.1, { bg: "#f08a24", fg: "#ffffff" }), 0, 7.45, 26.02);
+  for (const sd of [-1, 1]) mountSign(g, sign(`🏡 ${YK.name}`, 10, 2.2, { bg: "#2d6b45", fg: "#ffffff" }), sd * 24.04, 8.4, 14, sd * SH_P2);
+  mountSign(g, sign(`🏡 ${YK.name}`, 6, 1.3, { bg: "#2d6b45", fg: "#ffffff" }), 0, 8.6, -72.04, Math.PI);
+  mountSign(g, sign(YK.name, 3.6, 1.1, { bg: "#f08a24", fg: "#ffffff", font: "900" }), 15, 2.6, 28.32);
+  const [ax, az, bx2, bz2] = sp.road, L = Math.hypot(bx2 - ax, bz2 - az), n = Math.max(1, Math.ceil(L / 30));
+  instanced(P.plane, Array.from({ length: n }, (_, i) => i), (i, o) => { o.position.set(ax + (bx2 - ax) * (i + .5) / n, .27, az + (bz2 - az) * (i + .5) / n); o.rotation.y = Math.atan2(bx2 - ax, bz2 - az); o.scale.set(10, 1, L / n + .4); return "#4a5057"; }, { shadow: false });
+  instanced(P.disc, [0], (_, o) => { o.position.set(bx2, .265, bz2); o.scale.set(13, 1, 13); return "#4a5057"; }, { shadow: false });
+  for (const key of CAR_KEYS) { const list = cars.filter(c => c.m === key); if (list.length) instanced(P["car_" + key], list, (c, o) => { o.position.set(c.x, .38, c.z); o.rotation.y = c.ry; return c.c; }); }
+  instanced(P.tree, trees, (q, o) => { o.position.set(q.x, .55, q.z); o.scale.setScalar(.75); });
+  instanced(P.lamp, lamps, ([q, r], o) => { o.position.set(q.x, .4, q.z); o.rotation.y = r; });
+  placeLabel(`🏡 ${YK.name}`, sp.x, 24, sp.z);
+}
+function showYallkea() {
+  const rooms = Object.values(FROOMS).map(r => r[0] + " " + r[1]).join(" · ");
+  open(`🏡 ${YK.name}`, `<div class="hero"><p><b>${YK.name}: ${YK.slogan}</b> חנות הרהיטים הענקית של המדינה, על הגבעה מחוץ לבירה. היא בנויה כמו רחוב של בתים תחת גג זכוכית: כל בית הוא חדר אחר (${rooms}), ובכל בית עומד כל רהיט מהקטלוג בכל הסגנונות. בכניסה בית קפה וקופות, ובסוף הרחוב מסעדה עם קציצות.</p></div>
+    ${creditHtml("yallkea")}<div class="list" style="margin-top:10px">${info("🪑", `${fmtN(Object.keys(FURN).length)} סוגי רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות: מודרני, עץ טבעי וקלאסי")}${info("🛒", "קנייה ועיצוב הבית", "בקרוב: קונים בסבבונים ומסדרים בבית")}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="yallkea">🚪 להיכנס לחנות</button><button class="btn ghost" data-go="catalog">📖 הקטלוג</button>${creditBtn("yallkea")}</div>`);
+}
+const ykCatalog = () => open(`📖 הקטלוג של ${YK.name}`, Object.entries(FROOMS).map(([rk, [ic, rn]]) => {
+  const items = Object.entries(FURN).filter(([, F]) => F.room === rk); if (!items.length) return "";
+  return `<div class="sec">${ic} ${rn}</div><div class="list">${items.map(([id, F]) => info("🪑", F.n, `${Object.entries(FSIZE).map(([sz, s2]) => `${s2[0]} ${fmtN(furnPrice(id, sz, "modern"))}`).join(" · ")} ${COIN} · עץ +15% · קלאסי +35%`)).join("")}</div>`; }).join(""));
+// ---- inside: the same street of houses. A stone street under the glass roof, each house with its shop windows and gable, a wooden ceiling under its pitched roof;
+//      at the front of each house the display rows (every piece in the other two styles), at the back a furnished room in its own style
+function yallkeaScene() {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color("#cfe7f6"); sc.environment = scene.environment;
+  sc.add(new THREE.HemisphereLight("#fffaf0", "#8a8070", 1.55)); const dl = new THREE.DirectionalLight("#fff4e0", 1.45); dl.position.set(20, 40, 25); sc.add(dl);
+  const { XA, XB, XH, ZS, ZW, HW, HR, HH, HT, GL, GR } = SH, P2 = SH_P2, Q = [], QR = [], tags = [], walls = [], th = Math.atan2(HR - HW, 8), sl = Math.hypot(HR - HW, 8);
+  const tag = (text, w, h, x, y, z, ry, bg = "#ffffff", fg = "#1b2430", two = false, res = 380) => tags.push([text, w, h, x, y, z, ry, bg, fg, two, res]);
+  // the floor, the outer walls (low along the houses, tall around the entrance house), the street paving with orange arrows into the store
+  Q.push(box(XB - XA, .2, ZW * 2, "#d9d6cf", (XA + XB) / 2, -.2, 0), box(XH - XA, .02, ZS * 2, "#d8cfc0", (XA + XH) / 2, 0, 0));
+  for (let x = XA + 1; x < XH; x += 2) Q.push(box(.06, .012, ZS * 2, "#c6bcab", x, .01, 0));
+  for (let x = XH - 3; x > XA + 3; x -= 6) Q.push(part(new THREE.ConeGeometry(.8, 1.4, 3).rotateX(-P2).rotateY(-P2), "#f08a24", x, .03, 0).scale(1, .02, 1));
+  for (const sd of [-1, 1]) Q.push(box(XH - XA, HW, .4, "#f7f3ec", (XA + XH) / 2, 0, sd * ZW), box(XB - XH, HH, .4, "#f7f3ec", (XH + XB) / 2, 0, sd * ZW));
+  Q.push(box(.4, HW, ZW * 2, "#f7f3ec", XA, 0, 0), box(.3, GL, ZS * 2, "#f3ead8", XA + .1, 0, 0), shTri(ZS * 2, GR - GL, .3, "#f3ead8", XA + .1, GL, 0, P2));
+  walls.push([XA - 1, -ZW - 1, XB + 1, -ZW + .3], [XA - 1, ZW - .3, XB + 1, ZW + 1], [XA - 1, -ZW, XA + .3, ZW], [XB - .3, -ZW, XB + 1, -3.5], [XB - .3, 3.5, XB + 1, ZW]);
+  tag(`🏡 ${YK.name} · ${YK.slogan}`, 7, 1.2, XA + .3, 8.4, 0, P2, "#2d6b45", "#ffffff", false, 900);
+  // the walls between the houses (white, a wooden skirting)
+  for (const x of [26, 10, -6, -22]) for (const sd of [-1, 1]) { Q.push(box(.3, HW, ZW - ZS, "#f7f3ec", x, 0, sd * (ZW + ZS) / 2), box(.34, .14, ZW - ZS, "#b9834f", x, 0, sd * (ZW + ZS) / 2)); walls.push([x - .2, sd > 0 ? ZS : -ZW, x + .2, sd > 0 ? ZW : -ZS]); }
+  // the street: trees in planters with benches, lamp posts
+  for (const x of [26, 10, -6, -22]) { Q.push(cyl(.7, .6, .6, 14, "#2d6b45", x, 0, 0), cyl(.08, .1, 1.6, 6, "#7a5a3a", x, .6, 0), sph(.9, "#4f9a45", x, 2.6, 0, 1, 1.15, 1), sph(.6, "#5fae4f", x + .3, 3.2, .2),
+      box(1.8, .08, .5, "#b9834f", x + 2.2, .45, 0), box(1.8, .45, .06, "#b9834f", x + 2.2, .5, -.24), box(.1, .45, .4, "#2b2b2b", x + 1.5, 0, 0), box(.1, .45, .4, "#2b2b2b", x + 2.9, 0, 0)); walls.push([x - .8, -.8, x + 3.1, .8]); }
+  for (let i = 0; i < 5; i++) for (const sd of [-1, 1]) { const x = shX(i) + 5; Q.push(cyl(.06, .08, 3.6, 8, "#2b2b2b", x, 0, sd * (ZS - .5)), sph(.22, "*#fff1c2", x, 3.75, sd * (ZS - .5))); }
+  // above the house fronts: the high walls of the street with round windows, the pitched glass roof on steel ribs
+  const MX = (XA + XH) / 2, LX = XH - XA, ph = Math.atan2(GR - GL, ZS), pl = Math.hypot(GR - GL, ZS);
+  for (const sd of [-1, 1]) { Q.push(box(LX, GL - HW, .3, "#f3ead8", MX, HW, sd * ZS)); QR.push(box(LX, .1, pl + .2, "%#bfe3f2", MX, (GL + GR) / 2 - .05, sd * ZS / 2, { x: sd * ph }));
+    for (let x = XA; x <= XH; x += 4) QR.push(box(.16, .16, pl + .2, "#4a5057", x, (GL + GR) / 2 - .08, sd * ZS / 2, { x: sd * ph }));
+    for (let x = XA + 8; x < XH; x += 16) Q.push(cyl(.55, .55, .08, 16, "*#dff1ff", x, 9.3, sd * (ZS - .2), { x: P2 })); }
+  QR.push(box(LX, .2, .2, "#4a5057", MX, GR - .1, 0));
+  // ---- the houses
+  SH.houses.forEach((pair, i) => pair.forEach((rk, s) => {
+    const xc = shX(i), [wc] = SH_COL(i, s), H = [], at = (u, v) => s ? [xc + u, ZS + v] : [xc - u, -ZS - v], face = s ? Math.PI : 0, turn = s ? Math.PI : 0,
+      put = (list, g) => { if (!s) g.rotateY(Math.PI); g.translate(xc, 0, s ? ZS : -ZS); list.push(g); };
+    // the front: two walls with shop windows, a wide opening under a lintel, the gable above with a round window
+    for (const sd of [-1, 1]) { const uc = sd * 5.75;
+      H.push(box(4.5, 1, .3, wc, uc, 0, 0), box(4.5, HW - 3.6, .3, wc, uc, 3.6, 0), box(.75, 2.6, .3, wc, sd * 3.875, 1, 0), box(.75, 2.6, .3, wc, sd * 7.625, 1, 0), box(3, 2.6, .05, "%#cfe8f2", uc, 1, 0),
+        box(3.2, .1, .4, "#ffffff", uc, .95, 0), box(4.5, .12, .36, "#ffffff", uc, HW - .12, 0)); }
+    H.push(box(7, HW - 4.4, .3, wc, 0, 4.4, 0), shTri(16, HR - HW, .3, wc, 0, HW, -.25), cyl(.75, .75, .1, 18, "*#fff6dc", 0, 8, -.45, { x: P2 }), part(new THREE.TorusGeometry(.8, .09, 6, 18), "#ffffff", 0, 8.05, -.48));
+    for (const sd of [-1, 1]) walls.push([xc + sd * 3.5 + (sd < 0 ? -4.5 : 0), (s ? ZS : -ZS) - .25, xc + sd * 3.5 + (sd > 0 ? 4.5 : 0), (s ? ZS : -ZS) + .25]);
+    // inside: the floor, the back gable with a round window, two windows in the back wall
+    H.push(box(15.7, .02, 19.7, SH_FLOOR[rk], 0, .005, 10), shTri(16, HR - HW, .3, "#f7f3ec", 0, HW, 19.85), cyl(.9, .9, .1, 20, "*#dff1ff", 0, 8.3, 19.62, { x: P2 }));
+    for (const du of [-4.5, 4.5]) H.push(box(3, 2.4, .05, "*#e3f3fc", du, 1.5, 19.76), box(3.3, .14, .12, "#ffffff", du, 1.4, 19.72), box(3.3, .14, .12, "#ffffff", du, 3.92, 19.72), box(.12, 2.5, .12, "#ffffff", du, 1.45, 19.72));
+    // the ceiling under the pitched roof: light wood boards, tie beams, the ridge beam, two pendant lamps
+    const R2 = [];
+    for (const sd of [-1, 1]) R2.push(box(sl + .1, .15, 20, "#efe3cf", sd * 4, (HW + HR) / 2 - .075, 10, { z: -sd * th }));
+    for (const v of [2.5, 7.5, 12.5, 17.5]) R2.push(box(16, .25, .3, "#b9834f", 0, HW - .3, v));
+    R2.push(box(.3, .3, 20, "#b9834f", 0, HR - .45, 10));
+    for (const v of [6, 14]) H.push(cyl(.012, .012, HR - 5, 4, "#2b2b2b", 0, 4.6, v), cyl(.22, .42, .35, 14, wc, 0, 4.3, v), sph(.15, "*#fff1c2", 0, 4.33, v));
+    // the name of the house over its opening
+    const [ox, oz] = at(0, -.2);
+    if (rk === "food") tag(`🍽️ מסעדת ${YK.name}`, 6, 1.1, ox, 5.2, oz, face, "#ffffff", "#2d6b45", false, 900);
+    else { const [ic, rn] = FROOMS[rk]; tag(`${ic} ${rn}`, 5, 1.1, ox, 5.2, oz, face, "#ffffff", wc === "#f08a24" ? "#c25f10" : "#2d6b45", false, 900); }
+    // a piece of furniture, in house coords, with a price tag on a little stand in front of it
+    const placeF = (id, size, style, u, v, ry = 0, tagIt = true, y = 0) => {
+      const [x, z] = at(u, v), wr = ry + Math.PI + turn; Q.push(...furnParts({ id, size, style }).map(g => { g.rotateY(wr); return g.translate(x, y, z); }));
+      if (!tagIt) return; const [w0, d0] = FURN[id].dims[size], dep = Math.abs(Math.sin(ry)) > .5 ? w0 : d0, wallIt = id === "wallart" || id === "mirror", [tx, tz] = at(u + .3, wallIt ? v - .8 : v - dep / 2 - .45);
+      Q.push(cyl(.018, .018, .8, 5, "#2b2b2b", tx, 0, tz), cyl(.12, .12, .02, 10, "#2b2b2b", tx, 0, tz));
+      tag(`${FURN[id].n} ${FSIZE[size][0]} · ${FSTY[style].n} · ${fmtN(furnPrice(id, size, style))} 🪙`, 2, .34, tx, .98, tz, face); };
+    if (rk !== "food") {
+      for (const [id, size, u, v, ry = 0, st] of SH_ROOM[rk]) placeF(id, size, st || SH_FEAT[rk], u, v, ry);
+      // the display rows: every piece of this kind in the two other styles, on white plinths, with the price from small to large
+      const items = Object.keys(FURN).filter(id => FURN[id].room === rk), row = shPack(items);
+      Object.keys(FSTY).filter(st => st !== SH_FEAT[rk]).forEach((st, r) => { const v = 2.6 + r * 3.5;
+        for (const [id, size, u, w] of row) { const [px, pz] = at(u, v); Q.push(box(w - .2, .06, 3.1, "#f4f1ea", px, 0, pz));
+          if (id === "wallart" || id === "mirror") H.push(box(w - .4, 2.6, .08, "#e9e4da", u, .06, v + .12));
+          placeF(id, size, st, u, v, 0, false, .06);
+          const [tx, tz] = at(u, v - 1.75); Q.push(cyl(.018, .018, .8, 5, "#2b2b2b", tx, 0, tz), cyl(.12, .12, .02, 10, "#2b2b2b", tx, 0, tz));
+          tag(`${FURN[id].n} · ${FSTY[st].n} · ${fmtN(furnPrice(id, "s", st))}–${fmtN(furnPrice(id, "l", st))} 🪙`, Math.min(w - .1, 2.3), .32, tx, .98, tz, face); } });
+    } else {
+      // the restaurant: a long counter with the dishes of the day, the coffee machine and cakes; tables with plates of meatballs and cups of coffee
+      H.push(box(13, 1, 1.1, "#2d6b45", 0, 0, 18.9), box(13.2, .06, 1.3, "#f4f1ea", 0, 1, 18.9), box(13, .45, .04, "%#dff1fa", 0, 1.06, 18.3), box(13.6, 2.4, .1, "#f3ead8", 0, 1.3, 19.8));
+      for (let k = 0; k < 8; k++) { const u = -5.9 + k * 1.3, f = k % 4; H.push(box(1, .04, .6, "#c9ced3", u, 1.06, 18.95));
+        if (f === 0) for (let j = 0; j < 8; j++) H.push(sph(.07, "#8a4a26", u - .3 + (j % 4) * .2, 1.15, 18.85 + (j > 3 ? .2 : 0)));
+        if (f === 1) H.push(sph(.3, "#f2e3b5", u, 1.1, 18.95, 1.4, .35, .8));
+        if (f === 2) for (let j = 0; j < 5; j++) H.push(sph(.13, j % 2 ? "#6aa64a" : "#4f8a3a", u - .3 + j * .15, 1.13, 18.95 + (j % 2 ? .1 : -.1)), sph(.05, "#e05a4f", u - .2 + j * .1, 1.2, 18.9));
+        if (f === 3) for (let j = 0; j < 12; j++) H.push(sph(.04, "#c0392b", u - .3 + (j % 6) * .12, 1.12, 18.85 + (j > 5 ? .18 : 0))); }
+      H.push(box(.8, .6, .5, "#c9ced3", 5.6, 1.06, 19.15), box(.6, .1, .05, "*#7fd1a0", 5.6, 1.45, 18.88), ...[0, 1, 2, 3].map(j => cyl(.045, .04, .09, 10, "#ffffff", 4.9 + j * .13, 1.06, 18.65)));
+      for (const u of [6.9, 7.5]) H.push(cyl(.22, .22, .16, 16, "#e9c38a", u - 1, 1.06, 18.8), cyl(.22, .22, .04, 16, "#7a3b1f", u - 1, 1.22, 18.8));
+      const [mx, mz] = at(0, 19.6); tag(`קציצות 15 🪙 · פירה 6 🪙 · סלט 7 🪙 · קפה 8 🪙 · עוגה 10 🪙`, 9, .8, mx, 3.2, mz, face, "#2d6b45", "#ffffff", false, 900);
+      for (const u of [-5, 0, 5]) for (const v of [5.5, 11]) { placeF("dtable", "s", "modern", u, v, 0, false);
+        for (const [du, dv] of [[-.3, -.2], [.3, .2]]) { H.push(cyl(.13, .13, .02, 14, "#ffffff", u + du, .79, v + dv), ...[0, 1, 2].map(j => sph(.035, "#8a4a26", u + du - .04 + j * .04, .83, v + dv)),
+          cyl(.04, .035, .08, 10, "#ffffff", u + du + (du > 0 ? -.22 : .22), .79, v + dv), cyl(.036, .036, .006, 10, "#4a2a14", u + du + (du > 0 ? -.22 : .22), .865, v + dv)); } }
+    }
+    H.forEach(g => put(Q, g)); R2.forEach(g => put(QR, g));
+  }));
+  // ---- the entrance house: the pitched ceiling up to the ridge, the welcome sign, the info desk, trolleys, the café on one side and the tills on the other
+  const hx = (XH + XB) / 2, ps = Math.atan2(HT - HH, ZW), plh = Math.hypot(HT - HH, ZW);
+  for (const sd of [-1, 1]) { Q.push(box(.3, HH, ZW - ZS, "#f7f3ec", XH, 0, sd * (ZW + ZS) / 2), box(.4, HH, ZW - 3.5, "#f7f3ec", XB, 0, sd * (ZW + 3.5) / 2), box(.06, 4, 8, "*#e3f3fc", XB - .22, 1.5, sd * 13));
+    QR.push(box(XB - XH + .4, .15, plh + .2, "#efe3cf", hx, (HH + HT) / 2 - .075, sd * ZW / 2, { x: sd * ps })); walls.push([XH - .2, sd > 0 ? ZS : -ZW, XH + .2, sd > 0 ? ZW : -ZS]); }
+  Q.push(shTri(ZW * 2, HT - HH, .3, "#f7f3ec", XH, HH, 0, P2), shTri(ZW * 2, HT - HH, .4, "#f7f3ec", XB, HH, 0, P2), box(.4, HH - 5, 7, "#f7f3ec", XB, 5, 0), box(.06, 5, 7, "%#cfe8f2", XB, 0, 0));
+  QR.push(box(XB - XH, .35, .35, "#b9834f", hx, HT - .5, 0));
+  Q.push(box(XB - XH, .02, ZW * 2, "#e6ded0", hx, 0, 0), box(7, .03, 5, "#f08a24", XB - 4, 0, 0), box(6.4, .035, 4.4, "#2d6b45", XB - 4, 0, 0), box(XB - XH, .025, 2.4, "#cfc4b2", hx, 0, 0));   // the hall floor, a welcome mat, a path to the street
+  for (const z of [-12, 0, 12]) Q.push(cyl(.015, .015, HT - 8.6, 4, "#2b2b2b", hx, 8.6, z), cyl(.5, .9, .6, 16, "#f08a24", hx, 8, z), sph(.3, "*#fff1c2", hx, 8.05, z));
+  tag(`ברוכים הבאים ל${YK.name} 🏡`, 9, 1.5, XH + 1.2, 7.4, 0, P2, "#2d6b45", "#ffffff", true, 1100);
+  // the store map on the wall on each side of the street: which house is which
+  for (const sd of [-1, 1]) { Q.push(box(.12, 3.4, 7.4, "#2d6b45", XH + .2, 1.2, sd * 10));
+    SH.houses.forEach((pair, i) => { const rk = pair[sd > 0 ? 1 : 0], lab = rk === "food" ? "🍽️ מסעדה" : FROOMS[rk].join(" "); tag(`${i + 1} · ${lab}`, 6.4, .5, XH + .3, 3.9 - i * .6, sd * 10, P2, "#ffffff", "#2d6b45", false, 600); });
+    tag("🏠 הבתים בצד הזה של הרחוב", 6.4, .55, XH + .3, 4.5, sd * 10, P2, "#f08a24", "#ffffff", false, 600); }
+  // the info desk, the orange bags and a row of trolleys by the door
+  Q.push(box(3.2, 1.1, 1.3, "#f08a24", 50, 0, 6.5), box(3.4, .08, 1.5, "#2d6b45", 50, 1.1, 6.5), ...Array.from({ length: 5 }, (_, k) => box(.6, .7, .4, "#f08a24", 52.5, 0, -10 + k * .5)));
+  tag("ℹ️ מודיעין", 2.6, .55, 51.75, 1.75, 6.5, P2, "#2d6b45", "#ffffff", false, 600);
+  for (let k = 0; k < 6; k++) { const x = 51.5 - k * .3; Q.push(box(.6, .5, .9, "#c9ced3", x, .35, -5.5), box(.62, .05, .92, "#9aa0a6", x, .85, -5.5), box(.05, .5, .05, "#9aa0a6", x - .28, .85, -5.95), ...[-.3, .3].map(dz => cyl(.06, .06, .06, 8, "#2b2b2b", x, 0, -5.5 + dz))); }
+  // the tills, on the way out
+  for (let k = 0; k < 4; k++) { const z = 9 + k * 3.4; Q.push(box(3.6, .9, .9, "#e9e9e9", 47, 0, z), box(2.6, .05, .6, "#2b2b2b", 46.4, .9, z), box(.5, .3, .4, "#2b2b2b", 48.4, .9, z), box(.4, .3, .04, "*#7fd1a0", 48.4, 1.35, z - .1),
+      cyl(.04, .04, 2.2, 6, "#2b2b2b", 49.2, 0, z), box(.5, .6, .3, "#f08a24", 44.7, 0, z + .3)); tag(`🧾 ${k + 1}`, .8, .5, 49.2, 2.45, z, P2, "#f08a24", "#ffffff", true, 300); walls.push([45.2, z - .5, 48.8, z + .5]); }
+  tag("🧾 קופות · משלמים בסבבונים", 7, 1.1, 47, 4.4, 6.9, Math.PI, "#f08a24", "#ffffff", true, 900);
+  // the café: a counter with the espresso machine, cups and a glass case of pastries; coffee beans on the back counter; little tables with coffee and croissants
+  Q.push(box(6, 1.05, 1, "#2d6b45", 47.5, 0, -19), box(6.2, .06, 1.2, "#f4f1ea", 47.5, 1.05, -19), box(.9, .6, .55, "#c9ced3", 46, 1.11, -19.2), box(.6, .1, .04, "*#fff1c2", 46, 1.5, -18.9),
+    ...[-.2, .2].map(d => cyl(.04, .04, .12, 8, "#2b2b2b", 46 + d, 1.25, -18.9)), ...Array.from({ length: 8 }, (_, k) => cyl(.045, .04, .09, 10, "#ffffff", 45.75 + (k % 4) * .15, 1.71, -19.3 + (k > 3 ? .18 : 0))),
+    box(2, .5, .7, "%#dff1fa", 49, 1.11, -19), box(6, .9, .6, "#f3ead8", 47.5, 0, -21.6), box(6.2, .05, .7, "#b9834f", 47.5, .9, -21.6), box(6, .05, .3, "#b9834f", 47.5, 2.2, -23.6));
+  for (let k = 0; k < 6; k++) Q.push(sph(.09, "#d99a4a", 48.3 + (k % 3) * .3, 1.22, -19.15 + (k > 2 ? .25 : 0), 1.7, .6, .9));
+  for (let k = 0; k < 3; k++) Q.push(cyl(.06, .07, .09, 10, "#7a3b1f", 49.5 + k * .2, 1.13, -18.85), sph(.07, "#a0522d", 49.5 + k * .2, 1.25, -18.85));
+  for (let k = 0; k < 10; k++) Q.push(box(.22, .32, .12, k % 2 ? "#7a3b1f" : "#2d6b45", 44.8 + k * .55, .95, -21.6), box(.2, .3, .12, k % 3 ? "#5a3a26" : "#f08a24", 44.8 + k * .55, 2.25, -23.6));
+  for (const [x, z] of [[44.5, -11], [48, -11], [51.5, -11], [46, -15], [50, -15]]) { Q.push(cyl(.45, .45, .04, 18, "#b9834f", x, .72, z), cyl(.04, .05, .72, 6, "#2b2b2b", x, 0, z), cyl(.25, .25, .02, 12, "#2b2b2b", x, 0, z),
+      cyl(.04, .035, .08, 10, "#ffffff", x - .15, .76, z), cyl(.036, .036, .006, 10, "#4a2a14", x - .15, .835, z), cyl(.1, .1, .015, 12, "#ffffff", x + .15, .76, z + .05), sph(.07, "#d99a4a", x + .15, .8, z + .05, 1.6, .6, .9));
+    for (const sd of [-1, 1]) Q.push(...FURN.chair.build({ size: "m", style: "wood" }).map(g2 => g2.rotateY(sd > 0 ? Math.PI : 0).translate(x, 0, z + sd * .75))); }
+  tag(`☕ קפה ${YK.name}`, 5, 1, 47.5, 4.4, -6.9, 0, "#2d6b45", "#ffffff", true, 900);
+  tag("אספרסו 6 🪙 · הפוך 8 🪙 · קרואסון 7 🪙 · מאפין 6 🪙", 7, .8, 47.5, 3.3, -23.75, 0, "#2d6b45", "#ffffff", false, 900);
+  // the meshes: the walls and furniture, and the roofs apart (hidden when you look into the store from above)
+  for (const [list, roof] of [[Q, false], [QR, true]]) { const pf = prefab(list, false); for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.userData.disposable = false; m.userData.roof = roof; sc.add(m); } }
+  for (const [text, w2, h2, x, y, z, ry, bg, fg, two, res] of tags) { const s2 = sign(text, w2, h2, { bg, fg, res }); s2.position.set(x, y, z); s2.rotation.y = ry; sc.add(s2);
+    if (two) { const back = sign(text, w2, h2, { bg, fg, res }); back.position.set(x - Math.sin(ry) * .03, y, z - Math.cos(ry) * .03); back.rotation.y = ry + Math.PI; sc.add(back); } }
+  // shoppers: real citizens of the state, along the street, in the café and between the houses
+  const pool = [...S.houses].filter(h => h.lot).sort((a, b) => hash(a.u + "yk") - hash(b.u + "yk")).slice(0, 16);
+  const spots = [[38, 1.5], [30, -1.6], [20, 1.4], [12, -2.2], [2, 1.8], [-10, -1.5], [-18, 2], [-30, -1.2], [36, -9], [18, 10], [2, -9], [-14, 12], [45, -13], [49.5, -12.6], [47, 9.8], [-28, 9]];
+  pool.forEach((h, k) => { const f = avatarMesh(avatarOf(h), 1), [x, z] = spots[k]; f.position.set(x, 0, z); f.rotation.y = hash(h.u + "ykr") % 628 / 100; sc.add(f); });
+  return { sc, walls, B: { x0: XA + .7, x1: XB - .7, z0: -ZW + .7, z1: ZW - .7 } };
+}
+// walking in: the door in the front of the entrance house, out the same way
+function yallkeaIndoor(w, door) {
+  const R = yallkeaScene(), fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); R.sc.add(fig);
+  const exits = [{ x: SH.XB - 1.4, z: 0, r: 2.6, to: "street", label: `🚪 לצאת מ${YK.name}` }];
+  IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc: R.sc, B: R.B, walls: R.walls, est: false, two: false, exits, fig, x: SH.XB - 7.5, z: 0, y: 0, up: false, head: -Math.PI / 2, wallH: SH.HH, s: 1, door, flags: [], name: YK.name });
+  WALK.cy = Math.PI / 2; WALK.pitch = .2; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = YK.name;
+  walkCam.near = .1; walkCam.fov = 70; walkCam.updateProjectionMatrix();
+}
 /* ---------- the big mall: out by נתיבי סבבה, a main hall with a glass dome, two anchor wings, shops along the front, a parking lot and a parking garage ---------- */
 const MALL_CATS = { fashion: ["👗", "אופנה", "#c0392b"], shoes: ["👟", "נעליים", "#3a3a3a"], food: ["🍔", "מזון מהיר", "#e67e22"], cafe: ["☕", "בית קפה", "#2d6e4a"], tech: ["📱", "אלקטרוניקה", "#1f6f8b"],
   toys: ["🧸", "צעצועים", "#f2b440"], beauty: ["💄", "טיפוח ויופי", "#e88aa8"], books: ["📚", "ספרים", "#7a5232"], sport: ["⚽", "ספורט", "#2f7fa8"], home: ["🛋️", "לבית", "#8e6c4a"],
@@ -2179,15 +2563,23 @@ const isMallSite = p => p.kind === "mall" && p.params?.site !== "lot";
 const mallStores = p => (p.params?.stores?.length ? p.params.stores : [{ name: "סבבה פאשן", cat: "fashion" }, { name: "סופר יאללה", cat: "super" }, { name: "גלידה יאללה", cat: "food" }, { name: "גאדג׳טים", cat: "tech" }, { name: "קפה הקניון", cat: "cafe" }, { name: "צעצועי סבבה", cat: "toys" }]);
 const MALL_W = 156, MALL_D = 116;
 // the k-th mall stands beside the highway to the harbor, a little out of the capital, facing the road
-function mallSpot(k) {
+function mallSpot(k) { return mallSpotOn(k, false) || mallSpotOn(k, true) || mallSpotFree(k); }   // never lost: a looser search, then any open land out of town
+function mallSpotFree(k) {
+  const sl = S.slots.find(s2 => s2.city); if (!sl) return null; let n = 0;
+  for (let r = 260; r < 1400; r += 40) for (let i = 0; i < 24; i++) { const an = i / 24 * Math.PI * 2 + r * .01, x = sl.x + Math.cos(an) * r, z = sl.z + Math.sin(an) * r, ry = Math.atan2(sl.x - x, sl.z - z), cs = Math.cos(ry), sn = Math.sin(ry);
+    const ok = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].every(([p, q]) => { const lx = p * MALL_W / 2, lz = q * MALL_D / 2, X = x + lx * cs + lz * sn, Z = z - lx * sn + lz * cs; return onGrass(X, Z, S.s, .02) && !inCityBox(X, Z, 10) && !onPalm(X, Z) && !highwaySegs().some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((X - a) * dx + (Z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - a - dx * t, Z - b - dz * t) < w / 2 + 16; }); });
+    if (!ok) continue; if (n++ < k) continue; return { x, z, ry, road: [x + Math.sin(ry) * MALL_D / 2, z + Math.cos(ry) * MALL_D / 2, x + Math.sin(ry) * (MALL_D / 2 + 1), z + Math.cos(ry) * (MALL_D / 2 + 1)] }; }
+  return null;
+}
+function mallSpotOn(k, loose) {
   const segs = highwaySegs(); if (!segs.length) return null;
   for (const [a, b, c, d, w, id] of [...segs.filter(sg => sg[5] === "harbor"), ...segs.filter(sg => sg[5] !== "harbor" && sg[5] !== "palm")]) {
     const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 30)) t0 += 5;
     let n = 0;
-    for (let t = t0 + 110; t < L - 100; t += 30) for (const sd of [1, -1]) {
+    for (let t = t0 + (loose ? 40 : 110); t < L - (loose ? 60 : 100); t += loose ? 15 : 30) for (const sd of [1, -1]) {
       const off = w / 2 + MALL_D / 2 + 14, x = a + ux * t + nx * sd * off, z = b + uz * t + nz * sd * off, fx = -nx * sd, fz = -nz * sd, ry = Math.atan2(fx, fz), cs = Math.cos(ry), sn = Math.sin(ry);
       const ok = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0], [0, -1], [0, 1]].every(([p, q]) => { const lx = p * MALL_W / 2, lz = q * MALL_D / 2, X = x + lx * cs + lz * sn, Z = z - lx * sn + lz * cs;
-        return onGrass(X, Z, S.s, .04) && !inCityBox(X, Z, 20) && !onPalm(X, Z) && !S.workplaces.some(w2 => w2.x != null && S.wpCfg?.get(w2.id)?.x != null && Math.hypot(w2.x - X, w2.z - Z) < 40); });
+        return onGrass(X, Z, S.s, loose ? .015 : .04) && !inCityBox(X, Z, loose ? 6 : 20) && !onPalm(X, Z) && (loose || !S.workplaces.some(w2 => w2.x != null && S.wpCfg?.get(w2.id)?.x != null && Math.hypot(w2.x - X, w2.z - Z) < 40)); });
       if (!ok) continue; if (n++ < k) { t += 160; continue; }
       return { x, z, ry, road: [x + fx * (MALL_D / 2), z + fz * (MALL_D / 2), a + ux * t + nx * sd * (w / 2 - 1), b + uz * t + nz * sd * (w / 2 - 1)] };
     }
@@ -2566,6 +2958,7 @@ function buildPublic() {
     });
   });
   instanced(P.tree, trees, ([x, z], o) => { o.position.set(x, Y0, z); o.scale.setScalar(.9); });
+  buildYallkea();
   S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildMall(p, k) : (() => { const sp = S.mallSpots?.[k]; if (!sp) return; p.x = sp.x; p.z = sp.z;
     buildSite(p, p.name || "קניון", sp.x, sp.z, 120, 80, .25, sp.ry, { craneH: 40, jib: 30 }); })());
   S.projects.filter(p => p.params?.island).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildIsletMonument(p, k) : (() => { const sp = isletSpot(k); p.x = sp.x; p.z = sp.z;
@@ -2613,12 +3006,12 @@ function buildNature() {
   const r = rng(7), open = S.slots.filter(s => s.city), keys = open.map(s => new Set(s.blocks.keys()));
   const inCity = (x, z) => open.some((s, i) => { const bx = invAxis(x - s.x, BX, BPX), bz = invAxis(z - s.z, BZ, BPZ); return keys[i].has(`${bx},${bz}`); });
   const cap = open[0], ends = cap ? [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))] : [];
-  const HW = highwaySegs(), nearRoad = (x, z) => HW.some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / L2)); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + (w > 20 ? 8 : 6); });
+  const HW = [...highwaySegs(), ...extraRoads()], nearRoad = (x, z) => HW.some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / L2)); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + (w > 20 ? 8 : 6); });
   const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(4200, Math.max(900, area / 380)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
     const x = (r() * 2 - 1) * Rx, z = (r() * 2 - 1) * Rz;
-    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z) || S.workplaces.some(w => w.x != null && Math.hypot(w.x - x, w.z - z) < 20) || (S.mallSpots || []).some(m => m && Math.hypot(m.x - x, m.z - z) < 112)) continue;
+    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z) || S.workplaces.some(w => w.x != null && Math.hypot(w.x - x, w.z - z) < 20) || (S.mallSpots || []).some(m => m && Math.hypot(m.x - x, m.z - z) < 112) || (S.ykSpot && Math.hypot(S.ykSpot.x - x, S.ykSpot.z - z) < 92)) continue;
     const n = Math.sin(x * .011) * Math.cos(z * .014) + Math.sin((x + z) * .005);
     if (n < -.25 && r() < .85) continue;
     const q = r(); (q < .45 ? sets.olive : q < .75 ? sets.tree : sets.cypress).push({ x, z, s: .7 + r() * .7 });
@@ -2852,7 +3245,7 @@ function highwaySegs() {
   return out;
 }
 // is a point on one of the highways (they cross the beach to the palm and the harbor, so you can walk and drive there too)?
-const onHighway = (x, z) => highwaySegs().some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
+const onHighway = (x, z) => [...highwaySegs(), ...extraRoads()].some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
 // is a point inside (or right next to) a built city?
 const inCityBox = (x, z, m = 10) => S.slots.some(sl => { if (!sl.city || !sl.blocks?.size) return false; const B = cityBox(sl);
   return x > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - m && x < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + m && z > sl.z + BPZ(B.mnZ) - BZ / 2 - m && z < sl.z + BPZ(B.mxZ) + BZ / 2 + m; });
@@ -2912,6 +3305,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "place" && d.id === "palm") showPalm();
   else if (d.type === "place" && d.id === "palmhotel") showPalm(true);
   else if (d.type === "place" && d.id === "lanes") showLanes();
+  else if (d.type === "place" && d.id === "yallkea") showYallkea();
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
@@ -2985,6 +3379,7 @@ function walkDoors() {
   for (const g of GOV) if (g.x != null) add(g.x, g.z + 7.5, 6, "gov:" + g.id, `להיכנס: ${g.name}`);
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
   if (PALM.geo) { const g = PALM.geo, ry = Math.atan2(-g.U.x, -g.U.z); add(g.hotel.x + Math.sin(ry) * 12, g.hotel.z + Math.cos(ry) * 12, 6, "palmhotel", "להיכנס: מלון הדקל"); }
+  if (YK.door && S.ykSpot) add(YK.door.x, YK.door.z, 7, "yallkea", `להיכנס: ${YK.name}`);
   for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
     const name = p.name || PROJECT_KINDS[p.kind]?.[1];
     if (INDOOR.includes(p.kind)) add(p.door?.x ?? p.x, p.door?.z ?? p.z + 5, p.door ? 7 : 5, "proj:" + p.id, `להיכנס: ${name}`); else add(p.x, p.z, 10, "proj:" + p.id, `לטייל ב${name}`);
@@ -2995,6 +3390,7 @@ function walkDoors() {
 function walkBlockers() {
   const B = [], rect = (x, z, w, d, ry = 0) => { const c = Math.abs(Math.cos(ry)), sn = Math.abs(Math.sin(ry)), W = w * c + d * sn, D = w * sn + d * c; B.push([x - W / 2, z - D / 2, x + W / 2, z + D / 2]); };
   for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, -1.4, 0); rect(x, z, h.hk === "3_2" ? 10.6 : 8.6, 6.4, h.lot.face); }
+  if (S.ykSpot) { const s2 = S.ykSpot, c = Math.cos(s2.ry), sn = Math.sin(s2.ry); rect(s2.x - 26 * sn, s2.z - 26 * c, 48, 92, s2.ry); }
   for (const w of S.workplaces) if (w.x != null) rect(w.x - Math.sin(w.ry || 0) * .5, w.z - Math.cos(w.ry || 0) * .5, w.look === "bow" ? 18 : 15, w.look === "bow" ? 9.6 : 11, w.ry || 0);
   for (const g of GOV) if (g.x != null) rect(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13);
   if (BALLOT.x != null) rect(BALLOT.x, BALLOT.z - 2.5, 22, 11);
@@ -3253,6 +3649,8 @@ function cmapDraw() {
     if (!b.civic && kind === "lane") R(cx, cz, 7.8, SD, "#d9c4a0");
     if (!b.civic && kind === "estate") R(cx, cz, .4, SD, "#4d7d3b");
   }
+  for (const m of S.mallSpots || []) if (m) { R(m.x, m.z, MALL_W, MALL_D, "#d8d1c2", m.ry); R(m.x, m.z, 150, 40, "#c98b5a", m.ry); }   // the malls
+  if (S.ykSpot) { const s2 = S.ykSpot, c = Math.cos(s2.ry), sn = Math.sin(s2.ry); R(s2.x - 10 * sn, s2.z - 10 * c, 116, 140, "#d8d1c2", s2.ry); R(s2.x - 26 * sn, s2.z - 26 * c, 48, 92, "#f08a24", s2.ry); R(s2.x - 26 * sn, s2.z - 26 * c, 8, 92, "#bfe3f2", s2.ry); }
   for (const al of S.alleys || []) { R(al.x, al.z, 5.2, 14, "#cdbb98"); R(al.x, al.z + al.sz * 8, 11, 6, "#d6c6a4"); }   // the paved alleys
   const C = CENTRAL.on;
   if (C) { R(C.cx, C.cz, C.hw * 2, C.hd * 2, "#e9e3d6"); R(C.cx, C.cz, C.hw * 2, CENTRAL.W * 2, "#5b6169"); R(C.cx, C.cz, CENTRAL.W * 2, C.hd * 2, "#5b6169"); O(C.cx, C.cz, CENTRAL.RR, "#5b6169"); O(C.cx, C.cz, CENTRAL.RP, "#efe6d2");
@@ -3363,6 +3761,8 @@ const IN = { on: false };
 const UPX = 70;   // the upstairs floor is built beside the ground floor, out of sight
 function indoorStart(id, door) {
   const w = interiorTarget(id); if (!w) return;
+  if (w.kind === "yallkea") return yallkeaIndoor(w, door);
+  IN.walls = null;
   if (String(w.kind).startsWith("outdoor_")) return enterWork(id);   // parks and courts are seen from above
   const R = interiorScene(w), fr = R.frame || {}, s = fr.scale || 1, sc = R.sc;
   if (INT.meFig) { INT.meFig.removeFromParent(); INT.meFig = null; } if (R.tag) R.tag.removeFromParent();
@@ -3430,6 +3830,8 @@ function indoorStep(dt) {
     let nx = IN.x + dx / L * sp * m * dt, nz = IN.z + dz / L * sp * m * dt;
     const onBalcony = IN.up && Math.abs(nx - UPX) < 1.5 && nz > 6 && nz < 10.6;
     if (!onBalcony) { nx = Math.max(B.x0, Math.min(B.x1, nx)); nz = Math.max(B.z0, Math.min(B.z1, nz)); }
+    if (IN.walls) { const hit = (x, z) => IN.walls.some(b => x > b[0] - .35 && x < b[2] + .35 && z > b[1] - .35 && z < b[3] + .35);   // partitions: slide along them
+      if (hit(nx, nz)) { if (!hit(nx, IN.z)) nz = IN.z; else if (!hit(IN.x, nz)) nx = IN.x; else { nx = IN.x; nz = IN.z; } } }
     const ny = indoorFloor(nx, nz, IN.y);
     if (ny != null && Math.abs(ny - IN.y) < .9) { IN.x = nx; IN.z = nz; IN.y = ny; }
     IN.head = Math.atan2(dx, dz);
@@ -3438,7 +3840,10 @@ function indoorStep(dt) {
   // the camera behind you, never through a wall or the ceiling
   const D = 4.4, cp = Math.cos(WALK.pitch), cx = IN.x + Math.sin(WALK.cy) * cp * D, cz = IN.z + Math.cos(WALK.cy) * cp * D, M = .35;
   const bx0 = B.x0 - .2, bx1 = IN.up ? B.x1 + .2 : B.x1 + .2, bz0 = B.z0 - .2, bz1 = IN.up ? 10.4 : B.z1 + .2;
-  const px = Math.max(bx0 + M, Math.min(bx1 - M, cx)), pz = Math.max(bz0 + M, Math.min(bz1 - M, cz)), lost = D - Math.hypot(px - IN.x, pz - IN.z);   // pressed against a wall: rise and look down instead
+  let px = Math.max(bx0 + M, Math.min(bx1 - M, cx)), pz = Math.max(bz0 + M, Math.min(bz1 - M, cz));
+  if (IN.walls) { const hitW = (x, z) => IN.walls.some(b => x > b[0] - .25 && x < b[2] + .25 && z > b[1] - .25 && z < b[3] + .25); let fx = IN.x, fz = IN.z;
+    for (let t = .1; t <= 1.001; t += .1) { const x = IN.x + (px - IN.x) * t, z = IN.z + (pz - IN.z) * t; if (hitW(x, z)) break; fx = x; fz = z; } px = fx; pz = fz; }
+  const lost = D - Math.hypot(px - IN.x, pz - IN.z);   // pressed against a wall: rise and look down instead
   walkCam.position.set(px, Math.min(IN.y + (IN.up ? 4.6 : IN.wallH) - .3, IN.y + 1.7 + Math.sin(WALK.pitch) * D + Math.max(0, lost) * .55), pz);
   walkCam.lookAt(IN.x, IN.y + 1.1, IN.z);
   // the nearest way out, up or down
@@ -3524,7 +3929,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -4102,6 +4507,38 @@ GO.top = () => {
 };
 
 /* ============================ INSIDE THE WORKPLACE ============================ */
+// what each kind of shop sells, on a display about 3 wide and 1 deep centered at (x, z), turned by ry (0 = facing +z)
+function shopGoods(cat, x, z, ry = 0, R = Math.random) {
+  const out = [], c = Math.cos(ry), sn = Math.sin(ry), at = (dx, dz) => [x + dx * c + dz * sn, z - dx * sn + dz * c], A = (fn, dx, y, dz, ...rest) => { const [px, pz] = at(dx, dz); out.push(fn(px, y, pz, ...rest)); };
+  const B = (w, h, d, col, dx, y, dz) => A((px, py, pz) => box(w, h, d, col, px, py, pz, { y: ry }), dx, y, dz), Cy = (r1, r2, h, col, dx, y, dz) => A((px, py, pz) => cyl(r1, r2, h, 12, col, px, py, pz), dx, y, dz), Sp = (r, col, dx, y, dz, a = 1, b = 1, d = 1) => A((px, py, pz) => sph(r, col, px, py, pz, a, b, d), dx, y, dz);
+  const pick = a => a[Math.floor(R() * a.length)], cols = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8", "#ffffff", "#1b2430", "#e88aa8"];
+  const shelfRow = (y, fn) => { for (let i = 0; i < 9; i++) fn(-1.35 + i * .34, y); };
+  switch (cat) {
+    case "fashion": for (const dx of [-1, 1]) { B(.36, .5, .22, pick(cols), dx, .95, 0); Sp(.12, "#e9d6c4", dx, 1.62, 0); Cy(.03, .03, .8, "#9aa0a6", dx, .12, 0); B(.32, .45, .2, "#2b3a55", dx, .5, 0); }
+      B(1.1, .04, .04, "#9aa0a6", 0, 1.5, .1); for (let i = 0; i < 6; i++) B(.08, .7, .4, pick(cols), -.45 + i * .18, .78, .1); break;
+    case "shoes": for (const y of [.12, .55, .98]) { B(3, .04, .5, "#e8e4dc", 0, y, -.2); for (let i = 0; i < 6; i++) B(.28, .14, .12, pick(cols), -1.2 + i * .48, y + .04, -.2); } break;
+    case "food": B(2.6, .9, .7, "#e67e22", 0, .12, 0); for (let i = 0; i < 4; i++) { Cy(.12, .12, .05, "#d9a35a", -.9 + i * .6, 1.02, 0); Cy(.12, .12, .04, "#6b3a1f", -.9 + i * .6, 1.07, 0); Cy(.12, .12, .05, "#e2b35a", -.9 + i * .6, 1.11, 0); }
+      for (let i = 0; i < 3; i++) { B(.12, .16, .08, "#c0392b", -.6 + i * .6, 1.02, .22); for (let j = 0; j < 5; j++) B(.015, .1, .015, "#f2c230", -.64 + i * .6 + j * .02, 1.15, .22); } break;
+    case "cafe": B(2.6, .9, .7, "#2d6e4a", 0, .12, 0); B(.6, .5, .4, "#c3c8cd", -.8, 1.02, -.1); B(.4, .08, .05, "*#ffd9a0", -.8, 1.35, .11); for (let i = 0; i < 4; i++) { Cy(.05, .04, .1, "#ffffff", .1 + i * .18, 1.02, .15); Cy(.045, .045, .006, "#4a2a14", .1 + i * .18, 1.12, .15); }
+      for (let i = 0; i < 4; i++) Sp(.09, i % 2 ? "#d99a4a" : "#8a4f20", .3 + i * .22, 1.08, -.15, 1.6, .6, .9); break;
+    case "tech": B(1.4, .85, .06, "#111111", 0, .9, -.3); B(1.3, .75, .02, "*#3a8fd0", 0, .95, -.26); for (let i = 0; i < 5; i++) { B(.12, .22, .02, "#1a1a1a", -1.2 + i * .6, .25, .2); B(.1, .19, .01, "*#7fe0a0", -1.2 + i * .6, .265, .215); } B(.5, .03, .35, "#c9ced3", .9, .2, .2); B(.5, .3, .02, "*#5fa8e0", .9, .22, .03); break;
+    case "toys": for (let i = 0; i < 3; i++) { Sp(.2, "#a0522d", -1 + i * 1, .35, 0, 1, 1.1, .9); Sp(.13, "#a0522d", -1 + i * 1, .7, 0); Sp(.05, "#a0522d", -1.1 + i * 1, .8, 0); Sp(.05, "#a0522d", -.9 + i * 1, .8, 0); }
+      for (let i = 0; i < 5; i++) Sp(.12, pick(cols), -1.2 + i * .6, .25, .35); for (let i = 0; i < 6; i++) B(.15, .15, .15, pick(cols), -.5 + (i % 3) * .2, .12 + Math.floor(i / 3) * .15, -.3); break;
+    case "beauty": case "pharmacy": for (const y of [.12, .55, .98]) { B(3, .04, .45, "#ffffff", 0, y, -.2); shelfRow(y + .04, (dx, yy) => cat === "beauty" ? Cy(.05, .05, .18 + R() * .1, pick(["#e88aa8", "#f2c9d2", "#ffffff", "#c9a24a", "#8a5ac8"]), dx, yy, -.2) : B(.2, .16, .12, pick(["#ffffff", "#e8f6fb", "#2a9d8f"]), dx, yy, -.2)); }
+      if (cat === "pharmacy") { B(.5, .14, .05, "#2fae6a", 0, 1.5, -.3); B(.14, .5, .05, "#2fae6a", 0, 1.32, -.3); } break;
+    case "books": for (const y of [.12, .5, .88, 1.26]) { B(3, .04, .4, "#7a5232", 0, y, -.25); for (let i = 0; i < 14; i++) B(.16, .26 + R() * .08, .26, pick(cols), -1.35 + i * .2, y + .04, -.25); } B(1, .5, .6, "#7a5232", .8, .12, .25); for (let i = 0; i < 4; i++) B(.3, .05, .22, pick(cols), .5 + i * .2, .62 + (i % 2) * .05, .25); break;
+    case "sport": for (let i = 0; i < 4; i++) Sp(.13, ["#ffffff", "#e8692b", "#f2c230", "#2f7fa8"][i], -1.2 + i * .35, .25, .3); Cy(.32, .32, .04, "#1a1a1a", .6, .12, 0); Cy(.32, .32, .04, "#1a1a1a", 1.2, .12, 0); B(.9, .04, .04, "#e05a4f", .9, .55, 0); B(.04, .4, .04, "#e05a4f", 1.1, .55, 0);
+      for (let i = 0; i < 4; i++) B(.3, .45, .02, pick(cols), -1.2 + i * .4, .8, -.35); break;
+    case "home": out.push(...FURN.armchair.build({ size: "s", style: "wood" }).map(g => { g.rotateY(ry); const [px, pz] = at(-.8, 0); return g.translate(px, .12, pz); }), ...FURN.floorlamp.build({ size: "s", style: "modern" }).map(g => { const [px, pz] = at(.2, -.2); return g.translate(px, .12, pz); }),
+      ...FURN.plant.build({ size: "m" }).map(g => { const [px, pz] = at(1, 0); return g.translate(px, .12, pz); })); break;
+    case "jewelry": B(2.6, .9, .7, "#2b2b2b", 0, .12, 0); B(2.5, .3, .6, "%#e8f6fb", 0, 1.02, 0); for (let i = 0; i < 8; i++) A((px, py, pz) => part(new THREE.TorusGeometry(.05, .012, 6, 14), i % 3 ? "#d9b65a" : "#e9eef3", px, py, pz, { x: -.5 }), -1 + i * .28, 1.1, 0); break;
+    case "cinema": for (let i = 0; i < 3; i++) B(.8, 1.15, .04, pick(["#5b2a86", "#c0392b", "#1f6f8b", "#e67e22"]), -1 + i * 1, .6, -.35); B(.9, .9, .6, "#c0392b", .9, .12, .2); for (let i = 0; i < 10; i++) Sp(.05, "#fff4c2", .7 + (i % 5) * .1, 1.05, .1 + Math.floor(i / 5) * .15); break;
+    case "super": for (const y of [.12, .55, .98]) { B(3, .04, .45, "#e8e4dc", 0, y, -.25); shelfRow(y + .04, (dx, yy) => B(.22, .2 + R() * .12, .2, pick(cols), dx, yy, -.25)); }
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) Sp(.08, ["#e8692b", "#c0392b", "#7fb03e"][i], -1.2 + i * .9 + j * .15, .2, .3); break;
+    default: for (let i = 0; i < 6; i++) B(.3, .3, .3, pick(cols), -1 + i * .4, .12, 0);
+  }
+  return out;
+}
 // Every kind of business has its own furnished 3D interior (a cut-away "doll house" room). Employees come in once a day for a shift bonus.
 const INT = { on: false };
 const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
@@ -4144,7 +4581,13 @@ function interiorOf(w) {
     room("#efe2c8", "#f6ead2", "#b8654a", { tiles: "#e2cfa8" });
     for (const x of [2.5, 6.2]) add(box(3.2, 2.7, 1.5, "#c3c8cd", x, 0, -5.7), ...[.6, 1.3, 2].map(y => box(2.6, .38, .05, "*#ff8a3d", x, y, -4.93)), box(3.4, .25, 1.7, "#9aa0a6", x, 2.7, -5.7));
     add(box(7.6, 1, 1.9, "#b8bec4", 4.3, 3.6, -5.6));
-    shelf(-5.2, -6.1, 5.2, 2.6, .7, 0, ["#a8652a", "#c58a3e", "#8a4f20", "#d9a35a"], 4);
+    add(box(5.2, 2.6, .06, "#d6d2c9", -5.2, 0, -6.45), ...[-2.6, 2.6].map(e => box(.06, 2.6, .7, "#bdb8ae", -5.2 + e, 0, -6.1)));   // the bread shelves: loaves, baguettes, challahs and pitas
+    for (let i = 0; i <= 4; i++) { const y = .1 + i * .6; add(box(5.2, .05, .7, "#c8a165", -5.2, y, -6.1)); if (i === 4) break;
+      for (let j = 0; j < 7; j++) { const x = -7.4 + j * .72, kind = (i + j) % 4;
+        if (kind === 0) add(sph(.22, "#b8762e", x, y + .16, -6.1, 1.5, .75, 1));
+        else if (kind === 1) add(cyl(.06, .06, .62, 8, "#d9a35a", x, y + .1, -6.1, { z: Math.PI / 2 }), cyl(.06, .06, .62, 8, "#c58a3e", x, y + .1, -5.95, { z: Math.PI / 2 }));
+        else if (kind === 2) add(...[-.16, 0, .16].map(d => sph(.12, "#c47a2a", x + d, y + .14, -6.1, 1.1, .8, 1.1)));
+        else add(...[0, 1, 2].map(k2 => cyl(.2, .2, .03, 14, "#e8cf9a", x, y + .05 + k2 * .035, -6.1))); } }
     for (let i = 0; i < 4; i++) add(box(.7, .9, .5, "#f2efe6", -1.2 + (i % 2) * .75, 0 + Math.floor(i / 2) * .9, -5.9));
     add(box(3.6, .9, 1.6, "#9a6a40", -5, 0, -1.6), box(3.8, .1, 1.8, "#e6d8bd", -5, .9, -1.6), ...[[-6, -1.4], [-5, -1.9], [-4.1, -1.3]].map(([x, z]) => sph(.28, "#f3e6c9", x, 1.18, z, 1.3, .7, 1.1)));
     counter(1.5, 2.2, 8, 1.3, "#7a4a2a", "#e9dfcf");
@@ -4181,7 +4624,9 @@ function interiorOf(w) {
       ...Array.from({ length: 6 }, (_, i) => cyl(.12, .1, .2, 10, "#ffffff", -4 + i * .35, 1.05, -4.3)));
     shelf(0, -6.2, 6, 2, .45, 0, ["#3b2a1a", "#7a5232", "#2d6e4a", "#e6dcc8"], 2);
     for (const x of [-2.2, 0, 2.2]) pendant(x, -4.4);
-    for (const [x, z] of [[-5, 1], [-1, 3], [3.5, 1.6], [6, 4.2]]) { table(x, z); chair(x - .9, z, Math.PI / 2, "#5a3a26"); chair(x + .9, z, -Math.PI / 2, "#5a3a26"); }
+    for (const [x, z] of [[-5, 1], [-1, 3], [3.5, 1.6], [6, 4.2]]) { table(x, z); chair(x - .9, z, Math.PI / 2, "#5a3a26"); chair(x + .9, z, -Math.PI / 2, "#5a3a26");
+      for (const d of [-1, 1]) add(cyl(.09, .09, .012, 12, "#ffffff", x + d * .3, .84, z), cyl(.05, .042, .1, 10, "#ffffff", x + d * .3, .852, z), cyl(.045, .045, .006, 10, "#4a2a14", x + d * .3, .95, z), part(new THREE.TorusGeometry(.03, .008, 4, 8), "#ffffff", x + d * .3 + .055, .9, z));   // a cup of coffee for each, on its saucer
+      add(cyl(.13, .13, .012, 12, "#ffffff", x, .84, z + .25), sph(.07, "#d99a4a", x, .88, z + .25, 1.6, .6, .9)); }   // and a croissant to share
     add(box(3.8, .5, 1.2, "#7a3a28", -6.6, 0, 4.6), box(3.8, .9, .3, "#7a3a28", -6.6, .5, 5.15), box(1.1, .45, .7, "#2d2d2d", -6.6, 0, 3.2));
     plant(7.8, -5.4, 1.3); plant(-8.2, -5.6, 1.1);
     sgn("אספרסו 8 · הפוך 12 · מאפה 10", 5, 1.1, 0, 3.6, -6.48, 0, "#1f2a24", "#f1e6cf"); sgn(name, 4.6, .9, -8.98, 3.6, 0, Math.PI / 2, G1, "#ffffff");
@@ -4355,9 +4800,9 @@ function interiorOf(w) {
     staff.push([0, -4.8, 0], [-3.2, -1.2, Math.PI], [1.6, .3, Math.PI], [-1.6, 1.8, Math.PI], [3.2, 3.3, Math.PI], [6.8, 3.5, 0]);
   } else if (k === "mall") {   // an atrium with shopfronts, an escalator and a fountain
     room("#e9e4da", "#ffffff", "#b7bcc2", { tiles: "#ddd6c9" });
-    const own = (w.stores || []).map(s2 => [s2.name, s2.color || MALL_CATS[s2.cat]?.[2] || "#1f6f8b"]), shops = own.length >= 4 ? own.slice(0, 4) : [...own, ...[["סבבה פאשן", "#c0392b"], ["גלידה יאללה", "#e88aa8"], ["גאדג׳טים", "#1f6f8b"], ["נעליים", "#3a3a3a"]]].slice(0, 4);
-    shops.forEach(([n, c], i) => { const x = -6.3 + i * 4.2; add(box(3.8, 3.2, .3, c, x, 0, -6.2), box(3.2, 2.6, .05, "*#f4f0e6", x, .1, -6.02)); sgn(n, 3.2, .6, x, 3.5, -6.03, 0, c, "#ffffff"); });
-    for (let i = 0; i < 2; i++) { const z = -2 + i * 3.6; add(box(.3, 3.2, 3, "#d9dde1", -9, 0, z), box(.05, 2.6, 2.4, "*#f4f0e6", -8.83, .1, z)); sgn((own[4 + i] || [["קפה הקניון"], ["צעצועים"]][i])[0], 2.4, .5, -8.82, 3.4, z, Math.PI / 2, (own[4 + i] || [0, ["#2d6e4a", "#f2b440"][i]])[1], "#ffffff"); }
+    const own = (w.stores || []).map(s2 => [s2.name, s2.color || MALL_CATS[s2.cat]?.[2] || "#1f6f8b", s2.cat]), shops = own.length >= 4 ? own.slice(0, 4) : [...own, ...[["סבבה פאשן", "#c0392b", "fashion"], ["גלידה יאללה", "#e88aa8", "food"], ["גאדג׳טים", "#1f6f8b", "tech"], ["נעליים", "#3a3a3a", "shoes"]]].slice(0, 4);
+    shops.forEach(([n, c, cat], i) => { const x = -6.3 + i * 4.2; add(box(3.8, 3.2, .3, c, x, 0, -6.2), box(3.2, 2.6, .05, "*#f4f0e6", x, .1, -6.02), box(3.4, .12, 1.1, "#f4f1ea", x, 0, -5.3)); add(...shopGoods(cat, x, -5.3, 0, R)); sgn(n, 3.2, .6, x, 3.5, -6.03, 0, c, "#ffffff"); });
+    for (let i = 0; i < 2; i++) { const z = -2 + i * 3.6; add(box(.3, 3.2, 3, "#d9dde1", -9, 0, z), box(.05, 2.6, 2.4, "*#f4f0e6", -8.83, .1, z), box(1, .12, 2.8, "#f4f1ea", -8.2, 0, z)); add(...shopGoods(own[4 + i]?.[2] || ["cafe", "toys"][i], -8.2, z, Math.PI / 2, R)); sgn((own[4 + i] || [["קפה הקניון"], ["צעצועים"]][i])[0], 2.4, .5, -8.82, 3.4, z, Math.PI / 2, (own[4 + i] || [0, ["#2d6e4a", "#f2b440"][i]])[1], "#ffffff"); }
     add(box(1.6, .2, 6, "#9aa0a6", 6.5, 1.6, 2, { x: -.5 }), box(.1, 1, 6, "#2b2b2b", 5.7, 2.1, 2, { x: -.5 }), box(.1, 1, 6, "#2b2b2b", 7.3, 2.1, 2, { x: -.5 }), cyl(2, 2.2, .5, 24, "#d8d1c2", 0, 0, 1.5), cyl(1.8, 1.8, .2, 24, "#3fa8cf", 0, .35, 1.5), cyl(.3, .4, 1.4, 12, "#d8d1c2", 0, .3, 1.5));
     for (const [x, z] of [[-3.5, 1.5], [3.5, 1.5]]) add(box(2, .45, .6, "#7a5232", x, 0, z)); plant(-3.5, 4, 1.4); plant(3.5, 4, 1.4);
     sgn(name, 4, .9, 0, 4.5, -6.48, 0, "#1b2430", "#ffd75a");
@@ -4531,6 +4976,7 @@ function interiorOf(w) {
 }
 // builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
 function interiorScene(w) {
+  if (w.kind === "yallkea") { const R = yallkeaScene(); R.sc.children.forEach(m => { if (m.userData.roof) m.visible = false; }); INT.flags = []; return { sc: R.sc, me: null, tag: null, flags: [], frame: { scale: 3.6, target: [8, 0, 0] } }; }
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#1d2430"); sc.environment = scene.environment;
   sc.add(new THREE.HemisphereLight("#fff6ea", "#6a5a48", 1.25));
   const dl = new THREE.DirectionalLight("#fff1dc", 2.2); dl.position.set(6, 14, 9); dl.castShadow = true; dl.shadow.mapSize.set(2048, 2048);
@@ -4574,6 +5020,7 @@ function interiorTarget(id) {
   if (t === "work") return S.wpById.get(+a);
   if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, addr: g.addr, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
   if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, stores: p.kind === "mall" ? mallStores(p) : null, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, addr: p.addr, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
+  if (id === "yallkea" && S.ykSpot) return { id, kind: "yallkea", name: YK.name, ic: "🛋️", x: YK.door?.x ?? S.ykSpot.x, z: YK.door?.z ?? S.ykSpot.z, ry: S.ykSpot.ry, city_id: S.slots[0]?.city?.id, staff: [], addr: "על הגבעה, ליד הכביש המהיר", back: () => showYallkea() };
   if (id === "palmhotel" && PALM.geo) return { id, kind: "hotel", name: "מלון הדקל", ic: "🏨", x: PALM.geo.hotel.x, z: PALM.geo.hotel.z, ry: Math.atan2(-PALM.geo.U.x, -PALM.geo.U.z), city_id: S.slots[0]?.city?.id, staff: [], back: () => showPalm(true) };
   if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
   return S.wpById.get(+id);
@@ -5182,6 +5629,8 @@ const NEWS = {
   alleys: { v: "2026-10-18", ic: "🧱", t: "סמטאות מרוצפות בקצה העיר", sub: "רחוב ללא מוצא עם כיכר קטנה", ok: () => !!S.alleys?.length, shot: () => { const a = S.alleys[0]; return { a: at(a, 12, -.5, .4), b: at(a, 16, .3, .36) }; } },
   ideas: { v: "2026-10-18", ic: "💡", t: "לוח הצעות התושבים", sub: "כתבו רעיון, ותמכו ברעיונות של אחרים 👍", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 5, .6, .45), b: at(c, 3, 1.1, .5) }; } },
   mall: { v: "2026-10-18", ic: "🛍️", t: "הקניון הגדול נפתח", sub: "ליד נתיבי סבבה, עם חניון ענק", ok: () => S.projects.some(p => isMallSite(p) && p.site), shot: () => { const p = S.projects.find(q => isMallSite(q) && q.site); return { a: at(p, 3.2, -.5, .45), b: at(p, 5, .3, .4) }; } },
+  yallkea: { v: "2026-10-18", ic: "🏡", t: "סבבהום נפתחה!", sub: "חנות הרהיטים הענקית על הגבעה: רחוב של בתים", ok: () => !!S.ykSpot, shot: () => ({ a: at(S.ykSpot, 3, -.5, .4), b: at(S.ykSpot, 5, .3, .35) }) },
+  ykin: { v: "2026-10-18", ic: "🛏️", t: "בכל בית חדר אחר", sub: "כל רהיט מהקטלוג, בית קפה ומסעדה", ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
   law3: { v: "2026-10-18", ic: "🏛️", t: "חוק הרצף: 1,000 סבבונים", sub: "3 ימי משכורת ברצף = פרס", ok: () => !!GOV.find(g => g.id === "knesset")?.x, shot: () => { const k = GOV.find(g => g.id === "knesset"); return { a: at(k, 10, -.5, .35), b: at(k, 14, .3, .3) }; } }
 };
 // the newest release is what "what's new" shows by itself (the date of the newest item)
@@ -5917,7 +6366,10 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam, renderer, WRP, warpXZ, unwarpXZ, terrainH, pickAt: (px, py) => { ndc.set(px / innerWidth * 2 - 1, -(py / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); unbendRay(ray); const h = ray.intersectObjects(S.picks, false)[0]; return h ? [h.object.userData.type, h.object.userData.items?.[h.instanceId ?? 0]?.u, h.point.x, h.point.z] : null; } } });
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+      const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
+      sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
+      const cm = new THREE.PerspectiveCamera(32, 1, .1, 100); cm.position.set(...view); cm.lookAt(...tgt); r.render(sc, cm); const u = r.domElement.toDataURL("image/png"); r.dispose(); return u; }, npc: () => [...NPC.values()].map(n => n.fig), wcam: walkCam, renderer, WRP, warpXZ, unwarpXZ, terrainH, pickAt: (px, py) => { ndc.set(px / innerWidth * 2 - 1, -(py / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); unbendRay(ray); const h = ray.intersectObjects(S.picks, false)[0]; return h ? [h.object.userData.type, h.object.userData.items?.[h.instanceId ?? 0]?.u, h.point.x, h.point.z] : null; } } });
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
