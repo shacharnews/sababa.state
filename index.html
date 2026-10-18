@@ -376,7 +376,26 @@ const COLORS = { white: ["#f2f2ef", "לבן פיתה"], black: ["#17191c", "שח
 const COLOR_KEYS = Object.keys(COLORS);
 // daily pay, must match daily_salary() in upgrade-5.sql
 const PAY = { tech: 220, office: 210, bank: 200, clinic: 180, pharmacy: 170, police: 170, school: 160, hotel: 150, factory: 150, garage: 150, gym: 140, restaurant: 140, hummus: 130, shop: 120, market: 120 }, PAY_LV = [1, 1, 1.4, 1.9, 2.6];
-const salaryOf = h => Math.round((h.wp ? PAY[h.wp.kind] || 110 : 60) * PAY_LV[Math.min(4, Math.max(1, h.level))]);
+// the admin can change the pay of every job (settings "pay" = { kinds: {kind: pay}, none: pay without a job, lv: [x, x, ...] }); daily_salary() in upgrade-16.sql reads the same
+const payOf = kind => +S.pay?.kinds?.[kind] || PAY[kind] || 110, payNone = () => +S.pay?.none || 60, payLv = i => +S.pay?.lv?.[i] || PAY_LV[i];
+const salaryOf = h => Math.round((h.wp ? payOf(h.wp.kind) : payNone()) * payLv(Math.min(4, Math.max(1, h.level))));
+function payEdit() { if (!ADMIN) return;
+  const kinds = [...new Set([...Object.keys(KIND_NAMES), ...S.workplaces.map(w => w.kind)])].filter(k => k !== "ballot");
+  open("💰 משכורות יומיות", `<div class="hero"><p>המשכורת היומית לכל סוג עבודה, לפני הקידום. ראש צוות, מנהל ומנכ״ל מקבלים פי כמה (למטה). השינוי חל מהאיסוף הבא של כל תושב.</p></div>
+    <div class="sec">💼 לפי סוג עבודה</div><div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px"><div class="row2">${kinds.map(k => `<label>${KIND_IC[k] || "💼"} ${KIND_NAMES[k] || k}<input type="number" min="0" max="100000" data-pk="${k}" value="${payOf(k)}"></label>`).join("")}
+      <label>🙂 בלי עבודה<input type="number" min="0" max="100000" id="payNone" value="${payNone()}"></label></div></div>
+    <div class="sec">📈 מכפיל לפי דרגה</div><div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px"><div class="row2">${[1, 2, 3, 4].map(i => `<label>${LEVEL[i] || "עובד/ת"}<input type="number" step="0.1" min="0.1" max="20" data-lv="${i}" value="${payLv(i)}"></label>`).join("")}</div></div>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="paySave">💾 לשמור</button><button class="btn ghost" id="payReset">↩️ ברירת מחדל</button></div>
+    <p class="note">כדי שהשרת ישלם לפי הטבלה הזאת צריך להריץ פעם אחת את upgrade-16.sql.</p>`, () => {
+    const save = async v => { if (await adminEdit("settings", "pay", { value: v })) { S.pay = v; toast("✅ המשכורות עודכנו"); close(); } };
+    $("paySave").onclick = e => { const v = { kinds: {}, lv: [] }, B = $("dBody");
+      B.querySelectorAll("[data-pk]").forEach(el => { const n = Math.max(0, Math.round(+el.value || 0)); if (n !== (PAY[el.dataset.pk] || 110)) v.kinds[el.dataset.pk] = n; });
+      const nn = Math.max(0, Math.round(+$("payNone").value || 0)); if (nn !== 60) v.none = nn;
+      B.querySelectorAll("[data-lv]").forEach(el => { const i = +el.dataset.lv, n = Math.max(.1, +el.value || 1); if (n !== PAY_LV[i]) v.lv[i] = n; });
+      if (!v.lv.length) delete v.lv; else for (let i = 0; i < v.lv.length; i++) if (v.lv[i] == null) v.lv[i] = PAY_LV[i];
+      e.target.disabled = true; save(v).then(() => e.target.disabled = false); };
+    $("payReset").onclick = () => confirm("להחזיר את כל המשכורות לברירת המחדל?") && save({});
+  }); }
 const COIN = "🪙";
 const CAR_NAMES = { 1: "רכב עירוני קטן", 2: "רכב משפחתי", 3: "רכב ספורט יוקרתי" };
 const TIER_NAMES = { 1: "עירוני", 2: "משפחתי", 3: "יוקרה" };
@@ -518,10 +537,12 @@ function buildPalm() {
   }
   PALM.gates = gates;
   // monorail beam over the trunk, from the land to the hotel (the train runs on it)
-  const mr = [g.W(-24, -7.2), g.W(g.TE - 2, -7.2), g.W(g.CC.u + g.CR - 34, -7.2)];
+  // it runs beside the bridge and the trunk, over the water and the gardens, never above the road or the sidewalk
+  const MV = -14.5, mr = [g.W(-24, MV), g.W(g.TE - 2, MV), g.W(g.CC.u + g.CR - 34, -7.2)], cutsN = g.fronds.filter(f => f.b.v < 0).map(f => [f.b.u - 12, f.b.u + 7]), cutN = u => cutsN.some(([a, b]) => u > a && u < b);
   for (let i = 0; i + 1 < mr.length; i++) { const A = mr[i], B = mr[i + 1], L = Math.hypot(B.x - A.x, B.z - A.z), ry = Math.atan2(B.x - A.x, B.z - A.z);
-    Q.push(box(1.4, .9, L, "#e9e6df", (A.x + B.x) / 2, 7, (A.z + B.z) / 2, { y: ry })); for (let k = 0; k < L; k += 18) { if (i === 0 && cut(-24 + k)) continue;   // no pillar in the middle of a junction
-      Q.push(cyl(.5, .6, 7.2, 8, "#d8d3c8", A.x + (B.x - A.x) * k / L, -.2, A.z + (B.z - A.z) * k / L)); } }
+    Q.push(box(1.4, .9, L, "#e9e6df", (A.x + B.x) / 2, 8, (A.z + B.z) / 2, { y: ry }), box(.5, .25, L, "#9aa0a6", (A.x + B.x) / 2, 8.9, (A.z + B.z) / 2, { y: ry }));
+    for (let k = 0; k < L; k += 18) { if (i === 0 && (cut(-24 + k) || cutN(-24 + k))) continue;   // no pillar in the middle of a junction
+      Q.push(cyl(.5, .6, 8.2, 8, "#d8d3c8", A.x + (B.x - A.x) * k / L, -.2, A.z + (B.z - A.z) * k / L)); } }
   PALM.track = mr;
   // breakwater rocks and palms along the crescent, beach umbrellas on its inner side
   for (let i = 0; i < 70; i++) { const a = g.A0 + (g.A1 - g.A0) * i / 69, p = g.W(g.CC.u + Math.cos(a) * (g.CR + 7.5), g.CC.v + Math.sin(a) * (g.CR + 7.5)); rocks.push([p.x, p.z, i]); }
@@ -570,7 +591,8 @@ function buildPalm() {
   for (const [u, v, r2] of [[60, 120, .3], [300, -110, -.4], [40, -130, 1.2], [300, 120, -.2], [330, 40, 1.4], [330, -60, -1.6]]) { const p = g.W(u, v);
     const yt = solid([box(2.6, 1.4, 9, "#ffffff", 0, -.3, 0), box(2, 1, 4.6, "#ffffff", 0, 1.1, -.6), box(2.1, .5, 3.4, "*#bfe3f2", 0, 1.3, -.2), box(.1, .1, 3, "#2f6e7a", 0, .8, 3), part(new THREE.ConeGeometry(1.3, 2.6, 4), "#ffffff", 0, .3, 5.4, { x: Math.PI / 2, y: Math.PI / 4 })], p.x, p.z, ANG + r2);
     yt.position.y = -2.9; boats.push(yt); }
-  const tr = solid([box(2.2, 2.4, 14, "#f2f2f2", 0, 0, 0), box(2.25, .9, 13, "*#bfe3f2", 0, 1, 0), box(2.3, .4, 14, "#1f6f8b", 0, .2, 0)], mr[0].x, mr[0].z, 0, data, 7.5); PALM.train = tr;
+  const car = z => [box(2.2, 2.4, 9.6, "#f2f2f2", 0, 0, z), box(2.25, .85, 9, "*#bfe3f2", 0, 1.05, z), box(2.3, .35, 9.6, "#1f6f8b", 0, .25, z), box(1.2, .5, 9.6, "#9aa0a6", 0, -.45, z)];
+  const tr = solid([...car(-5), ...car(5), box(1.8, 2, .6, "#d8d8d8", 0, .2, 0), sph(1.15, "#f2f2f2", 0, 1.2, 9.8, 1, 1, 1.1), sph(1.15, "#f2f2f2", 0, 1.2, -9.8, 1, 1, 1.1), sph(.8, "*#bfe3f2", 0, 1.6, 10.3, 1.1, .6, .8), sph(.8, "*#bfe3f2", 0, 1.6, -10.3, 1.1, .6, .8)], mr[0].x, mr[0].z, 0, data, 9.4); PALM.train = tr;
   placeLabel("🌴 אי הדקל", g.center.x, 14, g.center.z); placeLabel("🏨 מלון הדקל", g.hotel.x, 50, g.hotel.z);
   const gate = solid([box(.6, 6, .6, "#d9cfb9", -7, 0, 0), box(.6, 6, .6, "#d9cfb9", 7, 0, 0), box(15, 1.6, .5, "#1f6f8b", 0, 5, 0)], g.W(-2, 0).x, g.W(-2, 0).z, ANG, data, .25);
   mountSign(gate, sign("🌴 ברוכים הבאים לאי הדקל", 12, 1.3, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 5.8, -.27, Math.PI);
@@ -582,7 +604,7 @@ function palmTrain(t) {
   const L1 = Math.hypot(m[1].x - m[0].x, m[1].z - m[0].z), L2 = Math.hypot(m[2].x - m[1].x, m[2].z - m[1].z), L = L1 + L2, per = L * 2 / 11 + 16, k = (t % per) / per;
   let d = k < .5 ? Math.min(1, Math.max(0, (k * per - 4) / (L / 11))) * L : (1 - Math.min(1, Math.max(0, ((k - .5) * per - 4) / (L / 11)))) * L;
   const A = d < L1 ? m[0] : m[1], B = d < L1 ? m[1] : m[2], f = d < L1 ? d / L1 : (d - L1) / L2;
-  tr.position.set(A.x + (B.x - A.x) * f, 7.5, A.z + (B.z - A.z) * f); tr.rotation.y = Math.atan2(B.x - A.x, B.z - A.z);
+  tr.position.set(A.x + (B.x - A.x) * f, 9.4, A.z + (B.z - A.z) * f); tr.rotation.y = Math.atan2(B.x - A.x, B.z - A.z);
 }
 function centralBox(slot) { const x0 = slot.x + BPX(-1) - bwX(-1) / 2, x1 = slot.x + BPX(1) + bwX(1) / 2, z0 = slot.z + BPZ(-1) - BZ / 2, z1 = slot.z + BPZ(1) + BZ / 2; return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hw: (x1 - x0) / 2 - 3, hd: (z1 - z0) / 2 - 3 }; }
 // the houses around the city square: in each corner two face the plaza and two face the side street; their address is the square itself
@@ -2311,137 +2333,137 @@ const FUNIQ = {
     Q.push(rug, rug2, cyl(.42, .42, .04, 24, "*#cfe6ee", -1.6, .38, .45), cyl(.03, .03, .38, 8, brass, -1.6, 0, .45), cyl(.36, .36, .04, 24, "#b9834f", 1.6, .38, 1.95), cyl(.03, .03, .38, 8, brass, 1.6, 0, 1.95));   // an oval rug, a glass coffee table in the wave's hollow and a wooden one by its crest
     return Q; } },
   // ---- the strange ones: every other piece in a shape of its own. Sketches until the founder approves each one ("ok": true puts it in the store's gallery)
-  armchair: { n: "כורסת היד", price: 1800, fp: [1.3, 1.1], note: "כורסה בצורת כף יד ענקית: יושבים בכף, האצבעות הן המשענת", build() {
+  armchair: { n: "כורסת היד", ok: true, price: 1800, fp: [1.3, 1.1], note: "כורסה בצורת כף יד ענקית: יושבים בכף, האצבעות הן המשענת", build() {
     const sk = "#f2c49a", nail = "#f6e3d6", Q = [box(1.05, .42, .95, sk, 0, 0, .05), box(1.05, .95, .3, sk, 0, .3, -.33)];
     [[-.39, .5], [-.13, .62], [.13, .58], [.39, .46]].forEach(([x, h]) => Q.push(cyl(.12, .12, h, 12, sk, x, 1.25, -.33), sph(.12, sk, x, 1.25 + h, -.33), box(.12, .1, .03, nail, x, 1.18 + h, -.2)));
     Q.push(cyl(.13, .13, .55, 12, sk, .62, .55, -.05, { z: -.75 }), sph(.13, sk, .82, .95, -.05)); return Q; } },
-  coffee: { n: "שולחן הפלאפל", price: 900, fp: [1.4, 1.4], note: "המשטח הוא פיתה ענקית, הרגליים כדורי פלאפל, עם טחינה מעל", build() {
+  coffee: { n: "שולחן הפלאפל", ok: true, price: 900, fp: [1.4, 1.4], note: "המשטח הוא פיתה ענקית, הרגליים כדורי פלאפל, עם טחינה מעל", build() {
     const Q = [cyl(.62, .62, .08, 28, "#e9c58a", 0, .4, 0), part(new THREE.TorusGeometry(.6, .05, 8, 28), "#d9a35a", 0, .48, 0, { x: Math.PI / 2 }), part(new THREE.TorusGeometry(.32, .025, 6, 24), "#f2ead8", 0, .49, 0, { x: Math.PI / 2 })];
     for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2; Q.push(sph(.21, "#8a5a20", Math.sin(a) * .34, .2, Math.cos(a) * .34)); }
     for (let i = 0; i < 7; i++) { const a = i * 2.4; Q.push(sph(.04, i % 2 ? "#e05a4f" : "#4f9a45", Math.sin(a) * .45, .5, Math.cos(a) * .45)); } return Q; } },
-  tvunit: { n: "מזנון הקסטה", price: 2200, fp: [2.1, .6], note: "מזנון בצורת קלטת ענקית עם גלגלים לבנים וחלון, הטלוויזיה עומדת עליה", build() {
+  tvunit: { n: "מזנון הקסטה", ok: true, price: 2200, fp: [2.1, .6], note: "מזנון בצורת קלטת ענקית עם גלגלים לבנים וחלון, הטלוויזיה עומדת עליה", build() {
     const Q = [box(2, .72, .46, "#1b1b1b", 0, .1, 0), box(1.8, .2, .02, "#f08a24", 0, .58, .235), box(.7, .2, .02, "%#cfe8f2", 0, .3, .235)];
     for (const x of [-.48, .48]) Q.push(cyl(.17, .17, .03, 20, "#f4f1ea", x, .4, .23, { x: Math.PI / 2 }), cyl(.06, .06, .04, 6, "#1b1b1b", x, .4, .24, { x: Math.PI / 2 }));
     for (const x of [-.92, .92]) for (const y of [.18, .74]) Q.push(cyl(.025, .025, .02, 8, "#c9ced3", x, y, .235, { x: Math.PI / 2 }));
     Q.push(box(1.3, .75, .05, "#111111", 0, .9, -.05), box(1.24, .69, .01, "*#2a5a7a", 0, .93, -.02), ...[-.9, .9].map(x => box(.08, .1, .3, "#1b1b1b", x, 0, 0))); return Q; } },
-  bookcase: { n: "ספריית העץ", price: 1500, fp: [1.7, .45], note: "גזע עץ עם ענפים שהם המדפים, ספרים על הענפים ונוף ירוק למעלה", build() {
+  bookcase: { n: "ספריית העץ", ok: true, price: 1500, fp: [1.7, .45], note: "גזע עץ עם ענפים שהם המדפים, ספרים על הענפים ונוף ירוק למעלה", build() {
     const Q = [box(.3, 2.15, .3, "#7a5232", 0, 0, 0), sph(.55, "#4f9a45", 0, 2.35, 0, 1.3, 1, .8), sph(.38, "#5fae4f", -.45, 2.2, .05), sph(.38, "#3f8f3a", .45, 2.25, -.05)];
     const cols = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8", "#f4f1ea"];
     [[.45, -1], [.85, 1], [1.25, -1], [1.65, 1]].forEach(([y, sd], j) => { Q.push(box(.75, .06, .3, "#8a5a30", sd * .5, y, 0), box(.16, .06, .3, "#8a5a30", sd * .9, y + .06, 0, { z: sd * .5 }));
       for (let i = 0; i < 5; i++) Q.push(box(.08, .2 + (i * 7 + j) % 3 * .04, .22, cols[(i + j) % 6], sd * (.25 + i * .1), y + .06, 0)); }); return Q; } },
-  rug: { n: "שטיח האבטיח", price: 450, fp: [2.7, 1.5], note: "פלח אבטיח ענק על הרצפה: קליפה ירוקה, לבן, אדום וגרעינים", build() {
+  rug: { n: "שטיח האבטיח", ok: true, price: 450, fp: [2.7, 1.5], note: "פלח אבטיח ענק על הרצפה: קליפה ירוקה, לבן, אדום וגרעינים", build() {
     const slab = (r, h, col) => part(new THREE.CylinderGeometry(r, r, h, 32, 1, false, -Math.PI / 2, Math.PI), col, 0, h / 2, -.6), Q = [slab(1.32, .02, "#2f7a3a"), slab(1.2, .025, "#f2f5e6"), slab(1.1, .03, "#e2484f")];
     for (let i = 0; i < 12; i++) { const a = -1.2 + (i % 6) * .48, r = i < 6 ? .55 : .85; Q.push(sph(.05, "#1b1b1b", Math.sin(a) * r, .035, -.6 + Math.cos(a) * r, .7, .2, 1.3)); } return Q; } },
-  floorlamp: { n: "מנורת הדקל", price: 650, fp: [1.5, 1.5], note: "עץ דקל קטן, הקוקוסים הם הנורות", build() {
+  floorlamp: { n: "מנורת הדקל", ok: true, price: 650, fp: [1.5, 1.5], note: "עץ דקל קטן, הקוקוסים הם הנורות", build() {
     const Q = [cyl(.25, .3, .06, 16, "#c9a24a", 0, 0, 0)]; for (let i = 0; i < 6; i++) Q.push(cyl(.06 - i * .004, .07 - i * .004, .3, 8, i % 2 ? "#8a5a30" : "#7a4a26", Math.sin(i * .5) * .03, .06 + i * .3, 0));
     for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; Q.push(part(new THREE.SphereGeometry(.42, 10, 6).scale(1.5, .12, .45).rotateZ(-.35).rotateY(-a), "#3f8f3a", Math.cos(a) * .5, 1.88, Math.sin(a) * .5)); }
     for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + .5; Q.push(sph(.1, "*#ffd27a", Math.cos(a) * .13, 1.78, Math.sin(a) * .13)); } return Q; } },
-  bed: { n: "מיטת הענן", price: 3600, fp: [2.4, 2.5], note: "מיטה שנראית כמו ענן לבן ורך, גם הראש של המיטה הוא ענן", build() {
+  bed: { n: "מיטת הענן", ok: true, price: 3600, fp: [2.4, 2.5], note: "מיטה שנראית כמו ענן לבן ורך, גם הראש של המיטה הוא ענן", build() {
     const W = "#f4f8ff", Q = [box(1.7, .25, 2, "#ffffff", 0, .38, .05), box(1.72, .1, 1.2, "#bfe0f5", 0, .62, .45), box(.6, .14, .4, "#ffffff", -.4, .64, -.7), box(.6, .14, .4, "#ffffff", .4, .64, -.7)];
     for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) Q.push(sph(.5, W, -.65 + i * .65, .32, -.75 + j * .55, 1, .5, 1));
     for (const [x, y, r] of [[-.75, .85, .45], [0, .95, .55], [.75, .85, .45], [-.38, 1.35, .42], [.38, 1.38, .45]]) Q.push(sph(r, W, x, y, -1.1, 1, 1, .55));
     for (let i = 0; i < 5; i++) Q.push(sph(.04, "*#fff1a8", -.7 + i * .35, 1.05 + (i % 2) * .3, -.85)); return Q; } },
-  nightstand: { n: "שידת הקקטוס", price: 520, fp: [.8, .6], note: "קקטוס ירוק עם מגירה, פרח ורוד ועציץ חרס", build() {
+  nightstand: { n: "שידת הקקטוס", ok: true, price: 520, fp: [.8, .6], note: "קקטוס ירוק עם מגירה, פרח ורוד ועציץ חרס", build() {
     const g = "#3f8f3a", Q = [cyl(.3, .25, .25, 16, "#c96a3a", 0, 0, 0), cyl(.22, .22, .5, 14, g, 0, .25, 0), sph(.22, g, 0, .75, 0), box(.26, .14, .03, "#2f6e2a", 0, .42, .21), sph(.025, "#f2c230", 0, .49, .235)];
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Q.push(box(.03, .55, .03, "#2f6e2a", Math.sin(a) * .21, .25, Math.cos(a) * .21)); }
     for (const sd of [-1, 1]) Q.push(cyl(.07, .07, .16, 10, g, sd * .27, .45, 0, { z: sd * Math.PI / 2 }), cyl(.07, .07, .2, 10, g, sd * .34, .5, 0), sph(.07, g, sd * .34, .7, 0));
     Q.push(sph(.07, "#f06fa4", 0, .96, 0), sph(.03, "#f2c230", 0, 1, .05)); return Q; } },
-  wardrobe: { n: "ארון הרקטה", price: 3200, fp: [1.5, 1.5], note: "ארון בגדים בצורת טיל: חלון עגול, כנפיים אדומות וחרטום", build() {
+  wardrobe: { n: "ארון הרקטה", ok: true, price: 3200, fp: [1.5, 1.5], note: "ארון בגדים בצורת טיל: חלון עגול, כנפיים אדומות וחרטום", build() {
     const Q = [cyl(.55, .55, 1.9, 24, "#e9eef3", 0, .32, 0), part(new THREE.ConeGeometry(.55, .75, 24), "#d64545", 0, 2.6, 0), box(.02, 1.7, .02, "#9aa0a6", 0, .42, .55),
       cyl(.17, .17, .04, 20, "*#9fd3ea", 0, 1.75, .54, { x: Math.PI / 2 }), part(new THREE.TorusGeometry(.18, .035, 6, 20), "#c9ced3", 0, 1.75, .56), box(.04, .18, .05, "#c9ced3", .08, 1.1, .56)];
     for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + Math.PI / 6; Q.push(box(.06, .6, .45, "#d64545", Math.sin(a) * .6, 0, Math.cos(a) * .6, { y: a })); }
     Q.push(part(new THREE.ConeGeometry(.3, .3, 16).rotateX(Math.PI), "#f08a24", 0, .17, 0)); return Q; } },
-  dresser: { n: "שידת הפסנתר", price: 1700, fp: [1.6, .8], note: "שידה שחורה בצורת פסנתר עם קלידים, ומראה בתוך המכסה הפתוח", build() {
+  dresser: { n: "שידת הפסנתר", ok: true, price: 1700, fp: [1.6, .8], note: "שידה שחורה בצורת פסנתר עם קלידים, ומראה בתוך המכסה הפתוח", build() {
     const Q = [box(1.4, .78, .55, "#1b1b1b", 0, .12, 0), box(1.4, .04, .62, "#1b1b1b", 0, .9, -.3, { x: -.9 }), box(1.3, .02, .5, "*#dbe9ef", 0, .91, -.28, { x: -.9 })];
     for (let i = 0; i < 14; i++) Q.push(box(.09, .04, .2, "#ffffff", -.6 + i * .093, .86, .2)); for (let i = 0; i < 13; i++) if (i % 7 !== 2 && i % 7 !== 6) Q.push(box(.05, .04, .12, "#111111", -.555 + i * .093, .89, .15));
     for (let i = 0; i < 2; i++) Q.push(box(1.3, .25, .01, "#2b2b2b", 0, .2 + i * .3, .28), sph(.025, "#c9a24a", 0, .32 + i * .3, .29));
     for (const x of [-.62, .62]) Q.push(cyl(.04, .03, .12, 8, "#c9a24a", x, 0, 0)); return Q; } },
-  kitchen: { n: "מטבח הקובייה", price: 7900, fp: [2.8, .8], note: "מטבח שהחזיתות שלו הן קובייה הונגרית צבעונית", build() {
+  kitchen: { n: "מטבח הקובייה", ok: true, price: 7900, fp: [2.8, .8], note: "מטבח שהחזיתות שלו הן קובייה הונגרית צבעונית", build() {
     const cols = ["#e05a4f", "#2f7fa8", "#3fae6a", "#f2c230", "#f08a24", "#ffffff"], Q = [box(2.7, .88, .64, "#111111", 0, .04, 0), box(2.72, .04, .66, "#f4f1ea", 0, .92, 0), box(2.7, .6, .36, "#111111", 0, 1.55, -.14)];
     for (let i = 0; i < 9; i++) for (let j = 0; j < 3; j++) Q.push(box(.27, .25, .02, cols[(i * 5 + j * 3) % 6], -1.2 + i * .3, .1 + j * .28, .32));
     for (let i = 0; i < 9; i++) for (let j = 0; j < 2; j++) Q.push(box(.27, .25, .02, cols[(i * 2 + j * 5 + 1) % 6], -1.2 + i * .3, 1.59 + j * .28, .04));
     Q.push(box(.5, .02, .38, "#c9ced3", -.7, .95, .02), cyl(.02, .02, .25, 6, "#c9ced3", -.7, .96, -.2), box(.55, .015, .45, "#1a1a1a", .6, .95, 0)); return Q; } },
-  fridge: { n: "מקרר קרטון החלב", price: 3900, fp: [.9, .9], note: "מקרר בצורת קרטון חלב עם כתמי פרה, הגג משולש כמו בקרטון", build() {
+  fridge: { n: "מקרר קרטון החלב", ok: true, price: 3900, fp: [.9, .9], note: "מקרר בצורת קרטון חלב עם כתמי פרה, הגג משולש כמו בקרטון", build() {
     const Q = [box(.8, 1.6, .76, "#ffffff", 0, 0, 0), box(.82, .3, .78, "#2f7fa8", 0, 1.05, 0), shTri(.76, .38, .8, "#ffffff", 0, 1.6, 0, Math.PI / 2), box(.8, .1, .05, "#ffffff", 0, 1.96, 0), box(.03, .4, .04, "#9aa0a6", .3, .6, .4)];
     for (const [x, y, z] of [[-.25, .4, .39], [.15, .25, .39], [.41, .55, .1], [.41, .3, -.2], [-.41, .6, -.1]]) Q.push(sph(.1, "#1b1b1b", x, y, z, x * x > .1 ? .2 : 1, 1, x * x > .1 ? 1 : .2)); return Q; } },
-  island: { n: "אי הגלשן", price: 2600, fp: [2.7, 1.6], note: "המשטח הוא גלשן צהוב עם פס אדום, הבסיס גלים כחולים, שרפרפים צבעוניים", build() {
+  island: { n: "אי הגלשן", ok: true, price: 2600, fp: [2.7, 1.6], note: "המשטח הוא גלשן צהוב עם פס אדום, הבסיס גלים כחולים, שרפרפים צבעוניים", build() {
     const top = cyl(.48, .48, .06, 28, "#f2c230", 0, .9, 0); top.scale(2.6, 1, 1); const st = box(2.3, .065, .06, "#e05a4f", 0, .9, 0);
     const Q = [top, st, box(.4, .88, .5, "#2f7fa8", -.6, 0, 0), box(.4, .88, .5, "#2f7fa8", .6, 0, 0), part(new THREE.TorusGeometry(.22, .06, 6, 16, Math.PI), "#5fb0d6", -.6, .6, .26), part(new THREE.TorusGeometry(.22, .06, 6, 16, Math.PI), "#5fb0d6", .6, .6, .26)];
     [-.8, 0, .8].forEach((x, i) => Q.push(cyl(.17, .17, .05, 14, ["#e05a4f", "#3fae6a", "#f08a24"][i], x, .66, .65), cyl(.025, .025, .66, 6, "#c9ced3", x, 0, .65))); return Q; } },
-  dtable: { n: "שולחן החומוס", price: 4800, fp: [3.2, 3.2], note: "שולחן עגול שהוא צלחת חומוס ענקית: שמן זית, גרגרים ופפריקה, עם 6 כיסאות", build() {
+  dtable: { n: "שולחן החומוס", ok: true, price: 4800, fp: [3.2, 3.2], note: "שולחן עגול שהוא צלחת חומוס ענקית: שמן זית, גרגרים ופפריקה, עם 6 כיסאות", build() {
     const Q = [cyl(1.05, .95, .1, 36, "#f4f1ea", 0, .7, 0), cyl(.9, .9, .05, 36, "#e8d3a2", 0, .8, 0), part(new THREE.TorusGeometry(.55, .06, 8, 32), "#d9c08a", 0, .85, 0, { x: Math.PI / 2 }), cyl(.32, .32, .012, 24, "#c9a91a", 0, .85, 0), cyl(.2, .4, .7, 16, "#d9a35a", 0, 0, 0)];
     for (let i = 0; i < 12; i++) { const a = i * 2.4, r = .1 + (i % 4) * .05; Q.push(sph(.04, "#e2c27a", Math.sin(a) * r, .87, Math.cos(a) * r)); }
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; Q.push(sph(.03, i % 2 ? "#c0392b" : "#4f9a45", Math.sin(a) * .72, .84, Math.cos(a) * .72)); }
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Q.push(...FURN.chair.build({ size: "m", style: "wood" }).map(g => g.rotateY(a + Math.PI).translate(Math.sin(a) * 1.35, 0, Math.cos(a) * 1.35))); } return Q; } },
-  chair: { n: "כיסא הגלידה", price: 480, fp: [.8, .8], note: "גביע ופל, כדור תות למושב, כדור שוקולד למשענת, סוכריות ודובדבן", build() {
+  chair: { n: "כיסא הגלידה", ok: true, price: 480, fp: [.8, .8], note: "גביע ופל, כדור תות למושב, כדור שוקולד למשענת, סוכריות ודובדבן", build() {
     const Q = [cyl(.28, .28, .03, 16, "#c9a24a", 0, 0, 0), part(new THREE.ConeGeometry(.3, .5, 16).rotateX(Math.PI), "#d9a35a", 0, .27, 0), sph(.34, "#f2c9d2", 0, .58, 0, 1, .45, 1), sph(.3, "#7a3b1f", 0, .95, -.2, 1, 1, .6), sph(.07, "#d62f3f", 0, 1.27, -.2)];
     for (let i = 0; i < 10; i++) Q.push(box(.05, .015, .015, ["#3fae6a", "#f2c230", "#2f7fa8", "#ffffff"][i % 4], -.2 + (i % 5) * .1, 1 + (i > 4 ? .12 : 0), -.03, { y: i }));
     for (let i = 0; i < 6; i++) Q.push(box(.02, .45, .015, "#b9834f", Math.sin(i) * .2, .05, Math.cos(i) * .2, { y: i })); return Q; } },
-  bunk: { n: "מיטת הטירה", price: 2800, fp: [1.4, 2.4], note: "מיטת קומתיים שהיא טירה: מגדלים עם גגות אדומים, חומות ודגל", build() {
+  bunk: { n: "מיטת הטירה", ok: true, price: 2800, fp: [1.4, 2.4], note: "מיטת קומתיים שהיא טירה: מגדלים עם גגות אדומים, חומות ודגל", build() {
     const st = "#c9c3b8", Q = [];
     for (const [x, z] of [[-.6, -1.1], [.6, -1.1], [-.6, 1.1], [.6, 1.1]]) Q.push(cyl(.2, .2, 2.1, 12, st, x, 0, z), part(new THREE.ConeGeometry(.26, .5, 12), "#d64545", x, 2.35, z));
     for (const y of [.25, 1.2]) Q.push(box(1.1, .12, 2.1, st, 0, y, 0), box(1, .16, 2, "#ffffff", 0, y + .12, 0), box(1.02, .07, 1.1, "#2f7fa8", 0, y + .28, .4));
     for (const sd of [-1, 1]) for (let i = 0; i < 8; i++) Q.push(box(.06, .16, .14, st, sd * .55, 1.75, -.9 + i * .26));
     Q.push(box(.05, .45, 1.6, st, .55, 1.3, 0), box(.05, .45, 1.6, st, -.55, 1.3, 0), cyl(.015, .015, .6, 4, "#5a3a26", .6, 2.5, -1.1), box(.02, .2, .3, "#f08a24", .6, 2.85, -.95));
     for (const y of [.5, .8, 1.1]) Q.push(box(.04, .04, .45, "#8a5a30", .62, y, .7)); return Q; } },
-  toybox: { n: "ארגז הדינוזאור", price: 420, fp: [1.5, .7], note: "ארגז צעצועים בצורת דינוזאור ירוק עם קוצים כתומים", build() {
+  toybox: { n: "ארגז הדינוזאור", ok: true, price: 420, fp: [1.5, .7], note: "ארגז צעצועים בצורת דינוזאור ירוק עם קוצים כתומים", build() {
     const g = "#3fae6a", Q = [box(.9, .5, .5, g, 0, .12, 0), box(.92, .06, .52, "#2f8a52", 0, .62, 0), cyl(.1, .14, .4, 10, g, .5, .45, 0, { z: -.6 }), box(.34, .25, .28, g, .75, .75, 0), sph(.05, "#ffffff", .85, .88, .12), sph(.025, "#1b1b1b", .87, .88, .155),
       sph(.05, "#ffffff", .85, .88, -.12), sph(.025, "#1b1b1b", .87, .88, -.155), part(new THREE.ConeGeometry(.15, .5, 10).rotateZ(Math.PI / 2), g, -.65, .35, 0)];
     for (let i = 0; i < 5; i++) Q.push(part(new THREE.ConeGeometry(.06, .14, 6), "#f08a24", -.35 + i * .17, .72, 0));
     for (const [x, z] of [[-.3, -.18], [.3, -.18], [-.3, .18], [.3, .18]]) Q.push(cyl(.07, .07, .12, 8, g, x, 0, z)); return Q; } },
-  kidsdesk: { n: "שולחן הלגו", price: 560, fp: [1.2, 1.2], note: "שולחן מקוביות לגו ענקיות עם בליטות, והכיסא הוא קובייה", build() {
+  kidsdesk: { n: "שולחן הלגו", ok: true, price: 560, fp: [1.2, 1.2], note: "שולחן מקוביות לגו ענקיות עם בליטות, והכיסא הוא קובייה", build() {
     const Q = [box(1, .1, .6, "#e05a4f", 0, .5, 0)]; for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) Q.push(cyl(.04, .04, .03, 10, "#e05a4f", -.44 + i * .125, .6, -.22 + j * .145));
     for (const x of [-.4, .4]) for (let k = 0; k < 2; k++) Q.push(box(.18, .24, .5, k ? "#f2c230" : "#2f7fa8", x, k * .25, 0));
     Q.push(box(.4, .3, .4, "#3fae6a", 0, 0, .55)); for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) Q.push(cyl(.05, .05, .04, 10, "#3fae6a", -.1 + i * .2, .3, .45 + j * .2)); return Q; } },
-  desk: { n: "שולחן המקלדת", price: 1900, fp: [1.9, .9], note: "שולחן עבודה שהוא מקלדת ענקית, הרגליים עפרונות", build() {
+  desk: { n: "שולחן המקלדת", ok: true, price: 1900, fp: [1.9, .9], note: "שולחן עבודה שהוא מקלדת ענקית, הרגליים עפרונות", build() {
     const Q = [box(1.8, .07, .75, "#2b2b2b", 0, .73, 0), box(.55, .35, .03, "#111111", 0, .9, -.3), box(.51, .31, .01, "*#2a5a7a", 0, .92, -.28), box(.04, .16, .04, "#111111", 0, .8, -.3)];
     for (let r = 0; r < 4; r++) for (let c = 0; c < 13; c++) Q.push(box(.11, .03, .09, r === 3 && c > 3 && c < 9 ? "#f08a24" : "#f4f1ea", -.8 + c * .133, .8, -.05 + r * .11));
     for (const [x, z] of [[-.8, -.3], [.8, -.3], [-.8, .3], [.8, .3]]) Q.push(cyl(.04, .04, .6, 6, "#f2c230", x, .13, z), part(new THREE.ConeGeometry(.04, .13, 6).rotateX(Math.PI), "#e2c49a", x, .065, z), cyl(.042, .042, .05, 6, "#e88aa8", x, .68, z)); return Q; } },
-  officechair: { n: "כיסא הכדורגל", price: 950, fp: [.75, .75], note: "כיסא משרדי שהמושב והמשענת שלו כדורגל", build() {
+  officechair: { n: "כיסא הכדורגל", ok: true, price: 950, fp: [.75, .75], note: "כיסא משרדי שהמושב והמשענת שלו כדורגל", build() {
     const Q = [cyl(.3, .3, .04, 5, "#444444", 0, .05, 0), cyl(.03, .03, .35, 6, "#888888", 0, .08, 0), sph(.36, "#ffffff", 0, .58, 0, 1, .45, 1), sph(.34, "#ffffff", 0, .95, -.24, 1, 1, .4)];
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; Q.push(sph(.08, "#1b1b1b", Math.sin(a) * .22, .7, Math.cos(a) * .22, 1, .3, 1), sph(.07, "#1b1b1b", Math.sin(a) * .2, .95 + Math.cos(a) * .2, -.1, 1, 1, .2)); }
     Q.push(sph(.09, "#1b1b1b", 0, .74, 0, 1, .3, 1)); return Q; } },
-  bathtub: { n: "אמבטיית ספל הקפה", price: 3900, fp: [2.5, 2.4], note: "אמבטיה בצורת ספל קפה ענק על תחתית, עם קצף", build() {
+  bathtub: { n: "אמבטיית ספל הקפה", ok: true, price: 3900, fp: [2.5, 2.4], note: "אמבטיה בצורת ספל קפה ענק על תחתית, עם קצף", build() {
     return [cyl(1.15, 1.15, .06, 32, "#ffffff", 0, 0, 0), cyl(.88, .72, .82, 28, "#ffffff", 0, .06, 0), cyl(.8, .8, .02, 28, "#8a5a32", 0, .8, 0), part(new THREE.TorusGeometry(.42, .05, 8, 24), "#f2e3c8", 0, .82, 0, { x: Math.PI / 2 }), sph(.12, "#f2e3c8", 0, .83, 0, 1, .3, 1),
       part(new THREE.TorusGeometry(.32, .1, 8, 20), "#ffffff", .98, .48, 0, { y: Math.PI / 2 }), box(.06, .02, .9, "#c9ced3", -.75, .07, .75, { y: .5 })]; } },
-  vanity: { n: "כיור הצדפה", price: 1600, fp: [1, .65], note: "כיור בצורת צדפה ורודה, ומראה בצורת מניפה של צדף", build() {
+  vanity: { n: "כיור הצדפה", ok: true, price: 1600, fp: [1, .65], note: "כיור בצורת צדפה ורודה, ומראה בצורת מניפה של צדף", build() {
     const Q = [box(.9, .75, .5, "#f2e3d0", 0, .1, 0), box(.92, .05, .52, "#ffffff", 0, .85, 0), part(new THREE.SphereGeometry(.34, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI).scale(1, .45, .8), "#f6d6cf", 0, 1.03, .03),
       cyl(.015, .015, .25, 6, "#c9a24a", 0, .88, -.18), box(.02, .02, .12, "#c9a24a", 0, 1.12, -.13)];
     Q.push(box(.92, .5, .04, "#f6d6cf", 0, .9, -.24));
     for (let i = 0; i < 9; i++) { const a = -1.3 + i * .325; Q.push(part(new THREE.BoxGeometry(.11, .62, .03).translate(0, .31, 0).rotateZ(a), i % 2 ? "*#e3f3fc" : "*#d6ecf6", 0, 1.32, -.22), part(new THREE.BoxGeometry(.03, .64, .035).translate(.06, .32, 0).rotateZ(a), "#c9a24a", 0, 1.32, -.21)); }
     Q.push(part(new THREE.TorusGeometry(.65, .03, 6, 24, Math.PI), "#c9a24a", 0, 1.32, -.21));
     return Q; } },
-  shower: { n: "מקלחון המפל", price: 3400, fp: [1.5, 1.4], note: "סלעים מכל הצדדים, המים יורדים כמו מפל, וצמחים על הסלעים", build() {
+  shower: { n: "מקלחון המפל", ok: true, price: 3400, fp: [1.5, 1.4], note: "סלעים מכל הצדדים, המים יורדים כמו מפל, וצמחים על הסלעים", build() {
     const Q = [cyl(.7, .7, .1, 20, "#9aa0a6", 0, 0, 0), box(.6, 1.75, .03, "%#bfe3f2", 0, .25, -.42), box(.7, .1, .3, "#7f868c", 0, 2.05, -.45)];
     for (let i = 0; i < 14; i++) { const a = Math.PI * (.15 + i % 7 * .12) + (i < 7 ? 0 : Math.PI * .85), y = .3 + Math.floor(i / 7) * .9 + (i % 2) * .3; Q.push(sph(.32, ["#8a8f94", "#7f868c", "#a0a5aa"][i % 3], Math.cos(a + Math.PI / 2) * .7, y, -Math.abs(Math.sin(a + Math.PI / 2)) * .55, 1.2, .9, 1)); }
     for (const [x, y] of [[-.6, 1.6], [.55, 1.9], [-.3, 2.15]]) Q.push(sph(.15, "#4f9a45", x, y, -.5)); return Q; } },
-  lounger: { n: "מיטת שיזוף בננה", price: 900, fp: [.9, 2.3], note: "מיטת שיזוף בצורת בננה מעוקלת, עם כרית צהובה בהירה", build() {
+  lounger: { n: "מיטת שיזוף בננה", ok: true, price: 900, fp: [.9, 2.3], note: "מיטת שיזוף בצורת בננה מעוקלת, עם כרית צהובה בהירה", build() {
     const Q = [], N = 10; for (let i = 0; i < N; i++) { const t = -1 + 2 * (i + .5) / N, z = t * 1.05, y = .25 + .38 * t * t, a = Math.atan(.76 * t / 1.05);
       Q.push(part(new THREE.CylinderGeometry(.33, .33, .23, 14).rotateX(Math.PI / 2).scale(1.15, .55, 1), "#f2d03a", 0, y, z, { x: -a }), part(new THREE.BoxGeometry(.5, .05, .22), "#fff1a8", 0, y + .16, z, { x: -a })); }
     Q.push(sph(.08, "#5a3a1a", 0, .66, -1.08), sph(.06, "#5a3a1a", 0, .66, 1.08), cyl(.03, .03, .25, 6, "#c9a24a", -.2, 0, 0), cyl(.03, .03, .25, 6, "#c9a24a", .2, 0, 0)); return Q; } },
-  parasol: { n: "שמשיית הפטרייה", price: 700, fp: [2.7, 2.7], note: "שמשייה בצורת פטרייה אדומה עם נקודות לבנות", build() {
+  parasol: { n: "שמשיית הפטרייה", ok: true, price: 700, fp: [2.7, 2.7], note: "שמשייה בצורת פטרייה אדומה עם נקודות לבנות", build() {
     const Q = [cyl(.35, .4, .1, 16, "#7f868c", 0, 0, 0), cyl(.12, .17, 2.1, 12, "#f4efe6", 0, .1, 0), part(new THREE.SphereGeometry(1.3, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, .5, 1), "#d64545", 0, 2.15, 0), cyl(1.25, 1.25, .04, 22, "#f2e3c8", 0, 2.13, 0)];
     for (const [ph, n] of [[.45, 5], [.95, 9]]) for (let i = 0; i < n; i++) { const th = i / n * Math.PI * 2 + ph; Q.push(sph(.13, "#ffffff", Math.sin(ph) * 1.3 * Math.cos(th), 2.15 + Math.cos(ph) * .65, Math.sin(ph) * 1.3 * Math.sin(th), 1, .45, 1)); }
     return Q; } },
-  outdoorset: { n: "פינת הפיצה", price: 2900, fp: [3, 3], note: "שולחן עגול שהוא פיצה, ושרפרפים בצורת משולשי פיצה", build() {
+  outdoorset: { n: "פינת הפיצה", ok: true, price: 2900, fp: [3, 3], note: "שולחן עגול שהוא פיצה, ושרפרפים בצורת משולשי פיצה", build() {
     const Q = [cyl(.75, .75, .06, 30, "#e2b35a", 0, .7, 0), part(new THREE.TorusGeometry(.73, .06, 8, 30), "#c58a3e", 0, .78, 0, { x: Math.PI / 2 }), cyl(.68, .68, .02, 30, "#c0392b", 0, .76, 0), cyl(.64, .64, .02, 30, "#f2d36a", 0, .78, 0), cyl(.06, .08, .7, 8, "#2b2b2b", 0, 0, 0)];
     for (let i = 0; i < 9; i++) { const a = i * 2.1, r = .2 + (i % 3) * .15; Q.push(cyl(.07, .07, .015, 12, i % 3 ? "#b5232f" : "#1b1b1b", Math.sin(a) * r, .8, Math.cos(a) * r)); }
     for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4, x = Math.sin(a) * 1.25, z = Math.cos(a) * 1.25;
       Q.push(part(new THREE.CylinderGeometry(.62, .62, .08, 8, 1, false, a - .45, .9), "#f2d36a", x - Math.sin(a) * .35, .49, z - Math.cos(a) * .35), part(new THREE.CylinderGeometry(.64, .64, .06, 8, 1, false, a - .45, .9), "#c58a3e", x - Math.sin(a) * .35, .43, z - Math.cos(a) * .35),
         cyl(.07, .07, .015, 10, "#b5232f", x + Math.sin(a) * .05, .54, z + Math.cos(a) * .05), cyl(.04, .04, .43, 6, "#2b2b2b", x, 0, z), cyl(.18, .18, .03, 10, "#2b2b2b", x, 0, z)); } return Q; } },
-  planter: { n: "עציץ המגף", price: 260, fp: [.6, .75], note: "מגף ענק עם שרוכים, וממנו צומחים פרחים", build() {
+  planter: { n: "עציץ המגף", ok: true, price: 260, fp: [.6, .75], note: "מגף ענק עם שרוכים, וממנו צומחים פרחים", build() {
     const Q = [box(.36, .62, .36, "#7a3b1f", 0, .12, -.1), box(.36, .26, .62, "#7a3b1f", 0, .04, .03), box(.4, .05, .66, "#1b1b1b", 0, 0, .03)];
     for (let i = 0; i < 4; i++) Q.push(box(.2, .02, .02, "#ffffff", 0, .35 + i * .1, .085));
     for (const [x, y, z, c] of [[0, .85, -.1, "#4f9a45"], [-.1, .95, -.05, "#5fae4f"], [.1, 1, -.15, "#3f8f3a"], [-.08, 1.12, -.1, "#f06fa4"], [.12, 1.15, -.05, "#f2c230"], [0, 1.22, -.15, "#e05a4f"]]) Q.push(sph(c[1] === "f" || c === "#e05a4f" || c === "#f2c230" ? .06 : .14, c, x, y, z));
     return Q; } },
-  wallart: { n: "תמונת החמסה", price: 380, fp: [.9, .15], note: "חמסה כחולה ענקית עם עין במרכז ומסגרת זהב", build() {
+  wallart: { n: "תמונת החמסה", ok: true, price: 380, fp: [.9, .15], note: "חמסה כחולה ענקית עם עין במרכז ומסגרת זהב", build() {
     const b = "#2f7fa8", gl = "#c9a24a", Q = [box(.62, .55, .04, gl, 0, 1.0, -.01), box(.56, .5, .05, b, 0, 1.03, 0)];
     [[-.27, .26], [-.11, .34], [.05, .36], [.21, .34], [.37, .26]].forEach(([x0, h], i) => { const x = i === 0 ? -.27 : i === 4 ? .27 : -.16 + (i - 1) * .16; Q.push(cyl(.06, .06, h, 10, b, x, 1.53, 0), sph(.06, b, x, 1.53 + h, 0)); });
     Q.push(sph(.13, "#ffffff", 0, 1.3, .03, 1.5, 1, .3), sph(.07, "#5fb0d6", 0, 1.3, .06, 1, 1, .3), sph(.035, "#1b1b1b", 0, 1.3, .08, 1, 1, .3)); return Q; } },
-  mirror: { n: "מראת השמש", price: 520, fp: [1.5, .12], note: "מראה עגולה עם קרני שמש מוזהבות סביב", build() {
+  mirror: { n: "מראת השמש", ok: true, price: 520, fp: [1.5, .12], note: "מראה עגולה עם קרני שמש מוזהבות סביב", build() {
     const Q = [cyl(.42, .42, .03, 32, "*#e3f3fc", 0, 1.45, .02, { x: Math.PI / 2 }), part(new THREE.TorusGeometry(.44, .04, 8, 32), "#c9a24a", 0, 1.45, .02)];
     for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; Q.push(part(new THREE.ConeGeometry(.05, i % 2 ? .2 : .3, 6).translate(0, .6 + (i % 2 ? .1 : .15) - .1, 0).rotateZ(a), "#c9a24a", 0, 1.45, 0)); } return Q; } },
-  plant: { n: "עציץ האבוקדו", price: 220, fp: [.6, .6], note: "עציץ בצורת חצי אבוקדו עם הגלעין, וצמח שצומח ממנו", build() {
+  plant: { n: "עציץ האבוקדו", ok: true, price: 220, fp: [.6, .6], note: "עציץ בצורת חצי אבוקדו עם הגלעין, וצמח שצומח ממנו", build() {
     const Q = [sph(.3, "#3e5a24", 0, .32, 0, 1, 1.25, 1), sph(.27, "#d4e08a", 0, .33, .08, 1, 1.18, .75), sph(.12, "#8a5a30", 0, .28, .22, 1, 1, .8), cyl(.02, .02, .4, 6, "#5a7a2a", 0, .7, -.05)];
     for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; Q.push(sph(.14, "#4f9a45", Math.sin(a) * .15, 1.1 + (i % 2) * .08, -.05 + Math.cos(a) * .15, 1.3, .4, .8)); } return Q; } }
 };
@@ -2582,9 +2604,9 @@ function buildYallkea() {
 }
 function showYallkea() {
   const rooms = Object.values(FROOMS).map(r => r[0] + " " + r[1]).join(" · ");
-  open(`🏡 ${YK.name}`, `<div class="hero"><p><b>${YK.name}: ${YK.slogan}</b> חנות הרהיטים הענקית של המדינה, על הגבעה מחוץ לבירה. היא בנויה כמו רחוב של בתים תחת גג זכוכית: כל בית הוא חדר אחר (${rooms}), ובכל בית עומד כל רהיט מהקטלוג בכל הסגנונות. בכניסה בית קפה וקופות, ובסוף הרחוב מסעדה עם קציצות.</p></div>
-    ${creditHtml("yallkea")}<div class="list" style="margin-top:10px">${info("🪑", `${fmtN(Object.keys(FURN).length)} סוגי רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות: מודרני, עץ טבעי וקלאסי")}${info("🛒", "קנייה ועיצוב הבית", "בקרוב: קונים בסבבונים ומסדרים בבית")}</div>
-    <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="yallkea">🚪 להיכנס לחנות</button><button class="btn ghost" data-go="catalog">📖 הקטלוג</button>${ADMIN ? `<button class="btn ghost" data-go="furnPrices">💰 מחירים</button>` : ""}${creditBtn("yallkea")}</div>`);
+  open(`🏡 ${YK.name}`, `<div class="hero"><p><b>${YK.name}: ${YK.slogan}</b> חנות הרהיטים הענקית של המדינה, על הגבעה מחוץ לבירה. היא בנויה כמו רחוב של בתים תחת גג זכוכית: כל בית הוא חדר אחר (${rooms}), ובכל בית עומד כל רהיט מהקטלוג בכל הסגנונות. בכניסה בית קפה וקופות, ובסוף הרחוב מסעדה עם קציצות וגלריה של ${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} רהיטים ייחודיים: ספת הגל, כורסת היד, מיטת הענן ועוד.</p></div>
+    ${creditHtml("yallkea")}<div class="list" style="margin-top:10px">${info("🪑", `${fmtN(Object.keys(FURN).length)} סוגי רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות: מודרני, עץ טבעי וקלאסי")}${info("✨", `${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} עיצובים ייחודיים`, "רהיט אחד מכל סוג בצורה משונה, בבית האחרון ברחוב")}${info("🛒", "קנייה ועיצוב הבית", "בקרוב: קונים בסבבונים ומסדרים בבית")}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="yallkea">🚪 להיכנס לחנות</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="yallkea">🎬 ריל</button>` : ""}<button class="btn ghost" data-go="catalog">📖 הקטלוג</button>${ADMIN ? `<button class="btn ghost" data-go="furnPrices">💰 מחירים</button>` : ""}${creditBtn("yallkea")}</div>`);
 }
 const ykCatalog = () => open(`📖 הקטלוג של ${YK.name}`, Object.entries(FROOMS).map(([rk, [ic, rn]]) => {
   const items = Object.entries(FURN).filter(([, F]) => F.room === rk); if (!items.length) return "";
@@ -2747,6 +2769,126 @@ const MALL_CATS = { fashion: ["👗", "אופנה", "#c0392b"], shoes: ["👟", 
 const isMallSite = p => p.kind === "mall" && p.params?.site !== "lot";
 const mallStores = p => (p.params?.stores?.length ? p.params.stores : [{ name: "סבבה פאשן", cat: "fashion" }, { name: "סופר יאללה", cat: "super" }, { name: "גלידה יאללה", cat: "food" }, { name: "גאדג׳טים", cat: "tech" }, { name: "קפה הקניון", cat: "cafe" }, { name: "צעצועי סבבה", cat: "toys" }]);
 const MALL_W = 156, MALL_D = 116;
+// ---- what every kind of mall shop sells (prices must match menu_price() in upgrade-16.sql): bought with sababonim, through buy_food as "mall_<kind>:<item>"
+const MALL_GOODS = {
+  fashion: [["tee", "👕", "חולצת סבבה", 80], ["jeans", "👖", "ג׳ינס", 160], ["dress", "👗", "שמלת ערב", 240], ["cap", "🧢", "כובע", 45]],
+  shoes: [["sneakers", "👟", "נעלי ספורט", 220], ["sandals", "🩴", "כפכפים", 40], ["heels", "👠", "נעלי עקב", 260], ["boots", "🥾", "מגפיים", 300]],
+  food: [["burger", "🍔", "המבורגר", 45], ["fries", "🍟", "צ׳יפס", 18], ["pizza", "🍕", "משולש פיצה", 20], ["cola", "🥤", "שתייה קרה", 10]],
+  cafe: [["espresso", "☕", "אספרסו", 8], ["latte", "☕", "הפוך גדול", 12], ["croissant", "🥐", "קרואסון", 14], ["cake", "🍰", "עוגת גבינה", 22]],
+  tech: [["phone", "📱", "סמארטפון", 2200], ["headphones", "🎧", "אוזניות", 350], ["laptop", "💻", "מחשב נייד", 4200], ["watch", "⌚", "שעון חכם", 900]],
+  toys: [["teddy", "🧸", "דובי", 70], ["ball", "⚽", "כדור", 40], ["blocks", "🧱", "קוביות בנייה", 120], ["kite", "🪁", "עפיפון", 55]],
+  beauty: [["perfume", "🌸", "בושם", 180], ["lipstick", "💄", "שפתון", 60], ["cream", "🧴", "קרם פנים", 45], ["nails", "💅", "לק", 30]],
+  books: [["novel", "📕", "רומן", 60], ["comic", "📗", "חוברת קומיקס", 40], ["cook", "📘", "ספר בישול", 90], ["atlas", "🗺️", "אטלס", 120]],
+  sport: [["football", "⚽", "כדורגל", 90], ["racket", "🎾", "מחבט טניס", 260], ["bike", "🚲", "אופניים", 1400], ["yoga", "🧘", "מזרן יוגה", 110]],
+  home: [["lamp", "💡", "מנורת שולחן", 140], ["pillow", "🛋️", "כרית נוי", 50], ["plant", "🪴", "עציץ", 60], ["mug", "☕", "ספל", 25]],
+  jewelry: [["ring", "💍", "טבעת", 1500], ["necklace", "📿", "שרשרת", 900], ["earrings", "✨", "עגילים", 600], ["gem", "💎", "יהלום", 9000]],
+  cinema: [["ticket", "🎟️", "כרטיס לסרט", 45], ["popcorn", "🍿", "פופקורן", 25], ["combo", "🎬", "קומבו זוגי", 99], ["glasses", "🕶️", "משקפי תלת־ממד", 15]],
+  super: [["milk", "🥛", "חלב", 7], ["bread", "🍞", "לחם", 9], ["fruit", "🍎", "סל פירות", 20], ["hummus", "🫙", "חומוס", 12]],
+  pharmacy: [["vitamins", "💊", "ויטמינים", 60], ["plaster", "🩹", "פלסטרים", 15], ["sunscreen", "🧴", "קרם הגנה", 55], ["toothpaste", "🪥", "משחת שיניים", 18]]
+};
+// the shops on top of the admin's list, so the mall is always full: two anchors at the ends and fourteen along the street
+const MALL_FILL = [["סבבה פאשן", "fashion"], ["סופר יאללה", "super"], ["גלידה יאללה", "food"], ["גאדג׳טים", "tech"], ["קפה הקניון", "cafe"], ["צעצועי סבבה", "toys"], ["נעלי הדגל", "shoes"], ["ספרי החוף", "books"],
+  ["פארם סבבה", "pharmacy"], ["ספורט יאללה", "sport"], ["יופי ושות׳", "beauty"], ["הבית של סבבה", "home"], ["זהב ים", "jewelry"], ["סינמה סבבה", "cinema"], ["בורגר הדגל", "food"], ["אופנת החוף", "fashion"]];
+const mallAll = w => { const own = (w.stores || []).slice(0, 16), names = new Set(own.map(s2 => s2.name)); return [...own, ...MALL_FILL.filter(([n]) => !names.has(n)).map(([name, cat]) => ({ name, cat }))].slice(0, 16); };
+// ---- inside the mall: a long glass-roofed street with shops on both sides and a gallery above, an atrium with a dome, a fountain and escalators by the door,
+//      a big anchor store at each end. You walk into every shop: its goods on the shelves and tables, and a counter where you pay
+function mallScene(w) {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color("#cfe7f6"); sc.environment = scene.environment;
+  sc.add(new THREE.HemisphereLight("#fffaf0", "#8a8070", 1.55)); const dl = new THREE.DirectionalLight("#fff4e0", 1.4); dl.position.set(20, 40, 25); sc.add(dl);
+  const Q = [], QR = [], tags = [], walls = [], buys = [], figs = [], X = 90, XS = 66, ZC = 7, ZW = 23, HC = 12, P2 = Math.PI / 2;
+  const tag = (text, w2, h2, x, y, z, ry, bg = "#ffffff", fg = "#1b2430", two = false, res = 500) => tags.push([text, w2, h2, x, y, z, ry, bg, fg, two, res]);
+  const stores = mallAll(w), col = s2 => s2.color || MALL_CATS[s2.cat]?.[2] || "#1f6f8b";
+  // the floor: marble tiles in the street, the outer walls, the door in the middle of the south wall
+  Q.push(box(X * 2, .2, ZW * 2, "#e9e4da", 0, -.2, 0));
+  for (let x = -XS; x < XS; x += 2) for (let z = -ZC; z < ZC; z += 2) if (((x + z) / 2) % 2 === 0) Q.push(box(2, .012, 2, "#d9d2c4", x + 1, .002, z + 1));
+  Q.push(box(X * 2, HC, .4, "#f3ead8", 0, 0, -ZW), box(.4, HC, ZW * 2, "#f3ead8", -X, 0, 0), box(.4, HC, ZW * 2, "#f3ead8", X, 0, 0), box(X - 4, HC, .4, "#f3ead8", -(X + 4) / 2, 0, ZW), box(X - 4, HC, .4, "#f3ead8", (X + 4) / 2, 0, ZW),
+    box(8, HC - 5, .4, "#f3ead8", 0, 5, ZW), box(8, 5, .06, "%#cfe8f2", 0, 0, ZW), box(8.4, .3, .5, "#2b2f34", 0, 5, ZW - .1));
+  walls.push([-X - 1, -ZW - 1, X + 1, -ZW + .3], [-X - 1, -ZW, -X + .3, ZW], [X - .3, -ZW, X + 1, ZW], [-X, ZW - .3, -4, ZW + 1], [4, ZW - .3, X, ZW + 1]);
+  // the street: the high walls with the gallery's shop windows above the shops, a balcony with a glass rail, the glass roof
+  for (const sd of [-1, 1]) for (const [x0, x1] of sd < 0 ? [[-XS, XS]] : [[-XS, -12], [12, XS]]) { const L = x1 - x0, mx = (x0 + x1) / 2;   // the south side opens up over the atrium
+    Q.push(box(L, HC - 5, .3, "#f6f0e4", mx, 5, sd * ZC), box(L, .3, 1.6, "#ffffff", mx, 6.4, sd * (ZC - .8)), box(L, 1, .05, "%#dff1fa", mx, 6.7, sd * (ZC - 1.6)), box(L, .08, .1, "#c9ced3", mx, 7.7, sd * (ZC - 1.6)));
+    for (let x = x0 + 6; x < x1 - 2; x += 12) Q.push(box(8, 2.6, .05, "*#fff4dc", x, 7.6, sd * (ZC - .17)), box(8.4, .5, .1, ["#c0392b", "#2d6e4a", "#1f6f8b", "#e67e22", "#8a5ac8"][Math.abs(x) % 5], x, 10.4, sd * (ZC - .2))); }
+  for (const sd of [-1, 1]) QR.push(box(XS * 2, .1, ZC + .2, "%#bfe3f2", 0, HC + .9, sd * ZC / 2, { x: sd * .26 }));
+  for (let x = -XS; x <= XS; x += 6) for (const sd of [-1, 1]) QR.push(box(.14, .16, ZC + .3, "#4a5057", x, HC + .85, sd * ZC / 2, { x: sd * .26 }));
+  // benches and palms in planters down the middle of the street
+  for (const x of [-56, -40, -24, 24, 40, 56]) { Q.push(cyl(1, .9, .7, 16, "#d6d0c4", x, 0, 0), cyl(.12, .16, 2.6, 8, "#8a6a4a", x, .7, 0), sph(1.1, "#4f9a45", x, 3.6, 0, 1.3, .5, 1.3), sph(.8, "#5fae4f", x + .4, 3.9, .3, 1.2, .5, 1.2),
+      box(2.2, .1, .6, "#b9834f", x + 2.6, .45, 0), box(2.2, .5, .08, "#b9834f", x + 2.6, .5, -.28), box(.1, .45, .5, "#2b2b2b", x + 1.7, 0, 0), box(.1, .45, .5, "#2b2b2b", x + 3.5, 0, 0)); walls.push([x - 1.1, -1.1, x + 3.7, 1.1]); }
+  // the atrium by the door: the dome above, the fountain, escalators up to the gallery, the store map
+  Q.push(box(24, .015, ZW - ZC, "#efe9de", 0, .005, (ZW + ZC) / 2), cyl(3, 3.2, .6, 28, "#d6d0c4", 0, 0, 0), cyl(2.7, 2.7, .1, 28, "#5fb0d6", 0, .52, 0), cyl(.5, .7, 1.4, 14, "#d6d0c4", 0, .55, 0), cyl(.9, .9, .1, 16, "#5fb0d6", 0, 1.95, 0), sph(.35, "*#e3f3fc", 0, 2.4, 0));
+  walls.push([-3.2, -3.2, 3.2, 3.2]);
+  QR.push(part(new THREE.SphereGeometry(10, 26, 10, 0, Math.PI * 2, 0, Math.PI / 2), "%#bfe3f2", 0, HC, 13), part(new THREE.TorusGeometry(10, .3, 6, 36), "#d6d0c4", 0, HC, 13, { x: P2 }));
+  for (const sd of [-1, 1]) { const x = sd * 8.5; Q.push(box(1.6, .3, 10, "#9aa0a6", x, 3.2, 14.5, { x: .62 }), box(.12, 1, 10, "#2b2b2b", x - .85, 3.9, 14.5, { x: .62 }), box(.12, 1, 10, "#2b2b2b", x + .85, 3.9, 14.5, { x: .62 }), box(2, .4, 2, "#c9ced3", x, 0, 19.6)); walls.push([x - 1, 9.5, x + 1, 20.6]); }
+  Q.push(box(.2, 3.6, 4.4, "#2b2f34", 11.6, .6, 18.5)); tag(`🗺️ ${w.name || "הקניון"}`, 4.2, .6, 11.45, 3.75, 18.5, -P2, "#2b2f34", "#ffd75a", false, 700);
+  stores.slice(0, 16).forEach((s2, i) => tag(`${MALL_CATS[s2.cat]?.[0] || "🛍️"} ${s2.name}`, 4, .19, 11.45, 3.3 - i * .2, 18.5, -P2, "#ffffff", "#1b2430", false, 420));
+  tag(`ברוכים הבאים ל${w.name || "קניון"} 🛍️`, 10, 1.4, 0, 9, ZC + .2, 0, "#1b2430", "#ffd75a", true, 1100);
+  // ---- a shop: its front on the street (glass, a wide doorway, the sign), goods on the back wall, the side walls and two tables, the counter with a cashier
+  const pool = [...S.houses].filter(h => h.lot).sort((a, b) => hash(a.u + "mall") - hash(b.u + "mall"));
+  const shop = (s2, ox, oz, th, W, D, big) => {
+    const c = Math.cos(th), sn = Math.sin(th), at = (u, v) => [ox + u * c + v * sn, oz - u * sn + v * c], H = [], cat = s2.cat || "home", sc2 = col(s2), face = th + Math.PI;
+    const aabb = (u0, v0, u1, v1) => { const [a, b] = at(u0, v0), [d, e] = at(u1, v1); walls.push([Math.min(a, d), Math.min(b, e), Math.max(a, d), Math.max(b, e)]); };
+    const fl = { fashion: "#f4ece6", shoes: "#ece6de", food: "#f2e2cf", cafe: "#d9c3a5", tech: "#e6eaee", toys: "#eaf2f8", beauty: "#f8e8ee", books: "#e2d2bc", sport: "#dfe9df", home: "#e9dfcf", jewelry: "#2b2b2b", cinema: "#3a2a4a", super: "#eef1f2", pharmacy: "#eef6f4" }[cat] || "#ece6de";
+    H.push(box(W - .3, .02, D - .3, fl, 0, .006, D / 2));
+    // the front: a coloured base, glass, the sign band; a wide doorway in the middle
+    const dw = big ? 8 : 5;
+    for (const sd of [-1, 1]) { const len = W / 2 - dw / 2, uc = sd * (dw / 2 + len / 2); H.push(box(len, .6, .3, sc2, uc, 0, 0), box(len, 3.6, .06, "%#dff1fa", uc, .6, 0), box(.15, 4.2, .32, "#2b2f34", sd * dw / 2, 0, 0)); aabb(sd > 0 ? dw / 2 : -W / 2, -.2, sd > 0 ? W / 2 : -dw / 2, .2); }
+    H.push(box(W, .8, .34, sc2, 0, 4.2, 0)); if (big) H.push(box(W, HC - 5, .3, "#f6f0e4", 0, 5, .2));
+    // goods: three displays on the back wall, two on each side wall, two tables in the middle (more in an anchor store)
+    const back = big ? [-15, -9, -3, 3, 9, 15] : [-W / 3, 0, W / 3];
+    for (const u of back) H.push(box(3.4, 2.4, .5, "#e8e4dc", u, 0, D - .5), ...shopGoods(cat, u, D - 1.2, Math.PI, R0));
+    for (const sd of [-1, 1]) for (const v of big ? [5, 10, 15, 19] : [6.5, 11]) H.push(box(.5, 2.4, 3.4, "#e8e4dc", sd * (W / 2 - .5), 0, v), ...shopGoods(cat, sd * (W / 2 - 1.3), v, sd > 0 ? -P2 : P2, R0));
+    for (const [u, v] of big ? [[-10, 7], [-3.5, 7], [3.5, 7], [10, 7], [-10, 13], [-3.5, 13], [3.5, 13], [10, 13]] : [[-2.6, 8.2], [2.6, 8.2]]) H.push(box(3.4, .7, 1.4, "#ffffff", u, 0, v), ...shopGoods(cat, u, v, Math.PI, R0).map(g => g.translate(0, .7, 0)));
+    // the counter by the doorway, a till, a bag, and someone working there
+    const cu = W / 2 - 2.6, cv = 3.2;
+    H.push(box(3, 1, .9, sc2, cu, 0, cv), box(3.1, .06, 1, "#f4f1ea", cu, 1, cv), box(.5, .3, .4, "#2b2b2b", cu + .7, 1.06, cv), box(.4, .28, .04, "*#7fd1a0", cu + .7, 1.42, cv - .1), box(.45, .5, .25, sc2, cu - .8, 1.06, cv));
+    aabb(cu - 1.6, cv - .5, cu + 1.6, cv + .5);
+    const h = pool[figs.length % Math.max(1, pool.length)]; if (h) { const f = avatarMesh(avatarOf(h), 1), [fx, fz] = at(cu, cv + 1.1); f.position.set(fx, 0, fz); f.rotation.y = face; figs.push(f); }
+    const [bx, bz] = at(cu, cv - 1.6); buys.push({ x: bx, z: bz, r: 1.9, to: "buy", shop: s2, label: `🛒 לקנות ב${s2.name}` });
+    H.forEach(g => { g.rotateY(th); g.translate(ox, 0, oz); Q.push(g); });
+    const [tx, tz] = at(0, -.2); tag(`${MALL_CATS[cat]?.[0] || "🛍️"} ${s2.name}`, Math.min(W - 1, big ? 14 : 8), big ? 1.2 : .8, tx, 4.6, tz, face, sc2, "#ffffff", false, 900);
+    const [px, pz] = at(cu, cv + .5); tag("🛒 קופה", 1.4, .4, px, 2.1, pz, face, "#ffffff", sc2, false, 300);
+  };
+  const R0 = rng(w.id || 7);
+  // north: eight shops; south: three on each side of the atrium; the two anchors at the ends of the street
+  const north = stores.slice(2, 10), south = stores.slice(10, 16), NW = XS * 2 / 8;
+  north.forEach((s2, i) => shop(s2, -XS + NW * (i + .5), -ZC, Math.PI, NW, ZW - ZC));
+  south.forEach((s2, i) => { const x = i < 3 ? -XS + 18 * (i + .5) : 12 + 18 * (i - 3 + .5); shop(s2, x, ZC, 0, 18, ZW - ZC); });
+  [stores[0], stores[1]].forEach((s2, i) => s2 && shop(s2, (i ? 1 : -1) * XS, 0, i ? P2 : -P2, ZW * 2, X - XS, true));
+  // the walls between the shops (and between the south shops and the atrium)
+  for (let i = 1; i < 8; i++) { const x = -XS + NW * i; Q.push(box(.3, 5, ZW - ZC, "#f3ead8", x, 0, -(ZW + ZC) / 2)); walls.push([x - .2, -ZW, x + .2, -ZC]); }
+  for (const x of [-48, -30, -12, 12, 30, 48]) { Q.push(box(.3, 5, ZW - ZC, "#f3ead8", x, 0, (ZW + ZC) / 2)); walls.push([x - .2, ZC, x + .2, ZW]); }
+  for (const sd of [-1, 1]) { Q.push(box(.3, 5, ZW - ZC, "#f3ead8", sd * XS, 0, -(ZW + ZC) / 2), box(.3, 5, ZW - ZC, "#f3ead8", sd * XS, 0, (ZW + ZC) / 2)); }
+  for (const [list, roof] of [[Q, false], [QR, true]]) { const pf = prefab(list, false); for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.userData.disposable = false; m.userData.roof = roof; sc.add(m); } }
+  for (const [text, w2, h2, x, y, z, ry, bg, fg, two, res] of tags) { const s2 = sign(text, w2, h2, { bg, fg, res }); s2.position.set(x, y, z); s2.rotation.y = ry; sc.add(s2);
+    if (two) { const b2 = sign(text, w2, h2, { bg, fg, res }); b2.position.set(x - Math.sin(ry) * .03, y, z - Math.cos(ry) * .03); b2.rotation.y = ry + Math.PI; sc.add(b2); } }
+  for (const f of figs) sc.add(f);
+  // shoppers walking the street
+  pool.slice(20, 34).forEach((h, k) => { const f = avatarMesh(avatarOf(h), 1); f.position.set(-60 + k * 9, 0, k % 2 ? 3 : -3.2); f.rotation.y = k % 2 ? P2 : -P2; sc.add(f); });
+  return { sc, walls, buys, B: { x0: -X + .7, x1: X - .7, z0: -ZW + .7, z1: ZW - .7 } };
+}
+function mallIndoor(w, door) {
+  const R = mallScene(w), fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); R.sc.add(fig);
+  const exits = [{ x: 0, z: 21.6, r: 2.6, to: "street", label: `🚪 לצאת מ${w.name || "הקניון"}` }, ...R.buys];
+  IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc: R.sc, B: R.B, walls: R.walls, est: false, two: false, exits, fig, x: 0, z: 17, y: 0, up: false, head: Math.PI, wallH: 12, s: 1, door, flags: [], name: w.name || "הקניון" });
+  WALK.cy = 0; WALK.pitch = .22; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = IN.name;
+  walkCam.near = .1; walkCam.fov = 70; walkCam.updateProjectionMatrix();
+}
+// paying at a shop's counter: its goods and prices, bought with the personal link's key
+function mallBuy(s2) {
+  const cat = s2.cat || "home", list = MALL_GOODS[cat] || [], me = S.mine, key = me && keyOf(me.u), grp = "mall_" + cat;
+  open(`${MALL_CATS[cat]?.[0] || "🛍️"} ${esc(s2.name)}`, `<div class="hero"><p>${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>. קנייה נעימה!` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
+    <div class="list" style="margin-top:10px">${list.map(([k, ic, n, pr]) => `<div class="li"><span class="ic" style="font-size:26px">${ic}</span><span class="tx"><b>${n}</b><small>${fmtN(pr)} ${COIN}</small></span>${key ? `<button class="mini" data-buy="${k}">קנייה</button>` : ""}</div>`).join("")}</div>`, () => {
+    $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = async () => {
+      const [k, ic, n, pr] = list.find(q => q[0] === b.dataset.buy); if ((me.coins || 0) < pr) return toast(ERR.funds);
+      b.disabled = true; b.textContent = "…";
+      try { const r = await rpc("buy_food", { username: me.u, key: keyOf(me.u), item: `${grp}:${k}` });
+        if (!r.ok) { b.disabled = false; b.textContent = "קנייה"; if (r.error === "unauthorized") dropKey(me.u); return toast(r.error === "bad_item" ? "המוצר עוד לא בחנות: צריך להריץ את upgrade-16.sql" : ERR[r.error] || "לא הצליח. נסו שוב"); }
+        patchCitizen(me, { coins: r.coins, food: r.food || me.food }); HOLD.e = ic; HOLD.until = Date.now() + 20 * 60e3; if (IN.on) holdIn(IN.fig); if (WALK.on) holdIn(WALK.fig);
+        toast(`${ic} ${n} · תתחדשו! −${fmtN(pr)} ${COIN}`, 3500); stack.pop(); mallBuy(s2);
+      } catch { b.disabled = false; b.textContent = "קנייה"; toast("אין חיבור כרגע. נסו שוב"); } });
+  }, true);
+}
+
 // the k-th mall stands beside the highway to the harbor, a little out of the capital, facing the road
 function mallSpot(k) { return mallSpotOn(k, false) || mallSpotOn(k, true) || mallSpotFree(k); }   // never lost: a looser search, then any open land out of town
 function nearHwy(x, z) { let best = null; for (const [a, b, c, d, w, id] of highwaySegs()) { if (id === "palm") continue; const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))), px = a + dx * t, pz = b + dz * t, q = Math.hypot(x - px, z - pz);
@@ -2807,16 +2949,17 @@ function buildMall(p, k) {
     box(30, .12, 6, "#c9bfae", 0, .12, 4));
   for (const x of [-60, -45, -30, 30, 45, 60]) palms.push(W(x, 2)); for (const x of [-40, -24, 24, 40]) trees.push(W(x, -5));
   // the totem by the road with the mall's name
-  Q.push(box(5, 22, 2, "#1b2430", -70, .12, 54), box(5.6, .6, 2.6, "#ffd75a", -70, 22.1, 54));
+  Q.push(box(5, 14, 1.6, "#1b2430", -70, .12, 54), box(5.6, .6, 2.2, "#ffd75a", -70, 14.1, 54));
   const g = solid(Q, sp.x, sp.z, sp.ry, data, .25);
-  mountSign(g, sign(name, 26, 3.2, { bg: "#1b2430", fg: "#ffd75a" }), 0, 17.8, -6.95);
+  mountSign(g, sign(name, 26, 2.8, { bg: "#1b2430", fg: "#ffd75a" }), 0, 17.8, -6.72);
   mountSign(g, sign("🅿️ חניון", 10, 1.4, { bg: "#2b5d8a", fg: "#ffffff" }), 60, 10.4, 50.25);
-  for (const face of [1, -1]) mountSign(g, sign(name, 4.6, 1.2, { bg: "#1b2430", fg: "#ffd75a" }), -70, 19.5, 54 + face * 1.02, face > 0 ? 0 : Math.PI);
-  stores.slice(0, 2).forEach((s2, i) => mountSign(g, sign(`${MALL_CATS[s2.cat]?.[0] || "🛍️"} ${s2.name}`, 20, 2.4, { bg: col(s2), fg: "#ffffff" }), (i ? 1 : -1) * 62, 14.6, -7.82));   // the anchors
+  for (const face of [1, -1]) { mountSign(g, sign(name, 4.6, 1.6, { bg: "#1b2430", fg: "#ffd75a" }), -70, 11.8, 54 + face * .85, face > 0 ? 0 : Math.PI); mountSign(g, sign("🛍️", 3.6, 3.6, { bg: "#1b2430", fg: "#ffd75a" }), -70, 7.6, 54 + face * .85, face > 0 ? 0 : Math.PI);
+    mountSign(g, sign("🅿️ חניה חינם", 4.6, 1.1, { bg: "#2b5d8a", fg: "#ffffff" }), -70, 4.4, 54 + face * .85, face > 0 ? 0 : Math.PI); }
+  stores.slice(0, 2).forEach((s2, i) => mountSign(g, sign(`${MALL_CATS[s2.cat]?.[0] || "🛍️"} ${s2.name}`, 20, 2.2, { bg: col(s2), fg: "#ffffff" }), (i ? 1 : -1) * 62, 15.4, -7.6));   // the anchors, above their glass
   // the shops along the front of the main hall: an awning, a lit shop window and a sign each
   const slots = [-41.5, -32.5, -23.5, 23.5, 32.5, 41.5], SQ = [];
   stores.slice(2, 8).forEach((s2, i) => { const x = slots[i]; SQ.push(box(8.4, 3.4, .16, "*#f4f0e6", x, .12, -9.9), box(8.6, .3, 2.2, col(s2), x, 3.7, -9, { x: .25 }));
-    mountSign(g, sign(s2.name, 7.6, 1, { bg: col(s2), fg: "#ffffff" }), x, 5.4, -9.92); });
+    mountSign(g, sign(s2.name, 7.6, 1, { bg: col(s2), fg: "#ffffff" }), x, 5.45, -8.45); });   // in front of the long canopy
   if (SQ.length) solid(SQ, sp.x, sp.z, sp.ry, data, .25);
   // the road to the highway
   const [ax, az, bx2, bz2] = sp.road, L = Math.hypot(bx2 - ax, bz2 - az), n = Math.max(1, Math.ceil(L / 30));
@@ -3951,6 +4094,7 @@ const UPX = 70;   // the upstairs floor is built beside the ground floor, out of
 function indoorStart(id, door) {
   const w = interiorTarget(id); if (!w) return;
   if (w.kind === "yallkea") return yallkeaIndoor(w, door);
+  if (w.kind === "mall") return mallIndoor(w, door);
   IN.walls = null;
   if (String(w.kind).startsWith("outdoor_")) return enterWork(id);   // parks and courts are seen from above
   const R = interiorScene(w), fr = R.frame || {}, s = fr.scale || 1, sc = R.sc;
@@ -4041,6 +4185,7 @@ function indoorStep(dt) {
 }
 function indoorUse(e) {
   if (e.to === "street" || e.to === "yard") return indoorStop(e.to);
+  if (e.to === "buy") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return mallBuy(e.shop); }
   if (e.to === "up") { IN.up = true; IN.x = UPX + 7.6; IN.z = 2; IN.y = 0; IN.head = Math.PI; WALK.cy = 0; toast("⬆️ הקומה השנייה", 1500); }
   if (e.to === "down") { IN.up = false; if (IN.est) { IN.x = 3.1; IN.z = -6.3; IN.y = 4.2; } else { IN.x = IN.B.x1 - 1.4; IN.z = 2.8; IN.y = 0; } IN.head = 0; WALK.cy = Math.PI; toast("⬇️ למטה", 1500); }
 }
@@ -4118,7 +4263,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), pay: () => payEdit(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -4155,7 +4300,7 @@ const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` :
 function showPalm(hotel) {
   const g = PALM.geo, res = S.houses.filter(h => h.lot?.palm).sort((a, b) => a.lot.num - b.lot.num), free = g.lots.length - res.length;
   if (hotel) return open("🏨 מלון הדקל", `<div class="hero"><p>המלון בקצה הסהר של אי הדקל: שני מגדלים שמתחברים בקשת, לובי זכוכית, בריכה ומזרקה מול הים. המונורייל מגיע עד הדלת.</p></div>
-    ${creditHtml("hotel")}<div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="palmhotel">🚪 להיכנס ללובי</button><button class="btn ghost" data-go="palm">🌴 על האי</button>${creditBtn("hotel")}</div>`);
+    ${creditHtml("hotel")}<div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="palmhotel">🚪 להיכנס ללובי</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="palm:hotel">🎬 ריל</button>` : ""}<button class="btn ghost" data-go="palm">🌴 על האי</button>${creditBtn("hotel")}</div>`);
   open("🌴 אי הדקל", `<div class="hero"><p><b>אי מלאכותי בצורת דקל</b> מול החוף הצפוני: גזע עם שדרה, ${g.fronds.length} ענפים רחבים ולכל ענף רחוב משלו עם שער, וילות משני הצדדים ומעגל תנועה עם חוף בקצה. סהר מסביב ומלון הדקל בקצה.</p></div>
     <div class="list" style="margin-top:10px">${info("🏡", `${fmtN(g.lots.length)} מגרשי וילה`, free > 0 ? `${fmtN(free)} עוד פנויים · אפשר לקנות בחנות` : "כולם תפוסים")}</div>
     ${creditHtml("palm")}<div class="btns" style="margin-top:10px"><button class="btn ghost" data-go="enter" data-arg="palmhotel">🏨 להיכנס למלון הדקל</button>${creditBtn("palm")}</div>
@@ -4173,7 +4318,7 @@ function showProject(p) {
     <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
     ${p.kind === "mall" ? `<div class="sec">🛍️ החנויות בקניון</div><div class="list">${mallStores(p).map(s2 => info(MALL_CATS[s2.cat]?.[0] || "🛍️", esc(s2.name), MALL_CATS[s2.cat]?.[1] || "")).join("")}</div>
-      ${isMallSite(p) ? `<p class="note">הקניון עומד ליד נתיבי סבבה, עם חניון ענק וחניון קומות.</p>` : ""}${ADMIN ? `<div class="btns" style="margin:8px 0"><button class="btn ghost" data-go="mallShops" data-arg="${p.id}">🏬 לערוך חנויות</button></div>` : ""}` : ""}
+      ${isMallSite(p) ? `<p class="note">הקניון עומד ליד נתיבי סבבה, עם חניון ענק וחניון קומות.</p>` : ""}${ADMIN ? `<div class="btns" style="margin:8px 0"><button class="btn ghost" data-go="mallShops" data-arg="${p.id}">🏬 לערוך חנויות</button><button class="btn ghost" data-go="placeReel" data-arg="mallp:${p.id}">🎬 ריל של הקניון</button></div>` : ""}` : ""}
     <div class="btns">${p.kind !== "monument" && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}${ADMIN && p.blkKey ? `<button class="btn ghost" data-go="blk" data-arg="${p.blkKey}">🧩 פריטים במגרש</button>` : ""}</div>`);
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
@@ -4182,9 +4327,9 @@ $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
 function openGov(id) {
   const g = GOV.find(q => q.id === id);
   open(`${g.ic} ${g.name}`, addrHtml(g) + (ADMIN ? `<div class="btns" style="margin-bottom:8px">${editBtn("gov:" + id)}</div>` : "") + {
-    knesset: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:knesset">🚪 להיכנס למליאה</button></div><div class="hero" style="margin-top:8px"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
-    pm: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:pm">🚪 להיכנס ללשכה</button></div><div class="hero" style="margin-top:8px"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
-    interior: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:interior">🚪 להיכנס פנימה</button></div><div class="hero" style="margin-top:8px"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
+    knesset: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:knesset">🚪 להיכנס למליאה</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="gov:knesset">🎬 ריל</button>` : ""}</div><div class="hero" style="margin-top:8px"><p>בית הנבחרים. כל התושבים מצביעים כאן, בתגובות לריל, על חוק היום.</p></div><div class="sec">פעולות</div><div class="list">${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים`)}${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}</div>`,
+    pm: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:pm">🚪 להיכנס ללשכה</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="gov:pm">🎬 ריל</button>` : ""}</div><div class="hero" style="margin-top:8px"><p>לשכת ראש הממשלה. מכאן יוצאות ההכרזות, ההגרלות היומיות וזכות הווטו על שמות ערים מוגזמים.</p></div><div class="sec">פעולות</div><div class="list">${li("draws", "🎟️", "ההגרלה היומית")}${li("cities", "🏙️", "הערים")}</div>`,
+    interior: `<div class="btns"><button class="btn" data-go="enter" data-arg="gov:interior">🚪 להיכנס פנימה</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="gov:interior">🎬 ריל</button>` : ""}</div><div class="hero" style="margin-top:8px"><p>כאן מנפיקים תעודות זהות, מאשרים התאזרחות ומחלקים כתובות.</p></div><div class="sec">פעולות</div><div class="list">${li("mine", "🪪", "התעודה שלי", "חיפוש לפי שם משתמש")}${li("how", "🛂", "איך מתאזרחים?")}</div>`
   }[id]);
 }
 function openPlace(id) {
@@ -4212,7 +4357,7 @@ function showSlot(sl) {
 function showWork(w) {
   const staff = [...w.staff].sort((a, b) => b.level - a.level || a.id - b.id), boss = staff[0];
   open(`${KIND_IC[w.kind] || "💼"} ${w.name}`, `${addrHtml(w)}<div class="stats"><div class="stat"><b>${fmtN(staff.length)}</b><small>עובדים</small></div><div class="stat"><b>${staff.filter(h => h.level > 1).length}</b><small>בניהול</small></div><div class="stat"><b style="font-size:15px">${esc(cityName(w.city_id))}</b><small>עיר</small></div></div>
-    <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button>${editBtn("work:" + w.id)}</div>
+    <div class="btns"><button class="btn" data-go="enter" data-arg="${w.id}">🚪 להיכנס פנימה</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="work:${w.id}">🎬 ריל</button>` : ""}${editBtn("work:" + w.id)}</div>
     ${ADMIN ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="wpPlace" data-arg="${w.id}">📍 למקם על המפה</button><button class="btn ghost" data-go="wpLook" data-arg="${w.id}">🎨 עיצוב</button></div>` : ""}
     <div class="list" style="margin-top:10px">${boss && boss.level > 1 ? person(boss, LEVEL[Math.min(4, boss.level)]) : info("👔", "אין עדיין הנהלה", "הקידום הבא בהגרלה יכול להגיע מכאן")}</div>
     ${staff.length ? `<div class="sec">הצוות</div><div class="list">${staff.slice(0, 40).map(h => person(h, h.level > 1 ? LEVEL[Math.min(4, h.level)] : ROLE[w.kind] || "")).join("")}</div>` : ""}`);
@@ -5165,6 +5310,7 @@ function interiorOf(w) {
 }
 // builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
 function interiorScene(w) {
+  if (w.kind === "mall") { const R = mallScene(w); R.sc.children.forEach(m => { if (m.userData.roof) m.visible = false; }); INT.flags = []; return { sc: R.sc, me: null, tag: null, flags: [], frame: { scale: 8, target: [0, 0, 0] } }; }
   if (w.kind === "yallkea") { const R = yallkeaScene(); R.sc.children.forEach(m => { if (m.userData.roof) m.visible = false; }); INT.flags = []; return { sc: R.sc, me: null, tag: null, flags: [], frame: { scale: 4.2, target: [0, 0, 0] } }; }
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#1d2430"); sc.environment = scene.environment;
   sc.add(new THREE.HemisphereLight("#fff6ea", "#6a5a48", 1.25));
@@ -5274,7 +5420,13 @@ function exitWork() {
   INT.on = false; INT.sc = null; INT.tag = null; INT.meFig = null; document.body.classList.remove("inside"); $("intUI").innerHTML = "";
   const w = INT.w; if (w && !WALK.on) setTimeout(() => w.kind === "ballot" ? GO.ballotHouse() : w.back ? w.back() : showWork(w), 50);   // walking: back out on the street, at the same door
 }
-GO.enter = id => { const w = interiorTarget(id); if (!w) return toast("אי אפשר להיכנס לכאן"); if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
+// going in: whoever has a house walks in as themselves, from the building's door, exactly like on a walk; visitors look in from above
+GO.enter = id => { const w = interiorTarget(id); if (!w) return toast("אי אפשר להיכנס לכאן");
+  if (S.mine?.lot && !IN.on) { walkStart(S.mine.u);
+    if (WALK.on) { const sid = String(id), key = sid.startsWith("work:") ? +sid.slice(5) : sid, d = WALK.doors.find(q => q.id === key || String(q.id) === sid) || (w.x != null ? { x: w.x, z: w.z, r: 4, id } : null);
+      if (d) { WALK.x = d.x; WALK.z = d.z; } if (String(w.kind).startsWith("outdoor_")) return;   // a park or a court: you're standing in it
+      WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return indoorStart(d?.id ?? id, d); } }
+  if (w.x != null) { goTo(w.x, w.z, 6); setTimeout(() => enterWork(id), 1300); } else enterWork(id); };
 
 /* ============================ BALLOT BOX ============================ */
 // elections: the admin opens a vote (a city name, a law, what to build...), citizens vote with their personal link, the winner applies itself
@@ -5340,6 +5492,7 @@ GO.admin = () => {
   const cityOpts = opt(cities.map(s => [s.city.id, s.city.name]));
   const openE = S.ballot.filter(e => e.status === "open"), building = S.projects.filter(p => p.status !== "done");
   open("👑 לוח בקרה", `<div class="hero"><p>כל מה שעשית ב־Supabase, מכאן. כל פעולה נכנסת לתוקף באתר מיד.</p></div>
+    <div class="btns" style="margin:6px 0 10px"><button class="btn ghost" data-go="pay">💰 משכורות יומיות</button><button class="btn ghost" data-go="furnPrices">🛋️ מחירי סבבהום</button></div>
     <details class="adm" open><summary>🗳️ בחירות בקלפי</summary>
       <label>שאלה<input id="eTitle" placeholder="איך נקרא לעיר החדשה?"></label>
       <div class="row2"><label>סוג<select id="eKind">${opt([["city", "🏙️ שם לעיר"], ["law", "📜 חוק"], ["project", "🏗️ מה לבנות"], ["other", "🗳️ אחר"]])}</select></label>
@@ -5461,7 +5614,8 @@ function applySettings(rows) {
   for (const r of rows || []) if (r.key?.startsWith("wp_") && r.value) S.wpCfg.set(+r.key.slice(3), r.value);
   for (const r of rows || []) if (r.key?.startsWith("house_") && r.value) S.houseSign.set(r.key.slice(6), r.value);
   S.credits = (rows || []).find(r => r.key === "credits")?.value || {};
-  S.furnPrices = (rows || []).find(r => r.key === "furn_prices")?.value || {};   // the admin's furniture prices (empty = the catalog's own)
+  S.furnPrices = (rows || []).find(r => r.key === "furn_prices")?.value || {};
+  S.pay = (rows || []).find(r => r.key === "pay")?.value || {};   // the admin's daily pay per job (empty = the defaults)   // the admin's furniture prices (empty = the catalog's own)
   S.spots = new Map();       // an estate bought where the city had no free estate: the site picked a new block for it ("<site>:<bx>,<bz>"), and it becomes estates
   for (const [u, v] of S.houseSign) if (v?.place === "estate" && /^\d+:-?\d+,-?\d+$/.test(v.spot || "")) { if (!S.zones.has(v.spot)) S.zones.set(v.spot, "estate"); S.spots.set(v.spot, u); }
   for (const r of rows || []) { const v = typeof r.value === "string" ? r.value : r.value?.name;
@@ -5820,6 +5974,8 @@ const NEWS = {
   ideas: { v: "2026-10-18", ic: "💡", t: "לוח הצעות התושבים", sub: "כתבו רעיון, ותמכו ברעיונות של אחרים 👍", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 5, .6, .45), b: at(c, 3, 1.1, .5) }; } },
   mall: { v: "2026-10-18", ic: "🛍️", t: "הקניון הגדול נפתח", sub: "ליד נתיבי סבבה, עם חניון ענק", ok: () => S.projects.some(p => isMallSite(p) && p.site), shot: () => { const p = S.projects.find(q => isMallSite(q) && q.site); return { a: at(p, 3.2, -.5, .45), b: at(p, 5, .3, .4) }; } },
   yallkea: { v: "2026-10-18", ic: "🏡", t: "סבבהום נפתחה!", sub: "חנות הרהיטים הענקית על הגבעה: רחוב של בתים", ok: () => !!S.ykSpot, shot: () => ({ a: at(S.ykSpot, 3, -.5, .4), b: at(S.ykSpot, 5, .3, .35) }) },
+  mallin: { v: "2026-10-18", ic: "🛒", t: "קונים בכל חנות בקניון", sub: "נכנסים, מסתובבים ומשלמים בקופה", ok: () => S.projects.some(p => isMallSite(p) && p.site), shot: () => ({ inside: interiorTarget(`proj:${S.projects.find(q => isMallSite(q) && q.site).id}`) }) },
+  uniq: { v: "2026-10-18", ic: "✨", t: "31 רהיטים ייחודיים", sub: "ספת הגל, כורסת היד, מיטת הענן ועוד", ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
   ykin: { v: "2026-10-18", ic: "🛏️", t: "בכל בית חדר אחר", sub: "כל רהיט מהקטלוג, בית קפה ומסעדה", ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
   law3: { v: "2026-10-18", ic: "🏛️", t: "חוק הרצף: 1,000 סבבונים", sub: "3 ימי משכורת ברצף = פרס", ok: () => !!GOV.find(g => g.id === "knesset")?.x, shot: () => { const k = GOV.find(g => g.id === "knesset"); return { a: at(k, 10, -.5, .35), b: at(k, 14, .3, .3) }; } }
 };
@@ -6195,15 +6351,15 @@ async function encodeAudio(buffer, a0, muxer) {
   await enc.flush(); enc.close(); if (fail) throw fail;
 }
 
-async function startReel(key, u) {
+async function startReel(key, u, arg) {
   if (REEL.on) return;
   const tpl = TEMPLATES[key], h = u ? S.byUser.get(u) : undefined;
   if (!tpl.pub && !ADMIN) return toast("התבנית הזו זמינה רק למנהל המדינה");
-  if (!tpl.ok(h)) return toast("עוד אין מספיק תוכן לתבנית הזו");
+  if (!tpl.ok(h, arg)) return toast("עוד אין מספיק תוכן לתבנית הזו");
   close();
   if (key === "home" && !ADMIN && !(h && h === S.mine && keyOf(h.u))) return toast("ריל הבית זמין לבעלי הבית, מהקישור האישי שקיבלתם באינסטגרם");
-  REEL.props = tpl.props ? tpl.props(h) : [];
-  const shots = withDoors(tpl.shots(h)); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
+  REEL.props = tpl.props ? tpl.props(h, arg) : [];
+  const shots = withDoors(tpl.shots(h, arg)); let t = 0; for (const s of shots) { s.t0 = t; t += s.d; }
   await document.fonts.ready;
   const enc = await pickEncoder(), mime = enc ? null : pickMime();
   if (!enc && !mime) return toast("הדפדפן הזה לא יכול ליצור וידאו. נסו בכרום או בספארי מעודכן");
@@ -6333,8 +6489,8 @@ GO.studio = () => {
     ${mine && keyOf(mine.u) ? "" : `<div class="hero" style="margin-top:12px"><p>ריל הבית נפתח מהקישור האישי ששלחנו לכם באינסטגרם. אין לכם אותו? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</p></div>`}`, null, sub());
   open("סטודיו רילים · מנהל", `<div class="hero"><p><b>👑 מצב מנהל.</b> בוחרים תבנית, והאתר מרנדר ריל של 15–25 שניות, פריים אחרי פריים, מוכן לאינסטגרם. בזמן ההכנה השאירו את המסך פתוח.</p></div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="admin">👑 לוח בקרה: בחירות, בניינים, חוקים ועוד</button></div>
-    <div class="sec">ריל משלך</div><div class="tpl"><button class="hero-tpl" data-go="editor"><span>✏️</span><b>ריל בעריכה שלי</b><small>בוחרים סצנות, מקומות וכתוביות. כולל תבנית ״בחירת שם לעיר״</small></button><button class="hero-tpl" data-go="newsPick"><span>🆕</span><b>מה חדש במדינה</b><small>ריל שמציג לתושבים את העדכונים החדשים: לבחור מה להראות</small></button></div>
-    <div class="sec">תבניות מוכנות</div><div class="tpl">${Object.entries(TEMPLATES).filter(([k]) => k !== "custom").map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok();
+    <div class="sec">ריל משלך</div><div class="tpl"><button class="hero-tpl" data-go="placeReel"><span>📍</span><b>ריל של מקום</b><small>כל בניין, פארק או מקום באי: סיור מבחוץ ומבפנים עם נתונים</small></button><button class="hero-tpl" data-go="editor"><span>✏️</span><b>ריל בעריכה שלי</b><small>בוחרים סצנות, מקומות וכתוביות. כולל תבנית ״בחירת שם לעיר״</small></button><button class="hero-tpl" data-go="newsPick"><span>🆕</span><b>מה חדש במדינה</b><small>ריל שמציג לתושבים את העדכונים החדשים: לבחור מה להראות</small></button></div>
+    <div class="sec">תבניות מוכנות</div><div class="tpl">${Object.entries(TEMPLATES).filter(([k]) => k !== "custom" && k !== "place").map(([k, t]) => { const ok = k === "home" ? !!S.mine?.lot : t.ok();
       return ok ? `<button data-go="${k === "home" ? "reelHome" : "reel"}" data-arg="${k === "home" ? esc(S.mine?.u || "") : k}"><span>${t.ic}</span><b>${t.name}</b><small>${t.sub}</small></button>`
         : `<button class="off" data-why="${esc(k === "home" ? "חפשו קודם את הבית שלכם" : t.why || "עוד אין מספיק תוכן")}"><span>${t.ic}</span><b>${t.name}</b><small>🔒 לחצו כדי לראות מה חסר</small></button>`; }).join("")}</div>
     ${voiceHtml()}
@@ -6403,6 +6559,8 @@ function placeList() {
     .forEach(([k, m]) => o.push([`blk:${k}`, `${IC[m.kind]} ${m.title} · ${cityName(m.data?.q?.city_id ?? m.data?.slot?.city?.id) || ""}`]));
   if (BALLOT.x != null) o.push(["ballot", "🗳️ מבנה הקלפי (מבחוץ)"], ["inside:ballot", "🚪 בתוך הקלפי"]);
   if (PALM.geo) o.push(["palm", "🌴 אי הדקל"], ["palm:hotel", "🏨 מלון הדקל"]);
+  for (const p of S.projects.filter(q => isMallSite(q) && q.site)) o.push([`mallp:${p.id}`, `🛍️ ${p.name || "הקניון"}`]);
+  if (S.ykSpot) o.push(["yallkea", `🏡 ${YK.name}`]);
   S.slots.forEach((sl, si) => (sl.publicSpots || []).forEach((sp, k) => { const p = S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     o.push([`lot:${si}:${k}`, p ? `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}` : `🟫 מגרש ציבורי ${k + 1} · ${sl.city?.name || ""}`]); }));
   for (const w of S.workplaces) if (w.x != null) o.push([`work:${w.id}`, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]);
@@ -6424,6 +6582,8 @@ function placeOf(sc) {
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b]; if (sp) return { o: { x: sp[0], z: sp[1] }, zoom: 4.6 }; }
   if (t === "work") { const w = S.wpById.get(+a); if (w?.x != null) return { o: w, zoom: 5.5 }; }
   if (t === "ballot" && BALLOT.x != null) return { o: BALLOT, zoom: 5 };
+  if (t === "mallp") { const p = S.projects.find(q => q.id === +a); if (p?.site) return { o: p.site, zoom: 2.6 }; }
+  if (t === "yallkea" && S.ykSpot) return { o: { x: S.ykSpot.x - Math.sin(S.ykSpot.ry) * 20, z: S.ykSpot.z - Math.cos(S.ykSpot.ry) * 20 }, zoom: 2.8 };
   if (t === "mon") { const p = S.projects.find(q => q.id === +a); if (p?.x != null) return { o: p, zoom: 1.5 }; }
   if (t === "house") { const h = S.byUser.get(clean(sc.u || "")); if (h?.lot) return { o: h, zoom: 9, mark: h }; }
   return { o: ORIGIN, zoom: zf };
@@ -6473,7 +6633,57 @@ GO.editor = () => {
   }, true);
 };
 TEMPLATES.custom = { ic: "✏️", name: "ריל בעריכה שלי", sub: "", ok: () => !!CUSTOM?.scenes?.length, shots: customShots };
+TEMPLATES.place = { ic: "📍", name: "ריל של מקום", sub: "", ok: (h, key) => !!key && !!placeInfo(key), shots: placeReelShots };
+// ---- a reel of one place: any building, park, square or landmark on the island. Flying in, circling it low, walking through it inside, the facts on screen
+const KIND_DESC = { bakery: "לחם טרי מהתנור כל בוקר", cafe: "אספרסו, מאפים ופינה שקטה", market: "כל מה שצריך לבית, ליד הבית", school: "כאן לומדים איך מגדלים מדינה", clinic: "בריאות זה הכי סבבה", garage: "מתקנים כל רכב במדינה",
+  hummus: "חומוס טרי כל היום", tech: "ההייטק של המדינה: קוד, מסכים וקפה", police: "שומרים על הסבבה", fuel: "דלק, קפה וטוסט לדרך", restaurant: "שניצל, שקשוקה ומלבי", shop: "כל מה שתרצו", hotel: "חדרים, בריכה ובר",
+  office: "המשרדים של המדינה", gym: "מתאמנים ונשארים בכושר", bank: "הסבבונים של כולם", pharmacy: "תרופות וטיפוח", factory: "מייצרים את מה שהמדינה צריכה" };
+const GOV_DESC = { knesset: ["כאן מצביעים על חוקי המדינה", "מליאה בצורת פרסה, נשיאות ודוכן הנואמים"], pm: ["כאן יושב ראש הממשלה", "חדר הישיבות של הממשלה"], interior: ["תעודות זהות ואזרחות", "כאן הופכים לתושבים"] };
+// what a place is, for its reel: its name, a line about it, the facts, and the inside if you can go in
+function placeInfo(key) {
+  const [t, a, b] = String(key).split(":"), label = placeList().find(([k]) => k === key)?.[1] || "";
+  if (t === "work") { const w = S.wpById.get(+a); if (!w) return null; const staff = w.staff || [], boss = [...staff].sort((x, y) => (y.level || 1) - (x.level || 1))[0];
+    return { name: w.name, ic: KIND_IC[w.kind] || "💼", sub: `${KIND_NAMES[w.kind] || ""} · ${cityName(w.city_id)}`, desc: KIND_DESC[w.kind] || "אחד העסקים של המדינה", inside: `work:${w.id}`, floors: w.floors || 0, job: true,
+      facts: [[`👥 ${fmtN(staff.length)} תושבים עובדים כאן`, staff.slice(0, 4).map(h => "‎@" + h.u).join(" · ") || "מחכים לעובדים"], boss ? [`👑 ${jobTitle(boss)}`, "‎@" + boss.u] : null, [`💼 משכורת יומית ${fmtN(payOf(w.kind))} ${COIN}`, `${ROLE[w.kind] || "עובד/ת"} במדינה`]].filter(Boolean) }; }
+  if (t === "gov") { const g = GOV.find(q => q.id === a); if (!g) return null; const [d1, d2] = GOV_DESC[a] || ["", ""];
+    return { name: g.name, ic: g.ic, sub: "מוסדות המדינה", desc: d1, inside: `gov:${a}`, facts: [["🚪 בפנים", d2], a === "knesset" ? [`📜 ${fmtN(S.laws?.length || 0)} חוקים בספר החוקים`, "החוק הבא? תציעו בתגובות"] : null].filter(Boolean) }; }
+  if (t === "mallp") { const p = S.projects.find(q => q.id === +a); if (!p) return null; const w = interiorTarget(`proj:${p.id}`), n = w ? mallAll(w).length : 0;
+    return { name: p.name || "הקניון", ic: "🛍️", sub: "ליד נתיבי סבבה", desc: "קניון ענק עם חניון ענק וחניון קומות", inside: w ? `proj:${p.id}` : null,
+      facts: [[`🏬 ${fmtN(n)} חנויות`, "אופנה, אוכל, אלקטרוניקה, צעצועים ועוד"], ["🛒 קונים בכל חנות", `משלמים בסבבונים ${COIN}`], p.requested_by ? ["💡 נבנה לבקשת", "‎@" + p.requested_by] : null].filter(Boolean) }; }
+  if (t === "yallkea") return { name: YK.name, ic: "🏡", sub: "על הגבעה, ליד הכביש המהיר", desc: `${YK.slogan} · רחוב של בתים תחת גג זכוכית`, inside: "yallkea",
+    facts: [[`🏠 ${fmtN(SH.houses.length * 2)} בתים, כל בית חדר`, "סלון, חדר שינה, מטבח, ילדים ועוד"], [`🪑 ${fmtN(Object.keys(FURN).length)} רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות"], [`✨ ${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} עיצובים ייחודיים`, "ספת הגל, כורסת היד, מיטת הענן..."]] };
+  if (t === "palm") return a === "hotel" ? { name: "מלון הדקל", ic: "🏨", sub: "בקצה אי הדקל", desc: "מלון יוקרה מול הלגונה", inside: "palmhotel", facts: [["🛎️ לובי, בריכה ובר", "החדרים צופים לים"]] }
+    : { name: "אי הדקל", ic: "🌴", sub: "מול החוף הצפוני", desc: "10 ענפים, גשר, מונורייל ומלון", facts: [] , zoom2: true };
+  if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b], p = sp && S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
+    if (p) return { name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0] || "🏗️", sub: cityName(p.city_id), desc: p.status === "done" ? "נבנה בשביל התושבים" : "בבנייה עכשיו", inside: p.status === "done" && INDOOR.includes(p.kind) ? `proj:${p.id}` : null,
+      facts: [p.requested_by ? ["💡 נבנה לבקשת", "‎@" + p.requested_by] : ["💡 נבנה לבקשת התושבים", "רוצים עוד? תכתבו בתגובות"]] }; }
+  if (t === "slot") { const sl = S.slots[+a], c = sl?.city; if (c) { const res = S.houses.filter(h => h.city?.id === c.id).length, wps = S.workplaces.filter(w => w.city_id === c.id).length;
+    return { name: c.name, ic: "🏙️", sub: "עיר במדינה", desc: `${fmtN(res)} תושבים · ${fmtN(wps)} עסקים`, facts: [] }; } }
+  if (t === "ballot") return { name: "הקלפי", ic: "🗳️", sub: "ועדת הבחירות", desc: "כאן מצביעים", inside: "ballot", facts: [["🗳️ קלפי מס׳ 1", "מצביעים רק פעם אחת 😉"]] };
+  return { name: label.replace(/^\S+\s/, "") || "המדינה", ic: label.split(" ")[0] || "📍", sub: "רפובליקת סבבה", desc: "", facts: [] };
+}
+function placeReelShots(h, key) {
+  const P = placeOf({ place: key }), I = placeInfo(key) || {}, z = P.zoom, list = [];
+  list.push({ d: 3.2, a: at(P.o, z * .32, -.9, .22), b: at(P.o, z, -.3, .45), cap: `🎬 סיור ב${I.name}`, sub: I.sub || "" });
+  list.push({ d: 3.8, b: at(P.o, z * 1.45, .65, LOW + .06), cap: `${I.ic || ""} ${I.name}`, sub: I.desc || "" });
+  const w = I.inside && interiorTarget(I.inside), facts = I.facts || [];
+  if (w) { list.push({ d: 3.8, inside: w, a: { az: .15, dist: 19, el: .6 }, b: { az: .85, dist: 13.5, el: .44 }, cap: facts[0]?.[0] || "🚪 בפנים", sub: facts[0]?.[1] || "" });
+    for (const [i, f] of facts.slice(1, 3).entries()) list.push({ d: 3.2, inside: w, a: i ? { az: .2, dist: 17, el: .7 } : { az: .95, dist: 14, el: .5 }, b: i ? { az: .5, dist: 14.5, el: .6 } : { az: .55, dist: 11.5, el: .42 }, cap: f[0], sub: f[1] }); }   // inside the open side of the room, never through a wall
+  else for (const [i, f] of facts.slice(0, 2).entries()) list.push({ d: 3.2, b: at(P.o, z * (1.2 + i * .3), 1.3 + i * .7, .35), cap: f[0], sub: f[1] });
+  if (I.floors > 1) list.push({ d: 3.2, a: at(P.o, z * 1.6, 1.2, .12), b: at(P.o, z * 1.1, 1.6, .55), cap: `🏢 ${fmtN(I.floors)} קומות`, sub: "מגדל של המדינה" });
+  list.push({ d: 3.4, b: at(P.o, z * .75, 2.2, .5), cap: I.job ? "רוצים לעבוד כאן?" : "בואו לבקר", sub: "תגיבו ״אזרחות״ ותקבלו בית באי 👇" });
+  return hours(chain(list), 9.5, 17.5);
+}
+function placeReelPick() {
+  if (!ADMIN) return;
+  const opts = placeList().filter(([k]) => !k.startsWith("inside:") && k !== "house" && k !== "overview");
+  open("📍 ריל של מקום", `<div class="hero"><p>בוחרים מקום באי, והאתר מצלם סיור שלו: טיסה פנימה, סיבוב בגובה הרחוב, הליכה בפנים (בבניינים שאפשר להיכנס אליהם), ונתונים על המקום: כמה עובדים, מי המנהל, כמה חנויות וכו׳.</p></div>
+    <label style="display:block;margin-top:10px">המקום<select id="prSel" style="width:100%">${opts.map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join("")}</select></label>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="prGo">🎬 לצלם את הריל</button></div>`, () => { $("prGo").onclick = () => startReel("place", null, $("prSel").value); }, true);
+}
+
 GO.reel = k => startReel(k);
+GO.placeReel = k => k ? startReel("place", null, k) : placeReelPick();
 GO.reelHome = u => startReel("home", u || S.mine?.u);
 GO.reelArrive = u => startReel("arrival", u || S.mine?.u);
 GO.walk = walkStart;
