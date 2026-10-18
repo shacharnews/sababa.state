@@ -5050,15 +5050,35 @@ const NEWS = {
   homes: { ic: "🛋️", t: "עיצוב פנימי לכל סוג בית", sub: "מבית קטן ועד וילה ואחוזה", ok: () => S.houses.some(h => h.lot && h.tier === 3), shot: () => ({ inside: interiorTarget("home:" + S.houses.find(h => h.lot && h.hk === "3_0" || h.lot && h.tier === 3).u) }) },
   bowtie: { ic: "🎀", t: "בית הפפיון", sub: "בית מיוחד במתנה מהמדינה", ok: () => S.houses.some(h => h.lot && h.hk === "3_2"), shot: () => { const h = S.houses.find(q => q.lot && q.hk === "3_2"); return { a: at(h, 12, -.5, .32), b: at(h, 16, .4, .28), mark: h, sub: `של ‎@${h.u}` }; } },
   balls: { ic: "⚽", t: "כיכר הכדורים", sub: "בהשראת הכיכר בלוד", ok: () => S.projects.some(p => p.params?.type === "balls" && p.x != null && p.status === "done"), shot: () => { const p = S.projects.find(q => q.params?.type === "balls" && q.x != null && q.status === "done"); return { a: at(p, 7, -.4, .3), b: at(p, 10, .3, .26) }; } },
-  arrival: { ic: "🚢", t: "תושבים חדשים מגיעים בספינה", sub: "ורכב המדינה מסיע אותם הביתה", ok: () => COAST[0].x != null, shot: () => { const c = COAST[0]; return { a: at(c, 3.2, -.5, .36), b: at(c, 4.4, .2, .32) }; } }
+  arrival: { ic: "🚢", t: "תושבים חדשים מגיעים בספינה", sub: "ורכב המדינה מסיע אותם הביתה", ok: () => COAST[0].x != null, shot: () => { const c = COAST[0]; return { a: at(c, 3.2, -.5, .36), b: at(c, 4.4, .2, .32) }; } },
+  // ---- release 2026-10-18 ----
+  organic: { v: "2026-10-18", ic: "🌀", t: "העיר קיבלה צורה אורגנית", sub: "רחובות מתעקלים, כל שכונה בצורה אחרת", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0], o = { x: c.x + 260, z: c.z + 140 }; return { a: at(o, 2.6, -.4, .5), b: at(o, 3.4, .3, .42) }; } },
+  hills: { v: "2026-10-18", ic: "⛰️", t: "גבעות, הרים ועמקים", sub: "האי עולה ויורד בין הערים", ok: () => newsPeak().h > 8, shot: () => { const pk = newsPeak(); return { a: at(pk, 1.6, -.6, .22), b: at(pk, 2.2, .2, .2) }; } },
+  real: { v: "2026-10-18", ic: "🌳", t: "גרפיקה ריאליסטית יותר", sub: "עצים, רעפים, חלונות, רכבים ותאורה", ok: () => S.houses.some(h => h.lot && !h.lot.sq && !h.lot.palm), shot: () => { const L = S.houses.filter(q => q.lot && !q.lot.sq && !q.lot.palm && !q.lot.est).sort((a, b) => b.lot.d - a.lot.d), h = L.find(q => q.tier === 2) || L[0]; return { a: at(h, 18, -.7, .32), b: at(h, 22, -.2, .28), mark: h }; } },   // out in a quiet street, away from the big public buildings
+  palm2: { v: "2026-10-18", ic: "🌴", t: "אי הדקל החדש", sub: "10 ענפים, רחוב בכל ענף ו־96 וילות", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.center, 1.5, -.5, .5), b: at(g.fronds[4].at(40, 0), 4, .2, .4) }; } },
+  hotel: { v: "2026-10-18", ic: "🏨", t: "מלון הדקל פתוח", sub: "לובי, קבלה, נברשת ומעליות", ok: () => !!PALM.geo, shot: () => ({ inside: interiorTarget("palmhotel") }) },
+  estate: { v: "2026-10-18", ic: "🏰", t: "אחוזות עם חצר בעיצוב אישי", sub: "גוררים בריכה, מזרקה וביתן לכל מקום", ok: () => S.houses.some(h => h.lot?.est), shot: () => { const h = S.houses.find(q => q.lot?.est); return { a: at(h, 9, -.6, .4), b: at(h, 13, .3, .36), mark: h }; } },
+  shop: { v: "2026-10-18", ic: "🛒", t: "קונים אחוזה או וילה באי הדקל", sub: "בסבבונים, וגם בית בעיצוב מיוחד", ok: () => !!PALM.geo, shot: () => { const f = PALM.geo.fronds[5] || PALM.geo.fronds[0]; return { a: at(f.at(30, 0), 7, -.4, .38), b: at(f.at(60, 0), 9, .3, .34) }; } },
+  inhouse: { v: "2026-10-18", ic: "🪜", t: "מטיילים בתוך הבית", sub: "קומה שנייה, מרפסת, חצר ובריכה", ok: () => S.houses.some(h => h.lot && +h.hk[0] >= 2), shot: () => ({ inside: interiorTarget("home:" + S.houses.find(h => h.lot && +h.hk[0] >= 2).u) }) },
+  alleys: { v: "2026-10-18", ic: "🧱", t: "סמטאות מרוצפות בקצה העיר", sub: "רחוב ללא מוצא עם כיכר קטנה", ok: () => !!S.alleys?.length, shot: () => { const a = S.alleys[0]; return { a: at(a, 12, -.5, .4), b: at(a, 16, .3, .36) }; } },
+  ideas: { v: "2026-10-18", ic: "💡", t: "לוח הצעות התושבים", sub: "כתבו רעיון, ותמכו ברעיונות של אחרים 👍", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 5, .6, .45), b: at(c, 3, 1.1, .5) }; } },
+  law3: { v: "2026-10-18", ic: "🏛️", t: "חוק הרצף: 1,000 סבבונים", sub: "3 ימי משכורת ברצף = פרס", ok: () => !!GOV.find(g => g.id === "knesset")?.x, shot: () => { const k = GOV.find(g => g.id === "knesset"); return { a: at(k, 10, -.5, .35), b: at(k, 14, .3, .3) }; } }
 };
+// the newest release is what "what's new" shows by itself (the date of the newest item)
+const NEWS_V0 = "2026-10-12", newsVer = k => NEWS[k]?.v || NEWS_V0, SITE_VERSION = Object.keys(NEWS).map(newsVer).sort().at(-1);
+let NEWS_PEAK = null;
+function newsPeak() { if (NEWS_PEAK?.s === S.s) return NEWS_PEAK; let b = { x: 0, z: 0, h: 0, s: S.s }; for (let x = -RX0 * S.s; x < RX0 * S.s; x += 30) for (let z = -RZ0 * S.s; z < RZ0 * S.s; z += 30) { const h = terrainH(x, z); if (h > b.h) b = { x, z, h, s: S.s }; } return NEWS_PEAK = b; }
 const P_ = P;   // the prefab table, also reachable from inside NEWS (whose shots take a parameter named P)
 const NEWS_SEL = { list: null };
-function newsList() { if (!NEWS_SEL.list) { try { NEWS_SEL.list = JSON.parse(pref("sababa_news", "null")); } catch {} } return (NEWS_SEL.list || Object.keys(NEWS)).filter(k => NEWS[k]?.ok()); }
+// a selection the admin saved counts only for the release it was made in; after a new update the reel starts again from what's new
+function newsList() {
+  if (!NEWS_SEL.list) { try { const v = JSON.parse(pref("sababa_news", "null")); if (v?.ver === SITE_VERSION && Array.isArray(v.list)) NEWS_SEL.list = v.list; } catch {} }
+  return (NEWS_SEL.list || Object.keys(NEWS).filter(k => newsVer(k) === SITE_VERSION)).filter(k => NEWS[k]?.ok());
+}
 // build the shots and the moving props together, so the props know when their shot plays
 function newsPlan() {
   const keys = newsList(), zf = reelFit(), shots = [], props = []; let t = 3;
-  shots.push({ d: 3, a: at(ORIGIN, zf, -.6), b: at(S.slots[0], 1.6, -.3, .5), cap: "מה חדש במדינה? 🆕", sub: `רפובליקת סבבה · יום ${fmtN(dayNo())}` });
+  shots.push({ d: 3, a: at(ORIGIN, zf, -.6), b: at(S.slots[0], 1.6, -.3, .5), cap: "מה חדש במדינה? 🆕", sub: `העדכון של ${new Date(SITE_VERSION + "T12:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" })} · ${fmtN(keys.length)} חידושים` });
   for (const k of keys) { const N = NEWS[k], d = 3.4, sh = N.shot(t, d, props);
     if (sh.inside) shots.push({ d, inside: sh.inside, a: { az: .25, dist: 18, el: .5 }, b: { az: .8, dist: 15, el: .45 }, cap: `${N.ic} ${N.t}`, sub: N.sub });
     else shots.push({ d, ...sh, cap: `${N.ic} ${N.t}`, sub: sh.sub || N.sub });
@@ -5067,12 +5087,13 @@ function newsPlan() {
   REEL.news = hours(chain(shots), 9, 17.5); return props;
 }
 GO.newsPick = () => {
-  if (!ADMIN) return; const sel = new Set(newsList());
-  open("🆕 מה חדש במדינה", `<div class="hero"><p>מסמנים אילו עדכונים להראות. כל עדכון = סצנה של 3.4 שניות, בסדר הזה.</p></div>
-    <div class="list" style="margin-top:10px">${Object.entries(NEWS).map(([k, N]) => `<label class="li" style="cursor:pointer"><span class="ic">${N.ic}</span><span class="tx"><b>${N.t}</b><small>${N.ok() ? N.sub : "🔒 עוד לא קיים במדינה"}</small></span><input type="checkbox" data-n="${k}" ${sel.has(k) ? "checked" : ""} ${N.ok() ? "" : "disabled"}></label>`).join("")}</div>
+  if (!ADMIN) return; const sel = new Set(newsList()), vers = [...new Set(Object.keys(NEWS).map(newsVer))].sort().reverse();
+  const day = v => new Date(v + "T12:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" });
+  open("🆕 מה חדש במדינה", `<div class="hero"><p>הריל מציג לבד את העדכון האחרון (${day(SITE_VERSION)}). אפשר להוסיף או להוריד סצנות. כל סצנה 3.4 שניות.</p></div>
+    ${vers.map(v => `<div class="sec">${v === SITE_VERSION ? "🆕 העדכון האחרון" : "עדכון"} · ${day(v)}</div><div class="list">${Object.entries(NEWS).filter(([k]) => newsVer(k) === v).map(([k, N]) => `<label class="li" style="cursor:pointer"><span class="ic">${N.ic}</span><span class="tx"><b>${N.t}</b><small>${N.ok() ? N.sub : "🔒 עוד לא קיים במדינה"}</small></span><input type="checkbox" data-n="${k}" ${sel.has(k) ? "checked" : ""} ${N.ok() ? "" : "disabled"}></label>`).join("")}</div>`).join("")}
     <div class="btns" style="margin-top:12px"><button class="btn" id="newsGo">🎬 ליצור את הריל</button></div>`, () => {
     $("newsGo").onclick = () => { const list = [...$("dBody").querySelectorAll("[data-n]")].filter(c => c.checked).map(c => c.dataset.n);
-      if (!list.length) return toast("בחרו לפחות עדכון אחד"); NEWS_SEL.list = list; setPref("sababa_news", JSON.stringify(list)); startReel("news"); };
+      if (!list.length) return toast("בחרו לפחות עדכון אחד"); NEWS_SEL.list = list; setPref("sababa_news", JSON.stringify({ ver: SITE_VERSION, list })); startReel("news"); };
   }, true);
 };
 const TEMPLATES = {
