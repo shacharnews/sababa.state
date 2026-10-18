@@ -440,28 +440,36 @@ const CENTRAL = { RP: 26, RR: 34, W: 4.5, on: null, q: null, boxes: [] };
 // the palm island off the northern coast: a trunk with fronds, a crescent around them with a hotel, villas on the fronds
 const PALM = { t: -1.25, geo: null };
 const isCentral = (si, bx, bz) => si === 0 && Math.max(Math.abs(bx), Math.abs(bz)) <= 1;
+// the palm: 5 wide fronds on each side of the trunk. Each frond is a street (with a gate at its start and a turning circle at its tip)
+// with villa plots on both sides. FW = half the width of a frond.
+const PALM_F = { n: 5, step: 45, u0: 70, d: [.55, .835], FW: 15, lotStep: 15, lotOff: 9 };
 function palmGeo() {
   const O = shorePt(PALM.t, S.s, 1), n = Math.hypot(O.x, O.z) || 1, U = { x: O.x / n, z: O.z / n }, V = { x: -U.z, z: U.x };
   const W = (u, v) => ({ x: O.x + U.x * u + V.x * v, z: O.z + U.z * u + V.z * v }), rect = (u0, u1, v0, v1) => [W(u0, v0), W(u1, v0), W(u1, v1), W(u0, v1)];
-  const fronds = [], polys = [rect(-34, 42, -5.5, 5.5), rect(40, 205, -11, 11)], lots = [], CC = { u: 130, v: 0 }, CR = 165;
-  for (let k = 0; k < 7; k++) for (const sd of [-1, 1]) {
-    const b = { u: 70 + k * 20, v: sd * 10 }, d = { u: .45, v: sd * .89 }, L = 82 - Math.abs(k - 3) * 9, nv = { u: -d.v, v: d.u };
-    fronds.push({ b, d, L }); polys.push([0, 1, 2, 3].map(q => { const s2 = q < 2 ? -2 : L, w2 = q === 1 || q === 2 ? 6 : -6; return W(b.u + d.u * s2 + nv.u * w2, b.v + d.v * s2 + nv.v * w2); }));
-    for (let s2 = 22; s2 < L - 6; s2 += 20) { const c = W(b.u + d.u * s2, b.v + d.v * s2), F = { x: U.x * nv.u + V.x * nv.v, z: U.z * nv.u + V.z * nv.v };
-      lots.push({ x: c.x, z: c.z, face: Math.atan2(F.x * sd, F.z * sd), palm: true, frond: fronds.length, bx: 0, bz: 0, i: 0, j: 0, dx: 0, street: "אי הדקל" }); }
+  const CC = { u: 180, v: 0 }, CR = 165, TE = 282, fronds = [], polys = [rect(-34, 42, -6.5, 6.5), rect(40, TE, -11, 11)], lots = [];
+  for (let k = 0; k < PALM_F.n; k++) for (const sd of [-1, 1]) {
+    const b = { u: PALM_F.u0 + k * PALM_F.step, v: sd * 10 }, d = { u: PALM_F.d[0], v: sd * PALM_F.d[1] }, L = 100 - Math.abs(k - 2) * 14, nv = { u: -d.v, v: d.u }, fi = fronds.length;
+    const at = (s2, w2) => W(b.u + d.u * s2 + nv.u * w2, b.v + d.v * s2 + nv.v * w2), D = { x: U.x * d.u + V.x * d.v, z: U.z * d.u + V.z * d.v }, N = { x: U.x * nv.u + V.x * nv.v, z: U.z * nv.u + V.z * nv.v };
+    fronds.push({ b, d, L, nv, at, D, N, no: fi + 1 });
+    polys.push([at(-4, -PALM_F.FW), at(-4, PALM_F.FW), at(L, PALM_F.FW), at(L, -PALM_F.FW)]);
+    const tip = []; for (let i = 0; i <= 16; i++) { const a = -Math.PI / 2 + Math.PI * i / 16; tip.push(at(L + Math.cos(a) * PALM_F.FW * .99, Math.sin(a) * PALM_F.FW * .99)); } polys.push(tip);   // the round tip
+    for (let s2 = 16; s2 < L - 6; s2 += PALM_F.lotStep) for (const w2 of [-PALM_F.lotOff, PALM_F.lotOff]) {
+      const c = at(s2, w2), f = { x: -Math.sign(w2) * N.x, z: -Math.sign(w2) * N.z };   // the front of the villa looks onto the frond's street
+      lots.push({ x: c.x, z: c.z, face: Math.atan2(f.x, f.z), palm: true, frond: fi, w: PALM_F.lotStep - 1, ld: 12, bx: 0, bz: 0, i: 0, j: 0, dx: 0, street: "אי הדקל" });
+    }
   }
   lots.forEach((l, i) => l.num = i + 1);
   const cres = [], A0 = -1.75, A1 = 1.75; for (let i = 0; i <= 40; i++) { const a = A0 + (A1 - A0) * i / 40; cres.push(W(CC.u + Math.cos(a) * (CR + 7), CC.v + Math.sin(a) * (CR + 7))); }
   for (let i = 40; i >= 0; i--) { const a = A0 + (A1 - A0) * i / 40; cres.push(W(CC.u + Math.cos(a) * (CR - 7), CC.v + Math.sin(a) * (CR - 7))); }
-  polys.push(cres, rect(203, CC.u + CR - 26, -5, 5));
-  const ring = []; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; ring.push(W(CC.u + CR + Math.cos(a) * 32, Math.sin(a) * 32)); } polys.push(ring);
-  return { O, U, V, W, fronds, polys, lots, CC, CR, A0, A1, gate: W(-34, 0), hotel: W(CC.u + CR, 0), center: W(130, 0) };
+  polys.push(cres, rect(TE - 2, CC.u + CR - 30, -5, 5));
+  const ring = []; for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; ring.push(W(CC.u + CR + Math.cos(a) * 40, Math.sin(a) * 40)); } polys.push(ring);
+  return { O, U, V, W, fronds, polys, lots, CC, CR, TE, A0, A1, gate: W(-40, 0), approach: W(-110, 0), hotel: W(CC.u + CR + 8.5, 0), ring: W(CC.u + CR, 0), center: W(160, 0) };
 }
 // is a point on the palm island (or its bridge)?
 function onPalm(x, z) {
   const g = PALM.geo; if (!g) return false; const dx = x - g.O.x, dz = z - g.O.z, u = dx * g.U.x + dz * g.U.z, v = dx * g.V.x + dz * g.V.z;
-  if ((u > -34 && u < 42 && Math.abs(v) < 5.5) || (u > 40 && u < 205 && Math.abs(v) < 11) || (u > 203 && u < g.CC.u + g.CR - 26 && Math.abs(v) < 5) || Math.hypot(u - g.CC.u - g.CR, v) < 32) return true;
-  for (const f of g.fronds) { const pu = u - f.b.u, pv = v - f.b.v, s2 = pu * f.d.u + pv * f.d.v; if (s2 > -2 && s2 < f.L && Math.abs(-pu * f.d.v + pv * f.d.u) < 6) return true; }
+  if ((u > -34 && u < 42 && Math.abs(v) < 6.5) || (u > 40 && u < g.TE && Math.abs(v) < 11) || (u > g.TE - 2 && u < g.CC.u + g.CR - 26 && Math.abs(v) < 5) || Math.hypot(u - g.CC.u - g.CR, v) < 40) return true;
+  for (const f of g.fronds) { const pu = u - f.b.u, pv = v - f.b.v, s2 = pu * f.d.u + pv * f.d.v, w2 = Math.abs(pu * f.nv.u + pv * f.nv.v); if ((s2 > -4 && s2 < f.L && w2 < PALM_F.FW) || Math.hypot(s2 - f.L, w2) < PALM_F.FW) return true; }
   const r = Math.hypot(u - g.CC.u, v - g.CC.v), a = Math.atan2(v - g.CC.v, u - g.CC.u); return r > g.CR - 7 && r < g.CR + 7 && a > g.A0 && a < g.A1;
 }
 // a luxury villa on the palm (kept for later use): white cubes, a glass front, a roof terrace, its own pool
@@ -472,7 +480,7 @@ function palmVilla(seed) {
     box(3.6, .1, 5.6, "#ffffff", -6.4, 0, 0), box(3.1, .12, 5, "#45c2ea", -6.4, .02, 0), box(.8, .25, 1.8, "#ffffff", -4.3, .05, -2)];
 }
 function buildPalm() {
-  const g = PALM.geo; if (!g) return; const data = { type: "place", id: "palm" }, Q = [], palms = [], villaPads = [], umbs = [], rocks = [], lamps = [];
+  const g = PALM.geo; if (!g) return; const data = { type: "place", id: "palm" }, Q = [], palms = [], villaPads = [], umbs = [], rocks = [], lamps = [], dashes = [];
   const ANG = Math.atan2(g.U.x, g.U.z), along = ANG - Math.PI / 2;   // a box with its length along the trunk
   // the turquoise lagoon inside the crescent
   const lag = new THREE.Mesh(new THREE.CircleGeometry(g.CR + 6, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#7fd8ea", transparent: true, opacity: .55, depthWrite: false }));
@@ -481,64 +489,90 @@ function buildPalm() {
   for (const poly of g.polys) { const sh = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
     Q.push(part(new THREE.ExtrudeGeometry(sh, { depth: 6.25, bevelEnabled: false }).rotateX(-Math.PI / 2), "#ecd7a4", 0, -6, 0)); }
   const R = (u0, u1, v0, v1, y, col, h = .05) => { const c = g.W((u0 + u1) / 2, (v0 + v1) / 2); Q.push(box(u1 - u0, h, v1 - v0, col, c.x, y, c.z, { y: along })); };
-  // the trunk: a boulevard with a planted median, sidewalks, gardens; the bridge to the land and the bridge to the crescent
-  R(-34, 42, -4, 4, .25, "#4a5057"); R(40, 205, -6, 6, .25, "#4a5057"); R(40, 205, -.9, .9, .27, "#79a65a", .1); R(40, 205, -8.4, -6, .25, "#e3d7bf"); R(40, 205, 6, 8.4, .25, "#e3d7bf");
-  R(40, 205, -10.6, -8.4, .25, "#86b862"); R(40, 205, 8.4, 10.6, .25, "#86b862"); R(203, g.CC.u + g.CR - 26, -4, 4, .25, "#4a5057");
-  for (let u = 46; u < 204; u += 7) for (const v of [-3, 3]) R(u, u + 3, v - .08, v + .08, .26, "#e8e3d4", .02);
-  for (const [u0, u1] of [[-30, 40], [206, g.CC.u + g.CR - 28]]) { for (let u = u0; u < u1; u += 6) for (const v of [-4.6, 4.6]) { const c = g.W(u, v); Q.push(cyl(.06, .06, 1, 6, "#d0d0d0", c.x, .25, c.z)); }
-    for (let u = u0 + 2; u < u1; u += 12) { const c = g.W(u, 0); Q.push(cyl(1.2, 1.4, 6, 10, "#cfc6b0", c.x, -6, c.z)); } }
-  for (let u = 46; u < 204; u += 10) { palms.push(g.W(u, 0)); lamps.push([g.W(u + 5, -6.6), ANG + Math.PI / 2], [g.W(u + 5, 6.6), ANG - Math.PI / 2]); }
-  // shops and apartments along the base of the trunk: the palm's main street
-  for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { const u = 52 + k * 12, c = g.W(u, sd * 9.6), col = ["#f2e2c4", "#e9d3b0", "#f6eadb"][k];
-    const aw = g.W(u, sd * 8.1);
-    Q.push(box(9, 6 + k * 2, 1.6, col, c.x, .25, c.z, { y: along }), box(8, 2, .1, "*#ffe2a0", c.x - g.V.x * sd * .85, .55, c.z - g.V.z * sd * .85, { y: along }),
-      box(8.6, .14, 1.5, ["#e8569a", "#2f7fa8", "#f2b440"][k], aw.x, 2.9, aw.z, { y: along }), box(9.2, .5, 1.8, "#ffffff", c.x, 6.25 + k * 2, c.z, { y: along })); }
+  // the bridge from the land: a real road on piers, with a dashed center line, curbs, railings and lamps
+  R(-46, 42, -4, 4, .25, "#4a5057"); R(-46, 42, -6.3, -4, .25, "#cfc8bb", .3); R(-46, 42, 4, 6.3, .25, "#cfc8bb", .3);
+  R(-46, 42, -6.3, -6.05, .55, "#e8e6e0", 1); R(-46, 42, 6.05, 6.3, .55, "#e8e6e0", 1);
+  for (let u = -42; u < 40; u += 7) R(u, u + 3.2, -.12, .12, .26, "#f2c230", .02);
+  for (let u = -30; u < 40; u += 12) { const c = g.W(u, 0); Q.push(cyl(1.2, 1.4, 6, 10, "#cfc6b0", c.x, -6, c.z)); }
+  for (let u = -40; u < 42; u += 20) lamps.push([g.W(u, -5.6), ANG + Math.PI / 2], [g.W(u + 10, 5.6), ANG - Math.PI / 2]);
+  // the trunk: a boulevard with a planted median, sidewalks and gardens; the road on to the hotel
+  // where each frond's street meets the trunk, the median, sidewalks and gardens open up: a real junction, nothing in the way
+  const cuts = g.fronds.filter(f => f.b.v > 0).map(f => [f.b.u - 10, f.b.u + 5]), cut = u => cuts.some(([a, b]) => u > a && u < b);
+  const Rc = (u0, u1, v0, v1, y, col, h) => { let a = u0; for (const [c0, c1] of [...cuts, [u1, u1]].sort((p, q) => p[0] - q[0])) { if (c0 > a) R(a, Math.min(c0, u1), v0, v1, y, col, h); a = Math.max(a, c1); if (a >= u1) break; } };
+  R(40, g.TE, -6, 6, .25, "#4a5057"); Rc(40, g.TE, -.9, .9, .27, "#79a65a", .1); Rc(40, g.TE, -8.4, -6, .25, "#e3d7bf", .2); Rc(40, g.TE, 6, 8.4, .25, "#e3d7bf", .2);
+  Rc(40, g.TE, -11, -8.4, .25, "#86b862"); Rc(40, g.TE, 8.4, 11, .25, "#86b862"); R(g.TE - 2, g.CC.u + g.CR - 17, -4, 4, .25, "#4a5057");
+  for (let u = 46; u < g.TE - 2; u += 7) for (const v of [-3, 3]) R(u, u + 3, v - .08, v + .08, .26, "#e8e3d4", .02);
+  for (let u = g.TE + 2; u < g.CC.u + g.CR - 32; u += 6) for (const v of [-4.6, 4.6]) { const c = g.W(u, v); Q.push(cyl(.06, .06, 1, 6, "#d0d0d0", c.x, .25, c.z)); }
+  for (let u = 46; u < g.TE - 4; u += 10) { if (!cut(u)) palms.push(g.W(u, 0)); if (!cut(u + 5)) lamps.push([g.W(u + 5, -7), ANG + Math.PI / 2], [g.W(u + 5, 7), ANG - Math.PI / 2]); }
+  // the fronds: each one a street of villas, with a gate and its name at the start and a turning circle with palms at the tip
+  const FB = (f, s0, s1, w0, w1, y, col, h = .05) => { const c = f.at((s0 + s1) / 2, (w0 + w1) / 2); Q.push(box(w1 - w0, h, s1 - s0, col, c.x, y, c.z, { y: Math.atan2(f.D.x, f.D.z) })); };
+  const gates = [];
+  for (const f of g.fronds) {
+    FB(f, -6.5, f.L, -3.2, 3.2, .251, "#4a5057"); FB(f, 1, f.L, -4.8, -3.2, .25, "#e3d7bf", .2); FB(f, 1, f.L, 3.2, 4.8, .25, "#e3d7bf", .2);   // the street runs right into the trunk's road
+    for (let s2 = 4; s2 < f.L - 8; s2 += 7) FB(f, s2, s2 + 3, -.08, .08, .26, "#e8e3d4", .02);
+    const t = f.at(f.L, 0); Q.push(cyl(9, 9, .05, 28, "#4a5057", t.x, .25, t.z), cyl(3.6, 3.8, .45, 20, "#cfc8bb", t.x, .25, t.z), cyl(3.3, 3.3, .1, 20, "#86b862", t.x, .55, t.z)); palms.push(t);
+    for (let s2 = 10; s2 < f.L - 4; s2 += 15) for (const w2 of [-4.2, 4.2]) lamps.push([f.at(s2, w2), Math.atan2(-Math.sign(w2) * f.N.x, -Math.sign(w2) * f.N.z) - Math.PI / 2]);
+    for (let i = 0; i < 9; i++) { const a2 = -1.2 + 2.4 * i / 8; umbs.push(f.at(f.L + Math.cos(a2) * 12.5, Math.sin(a2) * 12.5)); }   // a little beach around the turning circle
+    for (let s2 = 23.5; s2 < f.L - 8; s2 += PALM_F.lotStep) for (const w2 of [-13.5, 13.5]) palms.push(f.at(s2, w2));   // palms between the plots, along the water
+    const gp = f.at(1.5, 0); gates.push({ x: gp.x, z: gp.z, ry: Math.atan2(f.D.x, f.D.z), no: f.no });
+  }
+  PALM.gates = gates;
   // monorail beam over the trunk, from the land to the hotel (the train runs on it)
-  const mr = [g.W(-24, -7.2), g.W(203, -7.2), g.W(g.CC.u + g.CR - 34, -7.2)];
+  const mr = [g.W(-24, -7.2), g.W(g.TE - 2, -7.2), g.W(g.CC.u + g.CR - 34, -7.2)];
   for (let i = 0; i + 1 < mr.length; i++) { const A = mr[i], B = mr[i + 1], L = Math.hypot(B.x - A.x, B.z - A.z), ry = Math.atan2(B.x - A.x, B.z - A.z);
-    Q.push(box(1.4, .9, L, "#e9e6df", (A.x + B.x) / 2, 7, (A.z + B.z) / 2, { y: ry })); for (let k = 0; k < L; k += 18) Q.push(cyl(.5, .6, 7.2, 8, "#d8d3c8", A.x + (B.x - A.x) * k / L, -.2, A.z + (B.z - A.z) * k / L)); }
+    Q.push(box(1.4, .9, L, "#e9e6df", (A.x + B.x) / 2, 7, (A.z + B.z) / 2, { y: ry })); for (let k = 0; k < L; k += 18) { if (i === 0 && cut(-24 + k)) continue;   // no pillar in the middle of a junction
+      Q.push(cyl(.5, .6, 7.2, 8, "#d8d3c8", A.x + (B.x - A.x) * k / L, -.2, A.z + (B.z - A.z) * k / L)); } }
   PALM.track = mr;
-  // fronds: beaches with umbrellas at the tips, breakwater rocks around the crescent
-  for (const f of g.fronds) for (let s2 = f.L - 14; s2 < f.L - 1; s2 += 4.5) for (const w of [-4.6, 4.6]) { const nv = { u: -f.d.v, v: f.d.u }; umbs.push(g.W(f.b.u + f.d.u * s2 + nv.u * w, f.b.v + f.d.v * s2 + nv.v * w)); }
-  for (const f of g.fronds) for (let s2 = 6; s2 < f.L - 16; s2 += 20) palms.push(g.W(f.b.u + f.d.u * (s2 + 10), f.b.v + f.d.v * (s2 + 10)));
+  // breakwater rocks and palms along the crescent, beach umbrellas on its inner side
   for (let i = 0; i < 70; i++) { const a = g.A0 + (g.A1 - g.A0) * i / 69, p = g.W(g.CC.u + Math.cos(a) * (g.CR + 7.5), g.CC.v + Math.sin(a) * (g.CR + 7.5)); rocks.push([p.x, p.z, i]); }
   for (let i = 0; i < 34; i++) { const a = g.A0 + (g.A1 - g.A0) * (i + .5) / 34; if (Math.abs(a) < .22) continue; palms.push(g.W(g.CC.u + Math.cos(a) * (g.CR + 2), g.CC.v + Math.sin(a) * (g.CR + 2)));
     if (i % 2) umbs.push(g.W(g.CC.u + Math.cos(a) * (g.CR - 4), g.CC.v + Math.sin(a) * (g.CR - 4))); }
   // small hotels along the crescent
   for (const a of [-1.3, -.8, .8, 1.3]) { const p = g.W(g.CC.u + Math.cos(a) * g.CR, Math.sin(a) * g.CR), ry = Math.atan2(-(Math.cos(a) * g.U.x + Math.sin(a) * g.V.x), -(Math.cos(a) * g.U.z + Math.sin(a) * g.V.z));
     const HQ = [box(16, 10, 8, ["#f4e3cf", "#e8eef2", "#f6eadb", "#efe0f0"][Math.round(a * 10) & 3], 0, 0, 0), box(16.4, .5, 8.4, "#c9a46a", 0, 10, 0)];
-    for (let y = 1.5; y < 10; y += 2.8) HQ.push(box(14, 1.3, .12, "*#ffe2a0", 0, y, 4.06));
+    for (let y = 1.5; y < 10; y += 2.8) HQ.push(...wins([-5.5, -2, 2, 5.5], y, 4.04, 2.2, 1.3));
     solid(HQ, p.x, p.z, ry, data, .25); }
-  // the villa plots on the fronds: residents' houses, or a luxury villa waiting for its owner
+  // the villa plots on the fronds: a garden with a pool for every resident; an empty plot waits with a "for sale" sign
+  const forSale = [];
   for (const l of g.lots) { const h = S.houses.find(q => q.lot === l), cs = Math.cos(l.face), sn = Math.sin(l.face), P2 = (a, b) => [l.x + a * cs + b * sn, l.z - a * sn + b * cs];
-    if (h) { villaPads.push([l.x, l.z, l.face, "#86b862"]); const [px, pz] = P2(-6.4, 0); Q.push(box(3.6, .1, 5.6, "#ffffff", px, LAWN, pz, { y: l.face }), box(3.1, .12, 5, "#45c2ea", px, LAWN + .02, pz, { y: l.face })); }
-    else { const c = l.num % 3; if (c === 0) palms.push(...[[-4, 0], [4, 1]].map(([a, b]) => { const [x, z] = P2(a, b); return { x, z }; }));   // no villa until someone lives here: a palm garden, a beach or a lawn
-      else if (c === 1) umbs.push(...[[-3, -2], [2, 2], [5, -1]].map(([a, b]) => { const [x, z] = P2(a, b); return { x, z }; })); } }
-  instanced(P.slab, villaPads, ([x, z, r, c], o) => { o.position.set(x, .25, z); o.rotation.y = r; o.scale.set(17, LAWN - .25, 11.4); return c; }, { shadow: false });
-  // the hotel at the top of the crescent: two towers joined by an arch, a pool deck and fountains in front, facing the palm
+    villaPads.push([l.x, l.z, l.face, h ? "#86b862" : "#b9cf8f", l.w, l.ld]);
+    if (h) { const [px, pz] = P2(3.2, -4.6); Q.push(box(4.6, .1, 2.4, "#ffffff", px, LAWN, pz, { y: l.face }), box(4.1, .12, 1.9, "#45c2ea", px, LAWN + .02, pz, { y: l.face })); }
+    else { forSale.push([...P2(0, 3.5), l.face]); if (l.num % 2) palms.push((([x, z]) => ({ x, z }))(P2(-3.5, -2))); } }
+  instanced(P.slab, villaPads, ([x, z, r, c, w, d], o) => { o.position.set(x, .25, z); o.rotation.y = r; o.scale.set(w, LAWN - .25, d); return c; }, { shadow: false });
+  if (forSale.length) { const proto = sign("למכירה · 🌴", 2.2, .7, { bg: "#ffffff", fg: "#0f6b3a" });
+    instanced(P.slab, forSale.map(([x, z, r]) => [x, z, r]), ([x, z, r], o) => { o.position.set(x, LAWN, z); o.rotation.y = r; o.scale.set(.1, 1.3, .1); return "#7a5232"; });
+    for (const [x, z, r] of forSale) { const m = proto.clone(); m.position.set(x, LAWN + 1.5, z); m.rotation.y = r; world.add(m); } }
+  // the hotel at the top of the crescent: two towers joined high up by an arch, a glass lobby between them under a porte-cochère, a pool deck in front
   const ry = Math.atan2(-g.U.x, -g.U.z), HQ = [box(46, 1, 20, "#d9cfb9"), box(13, 42, 16, "#f0c9a2", -15, 1, 0), box(13, 42, 16, "#f0c9a2", 15, 1, 0), box(17, 9, 16, "#f0c9a2", 0, 34, 0), box(18, 1.4, 17, "#e2b47e", 0, 43, 0),
-    box(9, 5, 3, "#e2b47e", 0, 1, 9), box(7, 4, .12, "*#ffe2a0", 0, 1.2, 10.56), box(46, .1, 14, "#e8dcc4", 0, 1, 18), box(18, .12, 7, "#45c2ea", -8, 1.05, 19), cyl(2.4, 2.6, .6, 20, "#d9cfb9", 14, 1, 18), cyl(2.1, 2.1, .1, 20, "#45c2ea", 14, 1.55, 18), cyl(.3, .4, 2.4, 8, "#d9cfb9", 14, 1.6, 18)];
+    box(17, 8, 15, "#f0c9a2", 0, 1, -.5), box(17.2, .5, 15.2, "#e2b47e", 0, 9, -.5), box(15, 6.4, .14, GLASS, 0, 1.2, 7.05), box(3.4, 3.6, .16, "#2b2f34", 0, 1, 7.1),
+    box(12, .4, 3, "#e2dccf", 0, 0, 10.6), box(12, .4, 1.6, "#e2dccf", 0, .4, 9.8), box(13, .6, 8, "#e2b47e", 0, 6, 12), box(13.2, .3, 8.2, "*#fff1c2", 0, 5.8, 12),
+    ...[[-5.8, 15.5], [5.8, 15.5], [-5.8, 9], [5.8, 9]].map(([x, z]) => cyl(.32, .36, 5.8, 12, "#f4efe6", x, z === 9 ? 1 : 0, z)),
+    box(46, .1, 14, "#e8dcc4", 0, 0, 20), box(18, .12, 7, "#45c2ea", -8, .05, 21), cyl(2.4, 2.6, .6, 20, "#d9cfb9", 14, 0, 20), cyl(2.1, 2.1, .1, 20, "#45c2ea", 14, .55, 20), cyl(.3, .4, 2.4, 8, "#d9cfb9", 14, .6, 20)];
   for (const sx of [-15, 15]) for (let y = 4; y < 40; y += 3.2) HQ.push(box(10.5, 1.5, .12, "*#ffe2a0", sx, y, 8.06));
   for (let y = 35; y < 42; y += 3) HQ.push(box(14, 1.4, .12, "*#ffe2a0", 0, y, 8.06));
   for (const sx of [-15, 15]) HQ.push(part(new THREE.SphereGeometry(4.6, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), "#2f8fa0", sx, 43, 0), sph(.6, "#d9b65a", sx, 48, 0));
-  for (const x of [-20, -16, 20]) for (const z of [13, 23]) HQ.push(cyl(.12, .14, 1.4, 6, "#ffffff", x, 1, z));
-  const hg = solid(HQ, g.hotel.x, g.hotel.z, ry, data, .25);
-  mountSign(hg, sign("מלון הדקל", 12, 1.8, { bg: "#7a3b2a", fg: "#fff4dc" }), 0, 30.5, 8.2);
-  for (const sx of [-6, 6]) { const f = flagMesh(4, 2.6); const p = g.W(g.CC.u + g.CR - 26, sx); f.position.set(p.x + 2, 9, p.z); world.add(f); FLAGS.push(f); Q.push(cyl(.1, .12, 9, 6, "#d0d0d0", p.x, .25, p.z)); }
-  for (let a = 0; a < Math.PI * 2; a += Math.PI / 7) { const p = g.W(g.CC.u + g.CR + Math.cos(a) * 27, Math.sin(a) * 27); palms.push(p); }
+  for (const x of [-20, -16, 20]) for (const z of [15, 25]) HQ.push(cyl(.12, .14, 1.4, 6, "#ffffff", x, 0, z));
+  const hg = solid(HQ, g.hotel.x, g.hotel.z, ry, { type: "place", id: "palmhotel" }, .25);
+  mountSign(hg, sign("מלון הדקל", 13, 2.2, { bg: "#7a3b2a", fg: "#fff4dc" }), 0, 33.6, 8.12);   // on the arch, high up
+  mountSign(hg, sign("🌴 מלון הדקל · כניסה", 8, 1, { bg: "#2b2f34", fg: "#f2d38a" }), 0, 6.75, 16.06);   // on the front of the porte-cochère
+  for (const sx of [-6, 6]) { const f = flagMesh(4, 2.6); const p = g.W(g.CC.u + g.CR - 34, sx * 2); f.position.set(p.x + 2, 9, p.z); world.add(f); FLAGS.push(f); Q.push(cyl(.1, .12, 9, 6, "#d0d0d0", p.x, .25, p.z)); }
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 9) { if (Math.abs(Math.cos(a) + 1) < .12) continue; const p = g.W(g.CC.u + g.CR + Math.cos(a) * 35.5, Math.sin(a) * 35.5); palms.push(p); }   // palms around the hotel's island, leaving the road free
   solid(Q, 0, 0, 0, data, 0);
+  // the gates of the fronds, with their names
+  for (const gt of gates) { const gg = solid([box(.5, 4.6, .5, "#d9cfb9", -4.6, 0, 0), box(.5, 4.6, .5, "#d9cfb9", 4.6, 0, 0), box(9.8, .9, .4, "#1f6f8b", 0, 4.2, 0)], gt.x, gt.z, gt.ry, data, .25);
+    mountSign(gg, sign(`🌴 ענף ${gt.no}`, 5, .75, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 4.65, -.22, Math.PI); }
   instanced(P.palm, palms, (p, o) => { o.position.set(p.x, .3, p.z); o.rotation.y = p.x * .1 + p.z; o.scale.setScalar(.95); });
   instanced(P.umbrella, umbs, (p, o) => { o.position.set(p.x, .3, p.z); return ["#e05a4f", "#ffffff", "#2f7fa8", "#f2c230", "#e8569a"][Math.abs(Math.round(p.x + p.z)) % 5]; });
   instanced(P.lamp, lamps, ([p, r2], o) => { o.position.set(p.x, .25, p.z); o.rotation.y = r2; });
   const rk = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ color: "#8b8a86", flatShading: true }), rocks.length);
   rocks.forEach(([x, z, i], k) => { o3.position.set(x, -.6, z); o3.rotation.set(i, i * 2, 0); o3.scale.setScalar(1.6 + (i % 3) * .5); o3.updateMatrix(); rk.setMatrixAt(k, o3.matrix); }); world.add(rk);
   // yachts in the lagoon, and the monorail train
-  for (const [u, v, r2] of [[110, 70, .3], [150, -95, -.4], [90, -120, 1.2], [190, 110, -.2], [230, 40, 1.4], [230, -60, -1.6]]) { const p = g.W(u, v);
+  for (const [u, v, r2] of [[60, 120, .3], [300, -110, -.4], [40, -130, 1.2], [300, 120, -.2], [330, 40, 1.4], [330, -60, -1.6]]) { const p = g.W(u, v);
     const yt = solid([box(2.6, 1.4, 9, "#ffffff", 0, -.3, 0), box(2, 1, 4.6, "#ffffff", 0, 1.1, -.6), box(2.1, .5, 3.4, "*#bfe3f2", 0, 1.3, -.2), box(.1, .1, 3, "#2f6e7a", 0, .8, 3), part(new THREE.ConeGeometry(1.3, 2.6, 4), "#ffffff", 0, .3, 5.4, { x: Math.PI / 2, y: Math.PI / 4 })], p.x, p.z, ANG + r2);
     yt.position.y = -2.9; boats.push(yt); }
   const tr = solid([box(2.2, 2.4, 14, "#f2f2f2", 0, 0, 0), box(2.25, .9, 13, "*#bfe3f2", 0, 1, 0), box(2.3, .4, 14, "#1f6f8b", 0, .2, 0)], mr[0].x, mr[0].z, 0, data, 7.5); PALM.train = tr;
   placeLabel("🌴 אי הדקל", g.center.x, 14, g.center.z); placeLabel("🏨 מלון הדקל", g.hotel.x, 50, g.hotel.z);
-  const gate = solid([box(.6, 6, .6, "#d9cfb9", -6, 0, 0), box(.6, 6, .6, "#d9cfb9", 6, 0, 0), box(13, 1.6, .5, "#1f6f8b", 0, 5, 0)], g.W(-2, 0).x, g.W(-2, 0).z, ANG, data, .25);
+  const gate = solid([box(.6, 6, .6, "#d9cfb9", -7, 0, 0), box(.6, 6, .6, "#d9cfb9", 7, 0, 0), box(15, 1.6, .5, "#1f6f8b", 0, 5, 0)], g.W(-2, 0).x, g.W(-2, 0).z, ANG, data, .25);
   mountSign(gate, sign("🌴 ברוכים הבאים לאי הדקל", 12, 1.3, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 5.8, -.27, Math.PI);
 }
 // the monorail: back and forth between the station on land and the hotel
@@ -813,11 +847,12 @@ function warpMat(m) {
 }
 const WARP_DEPTH = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); warpMat(WARP_DEPTH);
 // give every mesh the bend (materials, shadows), mark the big merged meshes to bend point by point, and widen culling a little
+const WARP_DONE = new WeakSet();
 function warpPatch(root) {
   root.traverse(o => {
     if (!(o.isMesh || o.isLine || o.isPoints)) return;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) warpMat(m);
-    if (o.userData.warpDone) return; o.userData.warpDone = true;
+    if (WARP_DONE.has(o)) return; WARP_DONE.add(o);   // per object (several meshes of one building share their userData)
     if (o.isMesh && o.castShadow && !o.customDepthMaterial && !o.material.alphaTest && !o.material.map) o.customDepthMaterial = WARP_DEPTH;
     if (o.isInstancedMesh) { o.computeBoundingSphere(); o.boundingSphere.radius += 60; return; }
     const g = o.geometry; if (!g || g.userData.warpChecked) return; g.userData.warpChecked = true;
@@ -835,7 +870,7 @@ function renderWorld(cam, pivot, turn = false) {
   const hy = terrainH(pivot.x, pivot.z); cam.position.set(wx + dx * c - dz * sn, p0.y + hy, wz + dx * sn + dz * c); if (th) cam.quaternion.premultiply(_wq.setFromAxisAngle(_wy, -th)); cam.updateMatrixWorld();
   sun.position.x += ox; sun.position.z += oz; sun.target.position.x += ox; sun.target.position.z += oz; sun.position.y += hy; sun.target.position.y += hy;
   const saved = WARPF.css.map(o => { const b = o.position.clone(), [ax, az] = warpXZ(b.x, b.z); o.position.x = ax; o.position.z = az; o.position.y += terrainH(b.x, b.z); return b; });
-  WARP_U.value = 1; renderer.render(scene, cam); WARP_U.value = 0;
+  WARP_U.value = WRP.on ? 1 : 0; renderer.render(scene, cam); WARP_U.value = 0;
   labelRenderer.render(scene, cam);
   WARPF.css.forEach((o, i) => o.position.copy(saved[i]));
   sun.position.x -= ox; sun.position.z -= oz; sun.target.position.x -= ox; sun.target.position.z -= oz; sun.position.y -= hy; sun.target.position.y -= hy;
@@ -1054,7 +1089,8 @@ const P = {
   slab: prefab([part(new THREE.BoxGeometry(1, 1, 1, 6, 1, 6), "#ffffff", 0, .5, 0)]),
   walker: prefab([box(.15, .82, .2, "#2d3440", -.11, 0, 0), box(.15, .82, .2, "#2d3440", .11, 0, 0), box(.48, .64, .27, "~#ffffff", 0, .8, 0), box(.12, .55, .14, "~#ffffff", -.31, .86, 0), box(.12, .55, .14, "~#ffffff", .31, .86, 0),
     part(new THREE.IcosahedronGeometry(.15, 1), "#d6a684", 0, 1.62, 0), box(.3, .1, .3, "#2a211b", 0, 1.74, -.02)]),
-  plane: prefab([(() => { const g = new THREE.PlaneGeometry(1, 1, 8, 8); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()])
+  plane: prefab([(() => { const g = new THREE.PlaneGeometry(1, 1, 8, 8); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()]),
+  disc: prefab([(() => { const g = new THREE.CircleGeometry(.5, 32, 0, Math.PI * 2); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()])
 };
 
 /* ---------- the car catalog: three models in each class, painted in the owner's color ("!" parts) ---------- */
@@ -1167,12 +1203,15 @@ function buildTerrain() {
 const HILL_MAT = realism(new THREE.MeshLambertMaterial({ vertexColors: true }), { paving: false, roofs: false, terrain: true });
 function buildHills() {
   terrainUpdate();
-  const C = 12, X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
-  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) H[j * (nx + 1) + i] = terrainH(-X + i * C, -Z + j * C);
-  const pos = [], col = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
+  const C = 10, X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
+  // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
+  const HW = highwaySegs(), roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : 0; }
+  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
   const vtx = (i, j) => { const h = H[j * (nx + 1) + i], x = -X + i * C, z = -Z + j * C;
     const hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C), hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C), slope = Math.hypot(hx, hz);
-    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); };
+    const pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;   // the edge of a hill takes the color of the flat land around it, so no seam shows
+    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); };
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1]; if (Math.max(a, b, d, e) < .25) continue;
     vtx(i, j); vtx(i, j + 1); vtx(i + 1, j); vtx(i + 1, j); vtx(i, j + 1); vtx(i + 1, j + 1);
@@ -1390,6 +1429,8 @@ function buildCities() {
     // the road bed in pieces of about 40m, so it climbs and dips with the land
     const pieces = segs.flatMap(([a, b, c, d, w]) => { const n = Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / 40)); return Array.from({ length: n }, (_, i) => [a + (c - a) * i / n, b + (d - b) * i / n, a + (c - a) * (i + 1) / n, b + (d - b) * (i + 1) / n, w]); });
     instanced(P.plane, pieces, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .3); return "#4a5057"; }, { shadow: false });
+    const joints = segs.filter(sg => sg[5] === "palm").slice(1).map(sg => [sg[0], sg[1], sg[4]]);   // a smooth round turn where the palm road bends onto the bridge
+    if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
     const hd = []; for (const [a, b, c, d, w] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r);
       const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = 20; k < L - 10; k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
@@ -2515,6 +2556,10 @@ function clearWorld() {
 }
 function buildWorld() {
   BUILD_NO++; clearWorld(); layout(); ACH_IDX = null; QUAL.t0 = performance.now();
+  // how far the map can be moved: the island, the palm island and the statues off the coast
+  { const B = S.bound = { x0: -RX0 * S.s * 1.05, x1: RX0 * S.s * 1.05, z0: -RZ0 * S.s * 1.05, z1: RZ0 * S.s * 1.05 }, add = (x, z) => { B.x0 = Math.min(B.x0, x - 40); B.x1 = Math.max(B.x1, x + 40); B.z0 = Math.min(B.z0, z - 40); B.z1 = Math.max(B.z1, z + 40); };
+    for (const poly of PALM.geo?.polys || []) for (const q of poly) add(q.x, q.z);
+    for (const pr of S.projects || []) if (pr.params?.island && pr.x != null) add(pr.x, pr.z); }
   buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildPalm(); buildNature();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
@@ -2719,9 +2764,11 @@ function highwaySegs() {
   const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return [];
   const out = open.slice(1).map(t => [cap.x, cap.z, t.x, t.z, 12, "city"]);
   for (const c of COAST) if (c.id !== "beach") { const q = shorePt(c.t, S.s, .9); out.push([cap.x, cap.z, q.x, q.z, c.id === "harbor" ? 32 : 12, c.id]); }
-  if (PALM.geo) out.push([cap.x, cap.z, PALM.geo.gate.x, PALM.geo.gate.z, 12, "palm"]);
+  if (PALM.geo) out.push([cap.x, cap.z, PALM.geo.approach.x, PALM.geo.approach.z, 8, "palm"], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm"]);
   return out;
 }
+// is a point on one of the highways (they cross the beach to the palm and the harbor, so you can walk and drive there too)?
+const onHighway = (x, z) => highwaySegs().some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
 // is a point inside (or right next to) a built city?
 const inCityBox = (x, z, m = 10) => S.slots.some(sl => { if (!sl.city || !sl.blocks?.size) return false; const B = cityBox(sl);
   return x > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - m && x < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + m && z > sl.z + BPZ(B.mnZ) - BZ / 2 - m && z < sl.z + BPZ(B.mxZ) + BZ / 2 + m; });
@@ -2779,6 +2826,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "work") showWork(d.w);
   else if (d.type === "gov") openGov(d.id);
   else if (d.type === "place" && d.id === "palm") showPalm();
+  else if (d.type === "place" && d.id === "palmhotel") showPalm(true);
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
@@ -2831,7 +2879,7 @@ function loop(now) {
   qualWatch(raw);
   if (WALK.on) return walkFrame(Math.min(.12, raw), now);   // walking keeps its real speed even when the phone draws few frames
   if (fly) fly(now); else controls.update();
-  const tg = controls.target, lim = (v, m) => Math.max(-m, Math.min(m, v)), cx = lim(tg.x, RX0 * S.s * 1.05), cz = lim(tg.z, RZ0 * S.s * 1.05);
+  const B = S.bound || { x0: -RX0 * S.s * 1.05, x1: RX0 * S.s * 1.05, z0: -RZ0 * S.s * 1.05, z1: RZ0 * S.s * 1.05 }, tg = controls.target, cx = Math.max(B.x0, Math.min(B.x1, tg.x)), cz = Math.max(B.z0, Math.min(B.z1, tg.z));
   if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
   if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
   animate(dt);
@@ -2851,6 +2899,7 @@ function walkDoors() {
   for (const w of S.workplaces) if (w.x != null) add(w.x + Math.sin(w.ry || 0) * 6, w.z + Math.cos(w.ry || 0) * 6, 4, w.id, `להיכנס: ${w.name}${S.mine?.wp === w ? " (העבודה שלך)" : ""}`);
   for (const g of GOV) if (g.x != null) add(g.x, g.z + 7.5, 6, "gov:" + g.id, `להיכנס: ${g.name}`);
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
+  if (PALM.geo) { const g = PALM.geo, ry = Math.atan2(-g.U.x, -g.U.z); add(g.hotel.x + Math.sin(ry) * 12, g.hotel.z + Math.cos(ry) * 12, 6, "palmhotel", "להיכנס: מלון הדקל"); }
   for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
     const name = p.name || PROJECT_KINDS[p.kind]?.[1];
     if (INDOOR.includes(p.kind)) add(p.x, p.z + 5, 5, "proj:" + p.id, `להיכנס: ${name}`); else add(p.x, p.z, 10, "proj:" + p.id, `לטייל ב${name}`);
@@ -2955,7 +3004,7 @@ function walkStep(dt) {
       if (d > 0 && d < r) { nx = qx + ex / d * r; nz = qz + ez / d * r; }
       else if (d === 0) { const pen = [[nx - b[0] + r, -1, 0], [b[2] - nx + r, 1, 0], [nz - b[1] + r, 0, -1], [b[3] - nz + r, 0, 1]].sort((a, b2) => a[0] - b2[0])[0]; nx += pen[1] * pen[0]; nz += pen[2] * pen[0]; }
     }
-    if (onGrass(nx, nz, S.s, .005) || onPalm(nx, nz)) { WALK.x = nx; WALK.z = nz; }
+    if (onGrass(nx, nz, S.s, .005) || onPalm(nx, nz) || onHighway(nx, nz)) { WALK.x = nx; WALK.z = nz; }
     WALK.head += angDiff(Math.atan2(dx, dz), WALK.head) * Math.min(1, dt * 10);
     if (performance.now() - WALK.lastDrag > 900 && fy > .2) WALK.cy += angDiff(WALK.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);   // the camera swings in behind you
   }
@@ -3007,7 +3056,7 @@ function driveStep(dt) {
   const nx = c.x + Math.sin(c.head) * c.v * dt, nz = c.z + Math.cos(c.head) * c.v * dt, r = 1.2;
   // blocked only when driving into a wall (a car that starts against a house can always drive away from it)
   const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
-  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz));
+  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz) || onHighway(nx, nz));
   if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
   c.mv.set(c.x, groundAt(c.x, c.z), c.z, c.head);
   WALK.x = c.x; WALK.z = c.z;
@@ -3123,7 +3172,7 @@ function cmapDraw() {
   if (C) { R(C.cx, C.cz, C.hw * 2, C.hd * 2, "#e9e3d6"); R(C.cx, C.cz, C.hw * 2, CENTRAL.W * 2, "#5b6169"); R(C.cx, C.cz, CENTRAL.W * 2, C.hd * 2, "#5b6169"); O(C.cx, C.cz, CENTRAL.RR, "#5b6169"); O(C.cx, C.cz, CENTRAL.RP, "#efe6d2");
     x.strokeStyle = "#86b862"; x.lineWidth = 8 * s; x.beginPath(); x.arc(...PW(C.cx, C.cz), 18.6 * s, 0, Math.PI * 2); x.stroke(); O(C.cx, C.cz, 6.5, "#5fb0d6"); }
   // houses, businesses, public buildings
-  for (const h of S.houses) if (h.lot) { if (h.lot.est) { R(h.lot.x, h.lot.z, h.lot.w, h.lot.ld, "#9fcf7c"); R(h.lot.x, h.lot.z - h.lot.ld / 2 + 3.6, 8.6, 4.2, "#45c2ea"); } else R(h.x, h.z, h.lot.palm ? 17 : 12.6, h.lot.palm ? 11.4 : 12.6, "#b7d796", h.lot.face); R(h.x, h.z, h.hk === "3_2" ? 10.6 : 7.4, h.hk === "3_2" ? 5.4 : 7, h === S.mine ? "#e07a4f" : h.hk === "3_2" ? "#e8569a" : h.tier === 3 ? "#c9a46a" : "#bcae98", h.lot.face); }
+  for (const h of S.houses) if (h.lot) { if (h.lot.est) { R(h.lot.x, h.lot.z, h.lot.w, h.lot.ld, "#9fcf7c"); R(h.lot.x, h.lot.z - h.lot.ld / 2 + 3.6, 8.6, 4.2, "#45c2ea"); } else R(h.x, h.z, h.lot.palm ? h.lot.w : 12.6, h.lot.palm ? h.lot.ld : 12.6, "#b7d796", h.lot.face); R(h.x, h.z, h.hk === "3_2" ? 10.6 : 7.4, h.hk === "3_2" ? 5.4 : 7, h === S.mine ? "#e07a4f" : h.hk === "3_2" ? "#e8569a" : h.tier === 3 ? "#c9a46a" : "#bcae98", h.lot.face); }
   for (const w of S.workplaces) if (w.x != null) { if (S.wpCfg?.get(w.id)?.x != null && !S.wpCfg.get(w.id).lot) R(w.x, w.z + 1.5, 24, 21, "#e3dccd", w.ry || 0); R(w.x, w.z - .5, w.look === "bow" ? 17 : 15, w.look === "bow" ? 9 : 11, w.look === "bow" ? "#f06fa4" : "#98a6b5", w.ry || 0); }
   for (const g of GOV) if (g.x != null) R(g.x, g.z - 1, g.id === "knesset" ? 33 : 27, 13, "#d8cdb5");
   if (BALLOT.x != null) R(BALLOT.x, BALLOT.z - 2.5, 22, 11, "#9db5cf");
@@ -3362,6 +3411,7 @@ const GO = {
       ${li("cities", "🏙️", "הערים", "כל הערים והשטחים העתידיים")}
       ${li("laws", "📜", "ספר החוקים", `${fmtN(S.laws.length)} חוקים בתוקף`)}
       ${li("govlist", "🏛️", "הממשלה", `${fmtN(S.gov.length)} שרים`)}
+      ${li("suggest", "💡", "הצעות התושבים", S.sugg ? `${fmtN(S.sugg.length)} הצעות · ${fmtN(S.sugg.filter(q => q.status === "new").length)} חדשות` : "רעיונות, בקשות ותלונות")}
       ${li("ideas", "🏗️", "נבנה לפי בקשתכם", `${fmtN(S.projects.filter(p => p.status === "done").length)} נחנכו · ${fmtN(S.projects.filter(p => p.status !== "done").length)} בבנייה`)}
       ${li("people", "👋", "התושבים", "החדשים והמייסדים")}
       ${li("top", "🏆", "טבלאות המדינה", "העשירים ובעלי ההישגים")}
@@ -3388,7 +3438,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), estate: u => estateEdit(u), estmap: u => estateMap(u), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -3422,10 +3472,14 @@ const GO = {
   project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, p.params?.island ? 1.3 : 4, () => showProject(p)); else showProject(p); }
 };
 const addrHtml = o => o?.addr ? `<p class="note addr">📍 ${esc(o.addr)}</p>` : "";
-function showPalm() {
-  const g = PALM.geo, res = S.houses.filter(h => h.lot?.palm).sort((a, b) => a.lot.num - b.lot.num);
-  open("🌴 אי הדקל", `<div class="hero"><p><b>אי מלאכותי בצורת דקל</b> מול החוף הצפוני: גזע עם ${g.fronds.length} ענפים, סהר מסביב ומלון הדקל בקצה. על הענפים ${fmtN(g.lots.length)} מגרשים לווילות עם בריכה, ${fmtN(res.length)} כבר מאוכלסים.</p></div>
-    ${res.length ? `<div class="sec">התושבים של האי</div><div class="list">${res.map(h => person(h, `אי הדקל ${h.lot.num}`)).join("")}</div>` : `<p class="note">עוד אין תושבים באי. מי יהיה הראשון?</p>`}`);
+function showPalm(hotel) {
+  const g = PALM.geo, res = S.houses.filter(h => h.lot?.palm).sort((a, b) => a.lot.num - b.lot.num), free = g.lots.length - res.length;
+  if (hotel) return open("🏨 מלון הדקל", `<div class="hero"><p>המלון בקצה הסהר של אי הדקל: שני מגדלים שמתחברים בקשת, לובי זכוכית, בריכה ומזרקה מול הים. המונורייל מגיע עד הדלת.</p></div>
+    <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="palmhotel">🚪 להיכנס ללובי</button><button class="btn ghost" data-go="palm">🌴 על האי</button></div>`);
+  open("🌴 אי הדקל", `<div class="hero"><p><b>אי מלאכותי בצורת דקל</b> מול החוף הצפוני: גזע עם שדרה, ${g.fronds.length} ענפים רחבים ולכל ענף רחוב משלו עם שער, וילות משני הצדדים ומעגל תנועה עם חוף בקצה. סהר מסביב ומלון הדקל בקצה.</p></div>
+    <div class="list" style="margin-top:10px">${info("🏡", `${fmtN(g.lots.length)} מגרשי וילה`, free > 0 ? `${fmtN(free)} עוד פנויים · אפשר לקנות בחנות` : "כולם תפוסים")}</div>
+    <div class="btns" style="margin-top:10px"><button class="btn ghost" data-go="enter" data-arg="palmhotel">🏨 להיכנס למלון הדקל</button></div>
+    ${res.length ? `<div class="sec">התושבים של האי</div><div class="list">${res.map(h => person(h, `אי הדקל ${h.lot.num} · ענף ${h.lot.frond + 1}`)).join("")}</div>` : `<p class="note">עוד אין תושבים באי. מי יהיה הראשון?</p>`}`);
 }
 function showSquare(q) {
   if (q.kind === "jround") return open(`⭕ ${q.name}`, `${addrHtml(q)}${ADMIN ? `<div class="btns" style="margin-bottom:8px"><button class="btn ghost" data-go="blk" data-arg="${q.key}">✏️ שם, מרכז ופריטים</button></div>` : ""}<div class="hero"><p><b>כיכר תנועה</b> בשדרה ב${esc(cityName(q.city_id))}.</p></div>`);
@@ -3487,6 +3541,7 @@ function showHouse(h) {
   const owner = !me || h.coins == null ? "" : key
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
        ${h.lot?.est ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="estmap" data-arg="${esc(h.u)}">🗺️ לעצב את החצר של האחוזה</button></div>` : ""}
+       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="suggest">💡 להציע רעיון למדינה</button></div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="walk" data-arg="${esc(h.u)}">🚶 לצאת לטייל</button><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
   open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
@@ -3777,6 +3832,46 @@ async function purchase(u, item, color) {
   } catch { toast("אין חיבור כרגע. נסו שוב בעוד רגע"); }
 }
 
+// the suggestion board: every citizen can send an idea, a request or a complaint (with their personal link) and back other people's;
+// the admin sees everything, changes the status, answers, and can add suggestions that came in as Instagram comments
+const SUG = { tab: "all", kind: "idea", text: "" };
+const SUG_ST = { new: ["🆕", "חדשה"], planned: ["🗓️", "בתכנון"], doing: ["🏗️", "בביצוע"], done: ["✅", "בוצע"], rejected: ["🚫", "לא נבצע"] }, SUG_K = { idea: ["💡", "רעיון"], request: ["🙋", "בקשה"], complaint: ["😤", "תלונה"] };
+GO.suggest = () => {
+  const me = S.mine && keyOf(S.mine.u) ? S.mine : null, all = S.sugg || [], list = all.filter(q => SUG.tab === "all" ? q.status !== "rejected" : q.status === SUG.tab).sort((a, b) => b.votes - a.votes || b.id - a.id);
+  const tabs = [["all", "הכל"], ["new", "חדשות"], ["planned", "בתכנון"], ["doing", "בביצוע"], ["done", "בוצעו"], ...(ADMIN ? [["rejected", "נדחו"]] : [])];
+  const open2 = (S.homeReq || []).filter(r => r.status === "open").length;
+  open("💡 הצעות התושבים", `<div class="hero"><p>מה הייתם רוצים לראות במדינה? כתבו רעיון, בקשה או תלונה. כל אחד יכול לתמוך בהצעות של אחרים 👍, וההצעות עם הכי הרבה תמיכה עולות למעלה. המנהל מעדכן כאן מה בתכנון ומה כבר נבנה.</p></div>
+    ${me ? `<div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
+      <label>מה זה<select id="sgK">${Object.entries(SUG_K).map(([k, v]) => `<option value="${k}" ${k === SUG.kind ? "selected" : ""}>${v[0]} ${v[1]}</option>`).join("")}</select></label>
+      <label>ההצעה שלך<textarea id="sgT" rows="3" maxlength="500" placeholder="למשל: גן חיות ליד הנמל, עם ג׳ירפות 🦒">${esc(SUG.text)}</textarea></label>
+      <button class="btn" id="sgSend">📨 לשלוח</button></div>` : `<p class="note" style="margin-top:8px">כדי לשלוח הצעה ולתמוך בהצעות, פותחים את האתר מהקישור האישי שקיבלתם באינסטגרם.</p>`}
+    ${ADMIN ? `<details class="adm" style="margin-top:10px"><summary>👑 להוסיף הצעה מתגובה באינסטגרם</summary>
+      <div class="row2"><label>מי כתב<input id="sgU" dir="ltr" autocapitalize="off" placeholder="username"></label><label>מה זה<select id="sgAK">${Object.entries(SUG_K).map(([k, v]) => `<option value="${k}">${v[0]} ${v[1]}</option>`).join("")}</select></label></div>
+      <label>ההצעה<textarea id="sgAT" rows="2" maxlength="500"></textarea></label><button class="btn ghost" id="sgAdd">➕ להוסיף ללוח</button></details>
+      ${open2 ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="admin">🏰 ${fmtN(open2)} בקשות לבתים מיוחדים מחכות בלוח הבקרה</button></div>` : ""}` : ""}
+    <div class="seg" style="margin-top:12px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="${SUG.tab === k ? "on" : ""}" data-sgtab="${k}">${n}</button>`).join("")}</div>
+    <div class="list" style="margin-top:10px">${list.map(q => `<div class="li" style="flex-wrap:wrap;align-items:flex-start"><span class="ic">${SUG_K[q.kind]?.[0] || "💡"}</span>
+      <span class="tx"><b>${esc(q.text)}</b><small>‎@${esc(q.username)}${q.source === "instagram" ? " · מאינסטגרם" : ""} · ${fmtDate(q.created_at)} · ${SUG_ST[q.status]?.[0] || ""} ${SUG_ST[q.status]?.[1] || q.status}${q.reply ? `<br>👑 ${esc(q.reply)}` : ""}</small></span>
+      <button class="mini" data-sgvote="${q.id}" ${me ? "" : "disabled"}>👍 ${fmtN(q.votes)}</button>
+      ${ADMIN ? `<div style="flex-basis:100%;display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select data-sgst="${q.id}" style="width:auto">${Object.entries(SUG_ST).map(([k, v]) => `<option value="${k}" ${k === q.status ? "selected" : ""}>${v[0]} ${v[1]}</option>`).join("")}</select>
+        <input data-sgre="${q.id}" value="${esc(q.reply || "")}" placeholder="תשובה לתושבים" style="flex:1;min-width:120px"><button class="mini" data-sgsave="${q.id}">💾</button><button class="mini" data-sgdel="${q.id}">🗑</button></div>` : ""}</div>`).join("") || `<p class="note">אין כאן הצעות עדיין.</p>`}</div>`, () => {
+    const B = $("dBody"), redraw = () => { const y = B.scrollTop; stack.pop(); GO.suggest(); $("dBody").scrollTop = y; }, reload = async () => { await loadExtras(); redraw(); };
+    B.querySelectorAll("[data-sgtab]").forEach(b => b.onclick = () => { SUG.tab = b.dataset.sgtab; redraw(); });
+    if ($("sgT")) { $("sgT").oninput = e => SUG.text = e.target.value; $("sgK").onchange = e => SUG.kind = e.target.value;
+      $("sgSend").onclick = async e => { const t = SUG.text.trim(); if (t.length < 5) return toast("כתבו קצת יותר (לפחות 5 תווים)"); e.target.disabled = true;
+        try { const r = await rpc("suggest", { username: me.u, key: keyOf(me.u), kind: SUG.kind, body: t });
+          if (!r.ok) { e.target.disabled = false; return toast(r.error === "too_many" ? "יש לך כבר 3 הצעות שמחכות לתשובה. סבלנות 😊" : ERR[r.error] || "לא נשלח"); }
+          SUG.text = ""; toast("📨 תודה! ההצעה על הלוח", 3500); reload(); } catch { e.target.disabled = false; toast("אין חיבור כרגע"); } }; }
+    B.querySelectorAll("[data-sgvote]").forEach(b => b.onclick = async () => { if (!me) return; b.disabled = true;
+      try { const r = await rpc("suggestion_vote", { username: me.u, key: keyOf(me.u), sid: +b.dataset.sgvote }); if (!r.ok) { toast(r.error === "already" ? "כבר תמכת בהצעה הזו 👍" : "לא הצליח"); return; } reload(); } catch { toast("אין חיבור כרגע"); } });
+    const adm = async (args, msg) => { try { const r = await rpc("admin_suggestion", { secret: pref("sababa_admin", ""), sid: null, status: null, reply: null, remove: false, username: null, kind: null, body: null, ...args });
+      if (!r.ok) return toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "לא הצליח"); toast(msg); reload(); } catch { toast("אין חיבור כרגע"); } };
+    B.querySelectorAll("[data-sgsave]").forEach(b => b.onclick = () => { const id = b.dataset.sgsave; adm({ sid: +id, status: B.querySelector(`[data-sgst="${id}"]`).value, reply: B.querySelector(`[data-sgre="${id}"]`).value.trim() }, "✅ עודכן"); });
+    B.querySelectorAll("[data-sgdel]").forEach(b => b.onclick = () => confirm("למחוק את ההצעה?") && adm({ sid: +b.dataset.sgdel, remove: true }, "🗑 נמחק"));
+    if ($("sgAdd")) $("sgAdd").onclick = () => { const t = $("sgAT").value.trim(); if (t.length < 3) return toast("מה ההצעה?"); adm({ username: $("sgU").value.trim(), kind: $("sgAK").value, body: t }, "➕ נוסף ללוח"); };
+  });
+};
+
 // special homes, bought with sababonim: an estate (half a block with a pool), a villa on the palm island, or a house in a shape of your own (the admin builds it)
 const HOME_PRICE = { estate: 75000, palm: 120000, special: 50000 };   // must match home_price() in upgrade-13.sql
 // a city with no free estate gets a new estate block: the nearest empty block next to the houses (wide blocks first), on dry land inside the city
@@ -3892,8 +3987,8 @@ GO.top = () => {
 // Every kind of business has its own furnished 3D interior (a cut-away "doll house" room). Employees come in once a day for a shift bonus.
 const INT = { on: false };
 const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
-const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", hotel: "cafe", factory: "garage" };
-const ROOMS = new Set(["bakery", "cafe", "market", "school", "clinic", "garage", "hummus", "tech", "police", "fuel", "gym", "ballot", "gov_knesset", "gov_pm", "gov_interior", "library", "community", "mall", "home"]);
+const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", factory: "garage" };
+const ROOMS = new Set(["hotel", "bakery", "cafe", "market", "school", "clinic", "garage", "hummus", "tech", "police", "fuel", "gym", "ballot", "gov_knesset", "gov_pm", "gov_interior", "library", "community", "mall", "home"]);
 function interiorOf(w) {
   let frame = null;
   const k0 = INTERIOR_OF[w.kind] || w.kind, k = k0.startsWith("outdoor_") ? k0 : ROOMS.has(k0) ? k0 : "tech", Q = [], SG = [], staff = [], R = (rng(w.id * 31 + 7));
@@ -3940,6 +4035,24 @@ function interiorOf(w) {
     for (let i = 0; i < 3; i++) add(cyl(.4, .3, .35, 12, "#c8a165", -7.6 + i * .9, 0, 4.8), sph(.2, "#b8762e", -7.6 + i * .9, .45, 4.8, 1.6, .7, 1));
     sgn(name, 6, 1, 0, 4.3, -6.48, 0, "#5a2a1a", "#f6e7c8"); sgn("לחם טרי מהתנור כל בוקר", 4, .9, -8.98, 3, 0, Math.PI / 2, "#2b2b2b", "#ffffff");
     staff.push([1, -.2, 0], [4.3, -3.9, Math.PI], [-5, -.6, Math.PI], [-1.5, .8, 0], [3.2, .8, 0]);
+  } else if (k === "hotel") {   // a hotel lobby: marble, a long reception desk with the key wall, columns, a chandelier, sofas, elevators and a luggage cart
+    room("#efe9de", "#f6efe2", "#c9a24a", { tiles: "#e2d8c6" });
+    add(box(10, 3.4, .2, "#7a5232", -1, .3, -6.42), ...Array.from({ length: 24 }, (_, i) => box(.42, .42, .05, "#5a3a26", -5 + (i % 12) * .72, 1.4 + Math.floor(i / 12) * .6, -6.3)), ...Array.from({ length: 24 }, (_, i) => sph(.05, "#d9b65a", -5 + (i % 12) * .72, 1.5 + Math.floor(i / 12) * .6, -6.25)));
+    counter(-1, -4.3, 9, 1.4, "#5a3a26", "#f2ead8", 1.15); add(box(9.1, .12, .1, "#c9a24a", -1, .9, -3.55), sph(.12, "#d9b65a", 1.6, 1.24, -4.1), cyl(.05, .05, .05, 8, "#2b2b2b", 1.6, 1.15, -4.1));
+    screen(-3.4, 1.18, -4.7, .7, .45, 0); screen(1, 1.18, -4.7, .7, .45, 0);
+    for (const [x, z] of [[-4.6, -1.4], [4.6, -1.4], [-4.6, 3.2], [4.6, 3.2]]) add(cyl(.42, .48, 5.2, 16, "#f4efe6", x, 0, z), box(1.1, .3, 1.1, "#e2d8c6", x, 0, z), box(1.1, .3, 1.1, "#e2d8c6", x, 4.9, z));
+    add(part(new THREE.TorusGeometry(1.1, .06, 8, 28), "#d9b65a", 0, 4.4, 1, { x: Math.PI / 2 }), part(new THREE.TorusGeometry(.6, .05, 8, 24), "#d9b65a", 0, 4.1, 1, { x: Math.PI / 2 }), cyl(.02, .02, .8, 4, "#d9b65a", 0, 4.4, 1),
+      ...Array.from({ length: 12 }, (_, i) => sph(.11, "*#fff1c2", Math.cos(i / 12 * 6.283) * 1.1, 4.25, 1 + Math.sin(i / 12 * 6.283) * 1.1)), ...Array.from({ length: 8 }, (_, i) => sph(.09, "*#fff1c2", Math.cos(i / 8 * 6.283) * .6, 3.95, 1 + Math.sin(i / 8 * 6.283) * .6)));
+    add(box(6.4, .02, 4.2, "#7a1c2c", 0, 0, 1.6), box(5.8, .02, 3.6, "#9a2c3c", 0, .005, 1.6));
+    for (const [x, z, ry] of [[-6.4, 2.2, Math.PI / 2], [-3.2, 4.8, Math.PI]]) { const c = Math.cos(ry), sn = Math.sin(ry);
+      add(box(3, .45, 1, "#2f6e7a", x, .25, z, { y: ry }), box(3, .8, .3, "#2f6e7a", x - sn * .4, .45, z - c * .4, { y: ry }), box(.3, .6, 1, "#2f6e7a", x + c * 1.4, .25, z - sn * 1.4, { y: ry }), box(.3, .6, 1, "#2f6e7a", x - c * 1.4, .25, z + sn * 1.4, { y: ry })); }
+    add(box(1.6, .4, .9, "#5a3a26", -4.4, 0, 3.4), sph(.18, "#e85c9a", -4.4, .55, 3.4));
+    for (const z of [-3.6, -1]) add(box(.12, 2.8, 1.5, "#c9ced3", -8.98, 0, z), box(.13, 2.8, .04, "#8a8e93", -8.96, 0, z), box(.13, .3, .5, "*#ffb84d", -8.97, 3, z));
+    add(box(1.6, .1, .9, "#d9b65a", 5.6, .25, 4.6), ...[[-.6, -.35], [.6, -.35], [-.6, .35], [.6, .35]].map(([a, b]) => cyl(.04, .04, 1.8, 6, "#d9b65a", 5.6 + a, .25, 4.6 + b)), box(1.6, .05, .9, "#d9b65a", 5.6, 2, 4.6),
+      ...Array.from({ length: 6 }, (_, i) => cyl(.08, .08, .2, 10, "#2b2b2b", 5.6 + (i % 3 - 1) * .6, 0, 4.6 + (i < 3 ? -.4 : .4))), box(.9, .7, .45, "#e05a4f", 5.3, .35, 4.6), box(.7, .5, .4, "#2f7fa8", 6, .35, 4.6), box(.6, .4, .3, "#f2c230", 5.6, 1.05, 4.6));
+    plant(7.9, -5.4, 1.6); plant(-8.1, 5.6, 1.4); plant(7.9, 5.6, 1.3);
+    sgn(name, 6, 1.1, -1, 4.2, -6.48, 0, "#7a3b2a", "#fff4dc"); sgn("🏊 בריכה · 🍸 בר · 🛗 מעליות", 4.6, .8, -8.98, 3.6, 2.5, Math.PI / 2, "#2b2f34", "#f2d38a");
+    staff.push([-3, -5.3, 0], [1.2, -5.3, 0], [6.6, 3.6, -Math.PI / 2], [-6.4, 2.2, Math.PI / 2], [-2.6, 4.6, Math.PI], [2, .6, -.5]);
   } else if (k === "cafe") {
     const bw = w.look === "bow", G1 = bw ? "#e8569a" : "#2d6e4a";
     room(bw ? "#f3d9e2" : "#a77b52", bw ? "#fde8ef" : "#efe3cf", G1, bw ? { tiles: "#ffffff" } : { planks: "#946b45" });
@@ -4343,6 +4456,7 @@ function interiorTarget(id) {
   if (t === "work") return S.wpById.get(+a);
   if (t === "gov") { const g = GOV.find(q => q.id === a); return g && { id, kind: "gov_" + g.id, name: g.name, ic: g.ic, x: g.x, z: g.z, addr: g.addr, city_id: S.slots[0]?.city?.id, staff: [], back: () => openGov(g.id) }; }
   if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, addr: p.addr, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
+  if (id === "palmhotel" && PALM.geo) return { id, kind: "hotel", name: "מלון הדקל", ic: "🏨", x: PALM.geo.hotel.x, z: PALM.geo.hotel.z, ry: Math.atan2(-PALM.geo.U.x, -PALM.geo.U.z), city_id: S.slots[0]?.city?.id, staff: [], back: () => showPalm(true) };
   if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
   return S.wpById.get(+id);
 }
@@ -4491,6 +4605,7 @@ GO.admin = () => {
       <div class="row2"><label>שם משתמש<input id="jUser" dir="ltr" autocapitalize="off" placeholder="username"></label><label>מקום עבודה<select id="jWp">${opt(S.workplaces.map(w => [w.id, `${KIND_IC[w.kind] || "💼"} ${w.name} · ${cityName(w.city_id)}`]))}</select></label></div>
       <button class="btn ghost" id="jSet">💼 לשבץ</button>
     </details>
+    <div class="btns" style="margin:10px 0"><button class="btn ghost" data-go="suggest">💡 הצעות התושבים${(S.sugg || []).filter(q => q.status === "new").length ? ` · ${fmtN(S.sugg.filter(q => q.status === "new").length)} חדשות` : ""}</button></div>
     <details class="adm"${(S.homeReq || []).some(r => r.status === "open") ? " open" : ""}><summary>🏰 בקשות לבתים מיוחדים${(S.homeReq || []).filter(r => r.status === "open").length ? ` (${fmtN(S.homeReq.filter(r => r.status === "open").length)})` : ""}</summary>
       <p class="note">תושבים שילמו והזמינו בית בעיצוב משלהם. בונים (או משדרגים כל תושב לאחוזה / אי הדקל) מהכרטיס של הבית, בכפתור 🏰, ואז מסמנים כאן ״נבנה״. ״החזר״ מבטל ומחזיר את הכסף.</p>
       ${(S.homeReq || []).length ? `<div class="list">${S.homeReq.slice(0, 30).map(r => `<div class="li" style="flex-wrap:wrap"><span class="ic">${r.status === "open" ? "⏳" : r.status === "done" ? "🎉" : "↩️"}</span><span class="tx"><b><a href="#" data-go="house" data-arg="${esc(r.username)}">‎@${esc(r.username)}</a> · ${fmtN(r.price)} ${COIN}</b><small>${esc(r.note)}${r.reply ? ` · ${esc(r.reply)}` : ""}</small></span>${r.status === "open" ? `<button class="mini" data-hr="${r.id}" data-st="done">🎉 נבנה</button><button class="mini" data-hr="${r.id}" data-st="refunded">↩️ החזר</button>` : ""}</div>`).join("")}</div>` : `<p class="note">עוד אין בקשות.</p>`}
@@ -5617,7 +5732,8 @@ function loadExtras() {
     api("ministers?select=ministry,appointed_at,citizens(ig_username)&order=appointed_at.desc,id.desc").then(d => S.gov = d),
     api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d),
     api("settings?select=key,value").then(applySettings),
-    api("home_requests?select=id,username,note,price,status,reply,created_at&order=id.desc&limit=200").then(d => S.homeReq = d)].map(p => p.catch(() => {})));
+    api("home_requests?select=id,username,note,price,status,reply,created_at&order=id.desc&limit=200").then(d => S.homeReq = d),
+    api("suggestions?select=id,username,kind,text,status,reply,votes,source,created_at&order=id.desc&limit=400").then(d => S.sugg = d)].map(p => p.catch(() => {})));
 }
 const projSig = list => list.map(p => p.id + p.status).join(",");
 async function loadProjects() {
