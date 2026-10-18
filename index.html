@@ -233,7 +233,7 @@ body.walking .top,body.walking .zoom,body.walking .dock{display:none}
 #walkUI{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
 body.walking #walkUI{display:block}
 body.walking.inside #walkUI{display:none}
-body.indoors #wMap,body.indoors #wAct,body.indoors #wHome,body.indoors #wMapBtn,body.indoors #wNav,body.indoors #wSpd{display:none!important}
+body.indoors #labels,body.indoors #wMap,body.indoors #wAct,body.indoors #wHome,body.indoors #wMapBtn,body.indoors #wNav,body.indoors #wSpd{display:none!important}
 #walkUI>*{pointer-events:auto}
 .wjoy{position:absolute;left:22px;bottom:calc(26px + env(safe-area-inset-bottom));width:132px;height:132px;border-radius:50%;background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);touch-action:none}
 .wjoy i{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.3)}
@@ -242,6 +242,7 @@ body.indoors #wMap,body.indoors #wAct,body.indoors #wHome,body.indoors #wMapBtn,
 .wact[hidden],.wspd[hidden]{display:none!important}
 .wact.wdoor{bottom:calc(226px + env(safe-area-inset-bottom));background:#1f6f8b;color:#fff;max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wact{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(170px + env(safe-area-inset-bottom));width:auto!important;padding:12px 22px;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.wcam{position:absolute;left:24px;bottom:calc(214px + env(safe-area-inset-bottom));border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
 .wspd{position:absolute;left:24px;bottom:calc(170px + env(safe-area-inset-bottom));border-radius:12px;padding:6px 12px;font-weight:800;font-size:15px}
 .whint{position:absolute;left:50%;transform:translateX(-50%);top:calc(84px + env(safe-area-inset-top));border-radius:14px;padding:8px 14px;font-size:13px;text-align:center;transition:opacity .8s;max-width:88%}
 #intUI{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
@@ -1162,10 +1163,106 @@ const CARS = {
     ...rodas(.93, 1.5, -1.45, .37, .3, "#2a2c30"), ...lights(1.96, .56, 2.31, -2.31, .1)] },
   migdalor: { name: "מגדלור", tier: 3, cls: "לימוזינה נשיאותית", price: 22000, L: 6.6, parts: () => [box(1.96, .76, 6.6, "!#ffffff", 0, .3, 0), box(1.8, .6, 4.6, CGLASS, 0, 1.06, -.4), box(1.82, .08, 4.4, "!#ffffff", 0, 1.66, -.45),
     box(1.82, .6, .16, "!#ffffff", 0, 1.06, .35), box(1.82, .6, .16, "!#ffffff", 0, 1.06, -1.15), box(1.98, .06, 6.62, "#e5e8eb", 0, .8, 0),
-    box(1.2, .26, .05, "#e5e8eb", 0, .62, 3.31), box(.06, .26, .06, "#e5e8eb", .82, 1.06, 3.2), ...rodas(.92, 2.3, -2.3, .36, .28, "#e5e8eb"), ...lights(1.96, .8, 3.31, -3.31)] }
+    box(1.2, .26, .05, "#e5e8eb", 0, .62, 3.31), box(.06, .26, .06, "#e5e8eb", .82, 1.06, 3.2), ...rodas(.92, 2.3, -2.3, .36, .28, "#e5e8eb"), ...lights(1.96, .8, 3.31, -3.31)] },
+  // ---- new models (prices must match shop_price() in upgrade-19.sql); eye = the driver's eye height, bike = ridden on top
+  vespa: { name: "וספה יאללה", tier: 1, cls: "קטנוע עירוני", price: 900, L: 1.9, eye: 1.55, bike: true, parts: () => [box(.46, .42, 1.3, "!#ffffff", 0, .3, -.05), box(.5, .85, .12, "!#ffffff", 0, .28, .58), box(.4, .12, .72, "#2b2b2b", 0, .78, -.28),
+    box(.7, .05, .05, "#2b2b2b", 0, 1.18, .55), cyl(.03, .03, .55, 6, "#9aa0a6", 0, .65, .6, { x: -.25 }), box(.2, .12, .06, HEAD, 0, 1.05, .66), box(.16, .08, .05, TAIL, 0, .62, -.72),
+    cyl(.26, .26, .12, 14, TIRE, 0, .26 - .06, .65, { z: Math.PI / 2 }), cyl(.26, .26, .12, 14, TIRE, 0, .26 - .06, -.62, { z: Math.PI / 2 }), cyl(.13, .13, .14, 10, RIM, 0, .26 - .07, .65, { z: Math.PI / 2 }), cyl(.13, .13, .14, 10, RIM, 0, .26 - .07, -.62, { z: Math.PI / 2 })] },
+  taxi: { name: "מונית סבבה", tier: 1, cls: "מונית ספיישל", price: 2500, L: 4.5, eye: 1.2, parts: () => [box(1.8, .8, 4.5, "!#ffffff", 0, .3, 0), box(1.66, .62, 2.5, CGLASS, 0, 1.1, -.25), box(1.7, .1, 2.35, "!#ffffff", 0, 1.72, -.3),
+    box(.8, .26, .32, "*#ffd75a", 0, 1.82, -.2), box(.82, .05, .34, "#2b2b2b", 0, 1.8, -.2), box(1.84, .14, 4.2, "#2b2b2b", 0, .62, 0), box(1.84, .24, .12, TRIMD, 0, .26, 2.25), box(1.84, .24, .12, TRIMD, 0, .26, -2.25),
+    ...rodas(.85, 1.4, -1.4, .34, .25), ...lights(1.8, .78, 2.26, -2.26)] },
+  ev: { name: "סבבה חשמלית", tier: 2, cls: "חשמלית שקטה", price: 5000, L: 4.4, eye: 1.18, parts: () => [box(1.86, .78, 4.4, "!#ffffff", 0, .32, 0), box(1.72, .58, 2.7, CGLASS, 0, 1.1, -.3, { x: .04 }), box(1.74, .08, 2.2, "%#24323c", 0, 1.68, -.4),
+    box(1.8, .06, .06, "*#bfe9ff", 0, .92, 2.21), box(1.8, .06, .06, "^#c0392b", 0, .92, -2.21), box(1.9, .2, 4.3, "#2b2b2b", 0, .26, 0),
+    ...rodas(.88, 1.4, -1.4, .35, .26, "#2a2c30"), box(.6, .25, .05, "#2b2b2b", 0, .45, 2.21)] },
+  minivan: { name: "מיניוואן המשפחה", tier: 2, cls: "7 מקומות, דלת הזזה", price: 5500, L: 5.0, eye: 1.55, parts: () => [box(1.96, 1.05, 5, "!#ffffff", 0, .32, 0), box(1.84, .72, 4, CGLASS, 0, 1.37, -.3), box(1.86, .12, 4, "!#ffffff", 0, 2.09, -.3),
+    box(1.8, .5, .5, "!#ffffff", 0, 1.37, 2.15, { x: .55 }), box(.08, .08, 3.4, "#9aa0a6", .75, 2.24, -.3), box(.08, .08, 3.4, "#9aa0a6", -.75, 2.24, -.3), box(.02, .9, .02, TRIMD, .99, .5, .2), box(.02, .9, .02, TRIMD, -.99, .5, .2),
+    box(2, .26, .14, TRIMD, 0, .3, 2.5), box(2, .26, .14, TRIMD, 0, .3, -2.5), ...rodas(.92, 1.65, -1.65, .37, .28), ...lights(1.96, .95, 2.51, -2.51)] },
+  icecream: { name: "אוטו הגלידה", tier: 2, cls: "משאית גלידה עם מנגינה", price: 8000, L: 5.4, eye: 1.7, parts: () => [box(2.1, 1.2, 1.7, "!#ffffff", 0, .4, 1.85), box(1.96, .7, .9, CGLASS, 0, 1.3, 2.1, { x: -.2 }), box(2.2, 2.3, 3.6, "#fff4f8", 0, .4, -.85),
+    box(.06, 1, 2.2, "*#ffe1ec", 1.11, 1.2, -.8), box(.4, .1, 2.4, "#f06fa4", 1.3, 2.25, -.8), box(2.24, .3, 3.64, "#f06fa4", 0, 2.7, -.85), part(new THREE.ConeGeometry(.45, 1.1, 16).rotateX(Math.PI), "#d9a35a", 0, 3.55, -.85),
+    part(new THREE.SphereGeometry(.5, 12, 9), "#f2c9d2", 0, 3.95, -.85), part(new THREE.SphereGeometry(.12, 10, 8), "#d62f3f", 0, 4.45, -.85), box(2.2, .26, .14, TRIMD, 0, .34, 2.72), ...rodas(1, 1.9, -1.9, .42, .3), ...lights(2.1, .9, 2.71, -2.66)] },
+  vintage: { name: "וינטג׳ 59", tier: 3, cls: "קלאסית פתוחה משנות ה־50", price: 18000, L: 5.0, eye: 1.15, open: true, parts: () => [box(1.9, .6, 5, "!#ffffff", 0, .38, 0), box(1.92, .08, 5.02, "#e5e8eb", 0, .7, 0),
+    ...[[-.92, 1.6], [.92, 1.6], [-.92, -1.6], [.92, -1.6]].map(([x, z]) => cyl(.5, .5, .35, 16, "!#ffffff", x, .32, z, { z: Math.PI / 2 })), box(1.5, .5, .06, CGLASS, 0, .98, .45, { x: -.3 }),
+    box(1.5, .14, 1.6, "#d9c4a0", 0, .68, -.45), box(1.5, .55, .2, "#d9c4a0", 0, .7, -1.2), box(2, .16, .2, "#e5e8eb", 0, .34, 2.55), box(2, .16, .2, "#e5e8eb", 0, .34, -2.55), box(.4, .12, .05, "#e5e8eb", 0, .62, 2.51),
+    ...rodas(.92, 1.6, -1.6, .38, .26, "#f4f4f4"), ...lights(1.9, .66, 2.51, -2.51, .18)] },
+  hyper: { name: "יאללה ספיד", tier: 3, cls: "היפרקאר 400 כ״ס", price: 30000, L: 4.8, eye: .92, parts: () => [box(2.02, .42, 4.8, "!#ffffff", 0, .2, 0), box(1.8, .1, 1.6, "!#ffffff", 0, .62, 1.45, { x: .18 }), box(1.5, .4, 1.6, CGLASS, 0, .62, -.3, { x: -.08 }),
+    box(1.4, .06, 1.1, "!#ffffff", 0, 1.02, -.5), box(.1, .5, .1, TRIMD, .7, .62, -2.15), box(.1, .5, .1, TRIMD, -.7, .62, -2.15), box(2.1, .06, .55, TRIMD, 0, 1.12, -2.15), box(2.08, .12, 4.6, TRIMD, 0, .14, 0),
+    box(.5, .2, .1, "*#ff8a3d", 0, .32, -2.41), ...rodas(.98, 1.55, -1.5, .37, .34, "#2a2c30"), ...lights(2, .48, 2.41, -2.41, .08)] }
 };
+const CAR_BASE = ["pita", "mini", "station", "tramp", "shakshuka", "caravan", "roadster", "gt", "migdalor"], CARS_DEFAULT = t => CAR_BASE.filter(k => CARS[k].tier === t);   // a citizen who never bought a car gets one of the first models (adding models never changes anyone's car)
 const CAR_KEYS = Object.keys(CARS), CARS_BY_TIER = { 1: CAR_KEYS.filter(k => CARS[k].tier === 1), 2: CAR_KEYS.filter(k => CARS[k].tier === 2), 3: CAR_KEYS.filter(k => CARS[k].tier === 3) };
 for (const k of CAR_KEYS) P["car_" + k] = prefab(CARS[k].parts());
+/* ============================ PUBLIC TRANSPORT: buses of "סבבה דן" ============================ */
+// green buses in the boulevards and on the highways, a stop beside every city, the mall, סבבהום, the harbor and the palm island.
+// On a walk you stand at a stop, pick where to go, and ride the bus there (free: a gift of the state)
+P.car_bus = prefab([box(2.5, 2.7, 11, "!#ffffff", 0, .45, 0), box(2.52, 1.05, 9.6, CGLASS, 0, 1.55, -.4), box(2.52, .5, 11.02, "#f4f1ea", 0, 2.85, 0), box(2.3, .9, .06, CGLASS, 0, 1.6, 5.5),
+  box(1.6, .3, .06, "*#ffb84d", 0, 2.75, 5.52), box(.06, 1.9, .9, "#26292c", 1.26, .5, 3.6), box(.06, 1.9, .9, "#26292c", 1.26, .5, -.6), box(2.4, .3, .1, TRIMD, 0, .4, 5.52), box(2.4, .3, .1, TRIMD, 0, .4, -5.52),
+  ...rodas(1.15, 3.6, -3.4, .5, .36), ...lights(2.5, .7, 5.51, -5.51, .2)]);
+const BUS_C = "#2f8f5b";
+// the stops: [name, x, z, route to the capital's centre], each on the road it stands by
+function busStops() {
+  const out = [], cap = S.slots.find(s2 => s2.city); if (!cap) return out;
+  const along = (a, b, c, d, t) => ({ x: a + (c - a) * t, z: b + (d - b) * t });
+  for (const [a, b, c, d, w, id] of highwaySegs()) {
+    if (id === "palm" && Math.hypot(a - cap.x, b - cap.z) > 1) continue;
+    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux;
+    let t1 = L; if (id === "city") { while (t1 > 0 && inCityBox(a + ux * t1, b + uz * t1, 16)) t1 -= 4; }   // just outside the city it leads to
+    else t1 = Math.max(0, L - 30);
+    let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 16)) t0 += 4;   // where it leaves the capital
+    const road = along(a, b, c, d, t1 / L), sx = road.x + nx * (w / 2 + 3), sz = road.z + nz * (w / 2 + 3);
+    const sl = id === "city" ? S.slots.find(s2 => s2.city && Math.hypot(s2.x - c, s2.z - d) < 5) : null, co = COAST.find(q => q.id === id);
+    const name = sl ? sl.city.name : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה";
+    out.push({ name, ic: sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", x: sx, z: sz, ry: Math.atan2(-nx, -nz), route: [{ x: sx, z: sz }, road, { x: cap.x, z: cap.z }] });
+    if (out.length === 1) { const ex = along(a, b, c, d, t0 / L); out.unshift({ name: cap.city.name + " · המרכז", ic: "🏛️", x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3), ry: Math.atan2(-nx, -nz), route: [{ x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3) }, ex, { x: cap.x, z: cap.z }] }); }
+  }
+  // the mall(s) and סבבהום: by their own access road
+  const viaRoad = (name, ic, sp, road) => { const [ax, az, bx, bz] = road, ux = bx - ax, uz = bz - az, L = Math.hypot(ux, uz) || 1, nx = uz / L, nz = -ux / L, p = { x: ax + ux * .3 + nx * 8, z: az + uz * .3 + nz * 8 };
+    const hw = nearHwy(bx, bz); out.push({ name, ic, x: p.x, z: p.z, ry: Math.atan2(-nx, -nz), route: [p, { x: ax + ux * .3, z: az + uz * .3 }, { x: bx, z: bz }, ...(hw ? [{ x: hw.x, z: hw.z }] : []), { x: cap.x, z: cap.z }] }); };
+  for (const p of S.projects) if (isMallSite(p) && p.site) viaRoad(p.name || "הקניון", "🛍️", p.site, p.site.road);
+  if (S.ykSpot) viaRoad(YK.name, "🏡", S.ykSpot, S.ykSpot.road);
+  return out;
+}
+function buildBusStops() {
+  const stops = S.busStops = busStops();
+  for (const [i, st] of stops.entries()) {
+    const g = solid([box(4.2, .15, 1.8, "#e8e3d4", 0, 0, 0), box(4.4, .12, 2, BUS_C, 0, 2.6, 0), box(4.2, 2.5, .08, "%#cfe8f2", 0, .1, -.9), box(.1, 2.6, .1, "#2b2b2b", -2.1, 0, .8), box(.1, 2.6, .1, "#2b2b2b", 2.1, 0, .8),
+      box(.1, 2.6, .1, "#2b2b2b", -2.1, 0, -.85), box(.1, 2.6, .1, "#2b2b2b", 2.1, 0, -.85), box(2.6, .1, .5, "#b9834f", 0, .5, -.5), cyl(.05, .05, 3.2, 6, "#9aa0a6", 2.6, 0, .9)], st.x, st.z, st.ry, { type: "place", id: "stop:" + i }, .25);
+    mountSign(g, sign(`🚏 ${st.name}`, 3.6, .6, { bg: BUS_C, fg: "#ffffff" }), 0, 2.95, 1.02);
+    mountSign(g, sign("🚌", .7, .7, { bg: BUS_C, fg: "#ffffff" }), 2.6, 3.3, .9);
+  }
+}
+// riding: the path from one stop to another goes through the capital's centre, along the roads
+function busRide(from, to) {
+  const A = S.busStops[from], B = S.busStops[to]; if (!A || !B) return; close();
+  const pts = [...A.route, ...[...B.route].reverse()].filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .5), lens = [];
+  let L = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); lens.push(d); L += d; }
+  const bus = mover(P.car_bus, BUS_C), T = Math.max(7, Math.min(16, L / 45));
+  WALK.bus = { pts, lens, L, T, t: 0, bus, to: B, from: A, head: 0 }; WALK.fig.visible = false; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  const st = $("wSt"); if (st) st.textContent = `🚌 בדרך ל${B.name}`; toast(`🚌 עולים לאוטובוס · ${A.name} ← ${B.name}`, 2500);
+}
+function busStep(dt) {
+  const R = WALK.bus; const now = performance.now(); R.t = R.s0 ? (now - R.s0) / 1000 : (R.s0 = now, 0); const k = Math.min(1, R.t / R.T), e = k < .1 ? k * k * 5 : k > .9 ? 1 - (1 - k) * (1 - k) * 5 : k - .05, d = Math.max(0, Math.min(1, e)) * R.L;
+  let acc = 0, i = 0; while (i < R.lens.length - 1 && acc + R.lens[i] < d) { acc += R.lens[i]; i++; }
+  const a = R.pts[i], b = R.pts[i + 1], f = R.lens[i] ? (d - acc) / R.lens[i] : 0, x = a.x + (b.x - a.x) * f, z = a.z + (b.z - a.z) * f, want = Math.atan2(b.x - a.x, b.z - a.z);
+  R.head += angDiff(want, R.head) * Math.min(1, dt * 4); if (!R.t0) { R.head = want; R.t0 = 1; }
+  R.bus.set(x, groundAt(x, z), z, R.head); WALK.x = x; WALK.z = z;
+  WALK.cy += angDiff(R.head + Math.PI, WALK.cy) * Math.min(1, dt * 2.5); WALK.pitch = .32;
+  placeWalkCam(x, groundAt(x, z) + 2.6, z, 18);
+  if (k >= 1) { R.bus.dispose(); WALK.bus = null; const B = R.to; WALK.x = B.x + Math.sin(B.ry) * 3.5; WALK.z = B.z + Math.cos(B.ry) * 3.5; WALK.head = B.ry + Math.PI / 2; WALK.cy = B.ry - Math.PI / 2; WALK.fig.visible = true;
+    toast(`${B.ic} הגעת ל${B.name}!`, 2500); const st = $("wSt"); if (st) st.textContent = B.name; WALK.doors = walkDoors(); }
+}
+function stopCard(i) {
+  const A = S.busStops?.[i]; if (!A) return;
+  open(`🚏 תחנת ${esc(A.name)}`, `<div class="hero"><p><b>סבבה דן 🚌</b> האוטובוסים הירוקים של המדינה. נסיעה בחינם לכל תושב. מכאן יש קו לכל תחנה:</p></div>
+    <div class="list" style="margin-top:10px">${S.busStops.map((B, j) => j === i ? "" : info(B.ic, B.name, `${fmtN(Math.round(Math.hypot(B.x - A.x, B.z - A.z) / 100) / 10)} ק״מ`)).join("")}</div>
+    ${S.mine?.lot ? `<div class="btns" style="margin-top:10px"><button class="btn" id="stGo">🚶 ללכת לתחנה ולנסוע</button></div>` : ""}`, () => { const b = $("stGo"); if (b) b.onclick = () => { walkStart(S.mine.u); if (!WALK.on) return; WALK.x = A.x + Math.sin(A.ry) * 1.6; WALK.z = A.z + Math.cos(A.ry) * 1.6; WALK.cy = A.ry + Math.PI; WALK.doors = walkDoors(); setTimeout(() => busPick(i), 400); }; });
+}
+function busPick(i) {
+  const A = S.busStops[i]; if (!A) return;
+  open(`🚏 תחנת ${esc(A.name)}`, `<div class="hero"><p><b>סבבה דן 🚌</b> נסיעה בחינם, מתנה של המדינה. לאן נוסעים?</p></div>
+    <div class="list" style="margin-top:10px">${S.busStops.map((B, j) => j === i ? "" : `<div class="li"><span class="ic">${B.ic}</span><span class="tx"><b>${esc(B.name)}</b><small>${fmtN(Math.round(Math.hypot(B.x - A.x, B.z - A.z) / 100) / 10)} ק״מ</small></span><button class="mini" data-bus="${j}">🚌 לנסוע</button></div>`).join("")}</div>`,
+    () => $("dBody").querySelectorAll("[data-bus]").forEach(b => b.onclick = () => busRide(i, +b.dataset.bus)), true);
+}
+
 
 /* ---------- builders ---------- */
 const o3 = new THREE.Object3D(), col3 = new THREE.Color();
@@ -1271,7 +1368,7 @@ function layout() {
       // the style/model the citizen bought, unless a draw moved them to another tier since then
       let hk = c.house_style && +c.house_style[0] === tier && P[c.house_style] ? c.house_style : `${tier}_${tier === 1 ? hash(u) % 3 : tier === 2 ? hash(u) % 2 : 0}`;
       if (lot?.est && +hk[0] < 3) hk = "3_0";   // an estate always comes with a villa
-      const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_BY_TIER[car][hash(u + "m") % CARS_BY_TIER[car].length];
+      const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_DEFAULT(car)[hash(u + "m") % CARS_DEFAULT(car).length];
       const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
       const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
         wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, x: lot ? lot.x : slot.x, z: lot ? lot.z - (lot.est ? 3 : 0) : slot.z };
@@ -1326,7 +1423,7 @@ function layout() {
 const BODY_TINTS = ["#ffffff", "#f3ead9", "#ece1cc", "#f8f3ea", "#e6dac3", "#efe6d6"];
 let traffic = [], trafficSets = [], walkers = [], walkerMesh = null;
 const CURB = .58, LAWN = .6;   // sidewalk top and garden level, the street is at .3
-const TRAFFIC_MIX = ["mini", "mini", "station", "station", "shakshuka", "pita", "tramp", "caravan", "gt"];
+const TRAFFIC_MIX = ["mini", "mini", "station", "station", "shakshuka", "pita", "tramp", "caravan", "gt", "taxi", "ev", "minivan", "taxi"];
 const SHIRTS = ["#e05a4f", "#2f7fa8", "#f2b440", "#3fae6a", "#ffffff", "#8a5ac8", "#222831", "#ef7f9f", "#1f6f8b"];
 // pedestrians walk around the sidewalk of their block
 function placeWalker(w, o, t) {
@@ -1413,6 +1510,7 @@ function buildCities() {
       const r0 = rng(Math.round(c * 13 + a0));
       for (const [off, dir] of [[5.4, 1], [9.4, 1], [-5.4, -1], [-9.4, -1]]) for (let k = 0; k < 2; k++)
         blvTraffic.push({ x0: a0, x1: a1, z: c + off, dir, vert, p: r0() * len, v: 8 + r0() * 8, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
+      for (const [off, dir] of [[9.4, 1], [-9.4, -1]]) blvTraffic.push({ x0: a0, x1: a1, z: c + off, dir, vert, p: r0() * len, v: 6.5, c: BUS_C, m: "bus" });   // the city bus, in the outer lane
     };
     // street names, once in the middle of every street between two boulevards, and along the boulevards
     for (const b of slot.blocks.values()) {
@@ -1466,6 +1564,10 @@ function buildCities() {
       const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = 20; k < L - 10; k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
     for (const sg of segs) if (sg[4] > 20) buildSababaLanes(sg, cap);
+    const rT = rng(707); for (const [a, b, c, d, w, id] of segs) { if (w > 20) continue; const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, vx = uz, vz = -ux;
+      for (const [o, dir] of [[-2.2, 1], [2.2, -1]]) { const ax = a + vx * o, az = b + vz * o;
+        for (let n = 0; n < Math.max(1, Math.round(L / 160)); n++) traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: L, dir, p: rT() * L, v: 12 + rT() * 6, c: COLORS[COLOR_KEYS[Math.floor(rT() * 10)]][0], m: TRAFFIC_MIX[Math.floor(rT() * TRAFFIC_MIX.length)] });
+        traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: L, dir, p: rT() * L, v: 10, c: BUS_C, m: "bus" }); } }   // the intercity bus
   }
 
   // houses
@@ -1563,6 +1665,7 @@ function buildSababaLanes([a, b, c, d, w], cap) {
   // 8 lanes of traffic: 4 toward the harbor, 4 back to the city
   const r0 = rng(808); for (const [o, dir] of [[3.3, -1], [6.8, -1], [10.4, -1], [13.9, -1], [-3.3, 1], [-6.8, 1], [-10.4, 1], [-13.9, 1]]) for (let n = 0; n < 3; n++) {
     const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: len, dir, p: r0() * len, v: 14 + r0() * 10, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
+  for (const [o, dir] of [[13.9, -1], [-13.9, 1]]) { const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: len, dir, p: r0() * len, v: 13, c: BUS_C, m: "bus" }); }   // buses in the slow lanes
 }
 // a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z
 function placeCar(c, o) {
@@ -2317,7 +2420,7 @@ const FURN = {
 };
 // ---- unique designs (one of a kind per piece): each waits for the founder's OK before it goes on sale ("ok": false = a sketch only)
 const FUNIQ = {
-  sofa: { n: "ספת הגל", by: "סבבהום סטודיו", price: 4900, ok: true, fp: [7.8, 3.2], note: "ספה בצורת S כמו גל, המשענת עולה ויורדת כמו גלים, כריות בירוק־כתום, שולחן צד ומנורה", build(o = {}) {
+  sofa: { n: "ספת הגל", by: "סבבהום סטודיו", ok: true, price: 4900, fp: [7.8, 3.2], note: "ספה בצורת S כמו גל, המשענת עולה ויורדת כמו גלים, כריות בירוק־כתום, שולחן צד ומנורה", build(o = {}) {
     // the seat follows an S curve z = A·sin(x·k); every segment turns with the curve, the backrest's height rolls like a wave; the seats face +z on both halves
     const N = 14, L = 6.4, A = .75, k = Math.PI * 2 / L, Q = [], grn = o.color || "#2d6b45", org = "#f08a24", cream = "#f2ede2", brass = "#c9a24a";
     const zf = x => A * Math.sin(x * k), slope = x => A * k * Math.cos(x * k);
@@ -2606,19 +2709,20 @@ function buildYallkea() {
 function showYallkea() {
   const rooms = Object.values(FROOMS).map(r => r[0] + " " + r[1]).join(" · ");
   open(`🏡 ${YK.name}`, `<div class="hero"><p><b>${YK.name}: ${YK.slogan}</b> חנות הרהיטים הענקית של המדינה, על הגבעה מחוץ לבירה. היא בנויה כמו רחוב של בתים תחת גג זכוכית: כל בית הוא חדר אחר (${rooms}), ובכל בית עומד כל רהיט מהקטלוג בכל הסגנונות. בכניסה בית קפה וקופות, ובסוף הרחוב מסעדה עם קציצות וגלריה של ${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} רהיטים ייחודיים: ספת הגל, כורסת היד, מיטת הענן ועוד.</p></div>
-    ${creditHtml("yallkea")}<div class="list" style="margin-top:10px">${info("🪑", `${fmtN(Object.keys(FURN).length)} סוגי רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות: מודרני, עץ טבעי וקלאסי")}${info("✨", `${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} עיצובים ייחודיים`, "רהיט אחד מכל סוג בצורה משונה, בבית האחרון ברחוב")}${info("🛒", "קנייה ועיצוב הבית", "בקרוב: קונים בסבבונים ומסדרים בבית")}</div>
+    ${creditHtml("yallkea")}<div class="list" style="margin-top:10px">${info("🪑", `${fmtN(Object.keys(FURN).length)} סוגי רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות: מודרני, עץ טבעי וקלאסי")}${info("✨", `${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} עיצובים ייחודיים`, "רהיט אחד מכל סוג בצורה משונה, בבית האחרון ברחוב")}${info("🛒", "קונים ומסדרים בבית", "קונים בסבבונים, ובמפת הבית בוחרים איפה כל רהיט עומד")}</div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="yallkea">🚪 להיכנס לחנות</button>${ADMIN ? `<button class="btn ghost" data-go="placeReel" data-arg="yallkea">🎬 ריל</button>` : ""}<button class="btn ghost" data-go="catalog">📖 הקטלוג</button>${ADMIN ? `<button class="btn ghost" data-go="furnPrices">💰 מחירים</button>` : ""}${creditBtn("yallkea")}</div>`);
 }
 const ykCatalog = () => open(`📖 הקטלוג של ${YK.name}`, Object.entries(FROOMS).map(([rk, [ic, rn]]) => {
   const items = Object.entries(FURN).filter(([, F]) => F.room === rk); if (!items.length) return "";
-  return `<div class="sec">${ic} ${rn}</div><div class="list">${items.map(([id, F]) => info("🪑", F.n, `${Object.entries(FSIZE).map(([sz, s2]) => `${s2[0]} ${fmtN(furnPrice(id, sz, "modern"))}`).join(" · ")} ${COIN} · ${Object.entries(FSTY).filter(([st]) => st !== "modern").map(([st, v]) => `${v.n} ${(p0 => p0 >= 0 ? "+" + p0 : p0)(Math.round((styleK(st) / styleK("modern") - 1) * 100))}%`).join(" · ")}`)).join("")}</div>`; }).join("")
+  return `<div class="sec">${ic} ${rn}</div><div class="list">${items.map(([id, F]) => `<div class="li"><span class="ic">🪑</span><span class="tx"><b>${F.n}</b><small>${Object.entries(FSIZE).map(([sz, s2]) => `${s2[0]} ${fmtN(furnPrice(id, sz, "modern"))}`).join(" · ")} ${COIN}</small></span><button class="mini" data-go="furnBuy" data-arg="${id}">לראות ולקנות</button></div>`).join("")}</div><div class="list" style="display:none">${items.map(([id, F]) => info("🪑", F.n, `${Object.entries(FSIZE).map(([sz, s2]) => `${s2[0]} ${fmtN(furnPrice(id, sz, "modern"))}`).join(" · ")} ${COIN} · ${Object.entries(FSTY).filter(([st]) => st !== "modern").map(([st, v]) => `${v.n} ${(p0 => p0 >= 0 ? "+" + p0 : p0)(Math.round((styleK(st) / styleK("modern") - 1) * 100))}%`).join(" · ")}`)).join("")}</div>`; }).join("")
+  + `<div class="sec">✨ עיצובים ייחודיים</div><div class="list">${Object.entries(FUNIQ).filter(([, U]) => U.ok).map(([k, U]) => `<div class="li"><span class="ic">✨</span><span class="tx"><b>${esc(U.n)}</b><small>${fmtN(uniqPrice(k))} ${COIN}</small></span><button class="mini" data-go="furnBuy" data-arg="u:${k}">לראות ולקנות</button></div>`).join("")}</div>`
   + (ADMIN ? `<div class="btns" style="margin-top:12px"><button class="btn" data-go="furnPrices">💰 לערוך מחירים</button></div>` : ""));
 // ---- inside: the same street of houses. A stone street under the glass roof, each house with its shop windows and gable, a wooden ceiling under its pitched roof;
 //      at the front of each house the display rows (every piece in the other two styles), at the back a furnished room in its own style
 function yallkeaScene() {
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#cfe7f6"); sc.environment = scene.environment;
   sc.add(new THREE.HemisphereLight("#fffaf0", "#8a8070", 1.55)); const dl = new THREE.DirectionalLight("#fff4e0", 1.45); dl.position.set(20, 40, 25); sc.add(dl);
-  const { XA, XB, XH, ZS, ZW, HW, HR, HH, HT, GL, GR } = SH, P2 = SH_P2, Q = [], QR = [], tags = [], walls = [], th = Math.atan2(HR - HW, 8), sl = Math.hypot(HR - HW, 8);
+  const { XA, XB, XH, ZS, ZW, HW, HR, HH, HT, GL, GR } = SH, P2 = SH_P2, Q = [], QR = [], tags = [], walls = [], fbuys = [], th = Math.atan2(HR - HW, 8), sl = Math.hypot(HR - HW, 8);
   const tag = (text, w, h, x, y, z, ry, bg = "#ffffff", fg = "#1b2430", two = false, res = 380) => tags.push([text, w, h, x, y, z, ry, bg, fg, two, res]);
   // the floor, the outer walls (low along the houses, tall around the entrance house), the street paving with orange arrows into the store
   Q.push(box(XB - XA, .2, ZW * 2, "#d9d6cf", (XA + XB) / 2, -.2, 0), box(XH - XA, .02, ZS * 2, "#d8cfc0", (XA + XH) / 2, 0, 0));
@@ -2662,6 +2766,7 @@ function yallkeaScene() {
     for (const v of [6, 14]) H.push(cyl(.012, .012, HR - 5, 4, "#2b2b2b", 0, 4.6, v), cyl(.22, .42, .35, 14, wc, 0, 4.3, v), sph(.15, "*#fff1c2", 0, 4.33, v));
     // the name of the house over its opening
     const [ox, oz] = at(0, -.2);
+    if (rk !== "food") { const [bx, bz] = at(0, 1.1); fbuys.push({ x: bx, z: bz, r: 1.7, to: "fbuy", room: rk, label: rk === "uniq" ? "🛒 לקנות עיצוב ייחודי" : `🛒 לקנות: ${FROOMS[rk][1]}` }); }
     if (rk === "food") tag(`🍽️ מסעדת ${YK.name}`, 6, 1.1, ox, 5.2, oz, face, "#ffffff", "#2d6b45", false, 900);
     else if (rk === "uniq") tag("✨ עיצובים ייחודיים", 6, 1.1, ox, 5.2, oz, face, "#2b2b2b", "#f2c230", false, 900);
     else { const [ic, rn] = FROOMS[rk]; tag(`${ic} ${rn}`, 5, 1.1, ox, 5.2, oz, face, "#ffffff", wc === "#f08a24" ? "#c25f10" : "#2d6b45", false, 900); }
@@ -2752,12 +2857,116 @@ function yallkeaScene() {
   const pool = [...S.houses].filter(h => h.lot).sort((a, b) => hash(a.u + "yk") - hash(b.u + "yk")).slice(0, 16);
   const spots = [[38, 1.5], [30, -1.6], [20, 1.4], [12, -2.2], [2, 1.8], [-10, -1.5], [-18, 2], [-30, -1.2], [36, -9], [18, 10], [2, -9], [-14, 12], [45, -13], [49.5, -12.6], [47, 9.8], [-28, 9]];
   pool.forEach((h, k) => { const f = avatarMesh(avatarOf(h), 1), [x, z] = spots[k]; f.position.set(x, 0, z); f.rotation.y = hash(h.u + "ykr") % 628 / 100; sc.add(f); });
-  return { sc, walls, B: { x0: XA + .7, x1: XB - .7, z0: -ZW + .7, z1: ZW - .7 } };
+  return { sc, walls, fbuys, B: { x0: XA + .7, x1: XB - .7, z0: -ZW + .7, z1: ZW - .7 } };
 }
+const FURN_SKIP = { on: false };   // true while the home map photographs the room without the bought furniture
+/* ============================ FURNITURE AT HOME: buying in סבבהום, arranging on the home map ============================ */
+// every piece a citizen bought (table furniture, upgrade-18.sql): what it is, its size and style, where it stands at home (placed) or in the storeroom
+const furnOf = h => (h && S.furn?.get(h.id)) || [];
+const furnRowParts = r => r.item.startsWith("u:") ? (FUNIQ[r.item.slice(2)]?.build({}) || []) : furnParts({ id: r.item, size: r.size, style: r.style });
+const furnRowName = r => r.item.startsWith("u:") ? `✨ ${FUNIQ[r.item.slice(2)]?.n || ""}` : `${FURN[r.item]?.n || r.item} ${FSIZE[r.size]?.[0] || ""} · ${FSTY[r.style]?.n || ""}`;
+const furnRowDims = r => r.item.startsWith("u:") ? (FUNIQ[r.item.slice(2)]?.fp || [2, 2]) : (FURN[r.item]?.dims?.[r.size] || [1, 1]);
+const furnIc = item => item.startsWith("u:") ? "✨" : FROOMS[FURN[item]?.room]?.[0] || "🪑";
+// a picture of a piece of furniture, rendered on the spot (for the store's buy sheet)
+function furnShotUrl(parts, size = 360) {
+  const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true }); r.setSize(size, size); r.setClearColor("#f6f3ec", 1);
+  const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
+  sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
+  const bb = new THREE.Box3(); for (const g of parts) { g.computeBoundingBox(); bb.union(g.boundingBox); } const c = bb.getCenter(new THREE.Vector3()), rr = bb.getSize(new THREE.Vector3()).length() / 2 || 1;
+  const cm = new THREE.PerspectiveCamera(32, 1, .05, 200); cm.position.set(c.x + rr * 1.5, c.y + rr * 1.25, c.z + rr * 2.6); cm.lookAt(c); r.render(sc, cm);
+  const u = r.domElement.toDataURL("image/png"); r.dispose(); for (const k of BUCKETS) pf[k]?.dispose(); return u;
+}
+const FERR = { too_many: "יש לך כבר הרבה רהיטים (עד 120)", bad_item: "המוצר לא זמין. אולי צריך להריץ את upgrade-18.sql" };
+// one piece: its picture, the size and the style, the price, and buying it
+function furnBuy(item) {
+  const uq = item.startsWith("u:"), U = uq ? FUNIQ[item.slice(2)] : null, F = uq ? null : FURN[item]; if (!U && !F) return;
+  const me = S.mine, key = me && keyOf(me.u); let size = "m", style = "modern";
+  const price = () => uq ? uniqPrice(item.slice(2)) : furnPrice(item, size, style);
+  const draw = () => { const parts = uq ? U.build({}) : furnParts({ id: item, size, style }), img = furnShotUrl(parts), [w, d] = uq ? U.fp || [2, 2] : F.dims[size];
+    open(`${uq ? "✨ " + U.n : `${FROOMS[F.room]?.[0] || "🪑"} ${F.n}`}`, `<img src="${img}" alt="" style="width:100%;border-radius:18px;display:block">
+      ${uq ? `<p class="note" style="margin-top:8px">${esc(U.note || "")} · עיצוב ייחודי של ${YK.name}</p>` : `<div class="row2" style="margin-top:10px">
+        <label>גודל<select id="fbS">${Object.entries(FSIZE).map(([k, v]) => `<option value="${k}" ${k === size ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
+        <label>סגנון<select id="fbT">${Object.entries(FSTY).map(([k, v]) => `<option value="${k}" ${k === style ? "selected" : ""}>${v.n}</option>`).join("")}</select></label></div>`}
+      <div class="wallet" style="margin-top:10px"><div><small>מחיר</small><b>${COIN} ${fmtN(price())}</b></div><div><small>מידות</small><b>${w}×${d} מ׳</b></div>${key ? `<div><small>בארנק</small><b>${COIN} ${fmtN(me.coins || 0)}</b></div>` : ""}</div>
+      ${key ? `<div class="btns" style="margin-top:10px"><button class="btn" id="fbGo">🛒 לקנות</button>${me.lot ? `<button class="btn ghost" data-go="homeMap" data-arg="${esc(me.u)}">🛋️ הרהיטים שלי (${fmtN(furnOf(me).length)})</button>` : ""}</div>`
+        : `<div class="hero" style="margin-top:10px"><p>כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם.</p></div>`}`, () => {
+      if ($("fbS")) $("fbS").onchange = e => { size = e.target.value; stack.pop(); draw(); };
+      if ($("fbT")) $("fbT").onchange = e => { style = e.target.value; stack.pop(); draw(); };
+      if ($("fbGo")) $("fbGo").onclick = async e => { const pr = price(); if ((me.coins || 0) < pr) return toast(ERR.funds); e.target.disabled = true;
+        try { const r = await rpc("buy_furniture", { username: me.u, key: keyOf(me.u), item, size, style });
+          if (!r.ok) { e.target.disabled = false; if (r.error === "unauthorized") dropKey(me.u); return toast(FERR[r.error] || ERR[r.error] || "לא הצליח. נסו שוב"); }
+          patchCitizen(me, { coins: r.coins }); (S.furn ||= new Map()); if (!S.furn.has(me.id)) S.furn.set(me.id, []);
+          S.furn.get(me.id).push({ id: r.id, citizen_id: me.id, item, size: uq ? "m" : size, style: uq ? "modern" : style, x: 0, z: 0, ry: 0, placed: false, price: r.price });
+          toast(`🎉 נקנה! הרהיט מחכה במחסן של הבית. −${fmtN(r.price)} ${COIN}`, 4000); stack.pop(); draw();
+        } catch { e.target.disabled = false; toast("אין חיבור כרגע. נסו שוב"); } };
+    }, true); };
+  draw();
+}
+// a whole room's pieces (or the gallery of one-of-a-kind designs), to pick one
+function furnRoomBuy(rk) {
+  const list = rk === "uniq" ? Object.keys(FUNIQ).filter(k => FUNIQ[k].ok).map(k => ["u:" + k, `✨ ${FUNIQ[k].n}`, `${fmtN(uniqPrice(k))} ${COIN}`]) : Object.keys(FURN).filter(id => FURN[id].room === rk).map(id => [id, FURN[id].n, `מ־${fmtN(furnPrice(id, "s", "modern"))} ${COIN} · 3 גדלים · 3 סגנונות`]);
+  open(rk === "uniq" ? "✨ עיצובים ייחודיים" : `${FROOMS[rk][0]} ${FROOMS[rk][1]}`, `<div class="list">${list.map(([id, n, sub]) => `<div class="li"><span class="ic">${furnIc(id)}</span><span class="tx"><b>${esc(n)}</b><small>${sub}</small></span><button class="mini" data-fb="${id}">לראות ולקנות</button></div>`).join("")}</div>`,
+    () => $("dBody").querySelectorAll("[data-fb]").forEach(b => b.onclick = () => furnBuy(b.dataset.fb)), true);
+}
+// ---- the home map: the room seen from above (its own furniture as it really is), the pieces you bought on it. Drag, turn, back to the storeroom, save
+const HOMEMAP = { sel: -1, drag: null };
+function homeBounds(h) { return h.lot?.est ? { x0: -13.8, x1: 13.8, z0: -9.2, z1: 9.4 } : { x0: -8.8, x1: 9, z0: -6.3, z1: 6.5 }; }
+function homeSnapshot(h, Bd, px) {
+  const w = interiorTarget("home:" + h.u); if (!w) return null; FURN_SKIP.on = true; let R; try { R = interiorScene(w); } finally { FURN_SKIP.on = false; }
+  const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }), W = Bd.x1 - Bd.x0, D = Bd.z1 - Bd.z0, ppm = px / W; r.setSize(px, Math.round(D * ppm));
+  const cm = new THREE.OrthographicCamera(Bd.x0, Bd.x1, -Bd.z0, -Bd.z1, .1, 100); cm.position.set(0, 40, 0); cm.up.set(0, 0, -1); cm.lookAt(0, 0, 0);
+  r.render(R.sc, cm); const u = r.domElement.toDataURL("image/png"); r.dispose();
+  R.sc.traverse(o => { if (o.isMesh && !o.geometry.userData.shared) o.geometry.dispose(); }); return u;
+}
+function homeMap(u) {
+  const h = S.byUser.get(u); if (!h?.lot) return; const mine = S.mine === h && keyOf(h.u); if (!mine && !ADMIN) return toast("רק בעלי הבית מסדרים את הבית");
+  const Bd = homeBounds(h), L = furnOf(h).map(r => ({ ...r })), W = Bd.x1 - Bd.x0, D = Bd.z1 - Bd.z0, bg = new Image(), snap = homeSnapshot(h, Bd, 900); if (snap) bg.src = snap;
+  HOMEMAP.sel = -1;
+  const draw = () => open(`🛋️ הבית של ‎@${nick(h.u)}`, `<div class="hero"><p>${L.length ? "גוררים כל רהיט למקום שלו בבית. לחיצה על רהיט בוחרת אותו: אפשר לסובב או להחזיר למחסן. בסוף לוחצים לשמור." : `עוד אין לך רהיטים. קונים ב${YK.name} 🏡`}</p></div>
+    <canvas id="hmC" style="width:100%;aspect-ratio:${W}/${D};touch-action:none;border-radius:16px;margin-top:10px;display:block;background:#efe9df"></canvas>
+    <div id="hmSel" class="adm" style="background:var(--tint);border-radius:16px;padding:8px 12px;margin-top:8px"></div>
+    <div class="sec">📦 במחסן</div><div class="list" id="hmStore"></div>
+    <div class="btns" style="margin-top:10px">${mine ? `<button class="btn" id="hmSave">💾 לשמור</button>` : ""}<button class="btn ghost" data-go="yallkea">🏡 לקנות עוד ב${YK.name}</button></div>`, () => {
+    const cv = $("hmC"), x = cv.getContext("2d");
+    const geo = () => { const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); } return { s: r.width / W, dpr, r }; };
+    const toPx = (g, a, b) => [(a - Bd.x0) * g.s, (b - Bd.z0) * g.s];
+    const paint = () => { const g = geo(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); x.clearRect(0, 0, g.r.width, g.r.height);
+      if (bg.complete && bg.naturalWidth) { x.globalAlpha = .9; x.drawImage(bg, 0, 0, g.r.width, g.r.height); x.globalAlpha = 1; }
+      x.fillStyle = "rgba(255,255,255,.85)"; x.font = `700 ${Math.max(11, g.s * .55)}px Heebo, Arial`; x.textAlign = "center"; x.textBaseline = "bottom"; x.fillText("🚪 הדלת", g.r.width / 2, g.r.height - 2);
+      L.forEach((it, i) => { if (!it.placed) return; const [w2, d2] = furnRowDims(it), [px, pz] = toPx(g, it.x, it.z);
+        x.save(); x.translate(px, pz); x.rotate(-(+it.ry || 0)); x.fillStyle = i === HOMEMAP.sel ? "rgba(240,138,36,.55)" : "rgba(255,255,255,.6)"; x.strokeStyle = i === HOMEMAP.sel ? "#f08a24" : "rgba(0,0,0,.45)"; x.lineWidth = i === HOMEMAP.sel ? 3 : 1.5;
+        x.fillRect(-w2 / 2 * g.s, -d2 / 2 * g.s, w2 * g.s, d2 * g.s); x.strokeRect(-w2 / 2 * g.s, -d2 / 2 * g.s, w2 * g.s, d2 * g.s);
+        x.fillStyle = "#2b2b2b"; x.fillRect(-w2 / 2 * g.s, d2 / 2 * g.s - 3, w2 * g.s, 3); x.restore();   // the dark edge is its front
+        x.textBaseline = "middle"; x.font = `${Math.max(14, Math.min(24, g.s * .9))}px serif`; x.fillText(furnIc(it.item), px, pz); });
+    };
+    const store = () => { const el = $("hmStore"), list = L.map((it, i) => [it, i]).filter(([it]) => !it.placed);
+      el.innerHTML = list.length ? list.map(([it, i]) => `<div class="li"><span class="ic">${furnIc(it.item)}</span><span class="tx"><b>${esc(furnRowName(it))}</b></span><button class="mini" data-put="${i}">להכניס לבית</button></div>`).join("") : `<p class="note">המחסן ריק</p>`;
+      el.querySelectorAll("[data-put]").forEach(b => b.onclick = () => { const it = L[+b.dataset.put]; it.placed = true; it.x = (Bd.x0 + Bd.x1) / 2; it.z = (Bd.z0 + Bd.z1) / 2; HOMEMAP.sel = +b.dataset.put; store(); selUI(); paint(); }); };
+    const selUI = () => { const it = L[HOMEMAP.sel], el = $("hmSel"); if (!it || !it.placed) { el.innerHTML = `<p class="note" style="margin:4px 0">${L.some(q => q.placed) ? "לחצו על רהיט כדי לבחור אותו" : "מכניסים רהיטים מהמחסן למטה"}</p>`; return; }
+      el.innerHTML = `<b>${furnIc(it.item)} ${esc(furnRowName(it))}</b><div class="btns" style="margin-top:6px"><button class="mini" data-rot="1">↺ 90°</button><button class="mini" data-rot="-1">↻ 90°</button><button class="mini" data-rot="0.5">↺ 45°</button><button class="mini" id="hmBack">📦 למחסן</button></div>`;
+      el.querySelectorAll("[data-rot]").forEach(b => b.onclick = () => { it.ry = Math.round((((+it.ry || 0) + +b.dataset.rot * Math.PI / 2) % (Math.PI * 2)) * 1000) / 1000; paint(); });
+      $("hmBack").onclick = () => { it.placed = false; HOMEMAP.sel = -1; store(); selUI(); paint(); }; };
+    const at = e => { const g = geo(); return [(e.clientX - g.r.left) / g.s + Bd.x0, (e.clientY - g.r.top) / g.s + Bd.z0]; };
+    cv.onpointerdown = e => { const [a, b] = at(e); let best = -1, bd = 1e9;
+      L.forEach((it, i) => { if (!it.placed) return; const [w2, d2] = furnRowDims(it), dd = Math.hypot(a - it.x, b - it.z); if (dd < Math.max(.8, Math.min(w2, d2) / 2 + .4) && dd < bd) { bd = dd; best = i; } });
+      HOMEMAP.sel = best; selUI(); paint(); if (best >= 0) { HOMEMAP.drag = { id: e.pointerId, dx: a - L[best].x, dz: b - L[best].z }; cv.setPointerCapture(e.pointerId); } };
+    cv.onpointermove = e => { const dr = HOMEMAP.drag; if (!dr || dr.id !== e.pointerId) return; const [a, b] = at(e), it = L[HOMEMAP.sel];
+      it.x = Math.round(Math.max(Bd.x0 + .3, Math.min(Bd.x1 - .3, a - dr.dx)) * 10) / 10; it.z = Math.round(Math.max(Bd.z0 + .3, Math.min(Bd.z1 - .3, b - dr.dz)) * 10) / 10; paint(); };
+    cv.onpointerup = cv.onpointercancel = () => { HOMEMAP.drag = null; };
+    if ($("hmSave")) $("hmSave").onclick = async e => { e.target.disabled = true;
+      try { const r = await rpc("place_furniture", { username: h.u, key: keyOf(h.u), layout: L.map(it => ({ id: it.id, x: it.x, z: it.z, ry: it.ry, placed: !!it.placed })) });
+        if (!r.ok) { e.target.disabled = false; return toast(ERR[r.error] || "לא הצליח. נסו שוב"); }
+        S.furn.set(h.id, L.map(it => ({ ...it }))); toast("✅ הבית סודר! היכנסו לראות", 3500); close();
+      } catch { e.target.disabled = false; toast("אין חיבור כרגע. נסו שוב"); } };
+    bg.onload = paint; store(); selUI(); paint(); addEventListener("resize", paint, { once: true });
+  }, true);
+  draw();
+}
+
 // walking in: the door in the front of the entrance house, out the same way
 function yallkeaIndoor(w, door) {
   const R = yallkeaScene(), fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); R.sc.add(fig);
-  const exits = [{ x: SH.XB - 1.4, z: 0, r: 2.6, to: "street", label: `🚪 לצאת מ${YK.name}` }];
+  const exits = [{ x: SH.XB - 1.4, z: 0, r: 2.6, to: "street", label: `🚪 לצאת מ${YK.name}` }, ...R.fbuys];
   IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc: R.sc, B: R.B, walls: R.walls, est: false, two: false, exits, fig, x: SH.XB - 7.5, z: 0, y: 0, up: false, head: -Math.PI / 2, wallH: SH.HH, s: 1, door, flags: [], name: YK.name });
   WALK.cy = Math.PI / 2; WALK.pitch = .2; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
   document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = YK.name;
@@ -3297,6 +3506,7 @@ function buildPublic() {
   S.projects.filter(p => p.params?.island).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildIsletMonument(p, k) : (() => { const sp = isletSpot(k); p.x = sp.x; p.z = sp.z;
     solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), cyl(26, 28, 9, 11, "#b9b19f", 0, 0, 0)], sp.x, sp.z, sp.face, { type: "project", p });
     buildSite(p, p.name || "פסל", sp.x, sp.z, 46, 46, 9, sp.face, { craneH: 60, jib: 40 }); })());
+  buildBusStops();
 }
 
 /* ============================ COAST & NATURE ============================ */
@@ -3639,6 +3849,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "place" && d.id === "palmhotel") showPalm(true);
   else if (d.type === "place" && d.id === "lanes") showLanes();
   else if (d.type === "place" && d.id === "yallkea") showYallkea();
+  else if (d.type === "place" && String(d.id).startsWith("stop:")) stopCard(+String(d.id).slice(5));
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
   else if (d.type === "project") showProject(d.p);
@@ -3713,6 +3924,7 @@ function walkDoors() {
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
   if (PALM.geo) { const g = PALM.geo, ry = Math.atan2(-g.U.x, -g.U.z); add(g.hotel.x + Math.sin(ry) * 12, g.hotel.z + Math.cos(ry) * 12, 6, "palmhotel", "להיכנס: מלון הדקל"); }
   if (YK.door && S.ykSpot) add(YK.door.x, YK.door.z, 7, "yallkea", `להיכנס: ${YK.name}`);
+  (S.busStops || []).forEach((st, i) => add(st.x + Math.sin(st.ry) * 1.6, st.z + Math.cos(st.ry) * 1.6, 3.4, "stop:" + i, `🚏 תחנת ${st.name} · לנסוע`));
   for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
     const name = p.name || PROJECT_KINDS[p.kind]?.[1];
     if (INDOOR.includes(p.kind)) add(p.door?.x ?? p.x, p.door?.z ?? p.z + 5, p.door ? 7 : 5, "proj:" + p.id, `להיכנס: ${name}`); else add(p.x, p.z, 10, "proj:" + p.id, `לטייל ב${name}`);
@@ -3765,11 +3977,12 @@ function walkStart(u) {
   controls.enabled = false; fly = null; document.body.classList.add("walking");
   const touch = matchMedia("(pointer: coarse)").matches;
   $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(nick(h.u))}</small></span><button id="wX" aria-label="סיום">✕</button></div>
-    <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div>
+    <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div><button class="wcam glass" id="wCam" hidden>🎥 מהמושב</button>
     <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
   $("wAct").onclick = () => WALK.mode === "car" ? exitCar() : enterCar();
+  $("wCam").onclick = () => { WALK.cockpit = !WALK.cockpit; walkButtons(); };
   $("wMapBtn").onclick = () => cmapOpen(); $("wNavX").onclick = () => { WALK.target = null; $("wNav").hidden = true; };
-  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; indoorStart(d.id, d); } };
+  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); indoorStart(d.id, d); } };
   $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
   setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
   // the joystick
@@ -3781,6 +3994,7 @@ function walkStart(u) {
 }
 function exitWalk() {
   if (!WALK.on) return;
+  if (WALK.bus) { WALK.bus.bus.dispose(); WALK.bus = null; }
   if (IN.on) indoorStop("street");
   if (WALK.car) { WALK.car.mv.dispose(); WALK.car = null; hideParked(WALK.h, false); }
   npcClear();
@@ -3804,6 +4018,7 @@ function placeWalkCam(tx, ty, tz, D) {
   walkCam.position.set(tx + sx * d, ty + sy * d + (D - d) * .25, tz + sz * d); walkCam.lookAt(tx, ty, tz);
 }
 function walkStep(dt) {
+  if (WALK.bus) return busStep(dt);
   if (WALK.mode === "car") return driveStep(dt);
   const k = WALK.keys; let fx = WALK.joy.x, fy = WALK.joy.y;
   if (k.ArrowUp || k.KeyW) fy += 1; if (k.ArrowDown || k.KeyS) fy -= 1; if (k.ArrowLeft || k.KeyA) fx -= 1; if (k.ArrowRight || k.KeyD) fx += 1;
@@ -3827,6 +4042,45 @@ function walkStep(dt) {
   f.position.set(WALK.x, gy + Math.abs(Math.sin(WALK.t * 9)) * .07 * m, WALK.z); f.rotation.set(0, WALK.head, Math.sin(WALK.t * 9) * .04 * m);
   placeWalkCam(WALK.x, gy + 1.9, WALK.z, 7.2);
 }
+/* ---------- the driver's seat: the road through the windshield, the dashboard, the wheel turning, the speedometer ---------- */
+// drawn over the island in a second pass, in the camera's own space: the eye at the origin looking down -z, the car's middle to the right
+const COCKPIT = { sc: null, cam: new THREE.PerspectiveCamera(60, 1, .02, 20), key: "", wheel: null, needle: null, spd: null, spdCtx: null, last: -1 };
+function cockpitBuild(cm, cc) {
+  const C = CARS[cm], t = C.tier, sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight("#ffffff", "#7a7066", 1.7)); const dl = new THREE.DirectionalLight("#fff4e0", 1.2); dl.position.set(.5, 2, 1); sc.add(dl);
+  const dash = C.bike ? "#2b2b2b" : t === 3 ? "#4a2f1e" : t === 2 ? "#3a3f46" : "#2b2b2b", trim = t === 3 ? "#c9a24a" : "#9aa0a6", body = cc || "#c0392b", Q = [], open = C.bike || C.open, cx = C.bike ? 0 : .38;
+  if (C.bike) {   // a scooter: the handlebar, the front shield and a little speedometer
+    Q.push(box(.72, .045, .045, "#2b2b2b", 0, -.5, -.55), box(.1, .1, .05, "#2b2b2b", -.36, -.52, -.55), box(.1, .1, .05, "#2b2b2b", .36, -.52, -.55), box(.5, .5, .1, body, 0, -1.05, -.75, { x: -.3 }), cyl(.07, .07, .03, 16, "#111111", 0, -.47, -.6, { x: Math.PI / 2 - .5 }));
+  } else {
+    Q.push(box(1.9, .3, .6, dash, cx, -.72, -.95), box(1.92, .06, .7, dash, cx, -.44, -.92, { x: .12 }), box(1.95, .12, 1.8, body, cx, -.84, -2.1, { x: .05 }),   // the dashboard and the hood ahead
+      box(.08, 1.1, .08, dash, cx - .92, -.25, -.95, { x: -.45 }), box(.08, 1.1, .08, dash, cx + .92, -.25, -.95, { x: -.45 }), box(.5, .16, .05, "#1a1a1a", cx, -.38, -.62),
+      box(.42, .24, .02, "*#5fa8e0", cx + .45, -.45, -.66, { x: -.4 }), box(.36, .16, .01, "*#7fe0a0", cx + .45, -.43, -.655, { x: -.4 }),   // the middle screen with a map
+      box(.12, .1, .3, dash, cx + .45, -.62, -.4), box(.06, .06, .12, trim, cx + .45, -.55, -.35));   // the gear stick
+    if (!open) Q.push(box(1.95, .1, .2, dash, cx, .42, -.85), box(.3, .08, .02, "#111111", cx, .32, -.78), box(.28, .06, .01, "*#c9d6dc", cx, .32, -.775), cyl(.003, .003, .14, 4, "#111111", cx + .05, .2, -.775),
+      box(.05, .07, .01, "#2f7fa8", cx + .05, .12, -.775), box(.02, .02, .012, "#ffffff", cx + .05, .125, -.77));   // the roof edge, the mirror and a little blue hamsa hanging from it
+    if (t === 3) Q.push(box(1.7, .03, .05, trim, cx, -.43, -.66), box(.6, .04, .3, "#2b1a10", cx + .45, -.6, -.3));
+  }
+  const pf = prefab(Q, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
+  // the steering wheel (or the scooter's grips turn), tilted toward the driver
+  const wheel = new THREE.Group(); if (!C.bike) { const ring = new THREE.Mesh(new THREE.TorusGeometry(.19, .022, 8, 28), new THREE.MeshLambertMaterial({ color: t === 3 ? "#5a3a26" : "#1b1b1b" })); wheel.add(ring);
+    for (const a of [0, 2.1, 4.2]) { const sp = new THREE.Mesh(new THREE.BoxGeometry(.17, .025, .02), new THREE.MeshLambertMaterial({ color: "#2b2b2b" })); sp.position.set(Math.cos(a) * .09, Math.sin(a) * .09, 0); sp.rotation.z = a; wheel.add(sp); }
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .03, 14).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: trim })); wheel.add(hub);
+    wheel.position.set(0, -.44, -.68); wheel.rotation.x = -.35; sc.add(wheel); }
+  // the speedometer: a dial with a needle, and the speed in numbers on a little screen
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(C.bike ? .06 : .075, 24), new THREE.MeshBasicMaterial({ color: "#0d1117" })), needle = new THREE.Mesh(new THREE.BoxGeometry(.005, C.bike ? .05 : .065, .002).translate(0, C.bike ? .025 : .032, 0), new THREE.MeshBasicMaterial({ color: "#ff5a3d" }));
+  const dz = C.bike ? -.6 : -.86, dy = C.bike ? -.44 : -.34, dx = C.bike ? 0 : -.09; dial.position.set(dx, dy, dz); needle.position.set(dx, dy, dz + .003); sc.add(dial, needle);
+  const cv = document.createElement("canvas"); cv.width = 128; cv.height = 64; const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const spd = new THREE.Mesh(new THREE.PlaneGeometry(.1, .05), new THREE.MeshBasicMaterial({ map: tex })); spd.position.set(C.bike ? .1 : .09, dy, dz); sc.add(spd);
+  for (const o of sc.children) if (!o.isLight) o.position.y += C.bike ? .26 : .24;   // up into the bottom of the view, where a driver sees the dashboard
+  Object.assign(COCKPIT, { sc, key: cm + cc, wheel, needle, spd, spdCtx: cv.getContext("2d"), tex, last: -1, steer: 0 });
+}
+function cockpitRender(c, steer) {
+  const h = WALK.h; if (COCKPIT.key !== h.cm + h.cc) cockpitBuild(h.cm, h.cc);
+  COCKPIT.steer += (steer - COCKPIT.steer) * .2; COCKPIT.wheel.rotation.z = COCKPIT.steer * 1.4;
+  const kmh = Math.round(Math.abs(c.v) * 3.6); COCKPIT.needle.rotation.z = 2.2 - Math.min(1, kmh / 120) * 4.4;
+  if (kmh !== COCKPIT.last) { const x = COCKPIT.spdCtx; x.fillStyle = "#0d1117"; x.fillRect(0, 0, 128, 64); x.fillStyle = "#7fe0a0"; x.font = "700 40px Heebo, Arial"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(String(kmh), 64, 34); COCKPIT.tex.needsUpdate = true; COCKPIT.last = kmh; }
+  COCKPIT.cam.fov = walkCam.fov; COCKPIT.cam.aspect = walkCam.aspect; COCKPIT.cam.updateProjectionMatrix();
+  renderer.autoClear = false; renderer.clearDepth(); renderer.render(COCKPIT.sc, COCKPIT.cam); renderer.autoClear = true;
+}
 /* ---------- driving your own car ---------- */
 // where your car is parked: in front of your house, or wherever you left it
 function parkedSpot(h) { const zo = Math.min(2.6, 4.4 - CARS[h.cm].L / 2), cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face), sx = h.lot.est ? 7 : 3.9; return { x: h.x + sx * cs + zo * sn, z: h.z - sx * sn + zo * cs, head: h.lot.face }; }
@@ -3845,7 +4099,7 @@ function hideParked(h, hide) {
 function enterCar() {
   const h = WALK.h, sp = carHere();
   if (!WALK.car) { hideParked(h, true); WALK.car = { ...sp, v: 0, mv: mover(P["car_" + h.cm], h.cc) }; }
-  WALK.mode = "car"; WALK.fig.visible = false; WALK.cy = WALK.car.head + Math.PI; WALK.pitch = .22; walkButtons();
+  WALK.mode = "car"; WALK.fig.visible = !!CARS[h.cm].bike; WALK.cy = WALK.car.head + Math.PI; WALK.pitch = .22; walkButtons();   // on a scooter you ride on top, seen
 }
 function exitCar() {
   const c = WALK.car; WALK.mode = "foot"; c.v = 0;
@@ -3862,7 +4116,7 @@ function driveStep(dt) {
     if (Math.abs(diff) > 2.3) { const d2 = angDiff(want + Math.PI, c.head); gas = c.v > 1.5 ? -1 : -jm * .7; steer = c.v > 1.5 ? 0 : Math.max(-1, Math.min(1, d2 * 1.6)); }
     else { gas = jm * (1 - Math.min(.65, Math.abs(diff) / 2.2)); steer = Math.max(-1, Math.min(1, -diff * 1.8)); }
   }
-  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer));
+  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer)); WALK.steer = steer;
   // gentle, realistic acceleration: 50-72 km/h at the most in town
   const top = CARS[WALK.h.cm].tier === 3 ? 20 : CARS[WALK.h.cm].tier === 2 ? 17 : 14;
   if (gas > .05) c.v += (c.v < 0 ? 16 : 5.5 * (1 - Math.max(0, c.v) / top * .6)) * gas * dt; else if (gas < -.05) c.v += (c.v > 0 ? 16 : 4) * gas * dt; else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 5 * dt);
@@ -3873,8 +4127,15 @@ function driveStep(dt) {
   const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
   const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz) || onHighway(nx, nz));
   if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
-  c.mv.set(c.x, groundAt(c.x, c.z), c.z, c.head);
+  const C = CARS[WALK.h.cm], gy = groundAt(c.x, c.z);
+  c.mv.set(c.x, WALK.cockpit && !C.bike ? gy - 100 : gy, c.z, c.head);   // from the driver's seat the car's own body is out of the way
+  if (C.bike) { WALK.fig.position.set(c.x - Math.sin(c.head) * .3, gy + .45, c.z - Math.cos(c.head) * .3); WALK.fig.rotation.y = c.head; WALK.fig.visible = !WALK.cockpit; }
   WALK.x = c.x; WALK.z = c.z;
+  if (WALK.cockpit) {   // the driver's eye: on the left seat, a little ahead of the middle, looking down the road
+    const xo = C.bike ? 0 : .38, zo = C.L * (C.bike ? -.05 : .08), sn = Math.sin(c.head), cs = Math.cos(c.head), ex = c.x + xo * cs + zo * sn, ez = c.z - xo * sn + zo * cs, ey = gy + (C.eye || 1.2);
+    walkCam.near = .05; walkCam.position.set(ex, ey, ez); walkCam.lookAt(ex + sn * 12, ey - .9, ez + cs * 12); walkCam.updateProjectionMatrix();
+    const sp = $("wSpd"); if (sp && WALK.frame % 6 === 0) sp.textContent = `${Math.round(Math.abs(c.v) * 3.6)} קמ״ש`; return; }
+  if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
   // the camera follows behind the car, and swings in on turns
   if (performance.now() - WALK.lastDrag > 700) WALK.cy += angDiff(c.head + Math.PI, WALK.cy) * Math.min(1, dt * 3);
   placeWalkCam(c.x, groundAt(c.x, c.z) + 2.2, c.z, 11 + Math.abs(c.v) * .12);
@@ -3887,7 +4148,8 @@ function walkButtons() {
   let best = null, bd = Infinity;
   if (WALK.mode !== "car") for (const d of WALK.doors) { const q = Math.hypot(d.x - WALK.x, d.z - WALK.z); if (q < d.r && q < bd) { bd = q; best = d; } }
   WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `🚪 ${best.label}`;
-  if (WALK.mode === "car") { b.hidden = false; b.textContent = "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
+  const cb = $("wCam"); if (cb) { cb.hidden = WALK.mode !== "car"; cb.textContent = WALK.cockpit ? "🎥 מבט מאחור" : "🎥 מהמושב"; }
+  if (WALK.mode === "car") { b.hidden = false; b.textContent = CARS[WALK.h.cm].bike ? "🚶 לרדת מהקטנוע" : "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
   $("wSpd").hidden = true;
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
 }
@@ -3984,6 +4246,7 @@ function cmapDraw() {
   }
   for (const m of S.mallSpots || []) if (m) { R(m.x, m.z, MALL_W, MALL_D, "#d8d1c2", m.ry); R(m.x, m.z, 150, 40, "#c98b5a", m.ry); }   // the malls
   if (S.ykSpot) { const s2 = S.ykSpot, c = Math.cos(s2.ry), sn = Math.sin(s2.ry); R(s2.x - 18 * sn, s2.z - 18 * c, 116, 156, "#d8d1c2", s2.ry); R(s2.x - 34 * sn, s2.z - 34 * c, 48, 108, "#f08a24", s2.ry); R(s2.x - 34 * sn, s2.z - 34 * c, 8, 108, "#bfe3f2", s2.ry); }
+  for (const st of S.busStops || []) R(st.x, st.z, 7, 7, "#2f8f5b");   // the bus stops
   for (const al of S.alleys || []) { R(al.x, al.z, 5.2, 14, "#cdbb98"); R(al.x, al.z + al.sz * 8, 11, 6, "#d6c6a4"); }   // the paved alleys
   const C = CENTRAL.on;
   if (C) { R(C.cx, C.cz, C.hw * 2, C.hd * 2, "#e9e3d6"); R(C.cx, C.cz, C.hw * 2, CENTRAL.W * 2, "#5b6169"); R(C.cx, C.cz, CENTRAL.W * 2, C.hd * 2, "#5b6169"); O(C.cx, C.cz, CENTRAL.RR, "#5b6169"); O(C.cx, C.cz, CENTRAL.RP, "#efe6d2");
@@ -4092,10 +4355,116 @@ function walkMinimap() {
 /* ---------- walking inside: through the door into the house (or the workplace), up the stairs, out to the yard and the pool ---------- */
 const IN = { on: false };
 const UPX = 70;   // the upstairs floor is built beside the ground floor, out of sight
+/* ============================ TOWERS: a lobby, elevators and stairs, and every floor ============================ */
+// a tall building you walk into floor by floor: the lobby downstairs (reception, turnstiles, the floor directory), the work floors above
+// (the business's own room on each), the boss's office on the top floor. Elevators go anywhere, the stairs one floor up or down.
+const TOWER_FH = 5.8;
+const towerFloors = w => { const k = w.kind; const n = k === "tech" ? 8 : k === "office" ? (w.floors || 7) : k === "hotel" ? (w.floors || (w.id === "palmhotel" ? 6 : 8)) : k === "bank" ? 4 : k === "school" ? 2 : 0; return Math.min(14, n); };
+const FLOOR_NAMES = { tech: ["פיתוח", "מוצר", "עיצוב", "דאטה", "בדיקות", "תמיכה", "מכירות", "תשתיות"], office: ["הנהלת חשבונות", "משאבי אנוש", "שיווק", "משפטית", "רכש", "מכירות", "תפעול", "אסטרטגיה"],
+  bank: ["לקוחות פרטיים", "עסקים", "השקעות", "משכנתאות"], hotel: ["חדרים"], school: ["כיתות"] };
+const floorName = (w, f, F) => f === 0 ? "לובי" : f === F - 1 && F > 2 && w.kind !== "hotel" ? "הנהלה" : w.kind === "hotel" ? `חדרים ${f}01–${f}08` : (FLOOR_NAMES[w.kind] || ["משרדים"])[(f - 1) % (FLOOR_NAMES[w.kind] || ["משרדים"]).length];
+function towerScene(w) {
+  const F = towerFloors(w), FH = TOWER_FH, sc = new THREE.Scene(); sc.background = new THREE.Color("#a9d3ea"); sc.environment = scene.environment;
+  sc.add(new THREE.HemisphereLight("#fff6ea", "#6a5a48", 1.45)); const dl = new THREE.DirectionalLight("#fff1dc", 1.6); dl.position.set(8, 40, 14); sc.add(dl);
+  const groups = [], wallsBy = [], exits = [], X0 = -9.3, X1 = 15.2, Z0 = -6.8, Z1 = 6.8, staffAll = [...(w.staff || [])], boss = [...staffAll].sort((a, b) => (b.level || 1) - (a.level || 1))[0];
+  const brand = w.color || ({ tech: "#1b2a3a", office: "#3c556b", bank: "#2f5d8a", hotel: "#7a3b2a", school: "#7a8fa3" }[w.kind] || "#1b2a3a");
+  let pi = 0; const nextStaff = () => staffAll.length ? staffAll[pi++ % staffAll.length] : null;
+  for (let f = 0; f < F; f++) {
+    const g = new THREE.Group(), y = f * FH, Q = [], QR = [], SG = [], walls = [], spots = [];
+    const sg = (text, sw, sh, x, yy, z, ry = 0, bg = "#ffffff", fg = "#1b2430") => SG.push([text, sw, sh, x, yy, z, ry, bg, fg]);
+    // the plate: the floor, the ceiling above, glass on the street side and the right, the core with the elevators and the stairs on the right
+    Q.push(box(X1 - X0, .3, Z1 - Z0, f ? "#d9dde1" : "#efe9de", (X0 + X1) / 2, -.32, 0)); QR.push(box(X1 - X0, .3, Z1 - Z0, "#f4f4f4", (X0 + X1) / 2, FH - .3, 0));   // the ceiling apart: hidden when a reel films the floor from above
+    QR.push(box(X1 - X0, FH - .3, .12, "*#cfe6f2", (X0 + X1) / 2, 0, Z1 + .06), box(.12, FH - .3, Z1 - Z0, "*#cfe6f2", X1 + .06, 0, 0));   // the glass walls: hidden too when a reel looks in
+    for (let x = X0 + 3; x < X1; x += 3) QR.push(box(.12, FH - .3, .2, "#9aa0a6", x, 0, Z1 + .1));
+    // the core: two elevators facing the floor, the staircase beside them, the floor number on the wall
+    Q.push(box(X1 - 9.3, FH - .3, .3, "#e6e2da", (9.3 + X1) / 2, 0, Z0 - .15), box(1.6, FH - .3, 5.2, "#c9ced3", 14.4, 0, -4.2));
+    for (const z of [-5.6, -2.8]) Q.push(box(.08, 2.6, 1.2, "#9aa0a6", 13.56, 0, z), box(.06, 2.5, .02, "#6f777c", 13.54, .05, z), box(.08, .3, .3, "*#ffd27a", 13.55, 2.85, z));
+    walls.push([13.5, Z0, X1, -1.5]);
+    for (let i = 0; i < 9; i++) Q.push(box(2.2, .25, .55, "#cfc8bb", 13.9, i * (FH / 9) * .5, 1.6 + i * .55));   // the stairs going up toward the front
+    Q.push(box(.08, 1, 5, "#6f777c", 12.75, 1.2, 4, { x: -.3 })); walls.push([12.8, 1.3, X1, 6.6]);
+    sg(`${f === 0 ? "🏢" : "🛗"} קומה ${f} · ${floorName(w, f, F)}`, 4, .7, 13.48, 3.4, -4.2, -Math.PI / 2, brand, "#ffffff");
+    if (f === 0) {   // ---- the lobby: the name on the back wall, reception, sofas, turnstiles before the elevators, the floor directory
+      Q.push(box(18.6, FH - .3, .3, "#f2ede4", 0, 0, Z0 - .15), box(.3, FH - .3, Z1 - Z0, "#f2ede4", X0 - .15, 0, 0),
+        box(18.6, .9, .32, brand, 0, 0, Z0 - .14), box(9, 1.6, .1, brand, 0, 2.6, Z0 + .06));
+      sg(w.name, 8, 1.1, 0, 3.4, Z0 + .13, 0, brand, "#ffffff");
+      Q.push(box(5, 1.1, 1.2, "#f4f1ea", 0, 0, -2.6), box(5.2, .08, 1.4, brand, 0, 1.1, -2.6), box(.5, .3, .4, "#2b2b2b", -1.2, 1.18, -2.6), box(.4, .28, .04, "*#5fa8e0", -1.2, 1.5, -2.7)); walls.push([-2.6, -3.3, 2.6, -1.9]);
+      sg("קבלה", 1.6, .45, 0, 1.75, -1.98, 0, "#ffffff", brand);
+      for (const [x, z, ry] of [[-6.5, 2.5, Math.PI / 2], [-6.5, -2, Math.PI / 2]]) Q.push(...FURN.sofa.build({ size: "m", style: "modern" }).map(q => q.rotateY(ry).translate(x, 0, z)));
+      Q.push(...FURN.coffee.build({ size: "m", style: "modern" }).map(q => q.translate(-4.8, 0, .3)), ...FURN.plant.build({ size: "l" }).map(q => q.translate(-8.2, 0, 5.6)), ...FURN.plant.build({ size: "l" }).map(q => q.translate(8.2, 0, -5.8)));
+      for (let i = 0; i < 4; i++) Q.push(box(.25, 1, 1, "#c9ced3", 9.2, 0, -5 + i * 2.6), box(.05, .5, .9, "%#cfe8f2", 9.2, .9, -5 + i * 2.6 + 1.3)); walls.push([9, -6.6, 9.4, -4.4], [9, -2.6, 9.4, -1.8], [9, 0, 9.4, .8]);
+      Q.push(box(.12, 3.4, 2.4, "#2b2f34", X0 + .1, .6, -3.5)); sg(`🏢 ${w.name}`, 2.2, .4, X0 + .2, 3.7, -3.5, Math.PI / 2, "#2b2f34", "#ffd75a");
+      for (let i = F - 1; i >= 1; i--) sg(`${i} · ${floorName(w, i, F)}`, 2.2, .26, X0 + .2, 3.35 - (F - 1 - i) * .27, -3.5, Math.PI / 2, "#2b2f34", "#ffffff");
+      sg(`👥 ${fmtN(staffAll.length)} עובדים · ${fmtN(F)} קומות`, 4.6, .6, 0, 4.6, Z0 + .14, 0, "#ffffff", brand);
+      QR.push(box(3.4, FH - .3, .14, "#f2ede4", -5.2, 0, Z1 + .2), box(3.4, FH - .3, .14, "#f2ede4", 5.2, 0, Z1 + .2), box(3, .2, .5, brand, 0, 3, Z1 + .2));   // the entrance in the glass
+      exits.push({ x: 0, z: Z1 - 1.2, r: 2, to: "street", y, label: "🚪 לצאת החוצה" });
+      const rec = nextStaff(); if (rec) spots.push([rec, 0, -3.6, 0]);
+    } else if (f === F - 1 && F > 2 && w.kind !== "hotel") {   // ---- the top floor: the boss's office, a meeting table, a view
+      Q.push(box(18.6, FH - .3, .3, "#efe6d6", 0, 0, Z0 - .15), box(.3, FH - .3, Z1 - Z0, "*#cfe6f2", X0 - .15, 0, 0), box(18.6, .02, Z1 - Z0, "#7a5232", 0, .01, 0));
+      Q.push(...FURN.desk.build({ size: "l", style: "classic" }).map(q => q.translate(-4, 0, -4.6)), ...FURN.officechair.build({ size: "l", style: "classic" }).map(q => q.rotateY(Math.PI).translate(-4, 0, -5.6)),
+        ...FURN.dtable.build({ size: "l", style: "wood" }).map(q => q.translate(3.5, 0, 0)), ...FURN.sofa.build({ size: "l", style: "classic" }).map(q => q.rotateY(Math.PI / 2).translate(-7.6, 0, 3)),
+        ...FURN.bookcase.build({ size: "l", style: "classic" }).map(q => q.translate(4, 0, -6.4)), ...FURN.plant.build({ size: "l" }).map(q => q.translate(8, 0, 5.6)));
+      sg(boss ? `👑 לשכת ${jobTitle(boss)} · ‎@${nick(boss.u)}` : "👑 לשכת ההנהלה", 6, .8, 0, 3.6, Z0 + .02, 0, brand, "#ffd75a");
+      if (boss) spots.push([boss, -4, -5.4, 0]); for (let i = 0; i < 3; i++) { const h = nextStaff(); if (h && h !== boss) spots.push([h, 2 + i * 1.6, 1.2, Math.PI]); }
+    } else if (w.kind === "hotel") {   // ---- a hotel floor: a carpeted corridor with the room doors and their numbers
+      Q.push(box(18.6, FH - .3, .3, "#efe2cf", 0, 0, Z0 - .15), box(.3, FH - .3, Z1 - Z0, "#efe2cf", X0 - .15, 0, 0), box(18.6, .02, 3.4, "#7a1c2c", 0, .01, 0), box(18.6, FH - .3, .2, "#efe2cf", 0, 0, -1.9), box(18.6, FH - .3, .2, "#efe2cf", 0, 0, 1.9));
+      for (let i = 0; i < 4; i++) for (const sd of [-1, 1]) { const x = -7 + i * 4.4, z = sd * 1.78; Q.push(box(1.2, 2.4, .08, "#5a3a26", x, 0, z), sph(.05, "#d9b65a", x + .45, 1.1, z - sd * .06)); sg(`${f}${String(i * 2 + (sd > 0 ? 2 : 1)).padStart(2, "0")}`, .7, .3, x, 2.75, z - sd * .1, sd > 0 ? Math.PI : 0, "#c9a24a", "#ffffff"); }
+      walls.push([X0, -6.8, 9.3, -1.8], [X0, 1.8, 9.3, 6.8]);
+      for (let i = 0; i < 4; i++) Q.push(sph(.15, "*#fff1c2", -7 + i * 4.4, FH - .55, 0));
+      const h = nextStaff(); if (h) spots.push([h, -3, 0, Math.PI / 2]);
+    } else {   // ---- a work floor: the business's own room, its people at work
+      const R = interiorOf(w); Q.push(...R.Q); for (const s2 of R.SG) SG.push(s2);
+      R.staff.slice(0, 5).forEach(p => { const h = nextStaff(); if (h) spots.push([h, p[0], p[1], p[2]]); });
+    }
+    // stairs and the elevator on every floor; the stairs go one floor up or down
+    exits.push({ x: 12.2, z: -4.2, r: 1.7, to: "lift", y, label: "🛗 מעלית · לאיזו קומה?" });
+    if (f < F - 1) exits.push({ x: 12.3, z: 2.2, r: 1.2, to: "floor", f: f + 1, y, label: `⬆️ במדרגות לקומה ${f + 1}` });
+    if (f > 0) exits.push({ x: 12.3, z: 4.7, r: 1.2, to: "floor", f: f - 1, y, label: `⬇️ במדרגות לקומה ${f - 1}` });
+    for (const [list, roof] of [[Q, false], [QR, true]]) { const pf = prefab(list, false); for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.userData.disposable = false; m.userData.roof = roof; g.add(m); } }
+    for (const [text, sw, sh, x, yy, z, ry, bg, fg] of SG) { const s = sign(text, sw, sh, { bg, fg }); s.position.set(x, yy, z); s.rotation.y = ry; g.add(s); }
+    for (const [h, x, z, ry] of spots) { const fg = avatarMesh(avatarOf(h), 1); fg.position.set(x, 0, z); fg.rotation.y = ry; g.add(fg); }
+    g.position.y = y; sc.add(g); groups.push(g); wallsBy.push(walls);
+  }
+  return { sc, groups, wallsBy, exits, F, FH, B: { x0: X0 + .4, x1: X1 - .5, z0: Z0 + .4, z1: Z1 - .4 } };
+}
+function towerIndoor(w, door) {
+  const R = towerScene(w), fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); R.sc.add(fig);
+  IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc: R.sc, B: R.B, walls: R.wallsBy[0], wallsBy: R.wallsBy, tower: R, floor: 0, fh: R.FH, est: false, two: false, exits: R.exits, fig, x: 0, z: 2.2, y: 0, up: false, head: Math.PI, wallH: R.FH - .3, s: 1, door, flags: [], name: w.name });
+  WALK.cy = 0; WALK.pitch = .26; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = `${w.name} · לובי`;
+  walkCam.near = .1; walkCam.fov = 68; walkCam.updateProjectionMatrix();
+}
+function towerGo(f, by) {
+  const T = IN.tower; if (!T) return; f = Math.max(0, Math.min(T.F - 1, f));
+  IN.floor = f; IN.y = f * T.FH; IN.walls = T.wallsBy[f];
+  if (by === "lift") { IN.x = 11.6; IN.z = -1.6; WALK.cy = -Math.PI / 2; } else { IN.x = 11.4; IN.z = by === "down" ? 3.2 : 1; WALK.cy = -Math.PI / 2; }
+  const st = $("wSt"); if (st) st.textContent = `${IN.name} · ${floorName(IN.w, f, T.F)}`; toast(`${by === "lift" ? "🛗" : "🚶"} קומה ${f} · ${floorName(IN.w, f, T.F)}`, 1600);
+}
+function towerLift() {
+  const T = IN.tower; if (!T) return;
+  open(`🛗 ${esc(IN.name)}`, `<div class="list">${Array.from({ length: T.F }, (_, i) => T.F - 1 - i).map(f => `<div class="li"><span class="ic">${f === IN.floor ? "📍" : f === 0 ? "🏢" : "🔘"}</span><span class="tx"><b>קומה ${f}</b><small>${esc(floorName(IN.w, f, T.F))}</small></span>${f === IN.floor ? `<small>את/ה כאן</small>` : `<button class="mini" data-fl="${f}">לעלות</button>`}</div>`).join("")}</div>`,
+    () => $("dBody").querySelectorAll("[data-fl]").forEach(b => b.onclick = () => { close(); towerGo(+b.dataset.fl, "lift"); }), true);
+}
+// the Knesset: you come in through its lobby (security, flags, the tapestry wall, the guests' book), then through the big doors into the plenum
+function knessetLobby(B, s) {
+  const Q = [], z0 = B.z1 + .65, D = 14, z1 = z0 + D, wallC = "#efe7d6", walls = [];
+  Q.push(box(B.x1 - B.x0 + 1.4, .3, D, "#d8cfbd", (B.x0 + B.x1) / 2, -.3, z0 + D / 2), box(.3, 9, D, wallC, B.x0 - .7, 0, z0 + D / 2), box(.3, 9, D, wallC, B.x1 + .7, 0, z0 + D / 2),
+    box((B.x1 - B.x0) / 2 - 2, 9, .3, wallC, B.x0 - .7 + ((B.x1 - B.x0) / 2 - 2) / 2, 0, z1), box((B.x1 - B.x0) / 2 - 2, 9, .3, wallC, B.x1 + .7 - ((B.x1 - B.x0) / 2 - 2) / 2, 0, z1), box(4.6, 5, .3, wallC, (B.x0 + B.x1) / 2, 4, z1), box(4, 4, .06, "%#cfe8f2", (B.x0 + B.x1) / 2, 0, z1));
+  const cx = (B.x0 + B.x1) / 2;
+  // the colourful tapestry wall, the security gates, the flags and the guest book
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 9; j++) Q.push(box(1.5, 1.5, .08, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a", "#8a5ac8", "#e67e22"][(i * 4 + j * 7) % 6], B.x0 + 1.5 + j * 1.6, 2.2 + i * 1.6, z0 + .25));
+  for (let i = 0; i < 3; i++) Q.push(box(.3, 2.2, 1.6, "#c9ced3", cx - 3 + i * 3, 0, z1 - 4)), walls.push([cx - 3.2 + i * 3, z1 - 4.8, cx - 2.8 + i * 3, z1 - 3.2]);
+  for (const sd of [-1, 1]) Q.push(cyl(.06, .06, 4.6, 8, "#cccccc", cx + sd * 6, 0, z0 + 3), box(.04, 1.4, 2, sd < 0 ? "#ffffff" : "#2f5d8a", cx + sd * 6 + 1, 3, z0 + 3));
+  Q.push(box(2.4, 1.1, .9, "#5a3a24", B.x1 - 3, 0, z0 + 6), box(2.5, .06, 1, "#b08d57", B.x1 - 3, 1.1, z0 + 6), box(.8, .05, .6, "#f4efe4", B.x1 - 3, 1.17, z0 + 6)); walls.push([B.x1 - 4.3, z0 + 5.5, B.x1 - 1.7, z0 + 6.5]);
+  const SG = [["🏛️ הכנסת · לובי הכניסה", 7, 1, cx, 6.8, z0 + .32, 0, "#2f5d8a", "#ffffff"], ["אולם המליאה ⬆️", 4, .7, cx, 5.4, z0 + .32, 0, "#ffffff", "#2f5d8a"], ["📖 ספר האורחים", 2.4, .45, B.x1 - 3, 1.9, z0 + 6.5, 0, "#ffffff", "#5a3a24"], ["🛂 בידוק ביטחוני", 3, .6, cx, 3, z1 - 3.1, Math.PI, "#1b2430", "#ffffff"]];
+  return { Q, SG, walls, z1 };
+}
+
 function indoorStart(id, door) {
   const w = interiorTarget(id); if (!w) return;
   if (w.kind === "yallkea") return yallkeaIndoor(w, door);
+  IN.tower = null; IN.wallsBy = null;
   if (w.kind === "mall") return mallIndoor(w, door);
+  if (towerFloors(w) > 1 && (S.wpById.has(w.id) || w.id === "palmhotel")) return towerIndoor(w, door);
   IN.walls = null;
   if (String(w.kind).startsWith("outdoor_")) return enterWork(id);   // parks and courts are seen from above
   const R = interiorScene(w), fr = R.frame || {}, s = fr.scale || 1, sc = R.sc;
@@ -4126,17 +4495,22 @@ function indoorStart(id, door) {
     if (lux) for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; Q.push(sph(.08, "*#fff4d6", ox + Math.cos(a) * .6, 4.2, Math.sin(a) * .6)); }
     for (let i = 0; i < 6; i++) Q.push(box(2.2, .35, .55, "#c9b08a", ox + 7.6, -.35 * (i + 1), 4.4 - i * .55));
     exits.push({ x: ox + 7.6, z: 4.6, r: 1.6, to: "down", label: "⬇️ לרדת למטה", up: true }); }
+  let kWalls = null;
+  if (w.kind === "gov_knesset") { const zf = B.z1 + .65, L = knessetLobby(B, s); Q.push(...L.Q); for (const [t2, sw, sh, x, y, z, ry, bg, fg] of L.SG) { const sg2 = sign(t2, sw, sh, { bg, fg }); sg2.position.set(x, y, z); sg2.rotation.y = ry; sc.add(sg2); }
+    kWalls = [[B.x0 - 2, zf - .3, -1.4 * s, zf + .3], [1.4 * s, zf - .3, B.x1 + 2, zf + .3], ...L.walls];
+    exits[0] = { x: (B.x0 + B.x1) / 2, z: L.z1 - 1.3, r: 2.2, to: "street", label: "🚪 לצאת מהכנסת" }; B.z1 = L.z1 - .6; }
   const g = solid(Q, 0, 0, 0, null, 0); sc.add(g);
   const fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); sc.add(fig);
   IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc, B, est, two, exits, fig, x: 0, z: B.z1 - 3.2, y: 0, up: false, head: Math.PI, wallH, s, door, flags: R.flags || [], name: w.owner ? (w.owner === WALK.h ? "הבית שלי" : `הבית של ‎@${nick(w.owner.u)}`) : w.name });
   WALK.cy = 0; WALK.pitch = .28; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  if (kWalls) { IN.walls = kWalls; IN.z = B.z1 - 2; IN.name = "הכנסת · לובי הכניסה"; }   // in the Knesset you start in the lobby
   document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = IN.name;
   walkCam.near = .1; walkCam.fov = 68; walkCam.updateProjectionMatrix();
 }
 function indoorStop(to) {
   const w = IN.w, h = w.owner, d = IN.door;
   IN.sc.traverse(o => { if (o.isInstancedMesh) o.dispose(); else if (o.isMesh) { if (!o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable || o.material?.map) { o.material.map?.dispose(); o.material.dispose(); } } });
-  IN.on = false; IN.sc = null; document.body.classList.remove("indoors"); WALK.street = "";
+  IN.on = false; IN.sc = null; IN.tower = null; IN.wallsBy = null; document.body.classList.remove("indoors"); WALK.street = "";
   // back outside: at the front door, or in the yard behind the house
   if (to === "yard" && h?.lot?.est) {   // the estate: beside the pool, looking across the water
     const [x, z] = frontOf(h, -6.6, 7.6), [px, pz] = frontOf(h, -6.6, 0); WALK.x = x; WALK.z = z; WALK.head = Math.atan2(px - x, pz - z); WALK.cy = WALK.head + Math.PI; }
@@ -4147,6 +4521,7 @@ function indoorStop(to) {
 }
 // the floor under your feet inside: the estate's grand staircase rises to the gallery along the back wall
 function indoorFloor(x, z, y0) {
+  if (IN.tower) return IN.floor * IN.fh;   // a tower: the floor you're on
   if (IN.up) return 0;
   if (IN.est) { const onSt = Math.abs(Math.abs(x) - 3.1) < 1.3 && z < -1.05 && z > -6.6;
     if (onSt) return Math.min(4.2, Math.max(0, (Math.floor((-1.05 - z) / .43) + 1) * .35));
@@ -4187,6 +4562,9 @@ function indoorStep(dt) {
 function indoorUse(e) {
   if (e.to === "street" || e.to === "yard") return indoorStop(e.to);
   if (e.to === "buy") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return mallBuy(e.shop); }
+  if (e.to === "fbuy") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return furnRoomBuy(e.room); }
+  if (e.to === "lift") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return towerLift(); }
+  if (e.to === "floor") return towerGo(e.f, e.f > IN.floor ? "up" : "down");
   if (e.to === "up") { IN.up = true; IN.x = UPX + 7.6; IN.z = 2; IN.y = 0; IN.head = Math.PI; WALK.cy = 0; toast("⬆️ הקומה השנייה", 1500); }
   if (e.to === "down") { IN.up = false; if (IN.est) { IN.x = 3.1; IN.z = -6.3; IN.y = 4.2; } else { IN.x = IN.B.x1 - 1.4; IN.z = 2.8; IN.y = 0; } IN.head = 0; WALK.cy = Math.PI; toast("⬇️ למטה", 1500); }
 }
@@ -4206,6 +4584,7 @@ function walkFrame(dt, now) {
     const st = streetHere(WALK.x, WALK.z); if (st !== WALK.street) { WALK.street = st; const e = $("wSt"); if (e) e.textContent = st || "טיול בעיר"; }
   }
   renderWorld(walkCam, WALK.mode === "car" && WALK.car ? WALK.car : { x: WALK.x, z: WALK.z }, true);
+  if (WALK.mode === "car" && WALK.cockpit && WALK.car) cockpitRender(WALK.car, WALK.steer || 0);
 }
 /* ============================ DRAWER ============================ */
 const stack = [];
@@ -4264,7 +4643,7 @@ const GO = {
         return li("house", ic, t, `‎@${esc(nick(u))}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), pay: () => payEdit(), tiktok: () => joinTikTok(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), pay: () => payEdit(), homeMap: u => homeMap(u || S.mine?.u), furnRoom: rk => furnRoomBuy(rk), furnBuy: id => furnBuy(id), tiktok: () => joinTikTok(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -4368,7 +4747,7 @@ function showHouse(h) {
   const wallet = h.coins == null ? "" : `<div class="wallet"><div><small>בארנק</small><b>${COIN} ${fmtN(h.coins)}</b></div><div><small>משכורת יומית</small><b>+${fmtN(salaryOf(h))}</b></div><div><small>רצף</small><b>🔥 ${fmtN(collectedToday(h) || daysSince(h.last) <= 1 ? h.streak : 0)}</b></div></div>${lawLine(h)}`;
   const owner = !me || h.coins == null ? "" : key
     ? `<div class="btns"><button class="btn" data-go="collect" data-arg="${esc(h.u)}" ${done ? "disabled" : ""}>${done ? "✅ המשכורת של היום נאספה" : "💼 איסוף משכורת"}</button><button class="btn ghost" data-go="shop">🛒 חנות</button></div>
-       ${h.lot?.est ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="estmap" data-arg="${esc(h.u)}">🗺️ לעצב את החצר של האחוזה</button></div>` : ""}
+       <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="homeMap" data-arg="${esc(h.u)}">🛋️ הרהיטים שלי${furnOf(h).length ? ` (${fmtN(furnOf(h).length)})` : ""}</button>${h.lot?.est ? `<button class="btn ghost" data-go="estmap" data-arg="${esc(h.u)}">🗺️ לעצב את החצר של האחוזה</button>` : ""}</div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="suggest">💡 להציע רעיון למדינה</button></div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="walk" data-arg="${esc(h.u)}">🚶 לצאת לטייל</button><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
@@ -5362,6 +5741,7 @@ function interiorOf(w) {
     sgn(name, 4.8, .9, 0, 4.1, -6.48, 0, "#c0392b", "#ffffff"); sgn("קפה הפוך + מאפה = 15", 4.4, .9, -8.98, 3.6, 0, Math.PI / 2, "#ffe14d", "#c0392b");
     staff.push([4.5, 3.8, Math.PI], [-2.8, 2.5, Math.PI / 2], [5.4, -3, 0]);
   }
+  if (k === "home" && w.owner && !FURN_SKIP.on) for (const r of furnOf(w.owner)) if (r.placed) Q.push(...furnRowParts(r).map(g => { g.rotateY(+r.ry || 0); return g.translate(+r.x || 0, 0, +r.z || 0); }));   // the furniture bought in סבבהום
   return { Q, SG, staff, frame };
 }
 // builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
@@ -6032,6 +6412,10 @@ const NEWS = {
   ideas: { v: "2026-10-18", ic: "💡", t: "לוח הצעות התושבים", sub: "כתבו רעיון, ותמכו ברעיונות של אחרים 👍", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 5, .6, .45), b: at(c, 3, 1.1, .5) }; } },
   mall: { v: "2026-10-18", ic: "🛍️", t: "הקניון הגדול נפתח", sub: "ליד נתיבי סבבה, עם חניון ענק", ok: () => S.projects.some(p => isMallSite(p) && p.site), shot: () => { const p = S.projects.find(q => isMallSite(q) && q.site); return { a: at(p, 3.2, -.5, .45), b: at(p, 5, .3, .4) }; } },
   yallkea: { v: "2026-10-18", ic: "🏡", t: "סבבהום נפתחה!", sub: "חנות הרהיטים הענקית על הגבעה: רחוב של בתים", ok: () => !!S.ykSpot, shot: () => ({ a: at(S.ykSpot, 3, -.5, .4), b: at(S.ykSpot, 5, .3, .35) }) },
+  cars7: { v: "2026-10-18", ic: "🏎️", t: "7 רכבים חדשים ותא נהג", sub: "וספה, מונית, חשמלית, אוטו גלידה ועוד", ok: () => !!founder()?.lot, shot: () => { const h = founder(); return { a: at(h, 9, .3, .4), b: at(h, 11, .9, .35) }; } },
+  bus: { v: "2026-10-18", ic: "🚌", t: "סבבה דן: אוטובוסים בחינם", sub: "תחנה בכל עיר, בקניון, בסבבהום ובנמל", ok: () => (S.busStops || []).length > 1, shot: () => ({ a: at(S.busStops[0], 9, -.4, .3), b: at(S.busStops[0], 6, .4, .3) }) },
+  homefurn: { v: "2026-10-18", ic: "🛋️", t: "קונים רהיטים ומסדרים בבית", sub: `ב${YK.name}: 31 רהיטים ו־31 עיצובים ייחודיים`, ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
+  towers: { v: "2026-10-18", ic: "🛗", t: "עולים במעלית לכל קומה", sub: "לובי, מעליות ומדרגות במגדלים", ok: () => S.workplaces.some(w => w.kind === "tech" && w.x != null), shot: () => ({ inside: interiorTarget(`work:${S.workplaces.find(w => w.kind === "tech" && w.x != null).id}`) }) },
   mallin: { v: "2026-10-18", ic: "🛒", t: "קונים בכל חנות בקניון", sub: "נכנסים, מסתובבים ומשלמים בקופה", ok: () => S.projects.some(p => isMallSite(p) && p.site), shot: () => ({ inside: interiorTarget(`proj:${S.projects.find(q => isMallSite(q) && q.site).id}`) }) },
   uniq: { v: "2026-10-18", ic: "✨", t: "31 רהיטים ייחודיים", sub: "ספת הגל, כורסת היד, מיטת הענן ועוד", ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
   ykin: { v: "2026-10-18", ic: "🛏️", t: "בכל בית חדר אחר", sub: "כל רהיט מהקטלוג, בית קפה ומסעדה", ok: () => !!S.ykSpot, shot: () => ({ inside: interiorTarget("yallkea") }) },
@@ -6188,7 +6572,9 @@ function buildSubset(n) { REEL.full ||= { raw: S.raw, total: S.total }; S.raw = 
 // a shot inside a building: the room is its own scene, the camera circles inside it
 function insideFrame(s, k) {
   REEL.ins ||= new Map();
-  const key = s.inside.id; if (!REEL.ins.has(key)) REEL.ins.set(key, interiorScene(s.inside));
+  const key = s.inside.id + (s.floor != null ? "#t" : "");
+  if (!REEL.ins.has(key)) { if (s.floor != null) { const T = towerScene(s.inside); T.sc.traverse(o => { if (o.userData.roof) o.visible = false; }); REEL.ins.set(key, { sc: T.sc, groups: T.groups, FH: T.FH, frame: { scale: 1.15, target: [2.5, 1.2, 0] } }); } else REEL.ins.set(key, interiorScene(s.inside)); }
+  if (s.floor != null) { const T = REEL.ins.get(key); T.groups.forEach((g2, i) => g2.visible = i === s.floor); T.frame.target = [2.5, 1.2 + s.floor * T.FH, 0]; }
   const I = REEL.ins.get(key), fr = I.frame || {}, L = (a, b) => a + (b - a) * k, az = L(s.a.az, s.b.az), dist = L(s.a.dist, s.b.dist) * (fr.scale || 1), el = L(s.a.el, s.b.el), tg = new THREE.Vector3(...(fr.target || [-.5, 1.3, -1]));
   reelCam.fov = 58; reelCam.near = .1; reelCam.far = 300; reelCam.position.set(tg.x + Math.sin(az) * Math.cos(el) * dist, tg.y + Math.sin(el) * dist, tg.z + Math.cos(az) * Math.cos(el) * dist);
   reelCam.updateProjectionMatrix(); reelCam.lookAt(tg);
@@ -6725,10 +7111,16 @@ function placeReelShots(h, key) {
   list.push({ d: 3.2, a: at(P.o, z * .32, -.9, .22), b: at(P.o, z, -.3, .45), cap: `🎬 סיור ב${I.name}`, sub: I.sub || "" });
   list.push({ d: 3.8, b: at(P.o, z * 1.45, .65, LOW + .06), cap: `${I.ic || ""} ${I.name}`, sub: I.desc || "" });
   const w = I.inside && interiorTarget(I.inside), facts = I.facts || [];
-  if (w) { list.push({ d: 3.8, inside: w, a: { az: .15, dist: 19, el: .6 }, b: { az: .85, dist: 13.5, el: .44 }, cap: facts[0]?.[0] || "🚪 בפנים", sub: facts[0]?.[1] || "" });
+  const TF = w && (S.wpById.has(w.id) || w.id === "palmhotel") ? towerFloors(w) : 0;
+  if (TF > 1) {   // a tower: the lobby, then every floor on the way up
+    list.push({ d: 3.4, inside: w, floor: 0, a: { az: .1, dist: 22, el: .62 }, b: { az: .6, dist: 17, el: .5 }, cap: `🏢 הלובי של ${I.name}`, sub: `👥 ${fmtN(w.staff?.length || 0)} עובדים · ${fmtN(TF)} קומות` });
+    const dd = Math.max(1.3, Math.min(2.6, 10 / (TF - 1)));
+    for (let f = 1; f < TF; f++) list.push({ d: dd, inside: w, floor: f, a: { az: .5 + f * .25, dist: 19, el: .62 }, b: { az: .75 + f * .25, dist: 17, el: .56 }, cap: `🛗 קומה ${f}`, sub: floorName(w, f, TF) + (f === TF - 1 && facts[1] ? ` · ${facts[1][1]}` : "") });
+    if (facts[2]) list.push({ d: 2.8, inside: w, floor: TF - 1, a: { az: .4, dist: 15, el: .5 }, b: { az: .1, dist: 13, el: .42 }, cap: facts[2][0], sub: facts[2][1] });
+  } else if (w) { list.push({ d: 3.8, inside: w, a: { az: .15, dist: 19, el: .6 }, b: { az: .85, dist: 13.5, el: .44 }, cap: facts[0]?.[0] || "🚪 בפנים", sub: facts[0]?.[1] || "" });
     for (const [i, f] of facts.slice(1, 3).entries()) list.push({ d: 3.2, inside: w, a: i ? { az: .2, dist: 17, el: .7 } : { az: .95, dist: 14, el: .5 }, b: i ? { az: .5, dist: 14.5, el: .6 } : { az: .55, dist: 11.5, el: .42 }, cap: f[0], sub: f[1] }); }   // inside the open side of the room, never through a wall
   else for (const [i, f] of facts.slice(0, 2).entries()) list.push({ d: 3.2, b: at(P.o, z * (1.2 + i * .3), 1.3 + i * .7, .35), cap: f[0], sub: f[1] });
-  if (I.floors > 1) list.push({ d: 3.2, a: at(P.o, z * 1.6, 1.2, .12), b: at(P.o, z * 1.1, 1.6, .55), cap: `🏢 ${fmtN(I.floors)} קומות`, sub: "מגדל של המדינה" });
+  if (I.floors > 1 && !TF) list.push({ d: 3.2, a: at(P.o, z * 1.6, 1.2, .12), b: at(P.o, z * 1.1, 1.6, .55), cap: `🏢 ${fmtN(I.floors)} קומות`, sub: "מגדל של המדינה" });
   list.push({ d: 3.4, b: at(P.o, z * .75, 2.2, .5), cap: I.job ? "רוצים לעבוד כאן?" : "בואו לבקר", sub: "תגיבו ״אזרחות״ ותקבלו בית באי 👇" });
   return hours(chain(list), 9.5, 17.5);
 }
@@ -6781,7 +7173,8 @@ function loadExtras() {
     api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(d => S.draws = d),
     api("settings?select=key,value").then(applySettings),
     api("home_requests?select=id,username,note,price,status,reply,created_at&order=id.desc&limit=200").then(d => S.homeReq = d),
-    api("suggestions?select=id,username,kind,text,status,reply,votes,source,created_at&order=id.desc&limit=400").then(d => S.sugg = d)].map(p => p.catch(() => {})));
+    api("suggestions?select=id,username,kind,text,status,reply,votes,source,created_at&order=id.desc&limit=400").then(d => S.sugg = d),
+    api("furniture?select=id,citizen_id,item,size,style,x,z,ry,placed&order=id&limit=20000").then(d => { S.furn = new Map(); for (const r of d) { if (!S.furn.has(r.citizen_id)) S.furn.set(r.citizen_id, []); S.furn.get(r.citizen_id).push(r); } })].map(p => p.catch(() => {})));
 }
 const projSig = list => list.map(p => p.id + p.status).join(",");
 async function loadProjects() {
@@ -6826,7 +7219,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
