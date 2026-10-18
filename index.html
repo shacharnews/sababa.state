@@ -322,7 +322,8 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 /* ============================ CONFIG ============================ */
 const SUPABASE_URL = "https://herjiivecdrwkzudzbap.supabase.co";
 const SUPABASE_KEY = "sb_publishable_zhrnwgsOlYlM6gm_77tGlg_ktWHGaZT";
-const INSTAGRAM = "sababa.state";
+const INSTAGRAM = "sababa.state", TIKTOK = "sababa.state";   // the state's accounts (TIKTOK: the TikTok username that receives the join messages)
+const nick = u => typeof u === "string" && u.startsWith("tt:") ? u.slice(3) + " 🎵" : u;   // citizens who joined from TikTok are saved as tt:name
 const INDEPENDENCE_DAY = "2026-10-11";   // יום 1 של המדינה
 const REFRESH_MS = 60000;                 // בדיקת תושבים חדשים
 
@@ -367,7 +368,7 @@ const HOUSE_NAMES = { "1_0": "קוביה לבנה עם דוד שמש", "1_1": "�
   "3_0": "וילה עם בריכה", "3_1": "אחוזה מודרנית", "3_2": "בית פפיון ענק 🎀" };
 const SPECIAL_HOUSES = ["3_2"];   // given by the state (admin edit), not sold in the shop
 const BOW_PINK = "#e8569a";
-const houseLook = h => { const o = S.houseSign?.get(h.u) || {}; return { text: String(o.text || "").trim() || "@" + h.u, color: /^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : BOW_PINK }; };
+const houseLook = h => { const o = S.houseSign?.get(h.u) || {}; return { text: String(o.text || "").trim() || "@" + nick(h.u), color: /^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : BOW_PINK }; };
 // prices must match shop_price() in upgrade-5.sql
 const HOUSE_PRICE = { "1_0": 800, "1_1": 800, "1_2": 800, "2_0": 8000, "2_1": 8000, "2_2": 11000, "2_3": 12000, "3_0": 25000, "3_1": 40000 };
 const COLORS = { white: ["#f2f2ef", "לבן פיתה"], black: ["#17191c", "שחור קפה"], red: ["#b3121b", "אדום שקשוקה"], blue: ["#1f4f8f", "כחול ים"], olive: ["#5b6b3a", "ירוק זית"],
@@ -596,7 +597,7 @@ function buildPalm() {
   placeLabel("🌴 אי הדקל", g.center.x, 14, g.center.z); placeLabel("🏨 מלון הדקל", g.hotel.x, 50, g.hotel.z);
   const gate = solid([box(.6, 6, .6, "#d9cfb9", -7, 0, 0), box(.6, 6, .6, "#d9cfb9", 7, 0, 0), box(15, 1.6, .5, "#1f6f8b", 0, 5, 0)], g.W(-2, 0).x, g.W(-2, 0).z, ANG, data, .25);
   mountSign(gate, sign("🌴 ברוכים הבאים לאי הדקל", 12, 1.3, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 5.8, -.27, Math.PI);
-  if (creditOf("palm")) mountSign(gate, sign(`💡 ביוזמת ‎@${creditOf("palm")}`, 8, .7, { bg: "#ffffff", fg: "#1f6f8b" }), 0, 4.15, -.27, Math.PI);
+  if (creditOf("palm")) mountSign(gate, sign(`💡 ביוזמת ‎@${nick(creditOf("palm"))}`, 8, .7, { bg: "#ffffff", fg: "#1f6f8b" }), 0, 4.15, -.27, Math.PI);
 }
 // the monorail: back and forth between the station on land and the hotel
 function palmTrain(t) {
@@ -1555,7 +1556,7 @@ function buildSababaLanes([a, b, c, d, w], cap) {
   if (lamps.length) instanced(P.lamp, lamps, ([x, z, ry], o) => { o.position.set(x, .3, z); o.rotation.y = ry; o.scale.setScalar(1.3); });
   gantries.forEach((k, gi) => { const [x, z] = P2(k, 0);
     const g = solid([box(.6, 8, .6, "#9aa0a6", -16.6, 0, 0), box(.6, 8, .6, "#9aa0a6", 16.6, 0, 0), box(34, .7, .7, "#9aa0a6", 0, 7.4, 0)], x, z, r, lanesData, .3);
-    if (gi === 0 && creditOf("lanes")) { mountSign(g, sign(`💡 נתיבי סבבה · ביוזמת ‎@${creditOf("lanes")}`, 9, .8, { bg: "#ffffff", fg: "#0f6b3a" }), 0, 5.1, .4); mountSign(g, sign(`💡 ביוזמת ‎@${creditOf("lanes")}`, 7, .8, { bg: "#ffffff", fg: "#0f6b3a" }), 0, 5.1, -.4, Math.PI); }
+    if (gi === 0 && creditOf("lanes")) { mountSign(g, sign(`💡 נתיבי סבבה · ביוזמת ‎@${nick(creditOf("lanes"))}`, 9, .8, { bg: "#ffffff", fg: "#0f6b3a" }), 0, 5.1, .4); mountSign(g, sign(`💡 ביוזמת ‎@${nick(creditOf("lanes"))}`, 7, .8, { bg: "#ffffff", fg: "#0f6b3a" }), 0, 5.1, -.4, Math.PI); }
     mountSign(g, sign(`נתיבי סבבה · ⚓ נמל העולים`, 12, 2.2, { bg: "#0f6b3a", fg: "#ffffff" }), -8, 6.2, -.4, Math.PI);
     mountSign(g, sign(`נתיבי סבבה · 🏙️ ${cap.city.name}`, 12, 2.2, { bg: "#0f6b3a", fg: "#ffffff" }), 8, 6.2, .4); });
   placeLabel("🛣️ נתיבי סבבה", mid[0], 6, mid[1]);
@@ -1901,7 +1902,7 @@ const estSize = l => ({ W: l.w / 2 - 1.2, D: l.ld / 2 - .8 });
 function buildEstates() {
   const trees = [], palms = [], cyps = [], olives = [];
   for (const h of S.houses) if (h.lot?.est) {
-    const o = S.houseSign?.get(h.u)?.estate || {}, l = h.lot, Q = [], name = o.sign || (S.houseSign?.get(h.u)?.text ? `אחוזת ${S.houseSign.get(h.u).text}` : `האחוזה של @${h.u}`);
+    const o = S.houseSign?.get(h.u)?.estate || {}, l = h.lot, Q = [], name = o.sign || (S.houseSign?.get(h.u)?.text ? `אחוזת ${S.houseSign.get(h.u).text}` : `האחוזה של @${nick(h.u)}`);
     const { W, D } = estSize(l), f = l.face, cs = Math.cos(f), sn = Math.sin(f), W2 = (a, b) => [l.x + a * cs + b * sn, l.z - a * sn + b * cs];
     Q.push(box(3.2, .04, D - 1, "#cfc6b0", 7, 0, (D + 1) / 2 + .5), box(1.4, .04, D - 1.5, "#d8cfbd", -1.2, 0, (D + 1.5) / 2 + .3));   // the driveway and the path to the door
     Q.push(box(.7, 2.4, .7, "#d9cfb9", 5.1, 0, D + .6), box(.7, 2.4, .7, "#d9cfb9", 8.9, 0, D + .6), sph(.3, "*#fff1c2", 5.1, 2.6, D + .6), sph(.3, "*#fff1c2", 8.9, 2.6, D + .6), box(4.5, .45, .35, "#3a3f45", 7, 2.45, D + .6));
@@ -3095,7 +3096,7 @@ function buildBallSquare(p, cx, cz) {
   back.position.y = .95 + .75; back.userData.disposable = true; base.add(back);
   const cap = new THREE.Mesh(new THREE.RingGeometry(WR - .3, WR, 48, 1, -Math.PI / 2 - arc / 2, arc).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#d9cdb6", roughness: .8, side: THREE.DoubleSide }));
   cap.position.y = .95 + 1.5; cap.userData.disposable = true; base.add(cap);
-  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 3.4, .4, { bg: "#ddd2bd", fg: "#5a4a32", font: "700" }), 0, .5, RO + .14);
+  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${nick(p.requested_by)}`, 3.4, .4, { bg: "#ddd2bd", fg: "#5a4a32", font: "700" }), 0, .5, RO + .14);
   instanced(P.palm, [[-16.6, -7], [16.6, -7], [-16.6, 7], [16.6, 7]], ([x, z], o) => { o.position.set(cx + x, Y0 + .6, cz + z); o.scale.setScalar(1.1); o.rotation.y = x; });
   instanced(P.lamp, [[-11, 0, 0], [11, 0, Math.PI]], ([x, z, r], o) => { o.position.set(cx + x, Y0, cz + z); o.rotation.y = r; });
 }
@@ -3211,7 +3212,7 @@ function buildIsletMonument(p, k) {
   // a big bronze-on-dark name plate across the front of the pedestal, sized to it
   const plates = (grp, d, w = 24) => { const pw = Math.min(w * .9, 36);
     mountSign(grp, sign(p.name || M.name, pw, pw * .21, { bg: "#2e2a22", fg: "#f2d58a" }), 0, 27.4 - Math.max(0, pw * .21 - 5) / 2, d / 2 + .3);
-    if (p.requested_by) mountSign(grp, sign(`לבקשת ‎@${p.requested_by}`, pw * .75, pw * .11, { bg: "#2e2a22", fg: "#e2c48a", font: "600" }), 0, 19.6, d / 2 + .3); };
+    if (p.requested_by) mountSign(grp, sign(`לבקשת ‎@${nick(p.requested_by)}`, pw * .75, pw * .11, { bg: "#2e2a22", fg: "#e2c48a", font: "600" }), 0, 19.6, d / 2 + .3); };
   if (!isModel) plates(base, 24);
   // a little ferry pier pointing at the island
   instanced(P.plane, [0], (_, q) => { q.position.set(sp.x * .955, -2.75, sp.z * .955); q.rotation.y = sp.face; q.scale.set(6, 1, 34); return "#9a7348"; }, { shadow: false });
@@ -3255,7 +3256,7 @@ function buildMonument(p, cx, cz) {
     const w = Math.max(9.6, Math.max(fw, fd) + 2); solid([box(w, .6, w, "#b9ac90")], cx, cz - 1.5, -.45, { type: "project", p }, Y0 + 3); });
   else solid(o.finish === "patina" ? patinate(parts) : parts, cx, cz - 1.5, o.type?.startsWith("person") ? -.45 : 0, { type: "project", p }, Y0 + 3).scale.setScalar(scale);   // turned toward the camera
   mountSign(base, sign(p.name || M.name, 8.6, 1.4, { bg: "#3a2f22", fg: "#f6e7c8" }), 0, 1.75, 2.02);
-  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${p.requested_by}`, 7, .7, { bg: "#3a2f22", fg: "#e2c48a", font: "600" }), 0, .75, 2.02);
+  if (p.requested_by) mountSign(base, sign(`לבקשת ‎@${nick(p.requested_by)}`, 7, .7, { bg: "#3a2f22", fg: "#e2c48a", font: "600" }), 0, .75, 2.02);
 }
 const Y0 = CURB + .01; // public lots sit on top of the city's paving
 // an empty public lot, waiting for ideas (or dressed by the admin, or with a business the admin placed on it)
@@ -3433,7 +3434,7 @@ function mark(h) {
   if (!h || !h.lot) { ring.visible = pin.visible = false; return; }
   const me = h === S.mine;
   ring.material.color.set(me ? "#e07a4f" : "#0f8b8d"); ring.position.set(h.x, LAWN + .15, h.z); ring.visible = true;
-  pinEl.className = "marker" + (me ? "" : " alt"); pinEl.querySelector(".bub").textContent = me ? "הבית שלך" : "@" + h.u;
+  pinEl.className = "marker" + (me ? "" : " alt"); pinEl.querySelector(".bub").textContent = me ? "הבית שלך" : "@" + nick(h.u);
   pin.position.set(h.x, h.hk === "3_2" ? 13.5 : h.tier === 1 ? 6 : 9, h.z); pin.visible = true;
 }
 
@@ -3493,7 +3494,7 @@ function estateMap(u) {
   const kinds = [...Object.entries(EST_ITEMS).map(([k, E]) => [k, `${E[0]} ${E[1]}`]), ...Object.entries(ITEMS).filter(([k, T]) => !T.url && !T.prefab).map(([k, T]) => [k, `${T.ic} ${T.n}`])];
   const info = it => { const E = EST_ITEMS[it.t], T = ITEMS[it.t], k = ITEM_SIZES[it.s]?.[1] || 1; return { ic: E ? E[0] : T?.ic || "❓", n: E ? E[1] : T?.n || it.t, w: (E ? E[2] : 3.6) * k, d: (E ? E[3] : 3.6) * k }; };
   ESTMAP.sel = -1;
-  const draw = () => open(`🗺️ החצר של ‎@${h.u}`, `<div class="hero"><p>גוררים כל פריט למקום שרוצים. לחיצה על פריט בוחרת אותו: אפשר לסובב, להגדיל או למחוק. למטה מוסיפים פריטים חדשים. הרחוב בצד התחתון.</p></div>
+  const draw = () => open(`🗺️ החצר של ‎@${nick(h.u)}`, `<div class="hero"><p>גוררים כל פריט למקום שרוצים. לחיצה על פריט בוחרת אותו: אפשר לסובב, להגדיל או למחוק. למטה מוסיפים פריטים חדשים. הרחוב בצד התחתון.</p></div>
     <canvas id="emC" style="width:100%;aspect-ratio:${(W * 2 + 3) / (D * 2 + 6)};touch-action:none;border-radius:16px;margin-top:10px;display:block"></canvas>
     <div id="emSel" class="adm" style="background:var(--tint);border-radius:16px;padding:8px 12px;margin-top:8px"></div>
     <div class="row2" style="margin-top:8px"><label>להוסיף<select id="emT">${kinds.map(([k, n]) => `<option value="${k}">${n}</option>`).join("")}</select></label><label>&nbsp;<button class="btn ghost" id="emAdd">➕ להוסיף</button></label></div>
@@ -3546,13 +3547,13 @@ function estateEdit(u) {
   const total = (h.slot.estLots || []).length, used = S.houses.filter(q => q.slot === h.slot && q.lot?.est && q !== h).length, free = total - used;
   const palmFree = PALM.geo ? PALM.geo.lots.length - S.houses.filter(q => q.lot?.palm && q !== h).length : 0;
   const opt = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}" ${String(k) === String(v ?? "") ? "selected" : ""}>${n}</option>`).join("");
-  open(`🏰 ‎@${h.u}`, `<div class="hero"><p>איפה הבית של ‎@${esc(h.u)}, ואיך נראית האחוזה. בעיר ${esc(h.city.name)} יש <b>${fmtN(Math.max(0, free))}</b> אחוזות פנויות, ובאי הדקל <b>${fmtN(palmFree)}</b> מגרשים פנויים.</p></div>
+  open(`🏰 ‎@${nick(h.u)}`, `<div class="hero"><p>איפה הבית של ‎@${esc(nick(h.u))}, ואיך נראית האחוזה. בעיר ${esc(h.city.name)} יש <b>${fmtN(Math.max(0, free))}</b> אחוזות פנויות, ובאי הדקל <b>${fmtN(palmFree)}</b> מגרשים פנויים.</p></div>
     <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
       <label>איפה גר/ה<select id="esPlace">${opt([["", "🏠 מגרש רגיל"], ["estate", "🏰 אחוזה (חצי בלוק עם בריכה וגינה)"], ["palm", "🌴 וילה באי הדקל"]], cur.place)}</select></label>
       <p class="note" id="esWarn"></p>
       <div class="row2"><label>בריכה<select id="esPool">${opt([["rect", "מלבנית"], ["round", "עגולה"], ["none", "בלי בריכה"]], e.pool || "rect")}</select></label><label>גינה<select id="esGarden">${opt([["trees", "🌳 עצים"], ["palms", "🌴 דקלים"], ["flowers", "🌷 ערוגות פרחים"]], e.garden || "trees")}</select></label></div>
       <label class="chk"><input type="checkbox" id="esFountain" ${e.fountain ? "checked" : ""}> ⛲ מזרקה בחצר</label><label class="chk"><input type="checkbox" id="esGazebo" ${e.gazebo ? "checked" : ""}> 🎪 ביתן בגינה</label>
-      <label>השלט על השער (ריק = אוטומטי)<input id="esSign" maxlength="26" value="${esc(e.sign || "")}" placeholder="${esc(cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${h.u}`)}"></label>
+      <label>השלט על השער (ריק = אוטומטי)<input id="esSign" maxlength="26" value="${esc(e.sign || "")}" placeholder="${esc(cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${nick(h.u)}`)}"></label>
     </div><div class="btns" style="margin-top:12px"><button class="btn" id="esSave">💾 לשמור</button>${h.lot?.est ? `<button class="btn ghost" data-go="estmap" data-arg="${esc(h.u)}">🗺️ לסדר את החצר על המפה</button>` : ""}</div>
     ${h.lot?.est && Array.isArray(e.layout) ? `<p class="note">החצר סודרה ביד במפה, אז הבריכה, המזרקה, הביתן והגינה שבטופס הזה לא משנים אותה. ״לסידור הרגיל״ במפה מחזיר לטופס.</p>` : ""}`, () => {
     const warn = () => { const p = $("esPlace").value; $("esWarn").textContent = p === "estate" && free <= 0 && !h.lot?.est ? `אין אחוזה פנויה ב${h.city.name}. לוחצים על בלוק במפה (🧱) ובוחרים ״אחוזות״, ואז שומרים כאן שוב.` : p === "palm" && palmFree <= 0 && !h.lot?.palm ? "כל המגרשים באי הדקל תפוסים." : p ? "התושב/ת יעבור/תעבור לשם, והכתובת תשתנה." : ""; };
@@ -3706,7 +3707,7 @@ const walkCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .3, 90
 // the doors you can walk in through: every home, workplace, government building, the polling station and the public buildings
 function walkDoors() {
   const D = [], add = (x, z, r, id, label) => D.push({ x, z, r, id, label });
-  for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, 2.7, 0); add(x, z, 2.6, "home:" + h.u, h === WALK.h ? "להיכנס הביתה" : `להציץ אל ‎@${h.u}`); }
+  for (const h of S.houses) if (h.lot) { const [x, z] = frontOf(h, 2.7, 0); add(x, z, 2.6, "home:" + h.u, h === WALK.h ? "להיכנס הביתה" : `להציץ אל ‎@${nick(h.u)}`); }
   for (const w of S.workplaces) if (w.x != null) add(w.x + Math.sin(w.ry || 0) * 6, w.z + Math.cos(w.ry || 0) * 6, 4, w.id, `להיכנס: ${w.name}${S.mine?.wp === w ? " (העבודה שלך)" : ""}`);
   for (const g of GOV) if (g.x != null) add(g.x, g.z + 7.5, 6, "gov:" + g.id, `להיכנס: ${g.name}`);
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
@@ -3763,7 +3764,7 @@ function walkStart(u) {
   scene.fog.near = 90; scene.fog.far = 520; walkCam.aspect = innerWidth / innerHeight; walkCam.updateProjectionMatrix();
   controls.enabled = false; fly = null; document.body.classList.add("walking");
   const touch = matchMedia("(pointer: coarse)").matches;
-  $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(h.u)}</small></span><button id="wX" aria-label="סיום">✕</button></div>
+  $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(nick(h.u))}</small></span><button id="wX" aria-label="סיום">✕</button></div>
     <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div>
     <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
   $("wAct").onclick = () => WALK.mode === "car" ? exitCar() : enterCar();
@@ -4026,7 +4027,7 @@ function cmapList() {
     rows = CMAP.places.filter(p => (p.name + " " + p.addr).toLowerCase().includes(q));
     const streets = new Map(); for (const h of S.houses) if (h.lot && h.lot.street.toLowerCase().includes(q) && !streets.has(h.lot.street + h.city.name)) streets.set(h.lot.street + h.city.name, { ic: "🛣️", name: h.lot.street, addr: `רחוב ב${h.city.name}`, x: h.x, z: h.z, cat: "st" });
     rows.push(...[...streets.values()].slice(0, 12));
-    for (const h of S.houses) if (h.lot && h.u.includes(q) && rows.length < 60) rows.push({ ic: "🏠", name: "@" + h.u, addr: `${h.lot.street} ${h.lot.num}, ${h.city.name}`, x: h.x, z: h.z, cat: "house" });
+    for (const h of S.houses) if (h.lot && h.u.includes(q) && rows.length < 60) rows.push({ ic: "🏠", name: "@" + nick(h.u), addr: `${h.lot.street} ${h.lot.num}, ${h.city.name}`, x: h.x, z: h.z, cat: "house" });
   }
   L.innerHTML = rows.length ? rows.slice(0, 60).map((p, i) => `<button class="li" data-i="${i}"><span class="ic">${esc(p.ic)}</span><span class="tx"><b ${p.cat === "house" ? 'dir="ltr"' : ""}>${esc(p.name)}</b><small>${esc(p.addr)}</small></span><span class="chev">‹</span></button>`).join("") : `<p class="note">לא מצאנו. נסו שם אחר</p>`;
   L.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const p = rows[+b.dataset.i]; CMAP.cx = p.x; CMAP.cz = p.z; CMAP.s = Math.max(CMAP.s, p.cat === "city" ? .8 : 2); cmapSelect(p); cmapDraw(); });
@@ -4046,7 +4047,7 @@ function cmapList() {
     const W = cv.clientWidth, H = cv.clientHeight, [ocx, ocz] = warpXZ(CMAP.cx, CMAP.cz), [wx, wz] = unwarpXZ(ocx + (o.x - W / 2) / CMAP.s, ocz + (o.y - H / 2) / CMAP.s), r = 26 / CMAP.s;
     let best = null, bd = r; for (const p of CMAP.places) { const d = Math.hypot(p.x - wx, p.z - wz); if (d < bd) { bd = d; best = p; } }
     if (!best) for (const l of MAP_LABELS) { const d = Math.hypot(l.x - wx, l.z - wz); if (d < bd) { bd = d; best = { ic: "", name: l.text, x: l.x, z: l.z, addr: l.kind === "st" ? "רחוב" : addrAt(l.x, l.z, nearestSlot(l.x, l.z)), cat: l.kind }; } }
-    if (!best) { const zn = zoneAt(wx, wz); if (zn && !zn.civic) { const h = S.houses.find(q => q.lot && Math.hypot(q.x - wx, q.z - wz) < 7); if (h) best = { ic: "🏠", name: "@" + h.u, addr: `${h.lot.street} ${h.lot.num}, ${h.city.name}`, x: h.x, z: h.z, cat: "house" }; } }
+    if (!best) { const zn = zoneAt(wx, wz); if (zn && !zn.civic) { const h = S.houses.find(q => q.lot && Math.hypot(q.x - wx, q.z - wz) < 7); if (h) best = { ic: "🏠", name: "@" + nick(h.u), addr: `${h.lot.street} ${h.lot.num}, ${h.city.name}`, x: h.x, z: h.z, cat: "house" }; } }
     cmapSelect(best); cmapDraw(); };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", e => P.delete(e.pointerId));
   cv.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(-e.deltaY * .0015), e.offsetX, e.offsetY); }, { passive: false });
@@ -4127,7 +4128,7 @@ function indoorStart(id, door) {
     exits.push({ x: ox + 7.6, z: 4.6, r: 1.6, to: "down", label: "⬇️ לרדת למטה", up: true }); }
   const g = solid(Q, 0, 0, 0, null, 0); sc.add(g);
   const fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); sc.add(fig);
-  IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc, B, est, two, exits, fig, x: 0, z: B.z1 - 3.2, y: 0, up: false, head: Math.PI, wallH, s, door, flags: R.flags || [], name: w.owner ? (w.owner === WALK.h ? "הבית שלי" : `הבית של ‎@${w.owner.u}`) : w.name });
+  IN.fov0 = walkCam.fov; Object.assign(IN, { on: true, w, sc, B, est, two, exits, fig, x: 0, z: B.z1 - 3.2, y: 0, up: false, head: Math.PI, wallH, s, door, flags: R.flags || [], name: w.owner ? (w.owner === WALK.h ? "הבית שלי" : `הבית של ‎@${nick(w.owner.u)}`) : w.name });
   WALK.cy = 0; WALK.pitch = .28; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
   document.body.classList.add("indoors"); const st = $("wSt"); if (st) st.textContent = IN.name;
   walkCam.near = .1; walkCam.fov = 68; walkCam.updateProjectionMatrix();
@@ -4222,7 +4223,7 @@ $("dX").onclick = close; $("scrim").onclick = () => { if (performance.now() - op
 addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 const li = (go, ic, t, sub = "", arg = "") => `<button class="li" data-go="${go}" data-arg="${esc(arg)}"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="chev">‹</span></button>`;
 const info = (ic, t, sub = "") => `<div class="li"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span></div>`;
-const person = (h, sub) => li("house", h.tier === 3 ? "🏡" : "🏠", `<span dir="ltr">@${esc(h.u)}</span>`, sub, h.u);
+const person = (h, sub) => li("house", h.tier === 3 ? "🏡" : "🏠", `<span dir="ltr">@${esc(nick(h.u))}</span>`, sub, h.u);
 const goTo = (x, z, zoom, then) => { close(); flyTo(x, z, zoom); if (then) setTimeout(then, 1250); };
 const cityName = id => S.cities.find(c => c.id === id)?.name || "";
 const sub = () => stack.length > 0;
@@ -4246,7 +4247,7 @@ const GO = {
       ${li("time", "🕐", "השעה במדינה", "יום ולילה לפי שעון ישראל")}
       ${li("symbols", "🏳️", "סמלי המדינה", "הדגל והמוטו")}</div>
     <div class="sec">מבני ממשלה</div><div class="list">${GOV.map(g => li("gov", g.ic, g.name, "", g.id)).join("")}${BALLOT.x != null ? li("ballotHouse", "🗳️", esc(BALLOT.name), "ועדת הבחירות · נכנסים ומצביעים") : ""}</div>
-    <div class="sec">מקומות</div><div class="list">${S.projects.filter(p => p.kind === "monument" && p.x != null).map(p => li("project", "🗽", esc(p.name || "פסל"), p.status === "done" ? (p.requested_by ? `לבקשת ‎@${esc(p.requested_by)}` : "פסל") : "🏗️ בבנייה", p.id)).join("")}${COAST.map(c => li("place", c.ic, c.name, "", c.id)).join("")}
+    <div class="sec">מקומות</div><div class="list">${S.projects.filter(p => p.kind === "monument" && p.x != null).map(p => li("project", "🗽", esc(p.name || "פסל"), p.status === "done" ? (p.requested_by ? `לבקשת ‎@${esc(nick(p.requested_by))}` : "פסל") : "🏗️ בבנייה", p.id)).join("")}${COAST.map(c => li("place", c.ic, c.name, "", c.id)).join("")}
       ${S.projects.filter(p => p.kind !== "monument" && p.status === "done" && p.x != null).map(p => li("project", PROJECT_KINDS[p.kind]?.[0] || "🏗️", esc(p.name || PROJECT_KINDS[p.kind]?.[1]), esc(cityName(p.city_id)), p.id)).join("")}</div>
     <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">📸 ‎@${INSTAGRAM}</a></div>`),
   mine: () => { if (S.mine) { S.sel = null; mark(S.mine); goTo(S.mine.x, S.mine.z, 7, () => showHouse(S.mine)); } else { $("q").focus(); toast("הקלידו את שם המשתמש שלכם באינסטגרם"); } },
@@ -4254,16 +4255,16 @@ const GO = {
     <div class="list">${info("1️⃣", `עוקבים אחרי ‎@${INSTAGRAM}`, "באינסטגרם")}${info("2️⃣", "שולחים את המילה ״אזרחות״", "בהודעה פרטית או בתגובה לריל")}${info("3️⃣", "מקבלים בית, רכב ועבודה", "עם כתובת קבועה באחת הערים")}</div>
     <div class="hero" style="margin-top:12px"><p><b>מתחילים צנוע, משדרגים בדרך.</b> כל יום עבודה מכניס משכורת בסבבונים ${COIN}, ואיתם קונים רכב חדש בצבע שבוחרים או משדרגים את הבית. וכל יום מוגרלים וילה, רכב יוקרה, קידום, מענק כספי ומינוי לשר.</p></div>
     <div class="hero" style="margin-top:8px"><p><b>הבית עוד לא מופיע?</b> משרד הפנים מאשר בקשות פעם-פעמיים ביום. עברו יותר מ־24 שעות? ודאו שאתם עוקבים ושלחו שוב.</p></div>
-    <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">לאינסטגרם</a></div>`, null, sub()),
+    <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">לאינסטגרם</a><button class="btn ghost" data-go="tiktok">🎵 מצטרפים מטיקטוק</button></div>`, null, sub()),
   draws: () => {
     const byDay = new Map(); for (const d of S.draws) { if (!byDay.has(d.draw_date)) byDay.set(d.draw_date, []); byDay.get(d.draw_date).push(d); }
     open("ההגרלה היומית", `<div class="hero"><p><b>כל יום, שישה פרסים בין כל התושבים.</b> הזוכים משודרגים על המפה מיד.</p></div>
       <div class="list" style="margin-top:8px">${Object.values(PRIZES).map(([ic, t]) => info(ic, t)).join("")}</div>
       ${[...byDay.entries()].slice(0, 7).map(([day, list]) => `<div class="sec">${fmtDate(day)}</div><div class="list">${list.map(d => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize], u = d.citizens?.ig_username || "";
-        return li("house", ic, t, `‎@${esc(u)}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
+        return li("house", ic, t, `‎@${esc(nick(u))}${d.details ? " · " + esc(d.details) : ""}`, u); }).join("")}</div>`).join("") || `<div class="sec">זוכים</div><div class="hero"><p>ההגרלה הראשונה עוד לא נערכה. היא תתקיים בקרוב, בשידור בריל 🎬</p></div>`}`, null, sub());
   },
   jobs: () => open("עבודה במדינה", S.slots.filter(s => s.city).map(sl => `<div class="sec">${esc(sl.city.name)}</div><div class="list">${S.workplaces.filter(w => w.city_id === sl.city.id).map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("") || info("⏳", "עוד אין מקומות עבודה")}</div>`).join("") || `<div class="hero"><p>טוען…</p></div>`, null, sub()),
-  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), pay: () => payEdit(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
+  map: () => cmapOpen(), yallkea: () => showYallkea(), catalog: () => ykCatalog(), furnPrices: () => furnPricesEdit(), pay: () => payEdit(), tiktok: () => joinTikTok(), estate: u => estateEdit(u), estmap: u => estateMap(u), palm: () => showPalm(), wpPlace: id => placeStart(id), wpLook: id => wpLook(id), zone: xz => { const [x, z] = xz.split(",").map(Number); zoneEdit(zoneAt(x, z)); },
   work: id => { const w = S.wpById.get(+id); if (!w) return; if (w.x != null) goTo(w.x, w.z, 6, () => showWork(w)); else showWork(w); },
   cities: () => open("הערים", `<div class="list">${S.slots.map((sl, i) => sl.city ? li("slot", "🏘️", esc(sl.city.name), `${fmtN(sl.pop)} תושבים · ${sl.at === 0 ? "עיר הבירה" : `נוסדה בתושב ה־${fmtN(sl.at)}`}`, i)
       : li("slot", "🔒", sl.named ? esc(sl.named.name) : "שטח עתידי", `${sl.named ? "תקום" : "עיר חדשה"} ב־${fmtN(sl.at)} תושבים`, i)).join("")}</div>`, null, sub()),
@@ -4284,7 +4285,7 @@ const GO = {
   place: id => { const c = COAST.find(q => q.id === id); if (c.x == null) return; goTo(c.x, c.z, 3, () => openPlace(id)); },
   id: u => idCard(u),
   ideas: () => {
-    const row = p => li("project", PROJECT_KINDS[p.kind]?.[0] || "🏗️", esc(p.name || PROJECT_KINDS[p.kind]?.[1]), `${p.status === "done" ? "נחנך" : "בבנייה"} · ${esc(cityName(p.city_id))}${p.requested_by ? ` · בהצעת ‎@${esc(p.requested_by)}` : ""}`, p.id);
+    const row = p => li("project", PROJECT_KINDS[p.kind]?.[0] || "🏗️", esc(p.name || PROJECT_KINDS[p.kind]?.[1]), `${p.status === "done" ? "נחנך" : "בבנייה"} · ${esc(cityName(p.city_id))}${p.requested_by ? ` · בהצעת ‎@${esc(nick(p.requested_by))}` : ""}`, p.id);
     const done = S.projects.filter(p => p.status === "done"), building = S.projects.filter(p => p.status !== "done");
     const free = S.slots.filter(s => s.city).reduce((n, s) => n + Math.max(0, (s.publicSpots?.length || 0) - S.projects.filter(p => p.city_id === s.city.id && !p.params?.island && !isMallSite(p)).length), 0);
     open("נבנה לפי בקשתכם", `<div class="hero"><p><b>אתם מחליטים מה נבנה במדינה.</b> כתבו בתגובות לריל מה חסר לכם: גינה, בריכה, מגרש, ספרייה… ההצעות הכי אהובות נבנות על המגרשים הציבוריים, ושם המציע/ה נכתב על הפרויקט.</p></div>
@@ -4315,7 +4316,7 @@ function showSquare(q) {
 function showProject(p) {
   const [ic, kindName] = PROJECT_KINDS[p.kind] || ["🏗️", ""], who = p.requested_by && S.byUser.get(p.requested_by);
   open(`${ic} ${p.name || kindName}`, `${addrHtml(p)}<div class="hero"><p>${p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
-    <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(p.requested_by)}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
+    <div class="list" style="margin-top:10px">${p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(nick(p.requested_by))}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
     ${p.kind === "mall" ? `<div class="sec">🛍️ החנויות בקניון</div><div class="list">${mallStores(p).map(s2 => info(MALL_CATS[s2.cat]?.[0] || "🛍️", esc(s2.name), MALL_CATS[s2.cat]?.[1] || "")).join("")}</div>
       ${isMallSite(p) ? `<p class="note">הקניון עומד ליד נתיבי סבבה, עם חניון ענק וחניון קומות.</p>` : ""}${ADMIN ? `<div class="btns" style="margin:8px 0"><button class="btn ghost" data-go="mallShops" data-arg="${p.id}">🏬 לערוך חנויות</button><button class="btn ghost" data-go="placeReel" data-arg="mallp:${p.id}">🎬 ריל של הקניון</button></div>` : ""}` : ""}
@@ -4347,10 +4348,10 @@ function progress() {
 }
 function showSlot(sl) {
   if (!sl.city) return open(sl.named ? `🔜 ${sl.named.name}` : "שטח עתידי", `<div class="hero"><p>${sl.named ? `<b>${esc(sl.named.name)}</b> תקום כאן` : "כאן תקום עיר חדשה"} כשהמדינה תגיע ל־<b>${fmtN(sl.at)}</b> תושבים.${sl.named ? "" : " התושבים יבחרו לה שם בתגובות."}</p>${progress()}</div>
-    ${sl.named?.founder_username ? `<div class="list" style="margin-top:10px">${info("🏅", `‎@${esc(sl.named.founder_username)}`, "נתנ/ה לעיר את השם")}</div>` : ""}`);
+    ${sl.named?.founder_username ? `<div class="list" style="margin-top:10px">${info("🏅", `‎@${esc(nick(sl.named.founder_username))}`, "נתנ/ה לעיר את השם")}</div>` : ""}`);
   const c = sl.city, ws = S.workplaces.filter(w => w.city_id === c.id);
   open(c.name, `<div class="stats"><div class="stat"><b>${fmtN(sl.pop)}</b><small>תושבים</small></div><div class="stat"><b>${fmtN(ws.length)}</b><small>עסקים</small></div><div class="stat"><b>${sl.at === 0 ? "בירה" : fmtN(sl.at)}</b><small>${sl.at === 0 ? "מעמד" : "נוסדה בתושב"}</small></div></div>
-    <div class="list" style="margin-top:10px">${c.founder_username ? info("🏅", `‎@${esc(c.founder_username)}`, "נתנ/ה לעיר את השם") : info("🗳️", "השם עוד ייבחר", "התושבים יבחרו בתגובות לריל")}${S.mine?.city.id === c.id ? info("📍", "זו העיר שלך") : ""}</div>
+    <div class="list" style="margin-top:10px">${c.founder_username ? info("🏅", `‎@${esc(nick(c.founder_username))}`, "נתנ/ה לעיר את השם") : info("🗳️", "השם עוד ייבחר", "התושבים יבחרו בתגובות לריל")}${S.mine?.city.id === c.id ? info("📍", "זו העיר שלך") : ""}</div>
     ${ADMIN ? `<div class="btns">${editBtn("city:" + c.id)}</div>` : ""}
     ${ws.length ? `<div class="sec">מקומות עבודה</div><div class="list">${ws.map(w => li("work", KIND_IC[w.kind] || "💼", esc(w.name), `${fmtN(w.staff.length)} עובדים`, w.id)).join("")}</div>` : ""}`);
 }
@@ -4371,7 +4372,7 @@ function showHouse(h) {
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="suggest">💡 להציע רעיון למדינה</button></div>
        <div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="walk" data-arg="${esc(h.u)}">🚶 לצאת לטייל</button><button class="btn ghost" data-go="avatar" data-arg="${esc(h.u)}">🧍 הדמות שלי</button><button class="btn ghost" data-go="tx">📒 תנועות</button><button class="btn ghost" data-go="top">🏆 טבלאות</button></div>`
     : `<div class="hero" style="margin-top:8px"><p><b>רוצים לאסוף משכורת ולקנות?</b> פתחו את הקישור האישי ששלחנו לכם באינסטגרם. לא מוצאים? שלחו שוב ״אזרחות״ ותקבלו קישור חדש.</p></div>`;
-  open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${h.u}`, `${ID_STYLE}
+  open(me ? "הבית שלך" : h.hk === "3_2" ? `🎀 ${houseLook(h).text}` : `‎@${nick(h.u)}`, `${ID_STYLE}
     <div data-go="id" data-arg="${esc(h.u)}" style="cursor:pointer;max-width:420px;margin:0 auto">${idcHtml(h)}</div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="home:${esc(h.u)}">🚪 ${me ? "להיכנס הביתה" : "להיכנס לבית"}</button><button class="btn ghost" data-go="id" data-arg="${esc(h.u)}">🪪 תעודה מלאה ושיתוף</button></div>
     ${ADMIN ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="estate" data-arg="${esc(h.u)}">🏰 אחוזה / וילה באי הדקל</button>${h.lot && !h.lot.sq && !h.lot.palm ? `<button class="btn ghost" data-go="zone" data-arg="${h.x},${h.z}">🧱 לשנות את הבלוק</button>` : ""}</div>` : ""}
@@ -4434,6 +4435,61 @@ GO.menu = id => {
       } catch { b.disabled = false; b.textContent = "קנייה"; toast("אין חיבור כרגע. נסו שוב"); } });
   }, true);
 };
+
+/* ============================ JOINING FROM TIKTOK ============================ */
+// a TikTok follower types their username here and gets a code, sends the code to the state's TikTok in a message, the admin approves,
+// and this browser gets the personal link on its own (it keeps checking while the page is open). upgrade-17.sql
+const TTJ = { timer: null };
+const ttSaved = () => { try { return JSON.parse(localStorage.getItem("sababa_tt") || "null"); } catch { return null; } };
+const ttSave = v => { try { v ? localStorage.setItem("sababa_tt", JSON.stringify(v)) : localStorage.removeItem("sababa_tt"); } catch {} };
+async function ttCheck(quiet) {
+  const p = ttSaved(); if (!p) return;
+  try { const r = await rpc("join_status", { platform: "tiktok", username: p.u, token: p.t });
+    if (!r.ok) { if (r.error === "unauthorized") ttSave(null); return; }
+    if (r.status === "rejected") { ttSave(null); clearInterval(TTJ.timer); return quiet ? null : toast("הבקשה לא אושרה. אפשר לנסות שוב", 5000); }
+    if (r.status === "done" && r.key) { clearInterval(TTJ.timer); ttSave(null); saveKey(r.username, r.key);
+      await loadData(); buildWorld(); close(); toast("🎉 ברוכים הבאים לרפובליקת סבבה! הבית שלך מחכה", 6000);
+      setTimeout(() => find(r.username), 600); return; }
+  } catch {}
+}
+function ttWatch() { clearInterval(TTJ.timer); TTJ.timer = setInterval(() => ttCheck(true), 20000); }
+function joinTikTok() {
+  const p = ttSaved();
+  const step2 = p => `<div class="hero" style="margin-top:6px;text-align:center"><p>הקוד שלך:</p><p style="font-size:30px;font-weight:900;letter-spacing:2px;direction:ltr;margin:6px 0" id="ttCode">${esc(p.c)}</p>
+      <div class="btns" style="justify-content:center"><button class="btn ghost" id="ttCopy">📋 להעתיק את הקוד</button></div></div>
+    <div class="list" style="margin-top:10px">${info("1️⃣", `פותחים את ‎@${TIKTOK} בטיקטוק`, "הכפתור למטה")}${info("2️⃣", "שולחים לנו הודעה עם הקוד", "רק את הקוד, בהודעה פרטית")}${info("3️⃣", "מחכים לאישור", "משרד הפנים מאשר פעם-פעמיים ביום. הדף הזה יודע לבד כשאושרתם")}</div>
+    <div class="btns" style="margin-top:12px"><a class="btn" href="https://www.tiktok.com/@${TIKTOK}" target="_blank" rel="noopener">🎵 לשלוח הודעה בטיקטוק</a><button class="btn ghost" id="ttNow">🔄 לבדוק אם אושרתי</button><button class="btn ghost" id="ttOther">שם משתמש אחר</button></div>
+    <p class="note">שם המשתמש: ‎@${esc(p.u)}. אם שלחתם מחשבון אחר, הבקשה לא תאושר.</p>`;
+  const step1 = `<div class="hero"><p><b>מטיקטוק? גם לכם מחכה בית באי 🏝️</b> כותבים כאן את שם המשתמש שלכם בטיקטוק, מקבלים קוד, ושולחים לנו אותו בהודעה פרטית בטיקטוק. אחרי האישור מקבלים בית, רכב, עבודה ו־500 ${COIN} מענק עלייה.</p></div>
+    <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px"><label>שם המשתמש בטיקטוק<input id="ttU" dir="ltr" placeholder="@username" autocomplete="off" autocapitalize="off"></label></div>
+    <div class="btns" style="margin-top:12px"><button class="btn" id="ttGo">🎟️ לקבל קוד</button></div>`;
+  open("🎵 הצטרפות מטיקטוק", p ? step2(p) : step1, () => {
+    const wire2 = () => { $("ttCopy").onclick = () => { try { navigator.clipboard.writeText(ttSaved()?.c || ""); toast("📋 הקוד הועתק"); } catch { toast("סמנו את הקוד והעתיקו"); } };
+      $("ttNow").onclick = async () => { await ttCheck(false); if (ttSaved()) toast("עוד לא אושר. ננסה שוב בעוד רגע ⏳"); };
+      $("ttOther").onclick = () => { ttSave(null); clearInterval(TTJ.timer); stack.pop(); joinTikTok(); }; ttWatch(); };
+    if (p) return wire2();
+    $("ttGo").onclick = async e => { const u = clean($("ttU").value).replace(/^tt:/, ""); if (!/^[a-z0-9._]{2,24}$/.test(u)) return toast("שם משתמש בטיקטוק: אותיות באנגלית, מספרים, נקודה וקו תחתון");
+      e.target.disabled = true;
+      try { const r = await rpc("join_request", { platform: "tiktok", username: u });
+        if (!r.ok) { e.target.disabled = false; return toast({ exists: "יש כבר בית לשם הזה! חפשו אותו בשורת החיפוש", busy: "יש הרבה בקשות כרגע, נסו שוב מחר", bad_username: "שם המשתמש לא תקין" }[r.error] || "לא הצליח. נסו שוב"); }
+        ttSave({ u, t: r.token, c: r.code }); stack.pop(); joinTikTok();
+      } catch { e.target.disabled = false; toast("אין חיבור כרגע, או שצריך להריץ את upgrade-17.sql"); } };
+  });
+}
+// the admin: open requests from TikTok. Check in TikTok that a message with this exact code came from this username, then approve
+async function adminJoins(box) {
+  try { const r = await rpc("admin_join_list", { secret: pref("sababa_admin", "") }); if (!r.ok) return box.innerHTML = `<p class="note">אין גישה לרשימה</p>`;
+    const L = r.list || [];
+    box.innerHTML = L.length ? `<div class="list">${L.map(q => `<div class="li"><span class="ic">🎵</span><span class="tx"><b dir="ltr">@${esc(q.username)}</b><small>קוד: <b dir="ltr">${esc(q.code)}</b> · ${fmtDate(q.created_at)}</small></span>
+      <a class="mini" href="https://www.tiktok.com/@${esc(q.username)}" target="_blank" rel="noopener">👀</a><button class="mini" data-ok="${q.id}">✅</button><button class="mini" data-no="${q.id}">✖️</button></div>`).join("")}</div>
+      <p class="note">בודקים בהודעות בטיקטוק (גם ב״בקשות להודעות״) שהקוד הגיע מהמשתמש הזה, ורק אז מאשרים.</p>` : `<p class="note">אין בקשות שמחכות 👌</p>`;
+    box.querySelectorAll("[data-ok],[data-no]").forEach(b => b.onclick = async () => { const ok = !!b.dataset.ok, id = +(b.dataset.ok || b.dataset.no); if (!ok && !confirm("לדחות את הבקשה?")) return; b.disabled = true;
+      const res = await rpc("admin_join", { secret: pref("sababa_admin", ""), rid: id, approve: ok });
+      if (!res.ok) { b.disabled = false; return toast("לא הצליח"); }
+      if (ok) { toast(`✅ ‎@${nick(res.username)} התאזרח/ה! הקישור האישי הועתק, אפשר לשלוח לו/ה גם בהודעה`, 6000); try { navigator.clipboard.writeText(res.link); } catch {} await loadData(); buildWorld(); }
+      adminJoins(box); });
+  } catch { box.innerHTML = `<p class="note">כדי לראות בקשות מטיקטוק צריך להריץ את upgrade-17.sql</p>`; }
+}
 /* ============================ AVATARS ============================ */
 // every citizen has a figure of their own: free basics, better items for sabbabonim (prices must match avatar_price() in upgrade-9.sql)
 const AV_ITEMS = {
@@ -4679,11 +4735,11 @@ GO.mallShops = id => {
 };
 // credit for places built after a citizen's idea (the palm island, נתיבי סבבה, the hotel): saved in settings "credits" = { palm: "user", lanes: "user", hotel: "user" }
 const creditOf = id => (S.credits || {})[id] || "";
-function creditHtml(id) { const u = creditOf(id); if (!u) return ""; const h = S.byUser.get(u); return `<div class="list" style="margin-top:10px">${h ? person(h, "💡 הרעיון שלו/שלה, תודה!") : info("💡", `‎@${esc(u)}`, "הרעיון שלו/שלה, תודה!")}</div>`; }
-const creditBtn = id => ADMIN ? `<button class="btn ghost" data-go="credit" data-arg="${id}">🙏 קרדיט${creditOf(id) ? `: ‎@${esc(creditOf(id))}` : ""}</button>` : "";
+function creditHtml(id) { const u = creditOf(id); if (!u) return ""; const h = S.byUser.get(u); return `<div class="list" style="margin-top:10px">${h ? person(h, "💡 הרעיון שלו/שלה, תודה!") : info("💡", `‎@${esc(nick(u))}`, "הרעיון שלו/שלה, תודה!")}</div>`; }
+const creditBtn = id => ADMIN ? `<button class="btn ghost" data-go="credit" data-arg="${id}">🙏 קרדיט${creditOf(id) ? `: ‎@${esc(nick(creditOf(id)))}` : ""}</button>` : "";
 GO.credit = async id => { if (!ADMIN) return; const v = prompt("מי ביקש/הציע? שם המשתמש באינסטגרם (ריק = בלי קרדיט)", creditOf(id)); if (v === null) return;
   const u = v.trim().replace(/^@/, "").toLowerCase(), all = { ...(S.credits || {}) }; if (u) all[id] = u; else delete all[id];
-  if (await adminEdit("settings", "credits", { value: all })) { toast(u ? `🙏 הקרדיט ל־‎@${u}` : "הקרדיט הוסר"); close(); } };
+  if (await adminEdit("settings", "credits", { value: all })) { toast(u ? `🙏 הקרדיט ל־‎@${nick(u)}` : "הקרדיט הוסר"); close(); } };
 function showLanes() {
   open("🛣️ נתיבי סבבה", `<div class="hero"><p>הכביש המהיר של המדינה: 8 נתיבים, גשר עם שלטים ירוקים ופנסים, מהבירה ועד נמל העולים. ליד הכביש עומד הקניון הגדול.</p></div>${creditHtml("lanes")}
     <div class="btns" style="margin-top:10px">${creditBtn("lanes")}</div>`);
@@ -4708,7 +4764,7 @@ GO.suggest = () => {
       ${open2 ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" data-go="admin">🏰 ${fmtN(open2)} בקשות לבתים מיוחדים מחכות בלוח הבקרה</button></div>` : ""}` : ""}
     <div class="seg" style="margin-top:12px;flex-wrap:wrap">${tabs.map(([k, n]) => `<button class="${SUG.tab === k ? "on" : ""}" data-sgtab="${k}">${n}</button>`).join("")}</div>
     <div class="list" style="margin-top:10px">${list.map(q => `<div class="li" style="flex-wrap:wrap;align-items:flex-start"><span class="ic">${SUG_K[q.kind]?.[0] || "💡"}</span>
-      <span class="tx"><b>${esc(q.text)}</b><small>‎@${esc(q.username)}${q.source === "instagram" ? " · מאינסטגרם" : ""} · ${fmtDate(q.created_at)} · ${SUG_ST[q.status]?.[0] || ""} ${SUG_ST[q.status]?.[1] || q.status}${q.reply ? `<br>👑 ${esc(q.reply)}` : ""}</small></span>
+      <span class="tx"><b>${esc(q.text)}</b><small>‎@${esc(nick(q.username))}${q.source === "instagram" ? " · מאינסטגרם" : ""} · ${fmtDate(q.created_at)} · ${SUG_ST[q.status]?.[0] || ""} ${SUG_ST[q.status]?.[1] || q.status}${q.reply ? `<br>👑 ${esc(q.reply)}` : ""}</small></span>
       <button class="mini" data-sgvote="${q.id}" ${me ? "" : "disabled"}>👍 ${fmtN(q.votes)}</button>
       ${ADMIN ? `<div style="flex-basis:100%;display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><select data-sgst="${q.id}" style="width:auto">${Object.entries(SUG_ST).map(([k, v]) => `<option value="${k}" ${k === q.status ? "selected" : ""}>${v[0]} ${v[1]}</option>`).join("")}</select>
         <input data-sgre="${q.id}" value="${esc(q.reply || "")}" placeholder="תשובה לתושבים" style="flex:1;min-width:120px"><button class="mini" data-sgsave="${q.id}">💾</button><button class="mini" data-sgdel="${q.id}">🗑</button></div>` : ""}</div>`).join("") || `<p class="note">אין כאן הצעות עדיין.</p>`}</div>`, () => {
@@ -5157,7 +5213,7 @@ function interiorOf(w) {
     const lamp = (x, z) => add(cyl(.18, .25, .1, 12, "#2b2b2b", x, 0, z), cyl(.03, .03, 1.6, 6, "#2b2b2b", x, .1, z), cyl(.25, .35, .4, 14, "*#fff1c2", x, 1.7, z));
 
     if (ow?.lot?.est) {   // an estate: a grand double-height hall with a split staircase to the gallery upstairs, a chandelier, a fireplace, a dining hall and glass doors to the pool
-      const gold = "#c9a24a", bw = st === "3_2", acc = bw ? houseLook(ow).color : "#9b1c2c", acc2 = bw ? "#" + new THREE.Color(houseLook(ow).color).multiplyScalar(.6).getHexString() : "#7a1c2c", wall = bw ? "#fbe7ef" : "#f5efe4", cur = S.houseSign?.get(u) || {}, name = cur.estate?.sign || (cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${u}`);
+      const gold = "#c9a24a", bw = st === "3_2", acc = bw ? houseLook(ow).color : "#9b1c2c", acc2 = bw ? "#" + new THREE.Color(houseLook(ow).color).multiplyScalar(.6).getHexString() : "#7a1c2c", wall = bw ? "#fbe7ef" : "#f5efe4", cur = S.houseSign?.get(u) || {}, name = cur.estate?.sign || (cur.text ? `אחוזת ${cur.text}` : `האחוזה של @${nick(u)}`);
       add(box(28.6, .3, 19.6, "#f1ede6", 0, -.3, 0)); for (let i = 0; i < 14; i++) for (let j = 0; j < 10; j++) if ((i + j) % 2) add(box(2, .02, 1.94, "#d6cfc2", -13 + i * 2, 0, -8.73 + j * 1.94));
       add(box(28.6, 8.4, .3, wall, 0, 0, -9.95), box(.3, 8.4, 19.6, wall, -14.45, 0, 0), box(28.6, 1.2, .34, "#e6dccb", 0, 0, -9.94), box(.34, 1.2, 19.6, "#e6dccb", -14.44, 0, 0),
         box(28.6, .5, .36, gold, 0, 8.4, -9.95), box(.36, .5, 19.6, gold, -14.45, 8.4, 0));
@@ -5209,7 +5265,7 @@ function interiorOf(w) {
       add(cyl(1.6, 1.6, .55, 32, "#ffffff", 5, 0, 2.4), cyl(1.55, 1.6, .15, 32, color, 5, .55, 2.6), ...[-.5, .5].map(x => sph(.32, "#ffffff", 5 + x, .78, 1.2, 1.2, .5, .8)));
       for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; add(sph(.12, "*#ffe9f2", Math.cos(a) * .7 - 3.5, 4.2, Math.sin(a) * .7 + .6)); } add(cyl(.02, .02, .7, 4, "#d9b65a", -3.5, 4.5, .6), cyl(.75, .75, .05, 24, "#d9b65a", -3.5, 4.25, .6));
       plant(8, -5.4, 1.1); plant(-8.2, 5.4, 1);
-      sgn(text, 2.6, .7, 2.4, 1.55, -6.2, 0, dark, "#ffffff"); sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, color, "#ffffff");
+      sgn(text, 2.6, .7, 2.4, 1.55, -6.2, 0, dark, "#ffffff"); sgn(`הבית של ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, color, "#ffffff");
       staff.push([-1.2, .4, -.6]); frame = { idAt: [-5.8, 3.2] };
     } else if (st === "3_0") {   // villa: marble floor, a glass wall to the pool, a grand piano, a chandelier, gold accents
       room("#f1eee8", "#f7f3ea", "#c9a24a", { tiles: "#dcd6cc" });
@@ -5226,7 +5282,7 @@ function interiorOf(w) {
       for (let i = 0; i < 3; i++) for (let j = 0; j < 10; j++) { const a = j / 10 * Math.PI * 2, rr = .4 + i * .3; add(sph(.07, "*#fff4d6", -3.6 + Math.cos(a) * rr, 4.5 - i * .25, 1.4 + Math.sin(a) * rr)); }
       add(cyl(.02, .02, .7, 4, "#c9a24a", -3.6, 4.5, 1.4), cyl(1, .4, .1, 20, "#c9a24a", -3.6, 4.5, 1.4));
       plant(8, 5, 1.3); plant(-8, -4.6, 1.3); art(-1.2, 2.4, 1.4, 1.6, ["#d9c7a4", "#a07a4a", "#e9dcc4"]);
-      sgn(`וילת ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#c9a24a", "#ffffff");
+      sgn(`וילת ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#c9a24a", "#ffffff");
       staff.push([-3, 3.2, Math.PI]); frame = { idAt: [-5.6, 3.1] };
     } else if (st === "3_1") {   // modern mansion: concrete and oak, a floating staircase, a fireplace, a glass wall to the garden
       room("#a8865e", "#8e9399", "#3d4248", { planks: "#9a7a52" });
@@ -5240,7 +5296,7 @@ function interiorOf(w) {
       add(box(2.2, .35, 1, "#2b2f34", -3.2, 0, -1.4), box(.6, .8, .6, "#2b2f34", 1, 0, -1.6), sph(.3, "#c0392b", 1, 1.1, -1.6));
       kitchen(5.5, 0, "#f2f2f2", "#2b2b2b"); add(box(3, .95, 1, "#2b2f34", 5.5, 0, 1.6), box(3.1, .06, 1.1, "#a8865e", 5.5, .95, 1.6)); for (const x of [4.5, 6.5]) pendant(x, 1.6, 3.2);
       plant(8, 5, 1.2); lamp(-6.4, 2.2);
-      sgn(`אחוזת ‎@${u}`, 3.6, .7, -8.98, 3.6, 2.6, Math.PI / 2, "#2b2f34", "#ffffff");
+      sgn(`אחוזת ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2.6, Math.PI / 2, "#2b2f34", "#ffffff");
       staff.push([-3.2, 2.4, Math.PI]); frame = { idAt: [-7.3, 3.3] };
     } else if (st === "2_2") {   // Bauhaus: white, black lines, primary colors, a strip window, terrazzo floor
       room("#e9e6df", "#ffffff", "#111111", { tiles: "#dedad2" });
@@ -5250,7 +5306,7 @@ function interiorOf(w) {
       for (const [x, c] of [[-5.6, "#d62f2f"], [-1.6, "#1f4fa8"]]) add(box(.8, .08, .8, c, x, .45, .6), box(.05, .5, .05, "#111111", x, 0, .6), box(.8, .5, .08, "#111111", x, .5, .6 + (x < -3 ? -.4 : -.4)));
       kitchen(4.5, 5, "#ffffff", "#111111"); table(4.5, -2.2, .8, "#ffffff"); chair(3.5, -2.2, Math.PI / 2, "#f2c230"); chair(5.5, -2.2, -Math.PI / 2, "#d62f2f");
       lamp(-7.4, 4.4); plant(8, 4.6, 1.1); rug(-3.6, 1, 4.4, 3, "#111111", "#f4f4f2");
-      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#111111", "#ffffff");
+      sgn(`הבית של ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#111111", "#ffffff");
       staff.push([-3.6, 3.6, Math.PI]); frame = { idAt: [-6.8, 3.9] };
     } else if (st === "2_3") {   // Jerusalem stone: stone walls, arched windows, wooden beams, low cushions and copper lamps
       room("#b98a5a", "#e6d6b0", "#cdb98e", { tiles: "#c9a77a" });
@@ -5262,7 +5318,7 @@ function interiorOf(w) {
       for (const x of [-5.5, -2.5]) add(cyl(.02, .02, 1.6, 4, "#b8763a", x, 3.4, 1.8), sph(.3, "*#ffb85a", x, 3.2, 1.8, 1, 1.3, 1));
       kitchen(4.5, 5.5, "#7a5232", "#e6d6b0"); table(4.5, -1.6, .9, "#8a5a3a"); for (const [x, ry] of [[3.4, Math.PI / 2], [5.6, -Math.PI / 2]]) chair(x, -1.6, ry, "#6b4a2f");
       plant(8, 4.6, 1.2); plant(-8.3, -5.6, 1);
-      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#6b4a2f", "#f6ead2");
+      sgn(`הבית של ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#6b4a2f", "#f6ead2");
       staff.push([-4, 3.4, Math.PI]); frame = { idAt: [-7, 3.1] };
     } else if (T === "2") {   // a family house: living room, dining table, a kitchen, stairs up to the bedrooms, toys on the rug
       const wc = ["#f3ead8", "#e8f0f2", "#f4e4c1", "#efe3f2", "#e6efe0"][hash(u) % 5];
@@ -5274,7 +5330,7 @@ function interiorOf(w) {
       for (let i = 0; i < 8; i++) add(box(1.4, .2 + i * .55, .9, "#a97c50", -8.2, 0, 5.8 - i * .9));                      // stairs to the second floor
       for (const [x, z, c] of [[-3.2, 2.2, "#f2b440"], [-3.6, 2.5, "#e05a4f"], [-5.6, 2.3, "#3fae6a"]]) add(box(.3, .3, .3, c, x, 0, z));
       shelf(-8.6, -3.5, 3, 2.2, .45, Math.PI / 2, ["#c0392b", "#2f7fa8", "#f2b440", "#3fae6a"], 3); plant(7.8, 3.5, 1);
-      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 1, Math.PI / 2, "#ffffff", "#1b2430"); sgn("בית חם 🏠", 2.2, .6, 3.5, 4.3, -6.48, 0, "#8a6a48", "#ffffff");
+      sgn(`הבית של ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 1, Math.PI / 2, "#ffffff", "#1b2430"); sgn("בית חם 🏠", 2.2, .6, 3.5, 4.3, -6.48, 0, "#8a6a48", "#ffffff");
       staff.push([-4, 3, Math.PI]); frame = { idAt: [-2.1, 3.2] };
     } else {   // a small first home: one room with a bed, a small sofa, a kitchenette and a fan
       const wc = ["#f6f1e7", "#eef3f1", "#f5ecd9"][hash(u) % 3];
@@ -5285,7 +5341,7 @@ function interiorOf(w) {
       sofa(-3, 3.6, 2.4, "#8a9a6a", Math.PI); add(box(1.4, .5, .5, "#a07a50", -3, 0, .6), box(1, .06, .05, "#1a1a1a", -3, 1, .62), box(.9, .55, .05, "*#4aa3df", -3, .55, .6));
       rug(-3, 2, 3, 2, "#e8c39a"); add(cyl(.02, .02, .5, 4, "#333333", 0, 4.7, 0), ...[0, 1, 2].map(i => box(1.4, .02, .18, "#ffffff", 0, 4.6, 0, { y: i * Math.PI / 3 })));
       plant(7.8, 4.5, .9);
-      sgn(`הבית של ‎@${u}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#ffffff", "#1b2430"); sgn("קטן אבל שלי 🏠", 2.6, .6, 4, 4.3, -6.48, 0, "#b9a587", "#ffffff");
+      sgn(`הבית של ‎@${nick(u)}`, 3.6, .7, -8.98, 3.6, 2, Math.PI / 2, "#ffffff", "#1b2430"); sgn("קטן אבל שלי 🏠", 2.6, .6, 4, 4.3, -6.48, 0, "#b9a587", "#ffffff");
       staff.push([-3, 2.6, Math.PI]); frame = { idAt: [-1.6, 3] };
     }
   } else if (k === "gym") {
@@ -5357,7 +5413,7 @@ function interiorTarget(id) {
   if (t === "proj") { const p = S.projects.find(q => q.id === +a); return p && p.kind !== "monument" && p.status === "done" && { id, kind: INDOOR.includes(p.kind) ? p.kind : "outdoor_" + p.kind, stores: p.kind === "mall" ? mallStores(p) : null, name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0], x: p.x, z: p.z, addr: p.addr, city_id: p.city_id, staff: [], back: () => showProject(p) }; }
   if (id === "yallkea" && S.ykSpot) return { id, kind: "yallkea", name: YK.name, ic: "🛋️", x: YK.door?.x ?? S.ykSpot.x, z: YK.door?.z ?? S.ykSpot.z, ry: S.ykSpot.ry, city_id: S.slots[0]?.city?.id, staff: [], addr: "על הגבעה, ליד הכביש המהיר", back: () => showYallkea() };
   if (id === "palmhotel" && PALM.geo) return { id, kind: "hotel", name: "מלון הדקל", ic: "🏨", x: PALM.geo.hotel.x, z: PALM.geo.hotel.z, ry: Math.atan2(-PALM.geo.U.x, -PALM.geo.U.z), city_id: S.slots[0]?.city?.id, staff: [], back: () => showPalm(true) };
-  if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${h.u}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
+  if (t === "home") { const h = S.byUser.get(a); return h?.lot && { id, kind: "home", name: `הבית של @${nick(h.u)}`, ic: "🏠", x: h.x, z: h.z, city_id: h.city.id, staff: [h], owner: h, back: () => showHouse(h) }; }
   return S.wpById.get(+id);
 }
 function enterWork(id) {
@@ -5386,8 +5442,8 @@ function renderIntUI() {
   if (!S.wpById.has(INT.w.id)) {   // a visit: government buildings, public buildings, homes
     const w = INT.w;
     $("intUI").innerHTML = `<div class="ihead glass"><span class="ic">${w.ic || "🏛️"}</span><span class="tx"><b>${esc(w.name)}</b><small>${esc(w.owner ? addressOf(w.owner) : w.addr || cityName(w.city_id))}</small></span><button id="intX" aria-label="יציאה">✕</button></div>
-      <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(w.owner.u)}`) : `ביקור ב${esc(w.name)}`}</p>
-        ${w.owner ? `<p class="note">${esc(addressOf(w.owner))} · תושב/ת #${fmtN(w.owner.no || w.owner.id)} · ${esc(jobTitle(w.owner))}</p><button class="btn" id="idB">🪪 תעודת התושב של ‎@${esc(w.owner.u)}</button>` : ""}
+      <div class="ifoot glass"><p>${w.owner ? (w.owner === S.mine ? "ברוכים הבאים הביתה 🏠" : `ביקור אצל ‎@${esc(nick(w.owner.u))}`) : `ביקור ב${esc(w.name)}`}</p>
+        ${w.owner ? `<p class="note">${esc(addressOf(w.owner))} · תושב/ת #${fmtN(w.owner.no || w.owner.id)} · ${esc(jobTitle(w.owner))}</p><button class="btn" id="idB">🪪 תעודת התושב של ‎@${esc(nick(w.owner.u))}</button>` : ""}
         <p class="note">גוררים כדי להסתובב · צובטים כדי להתקרב</p></div>`;
     $("intX").onclick = exitWork; if ($("idB")) $("idB").onclick = () => idCard(w.owner.u); return;
   }
@@ -5453,7 +5509,7 @@ GO.ballot = async () => {
     const [ic, kn] = EKIND[e.kind] || EKIND.other, open_ = e.status === "open", tot = e.total || 0, max = Math.max(0, ...e.options.map(o => o.votes));
     return `<div class="ballot${open_ ? "" : " closed"}"><div class="bhead"><span>${ic}</span><div><b>${esc(e.title)}</b><small>${kn} · ${open_ ? timeLeft(e.ends_at) : "ההצבעה נסגרה"} · ${fmtN(tot)} מצביעים</small></div></div>
       ${e.options.map(o => { const pct = tot ? Math.round(o.votes / tot * 100) : 0, mine = S.myVotes.includes(o.id), win = !open_ && e.winner_option === o.id;
-        return `<button class="opt${mine ? " mine" : ""}${win ? " win" : ""}" ${open_ && k ? `data-vote="${o.id}"` : "disabled"}><i style="width:${pct}%"></i><span class="ol">${win ? "🏆 " : mine ? "✓ " : ""}${esc(o.label)}${o.by ? `<small>הצעה של ‎@${esc(o.by)}</small>` : ""}</span><span class="op">${open_ || tot ? pct + "%" : ""}</span></button>`; }).join("")}
+        return `<button class="opt${mine ? " mine" : ""}${win ? " win" : ""}" ${open_ && k ? `data-vote="${o.id}"` : "disabled"}><i style="width:${pct}%"></i><span class="ol">${win ? "🏆 " : mine ? "✓ " : ""}${esc(o.label)}${o.by ? `<small>הצעה של ‎@${esc(nick(o.by))}</small>` : ""}</span><span class="op">${open_ || tot ? pct + "%" : ""}</span></button>`; }).join("")}
       ${!open_ && e.winner_option ? `<p class="note">${e.kind === "city" ? "🎉 זה השם החדש של העיר!" : e.kind === "law" ? "🎉 החוק נכנס לספר החוקים" : e.kind === "project" ? "🏗️ מתחילים לבנות!" : "🎉 זו ההחלטה"}</p>` : ""}</div>`;
   };
   const opened = list.filter(e => e.status === "open"), closed = list.filter(e => e.status !== "open");
@@ -5492,6 +5548,7 @@ GO.admin = () => {
   const cityOpts = opt(cities.map(s => [s.city.id, s.city.name]));
   const openE = S.ballot.filter(e => e.status === "open"), building = S.projects.filter(p => p.status !== "done");
   open("👑 לוח בקרה", `<div class="hero"><p>כל מה שעשית ב־Supabase, מכאן. כל פעולה נכנסת לתוקף באתר מיד.</p></div>
+    <details class="adm" open><summary>🎵 מצטרפים מטיקטוק</summary><div id="ttAdm"><p class="note">טוען…</p></div></details>
     <div class="btns" style="margin:6px 0 10px"><button class="btn ghost" data-go="pay">💰 משכורות יומיות</button><button class="btn ghost" data-go="furnPrices">🛋️ מחירי סבבהום</button></div>
     <details class="adm" open><summary>🗳️ בחירות בקלפי</summary>
       <label>שאלה<input id="eTitle" placeholder="איך נקרא לעיר החדשה?"></label>
@@ -5515,7 +5572,7 @@ GO.admin = () => {
     <div class="btns" style="margin:10px 0"><button class="btn ghost" data-go="suggest">💡 הצעות התושבים${(S.sugg || []).filter(q => q.status === "new").length ? ` · ${fmtN(S.sugg.filter(q => q.status === "new").length)} חדשות` : ""}</button></div>
     <details class="adm"${(S.homeReq || []).some(r => r.status === "open") ? " open" : ""}><summary>🏰 בקשות לבתים מיוחדים${(S.homeReq || []).filter(r => r.status === "open").length ? ` (${fmtN(S.homeReq.filter(r => r.status === "open").length)})` : ""}</summary>
       <p class="note">תושבים שילמו והזמינו בית בעיצוב משלהם. בונים (או משדרגים כל תושב לאחוזה / אי הדקל) מהכרטיס של הבית, בכפתור 🏰, ואז מסמנים כאן ״נבנה״. ״החזר״ מבטל ומחזיר את הכסף.</p>
-      ${(S.homeReq || []).length ? `<div class="list">${S.homeReq.slice(0, 30).map(r => `<div class="li" style="flex-wrap:wrap"><span class="ic">${r.status === "open" ? "⏳" : r.status === "done" ? "🎉" : "↩️"}</span><span class="tx"><b><a href="#" data-go="house" data-arg="${esc(r.username)}">‎@${esc(r.username)}</a> · ${fmtN(r.price)} ${COIN}</b><small>${esc(r.note)}${r.reply ? ` · ${esc(r.reply)}` : ""}</small></span>${r.status === "open" ? `<button class="mini" data-hr="${r.id}" data-st="done">🎉 נבנה</button><button class="mini" data-hr="${r.id}" data-st="refunded">↩️ החזר</button>` : ""}</div>`).join("")}</div>` : `<p class="note">עוד אין בקשות.</p>`}
+      ${(S.homeReq || []).length ? `<div class="list">${S.homeReq.slice(0, 30).map(r => `<div class="li" style="flex-wrap:wrap"><span class="ic">${r.status === "open" ? "⏳" : r.status === "done" ? "🎉" : "↩️"}</span><span class="tx"><b><a href="#" data-go="house" data-arg="${esc(r.username)}">‎@${esc(nick(r.username))}</a> · ${fmtN(r.price)} ${COIN}</b><small>${esc(r.note)}${r.reply ? ` · ${esc(r.reply)}` : ""}</small></span>${r.status === "open" ? `<button class="mini" data-hr="${r.id}" data-st="done">🎉 נבנה</button><button class="mini" data-hr="${r.id}" data-st="refunded">↩️ החזר</button>` : ""}</div>`).join("")}</div>` : `<p class="note">עוד אין בקשות.</p>`}
     </details>
     <details class="adm"><summary>📜 חוק חדש</summary>
       <label>החוק<input id="lTitle" placeholder="חובת חומוס בימי שלישי"></label><label>הסבר (לא חובה)<input id="lDesc"></label><label>מי הציע (לא חובה)<input id="lBy" dir="ltr" autocapitalize="off" placeholder="username"></label>
@@ -5557,6 +5614,7 @@ GO.admin = () => {
     const setTarget = () => { const k = $("eKind").value; $("eTargetL").style.display = k === "city" || k === "project" ? "" : "none";
       $("eTarget").innerHTML = k === "city" ? opt(sites, S.slots.find(s => !s.city)?.at) : cityOpts; };
     $("eKind").onchange = setTarget; setTarget();
+    if ($("ttAdm")) adminJoins($("ttAdm"));
     $("eCreate").onclick = e => { const kind = v("eKind"), options = parseOptions($("eOpts").value, kind);
       if (!v("eTitle") || options.length < 2) return toast("צריך שאלה ולפחות 2 אפשרויות");
       run(e.target, "election_create", { title: v("eTitle"), kind, target: kind === "city" || kind === "project" ? v("eTarget") : null, hours: +v("eHours"), options }, "🗳️ הקלפי נפתחה! עכשיו ריל שמזמין להצביע");
@@ -5670,7 +5728,7 @@ GO.edit = arg => {
   }
   if (t === "cit") {
     const h = S.byUser.get(id); if (!h) return;
-    return editForm("@" + h.u, [["house", "בית", "select", Object.entries(HOUSE_NAMES).map(([k, n]) => [k, n])], ["car", "רכב", "select", CAR_KEYS.map(k => [k, `${CARS[k].name} · ${TIER_NAMES[CARS[k].tier]}`])],
+    return editForm("@" + nick(h.u), [["house", "בית", "select", Object.entries(HOUSE_NAMES).map(([k, n]) => [k, n])], ["car", "רכב", "select", CAR_KEYS.map(k => [k, `${CARS[k].name} · ${TIER_NAMES[CARS[k].tier]}`])],
       ["color", "צבע רכב", "select", COLOR_KEYS.map(k => [k, COLORS[k][1]])], ["wp", "עבודה", "select", [["", "בלי עבודה"], ...S.workplaces.map(w => [w.id, `${w.name} · ${cityName(w.city_id)}`])]],
       ["level", "דרגה בעבודה", "select", [[1, "עובד/ת"], [2, LEVEL[2]], [3, LEVEL[3]], [4, LEVEL[4]]]], ["coins", "סבבונים בארנק", "number"],
       ["sign_text", "🎀 הכיתוב על בית הפפיון (למשל השם)"], ["sign_color", "🎀 צבע בית הפפיון", "color"]],
@@ -5681,7 +5739,7 @@ GO.edit = arg => {
           if (!r.ok) { toast(r.error === "unauthorized" ? "קוד המנהל לא תקף" : "הכיתוב לא נשמר", 5000); return false; }
         }
         return adminEdit("citizens", h.id, { house_style: v.house, house_tier: +v.house[0], car_model: v.car, car_tier: CARS[v.car].tier, car_color: v.color, workplace_id: v.wp ? +v.wp : null, job_level: +v.level, coins: v.coins ?? 0 }); },
-      () => confirm(`בטוח למחוק את @${h.u} מהמדינה, עם הבית, הארנק וההיסטוריה?`) && adminEdit("citizens", h.id, {}, true), () => GO.house(h.u));
+      () => confirm(`בטוח למחוק את @${nick(h.u)} מהמדינה, עם הבית, הארנק וההיסטוריה?`) && adminEdit("citizens", h.id, {}, true), () => GO.house(h.u));
   }
   if (t === "gov") {
     const g = GOV.find(q => q.id === id); if (!g) return;
@@ -5699,7 +5757,7 @@ const editBtn = arg => ADMIN ? `<button class="btn ghost" data-go="edit" data-ar
 /* ============================ SEARCH ============================ */
 function find(qs) {
   const q = qs.trim(); if (!q) return; $("q").blur(); close();
-  const byName = S.byUser.get(clean(q));
+  const byName = S.byUser.get(clean(q)) || S.byUser.get("tt:" + clean(q).replace(/^tt:/, "").replace(/\s*🎵$/, ""));
   let h = byName;
   if (!h) { const lq = q.toLowerCase().replace(/,.*$/, "").trim(); h = S.byAddr.get(lq) || [...S.byAddr.entries()].find(([k]) => k.startsWith(lq))?.[1]; }
   if (!h) return open("לא נמצא", `<div class="hero"><p>אין עדיין בית ל־<b dir="ltr">${esc(q)}</b> במדינה.</p></div><div class="list" style="margin-top:8px">${li("how", "🛂", "איך מתאזרחים?", "ולמה הבית עוד לא מופיע")}</div>`);
@@ -5726,7 +5784,7 @@ async function makeStory(h) {
   const gold = x.createLinearGradient(cx + 50, cy + 50, cx + 130, cy + 110); gold.addColorStop(0, "#f6d27a"); gold.addColorStop(1, "#c99a3d"); x.fillStyle = gold; rr(x, cx + 50, cy + 52, 84, 62, 12); x.fill();
   x.fillStyle = "#fff"; x.font = "800 64px Heebo"; x.direction = "ltr"; x.textAlign = "right"; x.fillText(pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2"), cx + cw - 50, cy + 250);
   x.direction = "rtl"; const fld = (k, v, X, Y, sz = 38) => { x.globalAlpha = .7; x.font = "400 24px Heebo"; x.fillText(k, X, Y); x.globalAlpha = 1; x.font = `700 ${sz}px Heebo`; x.fillText(v, X, Y + sz + 6, cw - 100); };
-  fld("שם משתמש", "@" + h.u, cx + cw - 50, cy + 310); fld("כתובת", addressOf(h), cx + cw - 50, cy + 410, 34);
+  fld("שם משתמש", "@" + nick(h.u), cx + cw - 50, cy + 310); fld("כתובת", addressOf(h), cx + cw - 50, cy + 410, 34);
   x.textAlign = "center"; x.fillStyle = "#fff"; x.font = "500 36px Heebo"; x.fillText(jobTitle(h), W / 2, 1110, W - 160);
   x.font = "400 30px Heebo"; x.globalAlpha = .9; x.fillText(`${HOUSE_NAMES[h.hk]} · ${CARS[h.cm].name} ב${COLORS[h.ck][1]}`, W / 2, 1160, W - 160); x.globalAlpha = 1;
   // achievements
@@ -5748,7 +5806,7 @@ const ID_STYLE = `<style>.idc-ach{display:flex;flex-wrap:wrap;gap:6px;margin-top
 // the card itself: shown in the ID drawer, on top of every house, and inside every home
 const idcHtml = h => `<div class="idc"><img class="idc-av" alt="" src="${avatarThumb(avatarOf(h), 150, 170, true)}"><div class="idc-chip"></div><div class="idc-top">${FLAG}<div><b>רפובליקת סבבה</b><small>IDENTITY CARD · תעודת זהות</small></div></div>
       <div class="idc-num">${pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2")}</div>
-      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(h.u)}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
+      <div class="idc-grid"><div><small>שם משתמש</small><span dir="ltr" style="text-align:right">@${esc(nick(h.u))}</span></div><div><small>תאריך התאזרחות</small><span>${h.joined ? fmtDate(h.joined) : ""}</span></div>
       <div class="wide"><small>כתובת</small><span>${esc(addressOf(h))}</span></div><div class="wide"><small>עיסוק</small><span>${esc(jobTitle(h))}</span></div></div></div>`;
 // the same card drawn on a canvas, to hang inside the 3D home
 function idTexture(h) {
@@ -5761,7 +5819,7 @@ function idTexture(h) {
   x.font = "800 64px Heebo, Arial"; x.direction = "ltr"; x.textAlign = "left"; x.fillText(pad(h.id).replace(/(\d{3})(\d{3})/, "$1 $2"), 230, 270);
   const row = (lab, val, y, ltr) => { x.direction = "rtl"; x.textAlign = "right"; x.font = "500 28px Heebo, Arial"; x.globalAlpha = .75; x.fillText(lab, W - 70, y); x.globalAlpha = 1;
     x.font = "700 40px Heebo, Arial"; let s = String(val); while (x.measureText(s).width > W - 380 && s.length > 4) s = s.slice(0, -2); if (ltr) { x.direction = "ltr"; x.textAlign = "right"; } x.fillText(s, W - 70, y + 46); };
-  row("שם משתמש", "@" + h.u, 350, true); row("כתובת", addressOf(h), 450); row("עיסוק", jobTitle(h), 550);
+  row("שם משתמש", "@" + nick(h.u), 350, true); row("כתובת", addressOf(h), 450); row("עיסוק", jobTitle(h), 550);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   // the citizen's portrait, bottom left
   const img = new Image(); img.onload = () => { x.fillStyle = "rgba(255,255,255,.18)"; x.beginPath(); x.roundRect(64, 320, 230, 270, 24); x.fill(); x.drawImage(img, 64, 320, 230, 270); t.needsUpdate = true; };
@@ -5827,9 +5885,9 @@ function tourShots(night) {
   for (const w of [ws.find(w => w.kind === "tech"), ws.find(w => w.kind === "hummus"), ws.find(w => w.kind === "school")].filter(Boolean))
     stops.push({ o: w, cap: `${KIND_IC[w.kind] || "💼"} ${w.name}`, sub: `${fmtN(w.staff?.length || 0)} תושבים עובדים כאן`, zoom: 5.5 });
   const p = S.projects.filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0];
-  if (p) stops.push({ o: p, cap: `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}`, sub: p.requested_by ? `נבנה לבקשת ‎@${p.requested_by}` : "נבנה לבקשת התושבים", zoom: 4.5 });
+  if (p) stops.push({ o: p, cap: `${PROJECT_KINDS[p.kind]?.[0] || "🏗️"} ${p.name || PROJECT_KINDS[p.kind]?.[1]}`, sub: p.requested_by ? `נבנה לבקשת ‎@${nick(p.requested_by)}` : "נבנה לבקשת התושבים", zoom: 4.5 });
   const h = founder();
-  if (h?.lot) stops.push({ o: h, cap: `🏘️ ${h.lot.street}`, sub: `השכונה של ‎@${h.u}`, zoom: 7, mark: h });
+  if (h?.lot) stops.push({ o: h, cap: `🏘️ ${h.lot.street}`, sub: `השכונה של ‎@${nick(h.u)}`, zoom: 7, mark: h });
   for (const c of COAST.filter(c => c.id !== "beach" && c.x != null)) stops.push({ o: c, cap: `${c.ic} ${c.name}`, sub: c.id === "harbor" ? "כאן מגיעים התושבים החדשים" : "מאיר את הדרך לאי", zoom: 3.4 });
   const list = [{ d: 3, a: at(ORIGIN, zf, -.6), b: at(cap, 2.6, -.2, .5), cap: night ? "המדינה בלילה 🌙" : "סיור במדינה 🚗", sub: `${cap.city.name} · ${fmtN(S.total)} תושבים` }];
   stops.slice(0, 6).forEach((st, i) => list.push({ d: 2.6, b: at(st.o, st.zoom, -.2 + i * .45, LOW), cap: st.cap, sub: st.sub, mark: st.mark }));
@@ -5946,7 +6004,7 @@ const NEWS = {
   walk: { ic: "🚶", t: "עכשיו אפשר לטייל בעיר", sub: "עם הדמות שלך, בכל רחוב ושדרה", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 14), off = h.lot.sq ? -h.lot.sq.sz * 2.4 : h.lot.j === 0 ? 2 : -5.2;   // on the sidewalk on the house's side
     const f = avatarMesh(avatarOf(h), 1.25); world.add(f); f.visible = false;
     P.push({ update(el) { const k = (el - t0) / d; f.visible = k >= 0 && k <= 1; if (!f.visible) return; const q = path(k); f.position.set(q.x, CURB + Math.abs(Math.sin(el * 9)) * .07, q.z + off); f.rotation.y = q.ry; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); } });
-    const m = path(.5); return { a: at({ x: m.x, z: m.z + off }, 40, -.5, .5), b: at({ x: m.x, z: m.z + off }, 48, .1, .45), pin: el => ({ x: f.position.x, y: CURB + 3.4, z: f.position.z, label: `🚶 ‎@${h.u}` }) }; } },
+    const m = path(.5); return { a: at({ x: m.x, z: m.z + off }, 40, -.5, .5), b: at({ x: m.x, z: m.z + off }, 48, .1, .45), pin: el => ({ x: f.position.x, y: CURB + 3.4, z: f.position.z, label: `🚶 ‎@${nick(h.u)}` }) }; } },
   drive: { ic: "🚗", t: "לנהוג ברכב שלך", sub: "בשדרות, ברחובות ובכיכרות", ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 60), car = mover(P_["car_" + h.cm], h.cc);
     P.push({ update(el) { const k = clamp01((el - t0) / d), q = path(ease(k)); car.set(q.x, .3, q.z, q.ry); }, dispose() { car.dispose(); } });
     const at_ = el => path(ease(clamp01((el - t0) / d))); return { follow: at_, a: at(path(0), 20, -.4, .45), b: at(path(1), 22, .3, .42), pin: el => ({ ...at_(el), y: 3.6, label: `🚗 ${CARS[h.cm].name}` }) }; } },
@@ -5958,7 +6016,7 @@ const NEWS = {
     P.push({ update(el) { const on = el >= t0 && el <= t0 + d; for (const f of figs) f.visible = on; }, dispose() { for (const f of figs) { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); } } });
     return { a: at({ x: c.x, z: c.z + 9.6 }, 40, -.25, .42), b: at({ x: c.x, z: c.z + 9.6 }, 46, .25, .38) }; } },
   homes: { ic: "🛋️", t: "עיצוב פנימי לכל סוג בית", sub: "מבית קטן ועד וילה ואחוזה", ok: () => S.houses.some(h => h.lot && h.tier === 3), shot: () => ({ inside: interiorTarget("home:" + S.houses.find(h => h.lot && h.hk === "3_0" || h.lot && h.tier === 3).u) }) },
-  bowtie: { ic: "🎀", t: "בית הפפיון", sub: "בית מיוחד במתנה מהמדינה", ok: () => S.houses.some(h => h.lot && h.hk === "3_2"), shot: () => { const h = S.houses.find(q => q.lot && q.hk === "3_2"); return { a: at(h, 12, -.5, .32), b: at(h, 16, .4, .28), mark: h, sub: `של ‎@${h.u}` }; } },
+  bowtie: { ic: "🎀", t: "בית הפפיון", sub: "בית מיוחד במתנה מהמדינה", ok: () => S.houses.some(h => h.lot && h.hk === "3_2"), shot: () => { const h = S.houses.find(q => q.lot && q.hk === "3_2"); return { a: at(h, 12, -.5, .32), b: at(h, 16, .4, .28), mark: h, sub: `של ‎@${nick(h.u)}` }; } },
   balls: { ic: "⚽", t: "כיכר הכדורים", sub: "בהשראת הכיכר בלוד", ok: () => S.projects.some(p => p.params?.type === "balls" && p.x != null && p.status === "done"), shot: () => { const p = S.projects.find(q => q.params?.type === "balls" && q.x != null && q.status === "done"); return { a: at(p, 7, -.4, .3), b: at(p, 10, .3, .26) }; } },
   arrival: { ic: "🚢", t: "תושבים חדשים מגיעים בספינה", sub: "ורכב המדינה מסיע אותם הביתה", ok: () => COAST[0].x != null, shot: () => { const c = COAST[0]; return { a: at(c, 3.2, -.5, .36), b: at(c, 4.4, .2, .32) }; } },
   // ---- release 2026-10-18 ----
@@ -6030,12 +6088,12 @@ const TEMPLATES = {
     const rich = richest()[0];
     const sq = CENTRAL.on ? { x: CENTRAL.on.cx, z: CENTRAL.on.cz } : cap;
     list.push({ d: 3.2, a: at(sq, 8, -.7, .22), b: at(cap, 1.8, -.2, .45), cap: `עדכון יומי · יום ${fmtN(dayNo())}`, sub: new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }), say: `עדכון יומי מרפובליקת סבבה. יום ${dayNo()} למדינה.` });
-    if (fresh.length) list.push({ d: 3.2, b: at(fresh[0], 8, 0, .5), cap: `+${fmtN(fresh.length)} תושבים חדשים`, sub: "ברוכים הבאים " + fresh.slice(0, 3).map(h => "‎@" + h.u).join(", "), mark: fresh[0] });
+    if (fresh.length) list.push({ d: 3.2, b: at(fresh[0], 8, 0, .5), cap: `+${fmtN(fresh.length)} תושבים חדשים`, sub: "ברוכים הבאים " + fresh.slice(0, 3).map(h => "‎@" + nick(h.u)).join(", "), mark: fresh[0] });
     else list.push({ d: 3, b: at(cap, 3, .2, .5), cap: `${fmtN(S.total)} תושבים במדינה`, sub: "מחכים לתושבים החדשים של מחר" });
-    if (wins.length) list.push({ d: 3.2, b: at(wins[0].h, 8, .5, .5), cap: `🎟️ ${fmtN(wins.length)} זוכים בהגרלה`, sub: wins.slice(0, 3).map(({ d, h }) => `${(PRIZES[d.prize] || ["🎁"])[0]} ‎@${h.u}`).join("  "), mark: wins[0].h });
-    if (proj) list.push({ d: 3.2, b: at(proj, 4.2, .9, .45), cap: `${proj.status === "done" ? "🎉 נחנך" : "🏗️ התחילו לבנות"}: ${proj.name || PROJECT_KINDS[proj.kind]?.[1]}`, sub: proj.requested_by ? `בזכות ההצעה של ‎@${proj.requested_by}` : "לבקשת התושבים" });
+    if (wins.length) list.push({ d: 3.2, b: at(wins[0].h, 8, .5, .5), cap: `🎟️ ${fmtN(wins.length)} זוכים בהגרלה`, sub: wins.slice(0, 3).map(({ d, h }) => `${(PRIZES[d.prize] || ["🎁"])[0]} ‎@${nick(h.u)}`).join("  "), mark: wins[0].h });
+    if (proj) list.push({ d: 3.2, b: at(proj, 4.2, .9, .45), cap: `${proj.status === "done" ? "🎉 נחנך" : "🏗️ התחילו לבנות"}: ${proj.name || PROJECT_KINDS[proj.kind]?.[1]}`, sub: proj.requested_by ? `בזכות ההצעה של ‎@${nick(proj.requested_by)}` : "לבקשת התושבים" });
     if (law && kn?.x != null) list.push({ d: 3.2, b: at(kn, 4, 1.2, LOW), cap: "📜 חוק חדש", sub: law.title });
-    if (rich?.lot && rich.coins) list.push({ d: 3, b: at(rich, 9, 1.5, .5), cap: "💰 העשיר/ה במדינה", sub: `‎@${rich.u} · ${fmtN(rich.coins)} ${COIN}`, mark: rich });
+    if (rich?.lot && rich.coins) list.push({ d: 3, b: at(rich, 9, 1.5, .5), cap: "💰 העשיר/ה במדינה", sub: `‎@${nick(rich.u)} · ${fmtN(rich.coins)} ${COIN}`, mark: rich });
     list.push({ d: 3.2, b: at(ORIGIN, zf, 2), cap: "מחר עוד עדכון", sub: "תגיבו ״אזרחות״ ותהיו חלק מזה 👇" });
     return hours(chain(list), 7, 20.5);
   } },
@@ -6052,7 +6110,7 @@ const TEMPLATES = {
   rich: { ic: "💰", name: "עשירי המדינה", sub: "5 התושבים עם הכי הרבה סבבונים", ok: () => richest().length >= 3, why: "צריך לפחות 3 תושבים עם ארנק", shots() {
     const zf = reelFit(), top = richest().slice(0, 5).reverse();
     const list = [{ d: 3.2, a: at(top.at(-1), 16, -.5, .18), b: at(top[0], 3, 0, .5), cap: "💰 עשירי המדינה", sub: "מי צבר הכי הרבה סבבונים?" }];
-    top.forEach((h, i) => list.push({ d: 2.7, b: at(h, 9, .3 + i * .35, .5), cap: `#${top.length - i} ‎@${h.u}`, sub: `${fmtN(h.coins)} ${COIN} · ${CARS[h.cm].name}`, mark: h }));
+    top.forEach((h, i) => list.push({ d: 2.7, b: at(h, 9, .3 + i * .35, .5), cap: `#${top.length - i} ‎@${nick(h.u)}`, sub: `${fmtN(h.coins)} ${COIN} · ${CARS[h.cm].name}`, mark: h }));
     list.push({ d: 3, b: at(ORIGIN, zf, 2.2), cap: "כל יום עבודה = משכורת", sub: "תגיבו ״אזרחות״ ותתחילו להרוויח 👇" });
     return hours(chain(list), 10, 18.5);
   } },
@@ -6061,7 +6119,7 @@ const TEMPLATES = {
     const inK = interiorTarget("gov:knesset"), list = inK ? [{ d: 3.6, inside: inK, a: { az: .2, dist: 19, el: .5 }, b: { az: .85, dist: 13, el: .4 }, cap: "📜 חוק חדש במדינה", sub: `נחקק בכנסת · חוק מספר ${fmtN(S.laws.length)}` },
       { d: 4.4, a: at(kn, 9, -.3, .22), b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }]
       : [{ d: 3, a: at(ORIGIN, zf, -.4), b: at(kn, 3.2, -.2, .5), cap: "📜 חוק חדש במדינה", sub: `חוק מספר ${fmtN(S.laws.length)}` }, { d: 4.2, b: at(kn, 5, .7, LOW), cap: l.title, sub: l.description || "התקבל בהצבעה בתגובות" }];
-    if (by?.lot) list.push({ d: 3.2, b: at(by, 9, 1.1, .5), cap: "הוצע ע״י", sub: `‎@${by.u} 🏅`, mark: by });
+    if (by?.lot) list.push({ d: 3.2, b: at(by, 9, 1.1, .5), cap: "הוצע ע״י", sub: `‎@${nick(by.u)} 🏅`, mark: by });
     list.push({ d: 3.4, b: at(ORIGIN, zf, 1.9), cap: "מה החוק הבא?", sub: "תציעו בתגובות, הכי אהוב נכנס 👇" });
     return hours(chain(list), 11, 18.8);
   } },
@@ -6077,24 +6135,24 @@ const TEMPLATES = {
   newcomers: { ic: "👋", name: "תושבים חדשים", sub: "מי הגיע לאי ב־24 השעות האחרונות", ok: () => S.houses.some(h => h.lot), shots() {
     const fresh = S.houses.filter(h => h.lot && recent(h.joined)).sort((a, b) => b.id - a.id), pick = (fresh.length ? fresh : [...S.houses].filter(h => h.lot).sort((a, b) => b.id - a.id)).slice(0, 3), zf = reelFit();
     const hb = COAST.find(c => c.id === "harbor"), shots = [{ d: 3.4, a: hb?.x != null ? at(hb, 5, -.9, .26) : at(ORIGIN, zf * .9, -.4), b: at(pick[0], 2.4, 0), h: [9, 11], cap: fresh.length ? `${fmtN(fresh.length)} תושבים חדשים הגיעו היום` : "התושבים החדשים של המדינה", sub: `סה״כ ${fmtN(S.total)} תושבים · יום ${fmtN(dayNo())}` }];
-    pick.forEach((h, i) => shots.push({ d: 3, b: at(h, 9, .2 * i + .35, .5), h: [11 + i, 12 + i], cap: `ברוכים הבאים ‎@${h.u}`, sub: addressOf(h), mark: h }));
+    pick.forEach((h, i) => shots.push({ d: 3, b: at(h, 9, .2 * i + .35, .5), h: [11 + i, 12 + i], cap: `ברוכים הבאים ‎@${nick(h.u)}`, sub: addressOf(h), mark: h }));
     shots.push({ d: 3.6, b: at(ORIGIN, zf, 1.3), h: [17, 20], cap: "גם לך מחכה בית", sub: "תגיבו ״אזרחות״ 👇" });
     return chain(shots);
   } },
   // the daily arrival reel (admin only): the immigrants' ship sails into the harbor, the state van drives the new citizens home one by one, along the streets
   arrival: { ic: "🚢", name: "העולים של היום", sub: "ספינה לנמל, רכב מדינה לכל בית חדש", ok: h => arrivalList(h).length > 0 && COAST[0].x != null, why: "צריך תושבים עם בית", props: h => arrivalProps(arrivalList(h)), shots(h) {
-    const list = arrivalList(h), A = REEL.arr, one = list.length === 1, zf = reelFit(), who = list.map(q => "‎@" + q.u).join(" · ");
+    const list = arrivalList(h), A = REEL.arr, one = list.length === 1, zf = reelFit(), who = list.map(q => "‎@" + nick(q.u)).join(" · ");
     const shots = [
-      { d: 3.2, a: at(A.shipAt(0), 4.2, -.9, .3), b: at(A.shipAt(1.4), 5, -.55, .28), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: one ? `🚢 ‎@${list[0].u}` : `🚢 ${fmtN(list.length)} עולים` }),
-        cap: one ? `‎@${list[0].u} בדרך למדינה 🚢` : `${fmtN(list.length)} תושבים חדשים בדרך 🚢`, sub: one ? `תושב/ת #${fmtN(list[0].no || list[0].id)}` : who },
+      { d: 3.2, a: at(A.shipAt(0), 4.2, -.9, .3), b: at(A.shipAt(1.4), 5, -.55, .28), follow: el => A.shipAt(el), pin: el => ({ ...A.shipAt(el), y: 20, label: one ? `🚢 ‎@${nick(list[0].u)}` : `🚢 ${fmtN(list.length)} עולים` }),
+        cap: one ? `‎@${nick(list[0].u)} בדרך למדינה 🚢` : `${fmtN(list.length)} תושבים חדשים בדרך 🚢`, sub: one ? `תושב/ת #${fmtN(list[0].no || list[0].id)}` : who },
       { d: 3.4, a: at(A.shipAt(3.2), 5, -.55, .28), b: at(A.dock, 6, .15, .34), follow: el => A.shipAt(el), cap: "נמל העולים ⚓", sub: `יום ${fmtN(dayNo())} · ברוכים הבאים לאי` }];
     A.legs.forEach((lg, i) => {
       const q = lg.h;
-      shots.push({ d: lg.t1 - lg.t0, a: at(lg.path(0), 8, .2 + i * .5, .42), b: at(lg.path(1), 9.5, .7 + i * .5, .4), follow: el => A.carAt(el), pin: el => ({ ...A.carAt(el), y: 5, label: `🚐 ‎@${q.u}` }),
-        cap: "רכב המדינה בדרך 🚐", sub: `‎@${q.u} · 🏠 ${q.lot.street} ${q.lot.num}` });
-      shots.push({ d: lg.stop, a: at(q, 9, .9 + i * .5, .46), b: at(q, 11, 1.3 + i * .5, .42), mark: q, cap: `ברוכים הבאים ‎@${q.u}!`, sub: `${addressOf(q)} · ${jobTitle(q)}` });
+      shots.push({ d: lg.t1 - lg.t0, a: at(lg.path(0), 8, .2 + i * .5, .42), b: at(lg.path(1), 9.5, .7 + i * .5, .4), follow: el => A.carAt(el), pin: el => ({ ...A.carAt(el), y: 5, label: `🚐 ‎@${nick(q.u)}` }),
+        cap: "רכב המדינה בדרך 🚐", sub: `‎@${nick(q.u)} · 🏠 ${q.lot.street} ${q.lot.num}` });
+      shots.push({ d: lg.stop, a: at(q, 9, .9 + i * .5, .46), b: at(q, 11, 1.3 + i * .5, .42), mark: q, cap: `ברוכים הבאים ‎@${nick(q.u)}!`, sub: `${addressOf(q)} · ${jobTitle(q)}` });
     });
-    shots.push(one ? { d: 4, a: at(list[0], 11, 1.4, .42), b: at(list[0], 4, 1.9, .6), cap: `ברוכים הבאים ‎@${list[0].u}!`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇", card: true }
+    shots.push(one ? { d: 4, a: at(list[0], 11, 1.4, .42), b: at(list[0], 4, 1.9, .6), cap: `ברוכים הבאים ‎@${nick(list[0].u)}!`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇", card: true }
       : { d: 3.6, b: at(ORIGIN, zf, 2), cap: `${fmtN(list.length)} תושבים חדשים היום`, sub: "גם לך מחכה בית · תגיבו ״אזרחות״ 👇" });
     return hours(chain(shots), 7, 15);
   } },
@@ -6102,13 +6160,13 @@ const TEMPLATES = {
   draws: { ic: "🎟️", name: "זוכי ההגרלה", sub: "חמשת הזוכים של ההגרלה האחרונה", ok: () => S.draws.length > 0, why: "עוד לא נערכה הגרלה. מריצים ב־Supabase: select * from run_daily_draw();", shots() {
     const day = S.draws[0]?.draw_date, list = S.draws.filter(d => d.draw_date === day).map(d => ({ d, h: S.byUser.get(d.citizens?.ig_username) })).filter(x => x.h?.lot).slice(0, 5), zf = reelFit();
     const sq = CENTRAL.on ? { x: CENTRAL.on.cx, z: CENTRAL.on.cz } : S.slots[0], shots = [{ d: 3.2, a: at(sq, 9, -.9, .3), b: at(sq, 6, .9, .38), h: [18.6, 19.8], cap: "ההגרלה היומית 🎟️", sub: `${fmtDate(day)} · ${fmtN(list.length)} פרסים, ${fmtN(list.length)} זוכים` }];
-    list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, b: at(h, 9.5, .25 * i + .3, .5), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${h.u}${d.details ? " · " + d.details : ""}`, mark: h }); });
+    list.forEach(({ d, h }, i) => { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; shots.push({ d: 2.8, b: at(h, 9.5, .25 * i + .3, .5), h: [20, 20], cap: `${ic} ${t}`, sub: `‎@${nick(h.u)}${d.details ? " · " + d.details : ""}`, mark: h }); });
     shots.push({ d: 3.2, b: at(ORIGIN, zf, 1.2), h: [20.5, 21.5], cap: "מחר זה יכול להיות את/ה", sub: "רק תושבים משתתפים · תגיבו ״אזרחות״" });
     return chain(shots);
   } },
   project: { ic: "🏗️", name: "ביקשתם, בנינו", sub: "חנוכה או התחלת בנייה של פרויקט", ok: () => S.projects.some(p => p.x != null), why: "עוד אין פרויקטים. מוסיפים פרויקט בטבלה projects ב־Supabase", shots() {
     const p = [...S.projects].filter(q => q.x != null).sort((a, b) => (b.status === "done") - (a.status === "done") || b.id - a.id)[0], zf = reelFit();
-    const name = p.name || PROJECT_KINDS[p.kind]?.[1], who = p.requested_by ? `לבקשת ‎@${p.requested_by}` : "לבקשת התושבים";
+    const name = p.name || PROJECT_KINDS[p.kind]?.[1], who = p.requested_by ? `לבקשת ‎@${nick(p.requested_by)}` : "לבקשת התושבים";
     return chain([
       { d: 3.2, a: at(p, 10, -.7, .18), b: at(p, 3, -.2, .45), h: [10, 12], cap: p.status === "done" ? "ביקשתם, בנינו 🎉" : "ביקשתם, מתחילים לבנות 🏗️", sub: who },
       { d: 5, b: at(p, 5.5, .9, LOW + .05), h: [12, 15], cap: name, sub: `${PROJECT_KINDS[p.kind]?.[0] || ""} ${cityName(p.city_id)}` },
@@ -6419,7 +6477,7 @@ function reelComposite(el, s) {
   const into = el - s.t0, left = s.t0 + s.d - el, a = clamp01(Math.min(into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
   // a pin over the house in focus
   // ...or over the ship or the car being followed
-  const pn = s.mark?.lot ? { x: s.mark.x, y: LAWN + (s.mark.tier === 1 ? 7 : 10), z: s.mark.z, label: "@" + s.mark.u } : s.pin ? s.pin(el) : null;
+  const pn = s.mark?.lot ? { x: s.mark.x, y: LAWN + (s.mark.tier === 1 ? 7 : 10), z: s.mark.z, label: "@" + nick(s.mark.u) } : s.pin ? s.pin(el) : null;
   if (pn) {
     pv.set(pn.x, pn.y, pn.z).project(reelCam);
     const px = (pv.x + 1) / 2 * RW, py = (1 - pv.y) / 2 * RH;
@@ -6644,19 +6702,19 @@ function placeInfo(key) {
   const [t, a, b] = String(key).split(":"), label = placeList().find(([k]) => k === key)?.[1] || "";
   if (t === "work") { const w = S.wpById.get(+a); if (!w) return null; const staff = w.staff || [], boss = [...staff].sort((x, y) => (y.level || 1) - (x.level || 1))[0];
     return { name: w.name, ic: KIND_IC[w.kind] || "💼", sub: `${KIND_NAMES[w.kind] || ""} · ${cityName(w.city_id)}`, desc: KIND_DESC[w.kind] || "אחד העסקים של המדינה", inside: `work:${w.id}`, floors: w.floors || 0, job: true,
-      facts: [[`👥 ${fmtN(staff.length)} תושבים עובדים כאן`, staff.slice(0, 4).map(h => "‎@" + h.u).join(" · ") || "מחכים לעובדים"], boss ? [`👑 ${jobTitle(boss)}`, "‎@" + boss.u] : null, [`💼 משכורת יומית ${fmtN(payOf(w.kind))} ${COIN}`, `${ROLE[w.kind] || "עובד/ת"} במדינה`]].filter(Boolean) }; }
+      facts: [[`👥 ${fmtN(staff.length)} תושבים עובדים כאן`, staff.slice(0, 4).map(h => "‎@" + nick(h.u)).join(" · ") || "מחכים לעובדים"], boss ? [`👑 ${jobTitle(boss)}`, "‎@" + nick(boss.u)] : null, [`💼 משכורת יומית ${fmtN(payOf(w.kind))} ${COIN}`, `${ROLE[w.kind] || "עובד/ת"} במדינה`]].filter(Boolean) }; }
   if (t === "gov") { const g = GOV.find(q => q.id === a); if (!g) return null; const [d1, d2] = GOV_DESC[a] || ["", ""];
     return { name: g.name, ic: g.ic, sub: "מוסדות המדינה", desc: d1, inside: `gov:${a}`, facts: [["🚪 בפנים", d2], a === "knesset" ? [`📜 ${fmtN(S.laws?.length || 0)} חוקים בספר החוקים`, "החוק הבא? תציעו בתגובות"] : null].filter(Boolean) }; }
   if (t === "mallp") { const p = S.projects.find(q => q.id === +a); if (!p) return null; const w = interiorTarget(`proj:${p.id}`), n = w ? mallAll(w).length : 0;
     return { name: p.name || "הקניון", ic: "🛍️", sub: "ליד נתיבי סבבה", desc: "קניון ענק עם חניון ענק וחניון קומות", inside: w ? `proj:${p.id}` : null,
-      facts: [[`🏬 ${fmtN(n)} חנויות`, "אופנה, אוכל, אלקטרוניקה, צעצועים ועוד"], ["🛒 קונים בכל חנות", `משלמים בסבבונים ${COIN}`], p.requested_by ? ["💡 נבנה לבקשת", "‎@" + p.requested_by] : null].filter(Boolean) }; }
+      facts: [[`🏬 ${fmtN(n)} חנויות`, "אופנה, אוכל, אלקטרוניקה, צעצועים ועוד"], ["🛒 קונים בכל חנות", `משלמים בסבבונים ${COIN}`], p.requested_by ? ["💡 נבנה לבקשת", "‎@" + nick(p.requested_by)] : null].filter(Boolean) }; }
   if (t === "yallkea") return { name: YK.name, ic: "🏡", sub: "על הגבעה, ליד הכביש המהיר", desc: `${YK.slogan} · רחוב של בתים תחת גג זכוכית`, inside: "yallkea",
     facts: [[`🏠 ${fmtN(SH.houses.length * 2)} בתים, כל בית חדר`, "סלון, חדר שינה, מטבח, ילדים ועוד"], [`🪑 ${fmtN(Object.keys(FURN).length)} רהיטים`, "כל אחד ב־3 גדלים ו־3 סגנונות"], [`✨ ${fmtN(Object.values(FUNIQ).filter(U => U.ok).length)} עיצובים ייחודיים`, "ספת הגל, כורסת היד, מיטת הענן..."]] };
   if (t === "palm") return a === "hotel" ? { name: "מלון הדקל", ic: "🏨", sub: "בקצה אי הדקל", desc: "מלון יוקרה מול הלגונה", inside: "palmhotel", facts: [["🛎️ לובי, בריכה ובר", "החדרים צופים לים"]] }
     : { name: "אי הדקל", ic: "🌴", sub: "מול החוף הצפוני", desc: "10 ענפים, גשר, מונורייל ומלון", facts: [] , zoom2: true };
   if (t === "lot") { const sp = S.slots[+a]?.publicSpots?.[+b], p = sp && S.projects.find(q => q.x === sp[0] && q.z === sp[1]);
     if (p) return { name: p.name || PROJECT_KINDS[p.kind]?.[1], ic: PROJECT_KINDS[p.kind]?.[0] || "🏗️", sub: cityName(p.city_id), desc: p.status === "done" ? "נבנה בשביל התושבים" : "בבנייה עכשיו", inside: p.status === "done" && INDOOR.includes(p.kind) ? `proj:${p.id}` : null,
-      facts: [p.requested_by ? ["💡 נבנה לבקשת", "‎@" + p.requested_by] : ["💡 נבנה לבקשת התושבים", "רוצים עוד? תכתבו בתגובות"]] }; }
+      facts: [p.requested_by ? ["💡 נבנה לבקשת", "‎@" + nick(p.requested_by)] : ["💡 נבנה לבקשת התושבים", "רוצים עוד? תכתבו בתגובות"]] }; }
   if (t === "slot") { const sl = S.slots[+a], c = sl?.city; if (c) { const res = S.houses.filter(h => h.city?.id === c.id).length, wps = S.workplaces.filter(w => w.city_id === c.id).length;
     return { name: c.name, ic: "🏙️", sub: "עיר במדינה", desc: `${fmtN(res)} תושבים · ${fmtN(wps)} עסקים`, facts: [] }; } }
   if (t === "ballot") return { name: "הקלפי", ic: "🗳️", sub: "ועדת הבחירות", desc: "כאן מצביעים", inside: "ballot", facts: [["🗳️ קלפי מס׳ 1", "מצביעים רק פעם אחת 😉"]] };
@@ -6766,6 +6824,8 @@ async function boot() {
   if (pre) { $("q").value = "@" + clean(pre); setTimeout(() => { find(pre); const h = S.byUser.get(clean(pre));
     if (h && keyOf(h.u) && h.coins != null && !collectedToday(h)) setTimeout(() => toast(`💼 המשכורת היומית שלך מחכה: +${fmtN(salaryOf(h))} ${COIN}`, 4000), 1900); }, 3000); }
   initAdmin(qs);
+  if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
+  else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
   if (qs.has("debug")) Object.assign(window, { GO, DBG: { routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
