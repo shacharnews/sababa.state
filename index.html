@@ -740,10 +740,10 @@ const blockAddr = (slot, si, bx, bz) => `${streetName(slot, si, bz + 1, bx)} ${h
 const S = { projects: [], cities: [], slots: [], houses: [], raw: [], byUser: new Map(), byAddr: new Map(), workplaces: [], wpById: new Map(), laws: [], gov: [], draws: [], total: 0, maxId: 0, s: .55, mine: null, sel: null, picks: [] };
 
 /* ============================ THREE SETUP ============================ */
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+const renderer = new THREE.WebGLRenderer({ antialias: (devicePixelRatio || 1) < 2, powerPreference: "high-performance" });   // sharp screens don't need the costly smoothing
 // quality: phones that struggle step down by themselves (sharpness, surface grain, shadows), and the step is remembered on that device
 const QUAL = { tier: 0, acc: 0, n: 0, t0: 0, quiet: 0 };
-try { const q = localStorage.getItem("sababa_q"); QUAL.tier = q != null ? +q : (Math.min(innerWidth, innerHeight) < 700 && (devicePixelRatio || 1) >= 2 ? 1 : 0); } catch {}
+try { const q = localStorage.getItem("sababa_q"); QUAL.tier = q != null ? +q : (Math.min(innerWidth, innerHeight) < 700 ? 2 : 0); } catch {}   // phones start light
 const qualDpr = () => Math.min([2, 1.5, 1.25, 1][QUAL.tier] || 1, devicePixelRatio || 1);
 renderer.setPixelRatio(qualDpr());
 renderer.setSize(innerWidth, innerHeight);
@@ -996,7 +996,7 @@ function part(geo, color, x = 0, y = 0, z = 0, r = {}) {
 const box = (w, h, d, col, x = 0, y = 0, z = 0, r) => part(col[0] === "!" ? roundBox(w, h, d) : new THREE.BoxGeometry(w, h, d), col, x, y + h / 2, z, r);
 // a box with rounded edges and soft normals (car bodies): the corners of a subdivided box pushed out onto spheres
 function roundBox(w, h, d, f = .3) {
-  const R = Math.min(w, h, d) * f, g = new THREE.BoxGeometry(w, h, d, 3, 3, 3), p = g.attributes.position, n = g.attributes.normal, v = new THREE.Vector3(), c = new THREE.Vector3(), dir = new THREE.Vector3(), cl = THREE.MathUtils.clamp;
+  const R = Math.min(w, h, d) * f, g = new THREE.BoxGeometry(w, h, d, 2, 2, 2), p = g.attributes.position, n = g.attributes.normal, v = new THREE.Vector3(), c = new THREE.Vector3(), dir = new THREE.Vector3(), cl = THREE.MathUtils.clamp;
   for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); c.set(cl(v.x, -w / 2 + R, w / 2 - R), cl(v.y, -h / 2 + R, h / 2 - R), cl(v.z, -d / 2 + R, d / 2 - R));
     dir.subVectors(v, c); if (dir.lengthSq() < 1e-10) dir.fromBufferAttribute(n, i); dir.normalize(); v.copy(c).addScaledVector(dir, R); p.setXYZ(i, v.x, v.y, v.z); n.setXYZ(i, dir.x, dir.y, dir.z); }
   return g;
@@ -1052,12 +1052,12 @@ function canopy(balls, col, seed, squash = .9, detail = 1) {
 // a date palm: a curved, ringed trunk and drooping fronds made of leaflets, with dates under the crown
 function palmParts() {
   const Q = [], top = new THREE.Vector3();
-  for (let i = 0; i < 8; i++) { const y0 = i * .78, x0 = .03 * i * i, x1 = .03 * (i + 1) * (i + 1), r = .3 - i * .015;
-    const g = new THREE.CylinderGeometry(r * .92, r, .8, 6, 1, true); g.rotateZ(-Math.atan2(x1 - x0, .78)); Q.push(part(g, i % 2 ? "#8f6d4b" : "#7d5d3e", (x0 + x1) / 2, y0 + .4, 0)); top.set(x1, y0 + .78, 0); }
+  for (let i = 0; i < 8; i += 2) { const y0 = i * .78, x0 = .03 * i * i, x1 = .03 * (i + 2) * (i + 2), r = .3 - i * .015;
+    const g = new THREE.CylinderGeometry(r * .9, r, 1.58, 5, 1, true); g.rotateZ(-Math.atan2(x1 - x0, 1.56)); Q.push(part(g, i % 4 ? "#8f6d4b" : "#7d5d3e", (x0 + x1) / 2, y0 + .79, 0)); top.set(x1, y0 + 1.56, 0); }
   Q.push(part(new THREE.IcosahedronGeometry(.5, 0), "#6b5a35", top.x, top.y, 0), part(new THREE.IcosahedronGeometry(.42, 0), "#b9782a", top.x, top.y - .45, 0));
   // each frond: a strip folded along its spine (a shallow V), arching up and drooping down, seen from both sides
-  for (let f = 0; f < 11; f++) {
-    const a = f / 11 * Math.PI * 2 + (f % 2) * .25, D = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), Sd = new THREE.Vector3(-D.z, 0, D.x), N = 5, pts = [], pos = [];
+  for (let f = 0; f < 8; f++) {
+    const a = f / 8 * Math.PI * 2 + (f % 2) * .25, D = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), Sd = new THREE.Vector3(-D.z, 0, D.x), N = 3, pts = [], pos = [];
     let px = top.clone(), up = .75 - (f % 3) * .25;
     for (let k = 0; k <= N; k++) { const w = .52 * Math.sin((k + .2) / (N + .4) * Math.PI); pts.push([px.clone(), w]); const droop = up - k * .42; px = px.clone().addScaledVector(D, .82 * Math.cos(droop)); px.y += .82 * Math.sin(droop); }
     for (let k = 0; k < N; k++) { const [a0, w0] = pts[k], [a1, w1] = pts[k + 1];
@@ -1183,17 +1183,23 @@ const P = {
   cypress_lo: prefab([...trunk(.22, 1.2, "#5e4330", []), ...canopy([[0, 2.6, 0, 1.15, 1.6], [0, 4.6, 0, 1, 1.8], [0, 6.4, 0, .6, 1.9]], "#3b6334", 37, .9, 0)], true, true),
   lamp: prefab([cyl(.09, .12, 5.2, 6, "#4a5056"), box(1.2, .1, .1, "#4a5056", .55, 5.1, 0), box(.5, .18, .3, "*#fff1c2", 1.05, 4.92, 0)]),
   umbrella: prefab([cyl(.06, .06, 2.4, 6, "#dddddd"), part(new THREE.ConeGeometry(1.6, .7, 8), "#ffffff", 0, 2.5, 0)]),
-  slab: prefab([part(new THREE.BoxGeometry(1, 1, 1, 6, 1, 6), "#ffffff", 0, .5, 0)]),
+  slab: prefab([part(new THREE.BoxGeometry(1, 1, 1, 3, 1, 3), "#ffffff", 0, .5, 0)]),
   walker: prefab([box(.15, .82, .2, "#2d3440", -.11, 0, 0), box(.15, .82, .2, "#2d3440", .11, 0, 0), box(.48, .64, .27, "~#ffffff", 0, .8, 0), box(.12, .55, .14, "~#ffffff", -.31, .86, 0), box(.12, .55, .14, "~#ffffff", .31, .86, 0),
     part(new THREE.IcosahedronGeometry(.15, 1), "#d6a684", 0, 1.62, 0), box(.3, .1, .3, "#2a211b", 0, 1.74, -.02)]),
-  plane: prefab([(() => { const g = new THREE.PlaneGeometry(1, 1, 8, 8); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()]),
+  plane: prefab([(() => { const g = new THREE.PlaneGeometry(1, 1, 4, 4); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()]),
   disc: prefab([(() => { const g = new THREE.CircleGeometry(.5, 32, 0, Math.PI * 2); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()])
 };
+// the light island: few triangles everywhere, so it runs smoothly on any phone. The city's trees use the light versions of the country,
+// small flat pieces (lane lines, zebra stripes, hedges) are single quads/boxes, and the palms have fewer, simpler fronds
+P.tree = P.tree_lo; P.olive = P.olive_lo; P.cypress = P.cypress_lo;
+P.plane1 = prefab([(() => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return part(g, "#ffffff"); })()]);
+P.slab1 = prefab([part(new THREE.BoxGeometry(1, 1, 1), "#ffffff", 0, .5, 0)]);
+const flatPf = (w, d) => Math.max(w, d) < 10 ? P.plane1 : P.plane, slabPf = (w, d) => Math.max(w, d) < 10 ? P.slab1 : P.slab;
 
 /* ---------- the car catalog: three models in each class, painted in the owner's color ("!" parts) ---------- */
 const TIRE = "#17181a", RIM = "#c3c8cd", CGLASS = "%#1d2a33", TRIMD = "#26292c", HEAD = "*#fff4cf", TAIL = "^#8a1414";
 function rodas(dx, zf, zr, r, w, rim = RIM) {
-  return [[-dx, zf], [dx, zf], [-dx, zr], [dx, zr]].flatMap(([x, z]) => [cyl(r, r, w, 14, TIRE, x, r - w / 2, z, { z: Math.PI / 2 }).translate(0, 0, 0), cyl(r * .58, r * .58, w + .04, 10, rim, x, r - (w + .04) / 2, z, { z: Math.PI / 2 })]);
+  return [[-dx, zf], [dx, zf], [-dx, zr], [dx, zr]].flatMap(([x, z]) => [cyl(r, r, w, 9, TIRE, x, r - w / 2, z, { z: Math.PI / 2 }).translate(0, 0, 0), cyl(r * .58, r * .58, w + .04, 6, rim, x, r - (w + .04) / 2, z, { z: Math.PI / 2 })]);
 }
 function lights(w, y, zf, zr, h = .16) {
   return [-1, 1].flatMap(s => [box(w * .22, h, .06, HEAD, s * w * .32, y, zf), box(w * .2, h, .06, TAIL, s * w * .33, y, zr)]);
@@ -1273,15 +1279,17 @@ function busStops() {
     let t1 = L; if (id === "city") { while (t1 > 0 && inCityBox(a + ux * t1, b + uz * t1, 16)) t1 -= 4; }   // just outside the city it leads to
     else t1 = Math.max(0, L - 30);
     let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 16)) t0 += 4;   // where it leaves the capital
+    let te = 0; while (te < L && inCityBox(a + ux * te, b + uz * te, 6)) te += 2; const E = along(a, b, c, d, te / L);   // where the road meets the edge of the capital's streets
     const road = along(a, b, c, d, t1 / L), sx = road.x + nx * (w / 2 + 3), sz = road.z + nz * (w / 2 + 3);
     const sl = id === "city" ? S.slots.find(s2 => s2.city && Math.hypot(s2.x - c, s2.z - d) < 5) : null, co = COAST.find(q => q.id === id);
     const name = sl ? sl.city.name : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה";
-    out.push({ name, ic: sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", x: sx, z: sz, ry: Math.atan2(-nx, -nz), route: [{ x: sx, z: sz }, road, { x: cap.x, z: cap.z }] });
-    if (out.length === 1) { const ex = along(a, b, c, d, t0 / L); out.unshift({ name: cap.city.name + " · המרכז", ic: "🏛️", x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3), ry: Math.atan2(-nx, -nz), route: [{ x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3) }, ex, { x: cap.x, z: cap.z }] }); }
+    out.push({ name, ic: sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", x: sx, z: sz, ry: Math.atan2(-nx, -nz), route: [{ x: sx, z: sz }, road, E] });
+    if (out.length === 1) { const ex = along(a, b, c, d, t0 / L); out.unshift({ name: cap.city.name + " · המרכז", ic: "🏛️", x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3), ry: Math.atan2(-nx, -nz), route: [{ x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3) }, ex, E] }); }
   }
   // the mall(s) and סבבהום: by their own access road
   const viaRoad = (name, ic, sp, road) => { const [ax, az, bx, bz] = road, ux = bx - ax, uz = bz - az, L = Math.hypot(ux, uz) || 1, nx = uz / L, nz = -ux / L, p = { x: ax + ux * .3 + nx * 8, z: az + uz * .3 + nz * 8 };
-    const hw = nearHwy(bx, bz); out.push({ name, ic, x: p.x, z: p.z, ry: Math.atan2(-nx, -nz), route: [p, { x: ax + ux * .3, z: az + uz * .3 }, { x: bx, z: bz }, ...(hw ? [{ x: hw.x, z: hw.z }] : []), { x: cap.x, z: cap.z }] }); };
+    const hw = nearHwy(bx, bz), E = hw ? hwExit(hw.x, hw.z) : null;
+    out.push({ name, ic, x: p.x, z: p.z, ry: Math.atan2(-nx, -nz), route: [p, { x: ax + ux * .3, z: az + uz * .3 }, { x: bx, z: bz }, ...(hw ? [{ x: hw.x, z: hw.z }] : []), ...(E ? [E] : [])] }); };
   for (const p of S.projects) if (isMallSite(p) && p.site) viaRoad(p.name || "הקניון", "🛍️", p.site, p.site.road);
   if (S.ykSpot) viaRoad(YK.name, "🏡", S.ykSpot, S.ykSpot.road);
   return out;
@@ -1290,8 +1298,71 @@ function busStops() {
 // Passengers wait at the stop for the bus that is really coming, and the board at each stop says when it arrives.
 const LINE = { V: 45, D: 8, hide: -1 };
 const bayOf = st => ({ x: st.x + Math.sin(st.ry) * 3.3, z: st.z + Math.cos(st.ry) * 3.3 });   // the bus bay: pulled in off the lane, beside the shelter
+// from a point on a highway, along it to where it meets the capital (or the point itself, if it's already at the city)
+function hwExit(x, z) {
+  let best = null; for (const [a, b, c, d, w, id] of highwaySegs()) { const dx = c - a, dz = d - b, L = Math.hypot(dx, dz), t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (L * L || 1))), q = Math.hypot(a + dx * t - x, b + dz * t - z);
+    if (!best || q < best.q) best = { q, a, b, ux: dx / L, uz: dz / L, t: t * L }; }
+  if (!best || inCityBox(x, z, 6)) return { x, z };
+  let te = 0; while (te < best.t && inCityBox(best.a + best.ux * te, best.b + best.uz * te, 6)) te += 2;
+  return { x: best.a + best.ux * te, z: best.b + best.uz * te };
+}
+// the capital's street grid, for the bus: the street lines between the blocks (the middle of a boulevard's lanes where there's a boulevard),
+// joined wherever the street is really paved, never through a block, the city square or a roundabout island
+function capGrid() {
+  const sl = S.slots.find(s2 => s2.city); if (!sl?.blocks?.size) return null;
+  const bl = [...sl.blocks.values()], B = cityBox(sl), C = CENTRAL.on, SDh = (BZ - 6) / 2;
+  const xr = bx => sl.x + BPX(bx) + bwX(bx) / 2, xl = bx => sl.x + BPX(bx) - bwX(bx) / 2, zb = bz => sl.z + BPZ(bz) + BZ / 2, zt = bz => sl.z + BPZ(bz) - BZ / 2;
+  const V = [xl(B.mnX)], H = [zt(B.mnZ)];
+  for (let bx = B.mnX; bx <= B.mxX; bx++) V.push(bx < B.mxX && blvX(bx + 1) ? sl.x + blvCX(bx + 1) + 7.4 : xr(bx));
+  for (let bz = B.mnZ; bz <= B.mxZ; bz++) H.push(bz < B.mxZ && blvZ(bz + 1) ? sl.z + blvCZ(bz + 1) + 7.4 : zb(bz));
+  const blocks = bl.map(b => ({ b, cx: sl.x + BPX(b.bx), cz: sl.z + BPZ(b.bz), hw: bwX(b.bx) / 2 }));
+  const paved = (x, z) => {
+    if (C && Math.abs(x - C.cx) < C.hw - .5 && Math.abs(z - C.cz) < C.hd - .5) return false;
+    let near = false;
+    for (const q of blocks) { const dx = x - q.cx, dz = z - q.cz;
+      if (Math.abs(dx) < q.hw - 3 + .4 && Math.abs(dz) < SDh + .4) return false;   // inside the houses
+      const ex = dx > 0 ? (blvX(q.b.bx + 1) ? GAP + 1 : 3.4) : (blvX(q.b.bx) ? GAP + 1 : 3.4), ez = dz > 0 ? (blvZ(q.b.bz + 1) ? GAP + 1 : 3.4) : (blvZ(q.b.bz) ? GAP + 1 : 3.4);
+      if (Math.abs(dx) <= q.hw + ex && Math.abs(dz) <= BZ / 2 + ez) near = true; }
+    return near;
+  };
+  const nodes = [], id = (i, j) => i * H.length + j, adj = new Map();
+  for (let i = 0; i < V.length; i++) for (let j = 0; j < H.length; j++) nodes.push({ x: V[i], z: H[j] });
+  const link = (p, q) => { const a = nodes[p], b = nodes[q], n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 3));
+    for (let k = 0; k <= n; k++) if (!paved(a.x + (b.x - a.x) * k / n, a.z + (b.z - a.z) * k / n)) return;
+    const d = Math.hypot(b.x - a.x, b.z - a.z); (adj.get(p) || adj.set(p, []).get(p)).push([q, d]); (adj.get(q) || adj.set(q, []).get(q)).push([p, d]); };
+  for (let i = 0; i < V.length; i++) for (let j = 0; j < H.length; j++) { if (i + 1 < V.length) link(id(i, j), id(i + 1, j)); if (j + 1 < H.length) link(id(i, j), id(i, j + 1)); }
+  const live = [...adj.keys()];
+  const nearest = (x, z) => live.reduce((m, k) => Math.hypot(nodes[k].x - x, nodes[k].z - z) < Math.hypot(nodes[m].x - x, nodes[m].z - z) ? k : m, live[0]);
+  const route = (p, q) => {   // Dijkstra over a small grid
+    const dist = new Map([[p, 0]]), prev = new Map(), todo = new Set([p]);
+    while (todo.size) { let u = null; for (const k of todo) if (u == null || dist.get(k) < dist.get(u)) u = k; todo.delete(u); if (u === q) break;
+      for (const [v, d] of adj.get(u) || []) { const nd = dist.get(u) + d; if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); todo.add(v); } } }
+    if (!dist.has(q)) return [];
+    const out = [q]; while (out[0] !== p) out.unshift(prev.get(out[0])); return out.map(k => nodes[k]);
+  };
+  // from where a highway reaches the city: along the highway (straight at the capital's centre) until it meets a street, then along that street to a corner
+  const enter = (e) => { const L = Math.hypot(sl.x - e.x, sl.z - e.z) || 1, ux = (sl.x - e.x) / L, uz = (sl.z - e.z) / L;
+    let k = 0; while (k < L && !paved(e.x + ux * k, e.z + uz * k)) k += 1; const P = { x: e.x + ux * k, z: e.z + uz * k };
+    const clear = q => { const n = Math.max(2, Math.ceil(Math.hypot(q.x - P.x, q.z - P.z) / 2)); for (let i = 0; i <= n; i++) if (!paved(P.x + (q.x - P.x) * i / n, P.z + (q.z - P.z) * i / n)) return false; return true; };
+    const k2 = [...live].sort((p, q) => Math.hypot(nodes[p].x - P.x, nodes[p].z - P.z) - Math.hypot(nodes[q].x - P.x, nodes[q].z - P.z)).find(q => clear(nodes[q])) ?? nearest(P.x, P.z);
+    return { P, k: k2 }; };
+  return live.length ? { route: (a, b) => { const A = enter(a), B = enter(b); return [A.P, ...route(A.k, B.k), B.P]; } } : null;
+}
+// round the islands of the roundabouts: every point that would cut across one is pushed out onto the ring around it
+function roundAbout(pts) {
+  const J = [...BLK_META.values()].filter(m => m.kind === "jround").map(m => ({ x: m.cx, z: m.cz, R: m.data.q.R + 2.2 })), out = [];
+  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[i + 1]; out.push(a); if (!b) break;
+    const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 2); for (let k = 1; k < n; k++) out.push({ x: a.x + (b.x - a.x) * k / n, z: a.z + (b.z - a.z) * k / n }); }
+  // keep to the right: the island stays on the driver's left, like a real roundabout
+  return out.map((p, i) => { const q = out[Math.max(0, i - 1)], r = out[Math.min(out.length - 1, i + 1)], L = Math.hypot(r.x - q.x, r.z - q.z) || 1, dx = (r.x - q.x) / L, dz = (r.z - q.z) / L;
+    for (const j of J) { const ox = p.x - j.x, oz = p.z - j.z; if (Math.hypot(ox, oz) >= j.R) continue;
+      const d = ox * dx + oz * dz, lat = Math.sqrt(Math.max(0, j.R * j.R - d * d)); return { x: j.x + dx * d - dz * lat, z: j.z + dz * d + dx * lat }; }
+    return p; });
+}
 function legPath(A, B) {
-  const pts = [bayOf(A), ...A.route.slice(2), ...[...B.route.slice(2)].reverse(), bayOf(B)].filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .5), lens = [];
+  const G = LINE.G || (LINE.G = capGrid() || { route: () => [] }), E1 = A.route[A.route.length - 1], E2 = B.route[B.route.length - 1];
+  const raw = [bayOf(A), ...A.route.slice(2), ...G.route(E1, E2), ...[...B.route.slice(2)].reverse(), bayOf(B)].filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .5);
+  const pts = roundAbout(raw).filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .3), lens = [];
   let L = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); lens.push(d); L += d; }
   return { pts, lens, L };
 }
@@ -1300,7 +1371,7 @@ function lineBuild() {
   LINE.legs = st.map((A, i) => legPath(A, st[(i + 1) % st.length]));
   LINE.arr = []; let t = 0; for (const g of LINE.legs) { LINE.arr.push(t); g.T = g.L / LINE.V; t += LINE.D + g.T; } LINE.C = t;
   LINE.K = Math.max(2, Math.min(8, Math.ceil(t / 50)));
-  LINE.buses = Array.from({ length: LINE.K }, () => mover(P.car_bus, BUS_C)); LINE.head = new Array(LINE.K).fill(null);
+  LINE.buses?.forEach(b => b.dispose()); LINE.buses = Array.from({ length: LINE.K }, () => mover(P.car_bus, BUS_C)); LINE.head = new Array(LINE.K).fill(null);
 }
 const linePh = b => (((Date.now() / 1000 + b * LINE.C / LINE.K) % LINE.C) + LINE.C) % LINE.C;
 const pathAt = (g, d) => { let acc = 0, i = 0; while (i < g.lens.length - 1 && acc + g.lens[i] < d) { acc += g.lens[i]; i++; }
@@ -1339,7 +1410,7 @@ function lineBoard(i) {
 }
 setInterval(() => { const el = document.getElementById("busNext"); if (el) el.innerHTML = lineBoard(+el.dataset.i); }, 1000);
 function buildBusStops() {
-  const stops = S.busStops = busStops(); lineBuild();
+  LINE.G = null; const stops = S.busStops = busStops(); lineBuild();
   for (const [i, st] of stops.entries()) {
     const g = solid([box(4.2, .15, 1.8, "#e8e3d4", 0, 0, 0), box(4.4, .12, 2, BUS_C, 0, 2.6, 0), box(4.2, 2.5, .08, "%#cfe8f2", 0, .1, -.9), box(.1, 2.6, .1, "#2b2b2b", -2.1, 0, .8), box(.1, 2.6, .1, "#2b2b2b", 2.1, 0, .8),
       box(.1, 2.6, .1, "#2b2b2b", -2.1, 0, -.85), box(.1, 2.6, .1, "#2b2b2b", 2.1, 0, -.85), box(2.6, .1, .5, "#b9834f", 0, .5, -.5), cyl(.05, .05, 3.2, 6, "#9aa0a6", 2.6, 0, .9),
@@ -1656,15 +1727,16 @@ function buildCities() {
     for (let e = mnX + 1; e <= mxX; e++) if (blvX(e)) { const [a0, a1] = span(bl.filter(b => b.bx === e - 1 || b.bx === e).map(b => [slot.z + BPZ(b.bz) - BZ / 2, slot.z + BPZ(b.bz) + BZ / 2]), az0);
       if (a1 - a0 > 20) avenue(true, slot.x + blvCX(e), a0, a1, jZ.filter(j => j.p > a0 + 8 && j.p < a1 - 8)); }
   }
-  const flatList = (list, y) => instanced(P.plane, list, ([x, z, w, d, c], o) => { o.position.set(x, y, z); o.scale.set(w, 1, d); return c; }, { shadow: false });
+  const flatList = (list, y) => { const big = list.filter(q => flatPf(q[2], q[3]) === P.plane), sm = list.filter(q => flatPf(q[2], q[3]) !== P.plane);
+    for (const [pf, L2] of [[P.plane, big], [P.plane1, sm]]) if (L2.length) instanced(pf, L2, ([x, z, w, d, c], o) => { o.position.set(x, y, z); o.scale.set(w, 1, d); return c; }, { shadow: false }); };
   flatList(asphalt, .3); flatList(dashes, .33); flatList(lawn, LAWN);
   if (zebras.length) flatList(zebras.map(([x, z, w, d]) => [x, z, w, d, "#f4f1e8"]), .335);
   // raised sidewalks with a darker curb stone, like a real street
-  const slabs = (list, y0, y1) => instanced(P.slab, list, ([x, z, w, d, c], o) => { o.position.set(x, y0, z); o.scale.set(w, y1 - y0, d); return c; }, { shadow: false });
+  const slabs = (list, y0, y1) => { for (const pf of [P.slab, P.slab1]) { const L2 = list.filter(q => slabPf(q[2], q[3]) === pf); if (L2.length) instanced(pf, L2, ([x, z, w, d, c], o) => { o.position.set(x, y0, z); o.scale.set(w, y1 - y0, d); return c; }, { shadow: false }); } };
   slabs(curbs, .3, CURB - .04); slabs(walk, .3, CURB);
   if (medians.length) { slabs(medians.map(([x, z, w, d]) => [x, z, w, d, "#9b978f"]), .3, .5); flatList(medians.map(([x, z, w, d]) => [x, z, w - .5, d - .5, "#79a65a"]), .51); }
   if (palms.length) instanced(P.palm, palms, ([x, z], o) => { o.position.set(x, .5, z); o.rotation.y = x + z; o.scale.setScalar(.9 + (hash(Math.round(x * 3 + z)) % 3) / 10); });
-  instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
+  instanced(P.slab1, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
   S.alleys = alleys;
   if (alleys.length) {   // the alleys: cobbles, a little square at the end, planters with olive trees, lamps and a bench
     slabs(alleys.flatMap(a => [[a.x, a.z, 5.2, 14, "#bfae90"], [a.x, a.z + a.sz * 8, 11, 6, "#c9b898"]]), .25, .42);
@@ -1692,10 +1764,14 @@ function buildCities() {
     if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
     const hd = []; for (const [a, b, c, d, w] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r);
       const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = 20; k < L - 10; k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
-    instanced(P.plane, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
+    instanced(P.plane1, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
     for (const sg of segs) if (sg[4] > 20) buildSababaLanes(sg, cap);
-    const rT = rng(707); for (const [a, b, c, d, w, id] of segs) { if (w > 20) continue; const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, vx = uz, vz = -ux;
-      for (const [o, dir] of [[-2.2, 1], [2.2, -1]]) { const ax = a + vx * o, az = b + vz * o;
+    const rT = rng(707); for (const [a, b, c, d, w, id] of segs) { if (w > 20) continue; const L0 = Math.hypot(c - a, d - b), ux = (c - a) / L0, uz = (d - b) / L0, vx = uz, vz = -ux;
+      // only on the open road: the highway starts where it leaves the capital and ends where it reaches the next city (inside a city the cars use its streets)
+      let k0 = 0; while (k0 < L0 && inCityBox(a + ux * k0, b + uz * k0, 6)) k0 += 2;
+      let k1 = L0; while (k1 > k0 && inCityBox(a + ux * k1, b + uz * k1, 6)) k1 -= 2;
+      const L = k1 - k0; if (L < 30) continue;
+      for (const [o, dir] of [[-2.2, 1], [2.2, -1]]) { const ax = a + ux * k0 + vx * o, az = b + uz * k0 + vz * o;
         for (let n = 0; n < Math.max(1, Math.round(L / 160)); n++) traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: L, dir, p: rT() * L, v: 12 + rT() * 6, c: COLORS[COLOR_KEYS[Math.floor(rT() * 10)]][0], m: TRAFFIC_MIX[Math.floor(rT() * TRAFFIC_MIX.length)] });
         traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: L, dir, p: rT() * L, v: 10, c: BUS_C, m: "bus" }); } }   // the intercity bus
   }
@@ -1745,9 +1821,13 @@ function buildCities() {
     const r0 = rng(slot.at + 3);
     for (const [bz, r] of [...rows.entries()].sort((a, b) => Math.abs(a[0]) - Math.abs(b[0])).slice(0, 8)) {
       if (blvZ(bz)) continue;   // the boulevards have their own traffic
-      const z = slot.z + BPZ(bz) - BZ / 2, X0 = slot.x + BPX(r.min) - bwX(r.min) / 2, X1 = slot.x + BPX(r.max) + bwX(r.max) / 2, C = CENTRAL.on;
+      const z = slot.z + BPZ(bz) - BZ / 2, C = CENTRAL.on;
+      // the street only runs where there are blocks along it (above or below), never across the grass of a gap in the city
+      const has = bx => slot.blocks.has(`${bx},${bz}`) || slot.blocks.has(`${bx},${bz - 1}`), runs = [];
+      for (let bx = r.min - 1; bx <= r.max + 1; bx++) if (has(bx)) { const last = runs[runs.length - 1]; if (last && last.e === bx - 1) last.e = bx; else runs.push({ s: bx, e: bx }); }
       // a street that runs into the city square stops at its edge, on both sides
-      const segs = inCentral(C?.cx ?? 0, z) ? [[X0, C.cx - C.hw - 3], [C.cx + C.hw + 3, X1]] : [[X0, X1]];
+      const segs = runs.flatMap(({ s: s0, e }) => { const X0 = slot.x + BPX(s0) - bwX(s0) / 2, X1 = slot.x + BPX(e) + bwX(e) / 2;
+        return C && slot === S.slots[0] && inCentral(C.cx, z) && X0 < C.cx && X1 > C.cx ? [[X0, C.cx - C.hw - 3], [C.cx + C.hw + 3, X1]] : [[X0, X1]]; });
       for (const [x0, x1] of segs) if (x1 - x0 > 30) for (const dir of [-1, 1]) traffic.push({ x0, x1, z: z + dir * 1.9, dir, p: r0() * (x1 - x0), v: 6 + r0() * 7, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] });
     }
   }
@@ -1797,12 +1877,29 @@ function buildSababaLanes([a, b, c, d, w], cap) {
     const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: len, dir, p: r0() * len, v: 14 + r0() * 10, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
   for (const [o, dir] of [[13.9, -1], [-13.9, 1]]) { const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz }, x0: 0, x1: len, dir, p: r0() * len, v: 13, c: BUS_C, m: "bus" }); }   // buses in the slow lanes
 }
-// a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z
+// a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z.
+// Where its street runs into a roundabout, the car swings round the island (keeping to its own side) instead of driving through it
+function carJr(c) {   // the roundabouts on this car's way: { a: where along, l: across, Rr: the radius it keeps from the middle }
+  if (c.jr) return c.jr;
+  c.jr = [];
+  for (const m of BLK_META.values()) if (m.kind === "jround") { const R = m.data.q.R, a = c.vert ? m.cz : m.cx, l = c.vert ? m.cx : m.cz, Rr = R + 2;
+    if (Math.abs(l - c.z) < Rr + 1 && a > c.x0 - Rr && a < c.x1 + Rr) c.jr.push({ a, l, Rr }); }
+  return c.jr;
+}
+function streetAt(c, p) {   // [along, across] of a street car at distance p
+  let a = c.x0 + p, l = c.z;
+  for (const j of carJr(c)) { const d = a - j.a; if (Math.abs(d) >= j.Rr) continue;
+    const need = Math.sqrt(j.Rr * j.Rr - d * d), side = Math.sign(l - j.l) || c.dir; if (Math.abs(l - j.l) < need) l = j.l + side * need; }
+  return [a, l];
+}
 function placeCar(c, o) {
   if (c.seg) { const { ax, az, ux, uz } = c.seg; o.position.set(ax + ux * c.p, .3, az + uz * c.p); o.rotation.set(0, Math.atan2(ux * c.dir, uz * c.dir), 0); return; }
   if (c.ring) { const { cx, cz, r } = c.ring, a = c.p / r; o.position.set(cx + Math.cos(a) * r, .3, cz + Math.sin(a) * r); o.rotation.set(0, Math.atan2(-c.dir * Math.sin(a), c.dir * Math.cos(a)), 0); return; }
-  if (c.vert) { o.position.set(c.z, .3, c.x0 + c.p); o.rotation.set(0, c.dir > 0 ? 0 : Math.PI, 0); }
-  else { o.position.set(c.x0 + c.p, .3, c.z); o.rotation.set(0, c.dir * Math.PI / 2, 0); }
+  const [a, l] = streetAt(c, c.p);
+  let ry = c.vert ? (c.dir > 0 ? 0 : Math.PI) : c.dir * Math.PI / 2;
+  if (c.jr.length) { const [a0, l0] = streetAt(c, c.p - .6 * c.dir), [a1, l1] = streetAt(c, c.p + .6 * c.dir); if (Math.abs(l1 - l0) > 1e-4) ry = c.vert ? Math.atan2(l1 - l0, a1 - a0) : Math.atan2(a1 - a0, l1 - l0); }
+  if (c.vert) o.position.set(l, .3, a); else o.position.set(a, .3, l);
+  o.rotation.set(0, ry, 0);
 }
 /* ---------- items the admin places on squares, parks and public lots ---------- */
 const blkKey = (slot, bx, bz) => `blk_${slot.at}_${bx}_${bz}`;
@@ -2229,7 +2326,7 @@ function buildCentral(slot) {
     if (cfg.trees !== false) for (const [x, z] of TREES) if (x < hw && z < hd) trees.push([cx + sx * x, cz + sz * z]);
   }
   instanced(P.plane, lawns, ([x, z, w, d, c], o) => { o.position.set(x, LAWN, z); o.scale.set(w, 1, d); return c; }, { shadow: false });
-  instanced(P.slab, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
+  instanced(P.slab1, hedges, ([x, z, w, h, d], o) => { o.position.set(x, LAWN, z); o.scale.set(w, h, d); return "#4d7d3b"; });
   for (let k = 0; k < 24; k++) { const a = (k + .5) / 24 * Math.PI * 2, [x, z] = at(a, RR + 1.4); if (Math.abs(x) < W + 1.5 || Math.abs(z) < W + 1.5) continue; lamps.push([cx + x, CURB, cz + z, Math.PI - a]); }
   solid(G, cx, cz, 0, data, 0); solid(Q, cx, cz, 0, data, CURB);
   buildItems(cfg.items, cx, cz, CURB, data, fitC);
@@ -3680,7 +3777,7 @@ function buildNature() {
   const inCity = (x, z) => open.some((s, i) => { const bx = invAxis(x - s.x, BX, BPX), bz = invAxis(z - s.z, BZ, BPZ); return keys[i].has(`${bx},${bz}`); });
   const cap = open[0], ends = cap ? [...open.slice(1), ...COAST.filter(c => c.id !== "beach").map(c => shorePt(c.t, S.s, .9))] : [];
   const HW = [...highwaySegs(), ...extraRoads()], nearRoad = (x, z) => HW.some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / L2)); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + (w > 20 ? 8 : 6); });
-  const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(4200, Math.max(900, area / 380)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
+  const area = Math.PI * RX0 * RZ0 * S.s * S.s, target = Math.min(2600, Math.max(700, area / 600)), Rx = RX0 * S.s * 1.1, Rz = RZ0 * S.s * 1.1;
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
     const x = (r() * 2 - 1) * Rx, z = (r() * 2 - 1) * Rz;
@@ -5446,7 +5543,7 @@ function shopGoods(cat, x, z, ry = 0, R = Math.random) {
 }
 // Every kind of business has its own furnished 3D interior (a cut-away "doll house" room). Employees come in once a day for a shift bonus.
 const INT = { on: false };
-const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 12, 9).scale(sx, sy, sz), col, x, y, z);
+const sph = (r, col, x, y, z, sx = 1, sy = 1, sz = 1) => part(new THREE.SphereGeometry(r, 9, 6).scale(sx, sy, sz), col, x, y, z);
 const INTERIOR_OF = { restaurant: "cafe", shop: "market", pharmacy: "clinic", office: "tech", bank: "police", factory: "garage" };
 const ROOMS = new Set(["hotel", "bakery", "cafe", "market", "school", "clinic", "garage", "hummus", "tech", "police", "fuel", "gym", "ballot", "gov_knesset", "gov_pm", "gov_interior", "library", "community", "mall", "home"]);
 function interiorOf(w) {
@@ -7407,7 +7504,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { P, world, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
