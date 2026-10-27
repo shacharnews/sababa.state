@@ -10286,7 +10286,7 @@ function finishReel(blob, ext, note) {
   if (!blob) return;
   const type = blob.type || "video/mp4", url = URL.createObjectURL(blob);
   const file = new File([blob], `sababa-${key}-${new Date().toISOString().slice(0, 10)}.${ext}`, { type });
-  open("הריל מוכן 🎬", `<video class="reelvid" src="${url}" controls playsinline autoplay muted loop></video>
+  open("הריל מוכן 🎬", `<video class="reelvid" src="${url}" controls playsinline loop ${REEL.voiced ? "" : "autoplay muted"}></video>${REEL.voiced ? `<p class="note" style="text-align:center">🔊 לחצו ▶︎ כדי לשמוע את הקריינות</p>` : ""}
     <p class="note">${fmtN(Math.round(total))} שניות · ${ext.toUpperCase()}${REEL.voiced ? " · 🎙️ עם דיבוב" : ""} · ${(blob.size / 1048576).toFixed(1)}MB</p>
     <div class="btns"><button class="btn" id="rShare">📲 שיתוף לאינסטגרם</button><a class="btn ghost" href="${url}" download="${file.name}">⬇️ שמירה</a></div>${inAppHint()}
     <div class="hero" style="margin-top:12px"><p><b>טיפ:</b> באינסטגרם הוסיפו סאונד טרנדי מהספרייה שלהם, הוא משפר מאוד את החשיפה.${note === "noaudio" ? "<br><b>בלי דיבוב:</b> הדפדפן הזה לא יודע לקודד אודיו. בטלפון (אייפון או אנדרואיד מעודכן) הריל ייצא עם דיבוב." : ""}${note === "vp9" ? "<br><b>שימו לב:</b> הדפדפן הזה לא תומך בקידוד H.264, אז הסרטון נשמר ב־VP9. אם אינסטגרם לא מקבל אותו, צלמו מהטלפון (אייפון או אנדרואיד)." : ""}${ext === "webm" ? "<br><b>שימו לב:</b> הדפדפן שמר את הסרטון בפורמט WebM. אם אינסטגרם לא מקבל אותו, פתחו את הסטודיו מכרום מעודכן או מספארי." : ""}</p></div>
