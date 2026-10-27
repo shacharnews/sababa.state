@@ -2872,7 +2872,9 @@ const invAxis = (v, B, Pf) => { const W = Pf === BPX ? bwX : () => B, k = Math.r
 // what a block of houses becomes: most are houses, some are squares or parks, some have a lane through the middle
 // what the admin set for a block (settings zone_<site>_<bx>_<bz>), over the original plan
 const blockKind = (slot, bx, bz) => S.zones?.get(`${slot.at}:${bx},${bz}`) || baseKind(slot, bx, bz);
-const baseKind = (slot, bx, bz) => { if (bwX(bx) !== BX) return "houses"; if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${Math.abs(bx)},${Math.abs(bz)}`) % 24; return h < 1 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
+const baseKind = (slot, bx, bz) => { if (bwX(bx) !== BX) return "houses"; if (Math.max(Math.abs(bx), Math.abs(bz)) < 2) return "houses"; const h = hash(`${slot.at}:${Math.abs(bx)},${Math.abs(bz)}`) % 24;
+  if (h < 5 && Math.abs(bx) === 1 && Math.abs(bz) === 3) return "round";   // the big roundabouts on both sides of the city square's avenue (never instead of houses)
+  return h < 2 ? "round" : h < 3 ? "square" : h < 5 ? "park" : h < 10 ? "lane" : "houses"; };
 const OPEN_KINDS = ["square", "park", "round", "lot"];
 const ZONES = [["garden", "🌿", "גינה (במקום של עסק שעבר)"], ["houses", "🏘️", "בתים"], ["estate", "🏰", "אחוזות: 2 בתים גדולים עם בריכה וגינה"], ["lane", "🏮", "בתים עם סמטה באמצע"], ["square", "⛲", "כיכר"], ["round", "⭕", "כיכר תנועה עגולה"], ["park", "🌳", "גן ציבורי"], ["lot", "📍", "מגרש ציבורי ריק"]];
 // a raised corner of sidewalk around a round junction: the quadrant [W..hw] x [W..hd] outside the circle RR
@@ -3698,26 +3700,27 @@ const BUS_C = "#2f8f5b";
 // the stops: [name, x, z, route to the capital's centre], each on the road it stands by
 function busStops() {
   const out = [], cap = S.slots.find(s2 => s2.city); if (!cap) return out;
-  const along = (a, b, c, d, t) => ({ x: a + (c - a) * t, z: b + (d - b) * t });
-  for (const [a, b, c, d, w, id] of highwaySegs()) {
-    if (id === "palm" && PALM.geo && Math.hypot(a - PALM.geo.approach.x, b - PALM.geo.approach.z) < 1) continue;   // the bridge piece: the stop is on the road to it
-    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux;
-    let t1 = L; if (id === "city") { while (t1 > 0 && inCityBox(a + ux * t1, b + uz * t1, 16)) t1 -= 4; }   // just outside the city it leads to
-    else t1 = Math.max(0, L - (termOf(id) ? termOf(id).Ro + 34 : 30));   // before the roundabout at the coast
-    let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 16)) t0 += 4;   // where it leaves the capital
-    const E = { x: a, z: b };   // where the road meets the capital's streets: its gate, at the end of a street
-    const road = along(a, b, c, d, t1 / L), sx = road.x + nx * (w / 2 + 3), sz = road.z + nz * (w / 2 + 3);
+  // the stops along each road out of the capital, in order: on the right going out (the center, the mall, סבבהום), and at the far end on the left,
+  // so the bus going out passes it, turns round the roundabout at the end of the road, and stops on its way back. It never turns on the open road
+  const segs = highwaySegs().filter(([a, b, , , , id]) => !(id === "palm" && PALM.geo && Math.hypot(a - PALM.geo.approach.x, b - PALM.geo.approach.z) < 1));
+  const rank = id => ["harbor", "light", "gallery", "palm", "city"].indexOf(id); segs.sort((p, q) => rank(p[5]) - rank(q[5]));
+  const via = []; const addVia = (name, ic, road) => { const [, , bx, bz] = road; let best = null;
+    for (const sg of segs) { const [a, b, c, d] = sg, dx = c - a, dz = d - b, L2 = dx * dx + dz * dz, k = Math.max(0, Math.min(1, ((bx - a) * dx + (bz - b) * dz) / L2)), q = Math.hypot(a + dx * k - bx, b + dz * k - bz); if (!best || q < best.q) best = { q, sg, t: k * Math.sqrt(L2) }; }
+    if (best) via.push({ name, ic, sg: best.sg, t: best.t }); };
+  for (const p of S.projects) if (isMallSite(p) && p.site) addVia(p.name || "הקניון", "🛍️", p.site.road);
+  if (S.ykSpot) addVia(YK.name, "🏡", S.ykSpot.road);
+  for (const sg of segs) {
+    const [a, b, c, d, w, id, meta] = sg, L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, rx = -uz, rz = ux, at = t => ({ x: a + ux * t, z: b + uz * t });
+    const E = meta?.A?.gate ? { x: meta.A.gate.x, z: meta.A.gate.z } : { x: a, z: b }, endR = meta?.T || meta?.B;
+    const stop = (name, ic, t, right) => { const road = at(t), sd = right ? 1 : -1, x = road.x + rx * sd * (w / 2 + 3), z = road.z + rz * sd * (w / 2 + 3); out.push({ name, ic, x, z, ry: Math.atan2(-rx * sd, -rz * sd), route: [{ x, z }, road, ...(meta?.A ? [{ x: a, z: b }] : []), E] }); };   // through the middle of the city's roundabout (the bus is pushed round it)
+    const t0 = (meta?.A?.Ro || 0) + 45, list = [];
+    if (id === "harbor") list.push([cap.city.name + " · המרכז", "🏛️", Math.min(L * .4, t0), true]);
+    for (const v of via) if (v.sg === sg) list.push([v.name, v.ic, Math.max(t0 + 30, Math.min(L - (endR?.Ro || 0) - 80, v.t - 18)), true]);
+    let t1 = L - (endR ? endR.Ro + 34 : 30); if (id === "city" && !endR) { t1 = L; while (t1 > 0 && inCityBox(a + ux * t1, b + uz * t1, 16)) t1 -= 4; }
     const sl = id === "city" ? S.slots.filter(s2 => s2.city).slice(1).reduce((m, s2) => !m || Math.hypot(s2.x - c, s2.z - d) < Math.hypot(m.x - c, m.z - d) ? s2 : m, null) : null, co = COAST.find(q => q.id === id);
-    const name = sl ? sl.city.name : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה";
-    out.push({ name, ic: sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", x: sx, z: sz, ry: Math.atan2(-nx, -nz), route: [{ x: sx, z: sz }, road, E] });
-    if (out.length === 1) { const ex = along(a, b, c, d, Math.min(L * .5, t0 + 45) / L); out.unshift({ name: cap.city.name + " · המרכז", ic: "🏛️", x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3), ry: Math.atan2(-nx, -nz), route: [{ x: ex.x + nx * (w / 2 + 3), z: ex.z + nz * (w / 2 + 3) }, ex, E] }); }
+    list.sort((p, q) => p[2] - q[2]).forEach(([n, ic, tt, rt]) => stop(n, ic, tt, rt));
+    stop(sl ? sl.city.name : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה", sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", (() => { const lo = (meta?.A?.Ro || 0) + 10, hi = L - (endR?.Ro || 0) - 12; return hi < lo ? L / 2 : Math.max(lo, Math.min(hi, Math.max(t0 + 60, t1))); })(), false);   // always on the open road between the two roundabouts
   }
-  // the mall(s) and סבבהום: by their own access road
-  const viaRoad = (name, ic, sp, road) => { const [ax, az, bx, bz] = road, ux = bx - ax, uz = bz - az, L = Math.hypot(ux, uz) || 1, nx = uz / L, nz = -ux / L, p = { x: ax + ux * .3 + nx * 8, z: az + uz * .3 + nz * 8 };
-    const hw = nearHwy(bx, bz), E = hw ? hwExit(hw.x, hw.z) : null;
-    out.push({ name, ic, x: p.x, z: p.z, ry: Math.atan2(-nx, -nz), route: [p, { x: ax + ux * .3, z: az + uz * .3 }, { x: bx, z: bz }, ...(hw ? [{ x: hw.x, z: hw.z }] : []), ...(E ? [E] : [])] }); };
-  for (const p of S.projects) if (isMallSite(p) && p.site) viaRoad(p.name || "הקניון", "🛍️", p.site, p.site.road);
-  if (S.ykSpot) viaRoad(YK.name, "🏡", S.ykSpot, S.ykSpot.road);
   return out;
 }
 // ---- the line: real buses drive the loop stop → stop on a shared clock, so everyone sees the same bus at the same place.
@@ -3727,9 +3730,9 @@ const bayOf = st => ({ x: st.x + Math.sin(st.ry) * 3.3, z: st.z + Math.cos(st.ry
 // from a point on a highway, along it to where it meets the capital (or the point itself, if it's already at the city)
 function hwExit(x, z) {
   let best = null; for (const [a, b, c, d, w, id] of highwaySegs()) { const dx = c - a, dz = d - b, L = Math.hypot(dx, dz), t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (L * L || 1))), q = Math.hypot(a + dx * t - x, b + dz * t - z);
-    if (!best || q < best.q) best = { q, a, b, ux: dx / L, uz: dz / L, t: t * L }; }
+    if (!best || q < best.q) best = { q, a, b, ux: dx / L, uz: dz / L, t: t * L, g: highwaySegs().find(sg => sg[0] === a && sg[1] === b)?.[6]?.A?.gate }; }
   if (!best || inCityBox(x, z, 6)) return { x, z };
-  return { x: best.a, z: best.b };   // the highway's gate into the capital (every highway starts at one)
+  return best.g ? { x: best.g.x, z: best.g.z } : { x: best.a, z: best.b };   // the highway's gate into the capital: the end of the street that runs into its roundabout
 }
 // the capital's street grid, for the bus: the street lines between the blocks (the middle of a boulevard's lanes where there's a boulevard),
 // joined wherever the street is really paved, never through a block, the city square or a roundabout island
@@ -3810,6 +3813,37 @@ function keepRight(pts) {
     if (s1.d.x * s2.d.x + s1.d.z * s2.d.z < -.3 || Math.hypot(X.x - p.x, X.z - p.z) > 2.5 * Math.max(s1.off, s2.off)) out.push(P1, P2); else out.push(X); grp.push(out.slice(o0)); }
   out.push({ ...pts[n - 1] }); grp.push([out[out.length - 1]]); out.grp = grp; return out;
 }
+// the roundabouts where a bus may turn back: the ones at the city gates and the ones at the ends of the coast roads
+const turnRings = () => [...gateRings().map(R => ({ J: { x: R.x, z: R.z }, Ro: R.Ro, rf: R.rf })), ...coastTerms()];
+// a road ahead of p (heading d) that ends in a roundabout: on to it, once round the island keeping it on the left, and back the other way
+function ringTurn(p, d, lp0, maxAhead = 90) {
+  const T = turnRings().find(R => { const a = (R.J.x - p.x) * d.x + (R.J.z - p.z) * d.z; return a > 0 && a < R.Ro + maxAhead && Math.abs((R.J.x - p.x) * -d.z + (R.J.z - p.z) * d.x) < Math.min(26, R.Ro); }); if (!T) return null;
+  const rv = { x: -d.z, z: d.x }, J = T.J, rel = P => [(P.x - J.x) * d.x + (P.z - J.z) * d.z, (P.x - J.x) * rv.x + (P.z - J.z) * rv.z], at2 = (a, l) => ({ x: J.x + d.x * a + rv.x * l, z: J.z + d.z * a + rv.z * l });
+  const lp = lp0 ?? rel(p)[1], s0 = Math.sign(lp) || 1, r = Math.max(1.8, Math.min(Math.abs(lp) || 2.4, T.rf - 1.5)), rf = Math.max(T.rf, r + 1), al = Math.asin(r / rf), fe = Math.sqrt(rf * rf - r * r), arc = [];
+  for (let k = 0; k <= 28; k++) { const ph = (Math.PI - al) - k / 28 * 2 * (Math.PI - al); arc.push(at2(rf * Math.cos(ph), s0 * rf * Math.sin(ph))); }
+  return { T, rel, at2, arc, s0, r, fe };
+}
+// the bus stands in its bay parallel to the kerb: it leaves straight along it and pulls out gently, and comes in the same way
+function bayEase(pts, st, end) {
+  if (pts.length < 3) return pts; const P = end ? [...pts].reverse() : pts.slice(), bay = P[0], N = { x: Math.sin(st.ry), z: Math.cos(st.ry) };   // N: from the shelter toward the road
+  let T = { x: N.z, z: -N.x }; if ((P[1].x - bay.x) * T.x + (P[1].z - bay.z) * T.z < 0) T = { x: -T.x, z: -T.z };
+  let j = 1; while (j < P.length - 1 && (P[j].x - bay.x) * T.x + (P[j].z - bay.z) * T.z < 18 && Math.hypot(P[j].x - bay.x, P[j].z - bay.z) < 26) j++;
+  const out = [bay, { x: bay.x + T.x * 7, z: bay.z + T.z * 7 }, { x: bay.x + T.x * 18 + N.x * 3.3, z: bay.z + T.z * 18 + N.z * 3.3 }, ...P.slice(j)];
+  return end ? out.reverse() : out;
+}
+// through a roundabout: wherever the way crosses one, it follows the ring instead, the island on its left (never across the middle)
+function ringPass(pts) {
+  for (const R of [...gateRings(), ...coastTerms().map(T => ({ x: T.J.x, z: T.J.z, Ro: T.Ro, rf: T.rf }))]) {
+    for (let guard = 0; guard < 4; guard++) {
+      const inside = p => !p.rp && Math.hypot(p.x - R.x, p.z - R.z) < R.Ro - .5; let i = pts.findIndex(inside); if (i < 1) break; let j = i; while (j + 1 < pts.length - 1 && inside(pts[j + 1])) j++;
+      if (j >= pts.length - 1) break;
+      const a1 = Math.atan2(pts[i].z - R.z, pts[i].x - R.x); let a2 = Math.atan2(pts[j].z - R.z, pts[j].x - R.x); while (a2 > a1 - .15) a2 -= Math.PI * 2;   // round with the island on the left
+      const n = Math.max(6, Math.ceil((a1 - a2) * R.rf / 2)), arc = []; for (let k = 0; k <= n; k++) { const an = a1 + (a2 - a1) * k / n; arc.push({ x: R.x + Math.cos(an) * R.rf, z: R.z + Math.sin(an) * R.rf }); }
+      pts = [...pts.slice(0, i), ...arc.map(p => ({ ...p, rp: 1 })), ...pts.slice(j + 1)];
+      if (pts.slice(i + arc.length).some(inside) === false) break; }
+    pts = pts.map(p => p.rp ? { x: p.x, z: p.z } : p); }
+  return pts;
+}
 function legPath(A, B, din) {
   const G = LINE.G || (LINE.G = capGrid() || { route: () => [] }), E1 = A.route[A.route.length - 1], E2 = B.route[B.route.length - 1];
   const raw = [bayOf(A), ...A.route.slice(1), ...G.route(E1, E2), ...[...B.route.slice(1)].reverse(), bayOf(B)].filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .5);
@@ -3833,22 +3867,25 @@ function legPath(A, B, din) {
   let pts = roundAbout(uw).filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .3);
   // leaving a stop back the way it came: on along the road a little, then a wide U-turn to the left onto the other side, never straight across
   if (din && pts.length > 2) { const P0 = pts[0], q = pts[Math.min(pts.length - 1, 2)], ox = q.x - P0.x, oz = q.z - P0.z;
-    if (ox * din.x + oz * din.z < 0) { const lx = din.z, lz = -din.x, lat = Math.max(6, ox * lx + oz * lz), R = lat / 2, P1 = { x: P0.x + din.x * 7, z: P0.z + din.z * 7 }, C = { x: P1.x + lx * R, z: P1.z + lz * R }, arc = [];
+    const RT = ox * din.x + oz * din.z < 0 ? ringTurn(P0, din, null, 3000) : null;
+    if (RT) { const { rel, at2, arc, s0, r, fe } = RT, lane = rel(P0)[1] - s0 * 3.3, rr = Math.abs(lane) > 1 ? Math.abs(lane) : r;   // out of the bay into the lane, on to the roundabout, round it and back
+      let j = 1; while (j < pts.length - 1 && rel(pts[j])[0] > -fe - 12) j++;
+      pts = [P0, at2(rel(P0)[0] + 10, s0 * rr), ...arc, at2(-fe - 12, -s0 * r), ...pts.slice(j)]; }
+    else if (ox * din.x + oz * din.z < 0) { const lx = din.z, lz = -din.x, lat = Math.max(6, ox * lx + oz * lz), R = lat / 2, P1 = { x: P0.x + din.x * 7, z: P0.z + din.z * 7 }, C = { x: P1.x + lx * R, z: P1.z + lz * R }, arc = [];
       for (let k = 0; k <= 12; k++) { const th = Math.PI * k / 12; arc.push({ x: C.x - lx * R * Math.cos(th) + din.x * R * Math.sin(th), z: C.z - lz * R * Math.cos(th) + din.z * R * Math.sin(th) }); }
       const end = arc[arc.length - 1]; let j = 1; while (j < pts.length - 1 && (pts[j].x - end.x) * -din.x + (pts[j].z - end.z) * -din.z < 0) j++;
       pts = [P0, P1, ...arc, ...pts.slice(j)]; } }
-  // arriving at a stop whose bay is across the road: on past it, a U-turn, and back along the near side into the bay (never straight across the lanes)
-  if (pts.length > 3) { const n = pts.length, bay = pts[n - 1], p = pts[n - 2], q = pts[Math.max(0, n - 6)], dl = Math.hypot(p.x - q.x, p.z - q.z) || 1, dx = (p.x - q.x) / dl, dz = (p.z - q.z) / dl;
-    const lat = (bay.x - p.x) * -dz + (bay.z - p.z) * dx, s = (bay.x - p.x) * dx + (bay.z - p.z) * dz;
-    const TE = coastTerms().find(T => { const a = (T.J.x - p.x) * dx + (T.J.z - p.z) * dz; return a > 0 && a < T.Ro + 70 && Math.abs((T.J.x - p.x) * -dz + (T.J.z - p.z) * dx) < 6; });
-    if (lat < -1.5 && TE) {   // the road ends in a roundabout just ahead: on to it, once round the island, and back along the other side into the bay
-      const rv = { x: -dz, z: dx }, J = TE.J, rel = P => [(P.x - J.x) * dx + (P.z - J.z) * dz, (P.x - J.x) * rv.x + (P.z - J.z) * rv.z], at2 = (a, l) => ({ x: J.x + dx * a + rv.x * l, z: J.z + dz * a + rv.z * l });
-      const lp = rel(p)[1], s0 = Math.sign(lp) || 1, r = Math.min(Math.abs(lp) || 2.4, TE.rf - 1), rf = Math.max(TE.rf, r + 1), al = Math.asin(r / rf), fe = Math.sqrt(rf * rf - r * r), arc = [];
-      for (let k = 0; k <= 24; k++) { const ph = (Math.PI - al) - k / 24 * 2 * (Math.PI - al); arc.push(at2(rf * Math.cos(ph), s0 * rf * Math.sin(ph))); }
-      pts = [...pts.slice(0, n - 1), ...arc, at2(rel(bay)[0] + 6, -s0 * r), bay]; }
-    else if (lat < -1.5) { const lx = dz, lz = -dx, R = Math.max(3, -lat / 2 + .6), A1 = { x: p.x + dx * (Math.max(0, s) + 12), z: p.z + dz * (Math.max(0, s) + 12) }, C = { x: A1.x + lx * R, z: A1.z + lz * R }, arc = [];
-      for (let k = 0; k <= 12; k++) { const th = Math.PI * k / 12; arc.push({ x: C.x - lx * R * Math.cos(th) + dx * R * Math.sin(th), z: C.z - lz * R * Math.cos(th) + dz * R * Math.sin(th) }); }
-      pts = [...pts.slice(0, n - 1), A1, ...arc, bay]; } }
+  // arriving at a stop whose bay is across the road: on past it to the roundabout at the road's end (or a small U-turn on a little access road), round it, and back along the near side into the bay
+  if (pts.length > 3) { const n = pts.length, bay = pts[n - 1], N = { x: Math.sin(B.ry), z: Math.cos(B.ry) };
+    let k = n - 2, run = 0; while (k > 0 && run < 30) { run += Math.hypot(pts[k].x - pts[k + 1].x, pts[k].z - pts[k + 1].z); k--; }
+    const p = pts[k], p0 = pts[Math.max(0, k - 12)]; let d = { x: N.z, z: -N.x }; if ((p.x - p0.x) * d.x + (p.z - p0.z) * d.z < 0) d = { x: -d.x, z: -d.z };   // along the kerb, the way the bus comes
+    const lat = (bay.x - p.x) * -d.z + (bay.z - p.z) * d.x, s = (bay.x - p.x) * d.x + (bay.z - p.z) * d.z, RT = lat < -1.5 ? ringTurn(p, d, null, 160) : null;
+    if (RT) { const { rel, at2, arc, s0, r } = RT; pts = [...pts.slice(0, k + 1), at2(rel(p)[0] + 4, s0 * r), ...arc, at2(rel(bay)[0] + 20, -s0 * r), bay]; }
+    else if (lat < -1.5) { const lx = d.z, lz = -d.x, R = Math.max(3, -lat / 2 + .6), A1 = { x: p.x + d.x * (Math.max(0, s) + 14), z: p.z + d.z * (Math.max(0, s) + 14) }, C = { x: A1.x + lx * R, z: A1.z + lz * R }, arc = [];
+      for (let q = 0; q <= 12; q++) { const th = Math.PI * q / 12; arc.push({ x: C.x - lx * R * Math.cos(th) + d.x * R * Math.sin(th), z: C.z - lz * R * Math.cos(th) + d.z * R * Math.sin(th) }); }
+      pts = [...pts.slice(0, k + 1), A1, ...arc, bay]; } }
+  pts = ringPass(pts);
+  pts = bayEase(bayEase(pts, A, false), B, true);
   const lens = []; let L = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); lens.push(d); L += d; }
   return { pts, lens, L };
 }
@@ -4254,20 +4291,21 @@ function buildCities() {
     instanced(P.plane, pieces, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .3); return "#4a5057"; }, { shadow: false });
     const joints = segs.filter(sg => sg[5] === "palm").slice(1).map(sg => [sg[0], sg[1], sg[4]]);   // a smooth round turn where the palm road bends onto the bridge
     if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
-    const hd = []; for (const [a, b, c, d, w, id] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r), TE = termOf(id);
-      const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = 20; k < L - (TE ? TE.Ro + 6 : 10); k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
+    const hd = []; for (const [a, b, c, d, w, id, meta] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r), endR = (meta?.T || meta?.B)?.Ro;
+      const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = meta?.A ? meta.A.Ro + 6 : 20; k < L - (endR ? endR + 6 : 10); k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane1, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
     for (const sg of segs) if (sg[4] > 20) buildSababaLanes(sg, cap);
-    const rT = rng(707); for (const [a, b, c, d, w, id] of segs) { if (w > 20) continue; const L0 = Math.hypot(c - a, d - b), ux = (c - a) / L0, uz = (d - b) / L0, vx = uz, vz = -ux;
+    const rT = rng(707); for (const [a, b, c, d, w, id, meta] of segs) { if (w > 20) continue; const L0 = Math.hypot(c - a, d - b), ux = (c - a) / L0, uz = (d - b) / L0, vx = uz, vz = -ux;
       // only on the open road: the highway starts where it leaves the capital and ends where it reaches the next city (inside a city the cars use its streets)
       let k0 = 0; while (k0 < L0 && inCityBox(a + ux * k0, b + uz * k0, 6)) k0 += 2;
       let k1 = L0; while (k1 > k0 && inCityBox(a + ux * k1, b + uz * k1, 6)) k1 -= 2;
       const L = k1 - k0; if (L < 30) continue;
       for (const [o, dir] of [[-2.2, 1], [2.2, -1]]) { const ax = a + ux * k0 + vx * o, az = b + uz * k0 + vz * o;
-        const rf = termOf(id) && k1 >= L0 - 1 ? termOf(id).rf : 0;
-        for (let n = 0; n < Math.max(1, Math.round(L / 160)); n++) traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf, sp: -1, x0: 0, x1: L, dir, p: rT() * L, v: 12 + rT() * 6, c: COLORS[COLOR_KEYS[Math.floor(rT() * 10)]][0], m: TRAFFIC_MIX[Math.floor(rT() * TRAFFIC_MIX.length)] });
-        traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf, sp: -1, x0: 0, x1: L, dir, p: rT() * L, v: 10, c: BUS_C, m: "bus" }); } }   // the intercity bus
+        const endR = meta?.T || meta?.B, rf = endR && k1 >= L0 - 1 ? endR.rf : 0, rn = meta?.A && k0 < 1 ? meta.A.rf : 0;   // round the roundabouts at both ends
+        for (let n = 0; n < Math.max(1, Math.round(L / 160)); n++) traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf, rn, sp: -1, x0: 0, x1: L, dir, p: rT() * L, v: 12 + rT() * 6, c: COLORS[COLOR_KEYS[Math.floor(rT() * 10)]][0], m: TRAFFIC_MIX[Math.floor(rT() * TRAFFIC_MIX.length)] });
+        traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf, rn, sp: -1, x0: 0, x1: L, dir, p: rT() * L, v: 10, c: BUS_C, m: "bus" }); } }   // the intercity bus
     for (const T of coastTerms()) buildTerm(T);
+    for (const R of gateRings()) buildGateRing(R);
   }
 
   // houses
@@ -4346,10 +4384,10 @@ function buildCities() {
 
 // נתיבי סבבה: the 8-lane highway from the capital to the harbor. A planted median with a crash barrier, solid edge lines,
 // lamps on both sides, green gantry signs over the lanes, and traffic in all 8 lanes (outside the city only)
-function buildSababaLanes([a, b, c, d, w, id], cap) {
-  const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, vx = uz, vz = -ux, r = Math.atan2(ux, uz), P2 = (k, o) => [a + ux * k + vx * o, b + uz * k + vz * o], TE = termOf(id);
-  let k0 = 0; while (k0 < L && inCityBox(...P2(k0, 0), 14)) k0 += 4;   // where it leaves the city
-  if (k0 >= L - 40) return; const len0 = L - k0, len = len0 - (TE ? TE.Ro + 2 : 0), mid = P2(k0 + len / 2, 0);
+function buildSababaLanes([a, b, c, d, w, id, meta], cap) {
+  const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, vx = uz, vz = -ux, r = Math.atan2(ux, uz), P2 = (k, o) => [a + ux * k + vx * o, b + uz * k + vz * o], TE = meta?.T, GA = meta?.A;
+  let kt = 0; while (kt < L && inCityBox(...P2(kt, 0), 14)) kt += 4;   // where it leaves the city
+  if (kt >= L - 40) return; const len0 = L - kt, k0 = Math.max(kt, GA ? GA.Ro + 2 : 0), len = L - k0 - (TE ? TE.Ro + 2 : 0), mid = P2(k0 + len / 2, 0);
   const Q = [];
   const n = Math.ceil(len / 30), strip = (o, wd, col, y = .3, h = .02) => { for (let i = 0; i < n; i++) { const [x, z] = P2(k0 + len * (i + .5) / n, o); Q.push(box(wd, h, len / n + .05, col, x, y, z, { y: r })); } };   // in short pieces, so it follows the hills
   strip(0, 2.6, "#79a65a", .31); strip(-1.5, .25, "#f2c230", .3); strip(1.5, .25, "#f2c230", .3); strip(-15.4, .3, "#f2efe6"); strip(15.4, .3, "#f2efe6");
@@ -4368,47 +4406,44 @@ function buildSababaLanes([a, b, c, d, w, id], cap) {
   placeLabel("🛣️ נתיבי סבבה", mid[0], 6, mid[1]);
   // 8 lanes of traffic: 4 toward the harbor, 4 back to the city
   const r0 = rng(808); for (const [o, dir] of [[3.3, -1], [6.8, -1], [10.4, -1], [13.9, -1], [-3.3, 1], [-6.8, 1], [-10.4, 1], [-13.9, 1]]) for (let n = 0; n < 3; n++) {
-    const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf: TE ? TE.Ri + 2 + (Math.abs(o) - 3.3) / 10.6 * (TE.Ro - TE.Ri - 4) : 0, sp: -1, x0: 0, x1: len0, dir, p: r0() * len, v: 14 + r0() * 10, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
-  for (const [o, dir] of [[13.9, -1], [-13.9, 1]]) { const [ax, az] = P2(k0, o); traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf: TE ? TE.Ro - 2 : 0, sp: -1, x0: 0, x1: len0, dir, p: r0() * len, v: 13, c: BUS_C, m: "bus" }); }   // buses in the slow lanes
+    const [ax, az] = P2(kt, o), lr = R => R ? R.Ri + 2 + (Math.abs(o) - 3.3) / 10.6 * (R.Ro - R.Ri - 4) : 0; traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf: lr(TE), rn: kt < 1 ? lr(GA) : 0, sp: -1, x0: 0, x1: len0, dir, p: r0() * len, v: 14 + r0() * 10, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
+  for (const [o, dir] of [[13.9, -1], [-13.9, 1]]) { const [ax, az] = P2(kt, o); traffic.push({ seg: { ax, az, ux, uz, cx: ax - vx * o, cz: az - vz * o, vx, vz }, r: Math.abs(o), rf: TE ? TE.Ro - 2 : 0, rn: kt < 1 && GA ? GA.Ro - 2 : 0, sp: -1, x0: 0, x1: len0, dir, p: r0() * len, v: 13, c: BUS_C, m: "bus" }); }   // buses in the slow lanes
 }
-// the end of a highway at the coast: a roundabout with a green island, an access road on to the place, a car park, and cars that come and go
+// a roundabout on the map: asphalt, a white curb, the island (green, or a small car park), a dashed line between two lanes, lamps around
+function ringRoad(x, z, Ri, Ro, { lanes = 1, island = "green", palms = 1, data = null } = {}) {
+  const ASPH = "#4a5057";
+  instanced(P.disc, [[Ro * 2, .272, ASPH], [Ri * 2 + 1.2, .3, "#eeeae0"], [Ri * 2, .315, island === "green" ? "#7fae5f" : "#565c63"]], ([s, y, col], o) => { o.position.set(x, y, z); o.scale.set(s, 1, s); return col; }, { shadow: false });
+  if (lanes > 1) { const dash = [], rr = Ri + 1 + (Ro - Ri - 1) / 2; for (let k = 0, n = Math.round(2 * Math.PI * rr / 6); k < n; k++) { const an = k / n * Math.PI * 2; dash.push([x + Math.cos(an) * rr, z + Math.sin(an) * rr, -an]); }
+    instanced(P.plane1, dash, ([px, pz, r], o) => { o.position.set(px, .29, pz); o.rotation.y = r; o.scale.set(.3, 1, 2.6); return "#e8e3d4"; }, { shadow: false }); }
+  const nl = Ro > 20 ? 8 : 4, lamps = []; for (let k = 0; k < nl; k++) { const an = (k + .5) / nl * Math.PI * 2; lamps.push([x + Math.cos(an) * (Ro + 2), z + Math.sin(an) * (Ro + 2), an]); }
+  instanced(P.lamp, lamps, ([px, pz, an], o) => { o.position.set(px, .3, pz); o.rotation.y = -an - Math.PI / 2; });
+  if (island === "green") { const pl = palms > 1 ? Array.from({ length: palms }, (_, k) => [Math.cos(k / palms * 6.28) * Ri * .55, Math.sin(k / palms * 6.28) * Ri * .55, 1.1]).concat([[0, 0, 1.4]]) : [[0, 0, 1.05]];
+    instanced(P.palm, pl, ([px, pz, s], o) => { o.position.set(x + px, .32, z + pz); o.rotation.y = px + pz; o.scale.setScalar(s); }); }
+}
+// where a highway meets a city: its roundabout, and the street from the city's edge running straight into it
+function buildGateRing(R) {
+  const g = R.gate; if (!g) return ringRoad(R.x, R.z, R.Ri, R.Ro, { palms: 1 });
+  const ox = g.ox, oz = g.oz, ry = Math.atan2(ox, oz), w = R.wide ? 30 : 9.5, len = R.Ro + 4;
+  instanced(P.plane, [[g.x + ox * len / 2 - ox * 1, g.z + oz * len / 2 - oz * 1, w, len]], ([x, z, ww, d], o) => { o.position.set(x, .264, z); o.rotation.y = ry; o.scale.set(ww, 1, d); return "#4a5057"; }, { shadow: false });
+  ringRoad(R.x, R.z, R.Ri, R.Ro, { lanes: R.wide ? 2 : 1, palms: R.wide ? 6 : 1 });
+}
+// the end of a highway at the coast: the roundabout right in front of the building, a car park on its island, a paved drop-off to the door
 function buildTerm(T) {
-  const { J, F, ax, az, al, Ri, Ro, aw } = T, ry = Math.atan2(ax, az), nx = az, nz = -ax, data = { type: "place", id: T.id }, ASPH = "#4a5057";
-  const P3 = (k, o) => [J.x + ax * k + nx * o, J.z + az * k + nz * o];
-  // the roundabout: asphalt, a white curb, a green island, a dashed line between its lanes, lamps around it
-  instanced(P.disc, [[Ro * 2, .272, ASPH], [Ri * 2 + 1.2, .3, "#eeeae0"], [Ri * 2, .315, "#7fae5f"]], ([s, y, col], o) => { o.position.set(J.x, y, J.z); o.scale.set(s, 1, s); return col; }, { shadow: false });
-  const dash = [], ringR = Ri + (Ro - Ri) / 2; for (let k = 0, n = Math.round(2 * Math.PI * ringR / 6); k < n; k++) { const an = k / n * Math.PI * 2; dash.push([J.x + Math.cos(an) * ringR, J.z + Math.sin(an) * ringR, -an]); }
-  if (T.id === "harbor") instanced(P.plane1, dash, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 2.6); return "#e8e3d4"; }, { shadow: false });
-  const lampsR = []; for (let k = 0; k < (T.id === "harbor" ? 8 : 4); k++) { const an = (k + .5) / (T.id === "harbor" ? 8 : 4) * Math.PI * 2; lampsR.push([J.x + Math.cos(an) * (Ro + 2), J.z + Math.sin(an) * (Ro + 2), an]); }
-  instanced(P.lamp, lampsR, ([x, z, an], o) => { o.position.set(x, .3, z); o.rotation.y = -an - Math.PI / 2; });
-  const isl = T.id === "harbor" ? [[0, 0, 1.4], [5.5, 2, 1.1], [-4, 5, 1], [-3, -5.5, 1.15], [4.5, -4, .95]] : [[0, 0, 1.05]];
-  instanced(P.palm, isl, ([x, z, s], o) => { o.position.set(J.x + x, .32, J.z + z); o.rotation.y = x + z; o.scale.setScalar(s); });
-  // the access road, from the roundabout to the door, and a turning circle at its end
-  const k0 = Ro - 1, len = al - k0, n = Math.max(1, Math.ceil(len / 30)), road = [];
-  for (let i = 0; i < n; i++) { const [x, z] = P3(k0 + len * (i + .5) / n, 0); road.push([x, z, aw, len / n + .3, ASPH]); }
-  for (let k = k0 + 4; k < al - aw; k += 7) { const [x, z] = P3(k, 0); road.push([x, z, .25, 3, "#e8e3d4"]); }   // the dashed middle line
-  for (const o of [-aw / 2 + .4, aw / 2 - .4]) for (let i = 0; i < n; i++) { const [x, z] = P3(k0 + len * (i + .5) / n, o); road.push([x, z, .22, len / n, "#f2efe6"]); }
-  instanced(P.plane, road, ([x, z, w, d, col], o) => { o.position.set(x, col === ASPH ? .262 : .285, z); o.rotation.y = ry; o.scale.set(w, 1, d); return col; }, { shadow: false });
-  { const [fx, fz] = P3(al - aw * .3, 0); instanced(P.plane, [[fx, fz]], ([x, z], o) => { o.position.set(x, .264, z); o.rotation.y = ry; o.scale.set(aw * 2.2, 1, aw * 1.3); return "#c9c2b4"; }, { shadow: false }); }   // a paved drop-off in front of the door
-  // the car park beside the road: two rows of bays, cars in most of them, a sign at the entrance
-  const [LL, LW] = T.lot, kc = k0 + 6 + LL / 2;
-  const side = [1, -1].find(sd => [[-LL / 2, 0], [LL / 2, 0], [-LL / 2, 1], [LL / 2, 1], [0, 1]].every(([dk, f]) => { const [x, z] = P3(kc + dk, sd * (aw / 2 + 1 + LW * f)); return onGrass(x, z, S.s, -.06) && !onHighway(x, z) || f === 0; }));   // on the grass or the sand, never in the water
-  if (side && kc + LL / 2 < al - 4) {
-    const off = side * (aw / 2 + 1 + LW / 2), [cx, cz] = P3(kc, off), Q = [[cx, cz, LW, LL, "#565c63"]], cars = [], bays = Math.floor(LL / 2.8);
-    for (const row of [-1, 1]) { const ro = off + row * (LW / 2 - 2.6);
-      for (let i = 0; i <= bays; i++) { const [x, z] = P3(kc - LL / 2 + i * 2.8 + .2, ro); Q.push([x, z, 5, .14, "#f2efe6"]); }
-      for (let i = 0; i < bays; i++) if (hash(`${T.id}${row}${i}`) % 10 < 6) { const [x, z] = P3(kc - LL / 2 + i * 2.8 + 1.6, ro); cars.push({ x, z, r: ry + Math.PI / 2 * row * side + (hash(`${T.id}r${i}`) % 2 ? 0 : Math.PI) * 0, m: CAR_KEYS[hash(`${T.id}m${row}${i}`) % CAR_KEYS.length], c: COLORS[COLOR_KEYS[hash(`${T.id}c${row}${i}`) % COLOR_KEYS.length]][0] }); } }
-    instanced(P.plane, Q.slice(0, 1), ([x, z, w, d, col], o) => { o.position.set(x, .258, z); o.rotation.y = ry; o.scale.set(w, 1, d); return col; }, { shadow: false });
-    instanced(P.plane1, Q.slice(1), ([x, z, w, d, col], o) => { o.position.set(x, .27, z); o.rotation.y = ry; o.scale.set(w, 1, d); return col; }, { shadow: false });
-    for (const key of CAR_KEYS) { const list = cars.filter(c => c.m === key); if (list.length) instanced(P["car_" + key], list, (c, o) => { o.position.set(c.x, .3, c.z); o.rotation.y = c.r; return c.c; }); }
-    const [sx, sz] = P3(kc - LL / 2 - 1.5, side * (aw / 2 + 1.2)), sg = solid([box(.25, 3.6, .25, "#9aa0a6", 0, 0, 0)], sx, sz, ry + Math.PI, data, .3);
-    mountSign(sg, sign("🅿️ חניה", 2.6, 1.1, { bg: "#2b5d8a", fg: "#ffffff" }), 0, 3.2, .16);
-  }
+  const { J, F, ox, oz, Ri, Ro } = T, ry = Math.atan2(ox, oz), nx = oz, nz = -ox, data = { type: "place", id: T.id }, big = T.id === "harbor";
+  ringRoad(J.x, J.z, Ri, Ro, { lanes: big ? 2 : 1, island: "park", data });
+  // the car park on the island: two rows of bays facing a middle aisle, most of them taken, its way in from the land side
+  const side = Ri * 1.3, P3 = (a, b) => [J.x + ox * a + nx * b, J.z + oz * a + nz * b], lines = [], cars = [], n = Math.floor(side / 2.8);
+  for (const row of [-1, 1]) { const ro = row * (side / 2 - 2.6);
+    for (let i = 0; i <= n; i++) { const [x, z] = P3(ro, -side / 2 + i * 2.8 + (side - n * 2.8) / 2); lines.push([x, z, 5, .14]); }
+    for (let i = 0; i < n; i++) if (hash(`${T.id}${row}${i}`) % 10 < 7) { const [x, z] = P3(ro, -side / 2 + i * 2.8 + 1.4 + (side - n * 2.8) / 2); cars.push({ x, z, r: ry + (row > 0 ? 0 : Math.PI), m: CAR_KEYS[hash(`${T.id}m${row}${i}`) % CAR_KEYS.length], c: COLORS[COLOR_KEYS[hash(`${T.id}c${row}${i}`) % COLOR_KEYS.length]][0] }); } }
+  instanced(P.plane1, lines, ([x, z, w, d], o) => { o.position.set(x, .325, z); o.rotation.y = ry; o.scale.set(w, 1, d); return "#f2efe6"; }, { shadow: false });
+  for (const key of CAR_KEYS) { const list = cars.filter(c => c.m === key); if (list.length) instanced(P["car_" + key], list, (c, o) => { o.position.set(c.x, .33, c.z); o.rotation.y = c.r; return c.c; }); }
+  { const [x, z] = P3(-(Ri + .6), 0); instanced(P.plane, [[x, z]], ([px, pz], o) => { o.position.set(px, .318, pz); o.rotation.y = ry; o.scale.set(6, 1, 2.6); return "#565c63"; }, { shadow: false });   // the way in, through the curb
+    const [sx, sz] = P3(-(Ri - .4), 4.2), sg = solid([box(.25, 3.2, .25, "#9aa0a6", 0, 0, 0)], sx, sz, ry + Math.PI, data, .32); mountSign(sg, sign("🅿️ חניה", 2.4, 1, { bg: "#2b5d8a", fg: "#ffffff" }), 0, 2.8, .16); }
+  // the paved drop-off between the roundabout and the door
+  const dl = Math.max(4, Math.hypot(F.x - J.x, F.z - J.z) - Ro + 3), [px, pz] = P3(Ro - 1 + dl / 2, 0);
+  instanced(P.plane, [[px, pz]], ([x, z], o) => { o.position.set(x, .266, z); o.rotation.y = ry; o.scale.set(big ? 30 : 16, 1, dl); return "#c9c2b4"; }, { shadow: false });
   placeLabel(T.name, J.x, 6, J.z, "pl", 3);
-  // cars on the access road: from the door round the roundabout and back
-  const r0 = rng(hash(T.id) + 5), ux = -ax, uz = -az, vx = uz, vz = -ux;
-  for (const [o, dir] of [[aw / 4, 1], [-aw / 4, -1]]) for (let k = 0; k < (T.id === "harbor" ? 3 : 1); k++) { const sx2 = F.x + vx * o, sz2 = F.z + vz * o;
-    traffic.push({ seg: { ax: sx2, az: sz2, ux, uz, cx: F.x, cz: F.z, vx, vz }, r: Math.abs(o), rf: T.rf, sp: -1, x0: 0, x1: al, dir, p: r0() * al, v: 6 + r0() * 4, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); }
 }
 // a car on a street: horizontal streets run along x, the avenues of the vertical boulevards along z.
 // Where its street runs into a roundabout, the car swings round the island (keeping to its own side) instead of driving through it
@@ -4429,13 +4464,16 @@ function streetAt(c, p) {   // [along, across] of a street car at distance p
 // (where the far end is a roundabout, c.rf: round the island at that radius, keeping it on the left, and back)
 function uInit(c) { const L = c.x1 - c.x0, r = Math.min(c.r, L / 3); c.lr = r;
   c.fe = c.rf > r ? Math.sqrt(c.rf * c.rf - r * r) : r; c.fa = c.rf > r ? 2 * (Math.PI - Math.asin(r / c.rf)) * c.rf : Math.PI * r;
-  const S2 = Math.max(.5, L - r - c.fe); c.S = S2; c.Q = 2 * S2 + Math.PI * r + c.fa;
-  const a = Math.max(0, Math.min(S2, c.p - r)); c.q = c.dir > 0 ? a : S2 + c.fa + (S2 - a); }
-function uAt(c, q) { const r = c.lr, S2 = c.S, sp = c.sp, x0 = c.x0 + r; q = ((q % c.Q) + c.Q) % c.Q;
+  c.ne = c.rn > r ? Math.sqrt(c.rn * c.rn - r * r) : r; c.na = c.rn > r ? 2 * (Math.PI - Math.asin(r / c.rn)) * c.rn : Math.PI * r;
+  const S2 = Math.max(.5, L - c.ne - c.fe); c.S = S2; c.Q = 2 * S2 + c.na + c.fa;
+  const a = Math.max(0, Math.min(S2, c.p - c.ne)); c.q = c.dir > 0 ? a : S2 + c.fa + (S2 - a); }
+// along the road on the right, round the far end (a roundabout, or a tight half circle), back on the other side, round the near end
+function uAt(c, q) { const r = c.lr, S2 = c.S, sp = c.sp, x0 = c.x0 + c.ne; q = ((q % c.Q) + c.Q) % c.Q;
   if (q < S2) return [x0 + q, sp * r]; q -= S2;
   if (q < c.fa) { if (c.rf > r) { const ph = (Math.PI - Math.asin(r / c.rf)) - q / c.rf; return [c.x1 + c.rf * Math.cos(ph), sp * c.rf * Math.sin(ph)]; }
     const th = q / r; return [x0 + S2 + r * Math.sin(th), sp * r * Math.cos(th)]; } q -= c.fa;
   if (q < S2) return [x0 + S2 - q, -sp * r]; q -= S2;
+  if (c.rn > r) { const ph = (Math.PI - Math.asin(r / c.rn)) - q / c.rn; return [c.x0 - c.rn * Math.cos(ph), -sp * c.rn * Math.sin(ph)]; }
   const th = q / r; return [x0 - r * Math.sin(th), -sp * r * Math.cos(th)]; }
 function uPos(c, q) { const [a, lat] = uAt(c, q);
   if (c.seg) { const s = c.seg; return [s.cx + s.ux * a + s.vx * lat, s.cz + s.uz * a + s.vz * lat]; }
@@ -5006,7 +5044,25 @@ function addrAt(x, z, slot) {
     if (sl.blocks.has(`${bx},${bz}`) && Math.abs(x - sl.x - BPX(bx)) < bwX(bx) / 2 && Math.abs(z - sl.z - BPZ(bz)) < BZ / 2) return blockAddr(sl, si, bx, bz); }
   return `מחוץ לעיר, ליד ${slot?.city?.name || ""}`;
 }
+// a business the admin placed on the map, checked against today's city: still on a free public lot, or on open land clear of roads and buildings?
+// If the city changed under it (the lot is now houses, a street runs through it, it stands in an empty field inside the town), it moves to the nearest free public lot
+const WP_SNAP = new Map();   // lot key -> business placed there by this check
+function placedSpot(w, cfg, slot) {
+  const projN = S.projects.filter(p => p.city_id === slot.city.id && !p.params?.island && !isMallSite(p)).length, free = (slot.publicSpots || []).slice(projN).map(([cx, cz, bx, bz]) => ({ x: cx, z: cz, key: blkKey(slot, bx, bz) }));
+  const taken = k => WP_SNAP.has(k) && WP_SNAP.get(k) !== w.id || [...(S.wpCfg?.entries() || [])].some(([id, c]) => id !== w.id && c.lot === k && c.x != null && !WP_SNAP.has("moved:" + id));
+  if (cfg.lot) { const f = free.find(q => q.key === cfg.lot); if (f && !taken(f.key)) { WP_SNAP.set(f.key, w.id); return { ...cfg, x: f.x, z: f.z, lot: f.key }; } }
+  else { const x = cfg.x, z = cfg.z, roads = [...highwaySegs(), ...extraRoads()];
+    const clear = !inCityBox(x, z, 26) && onGrass(x, z, S.s, .03) && !onPalm(x, z) && ![...gateRings(), ...coastTerms().map(T => ({ x: T.J.x, z: T.J.z, Ro: T.Ro }))].some(R => Math.hypot(x - R.x, z - R.z) < R.Ro + 20)
+      && !roads.some(([a, b, c, d, wd]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < wd / 2 + 16; })
+      && ![...(S.mallSpots || []).filter(Boolean), ...(S.ykSpot ? [S.ykSpot] : [])].some(m => Math.hypot(m.x - x, m.z - z) < 90);
+    if (clear) return cfg; }
+  // moved: to the nearest free public lot of its city
+  const f = free.filter(q => !taken(q.key)).sort((a, b) => Math.hypot(a.x - cfg.x, a.z - cfg.z) - Math.hypot(b.x - cfg.x, b.z - cfg.z))[0];
+  if (f) { WP_SNAP.set(f.key, w.id); WP_SNAP.set("moved:" + w.id, f.key); return { ...cfg, x: f.x, z: f.z, ry: 0, lot: f.key }; }
+  return { ...cfg, x: undefined };   // nowhere free: back on its own block in the business district
+}
 function buildCivic() {
+  WP_SNAP.clear();
   const parks = [], lots = [], parked = [], gardens = [], drives = [];
   S.slots.filter(s => s.city).forEach((slot, si) => {
     const all = slot.reserved.map(([bx, bz]) => [slot.x + BPX(bx), slot.z + BPZ(bz), bx, bz]), nGov = si === 0 ? GOV.length : 0;
@@ -5014,7 +5070,8 @@ function buildCivic() {
     if (slot.ballotBlock) { BALLOT.x = slot.x + BPX(slot.ballotBlock[0]); BALLOT.z = slot.z + BPZ(slot.ballotBlock[1]); BALLOT.addr = blockAddr(slot, si, ...slot.ballotBlock); BALLOT.city_id = slot.city.id; ballotBuilding(BALLOT.x, BALLOT.z); placeLabel(`🗳️ ${BALLOT.name}`, BALLOT.x, 11, BALLOT.z, "gov"); }
     if (si === 0) GOV.forEach((g, i) => { const sp = all[i]; if (!sp) return; g.x = sp[0]; g.z = sp[1]; g.addr = blockAddr(slot, si, sp[2], sp[3]); govBuilding(g.id, sp[0], sp[1]); placeLabel(`${g.ic} ${g.name}`, sp[0], 17, sp[1], "gov"); });
     S.workplaces.filter(w => w.city_id === slot.city.id).sort((a, b) => a.id - b.id).forEach((w, i) => {
-      const cfg = S.wpCfg?.get(w.id) || {}, sp = spots[i]; w.look = cfg.look || null; w.ry = 0;
+      const cfg0 = S.wpCfg?.get(w.id) || {}, sp = spots[i]; w.look = cfg0.look || null; w.ry = 0;
+      const cfg = cfg0.x != null ? placedSpot(w, cfg0, slot) : cfg0;   // where the admin put it, unless the city has changed under it since
       if (cfg.x != null) {   // placed on the map by the admin: its own block (if it had one) becomes a small garden
         if (sp && !S.zones?.has(`${slot.at}:${sp[2]},${sp[3]}`)) gardens.push(sp);
         w.x = cfg.x; w.z = cfg.z; w.ry = cfg.ry || 0; w.addr = addrAt(w.x, w.z, slot);
@@ -5401,7 +5458,7 @@ function ykSpotHwy(R1) {
 }
 const moundW = (x, z) => { const m = HT_U.uMound.value; if (m.w < .5) return 0; const d = Math.hypot(x - m.x, z - m.y); return d >= YK.R1 ? 0 : 1 - smooth01(YK.R0, YK.R1, d); };
 // roads that aren't highways but must stay clear of the hills and the trees: the mall's and the store's access roads
-const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : []), ...coastTerms().map(T => [T.J.x, T.J.z, T.F.x, T.F.z, T.aw])];
+const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : [])];
 // ---- סבבהום: a street of ten houses under a glass roof (five on each side, one for every kind of room) and a tall entrance house at the front.
 //      Outside and inside are built from the same plan: each house you see from the road is a showroom you walk into.
 //      Inside coords: x along the street (the door at XB), z across it (north houses z < 0). Outside: the street runs toward the road (local +z)
@@ -5439,7 +5496,8 @@ function buildYallkea() {
   const sp = S.ykSpot; if (!sp) return; const cs = Math.cos(sp.ry), sn = Math.sin(sp.ry), W = (a, b) => ({ x: sp.x + a * cs + b * sn, z: sp.z - a * sn + b * cs }), data = { type: "place", id: "yallkea" };
   YK.x = sp.x; YK.z = sp.z; YK.door = W(0, 23); YK.ry = sp.ry;
   const Q = [], cars = [], trees = [], lamps = [], { HW, HR, HH, HT, GL, GR } = SH, th = Math.atan2(HR - HW, 8), ps = Math.atan2(HT - HH, 24), ph = Math.atan2(GR - GL, 4);
-  Q.push(box(116, .12, 156, "#d8d1c2", 0, 0, -18), box(104, .05, 42, "#4a5057", 0, .12, 46), box(10, .05, 14, "#4a5057", 0, .12, 66));
+  { const bk = SH_BACK() - 6; Q.push(box(60, .12, 26 - bk, "#d8d1c2", 0, 0, (26 + bk) / 2), box(110, .12, 48, "#d8d1c2", 0, 0, 47)); }   // paving fitted around the building and the car park, centered on both
+  Q.push(box(104, .05, 42, "#4a5057", 0, .12, 46), box(10, .05, 14, "#4a5057", 0, .12, 66));
   for (const zc of [36, 56]) { Q.push(box(100, .3, 1, "#79a65a", 0, .12, zc)); for (let x = -48; x <= 48; x += 12) trees.push(W(x, zc)); for (let x = -42; x <= 48; x += 18) lamps.push([W(x, zc), sp.ry]);
     for (let i = 0; i <= 34; i++) { const x = -48 + i * 2.8; Q.push(box(.12, .02, 5, "#f4f1e8", x, .17, zc - 3), box(.12, .02, 5, "#f4f1e8", x, .17, zc + 3));
       if (i < 34) for (const [dz, r] of [[-3, 0], [3, Math.PI]]) if (hash(`yk:${zc}:${i}:${dz}`) % 10 < 6) cars.push({ ...W(x + 1.4, zc + dz), ry: sp.ry + r, m: CAR_KEYS[hash(`ykm${zc}${i}${dz}`) % CAR_KEYS.length], c: COLORS[COLOR_KEYS[hash(`ykc${zc}${i}${dz}`) % COLOR_KEYS.length]][0] }); } }
@@ -6249,7 +6307,7 @@ function buildMonument(p, cx, cz) {
 const Y0 = CURB + .01; // public lots sit on top of the city's paving
 // an empty public lot, waiting for ideas (or dressed by the admin, or with a business the admin placed on it)
 function buildEmptyLot(slot, key, cx, cz, addr, W = 42) {
-  if ([...(S.wpCfg?.values() || [])].some(c => c.lot === key && c.x != null)) return;
+  if (WP_SNAP.has(key)) return;   // a business stands here
   const cfg = S.blkCfg?.get(key) || {}, data = { type: "lot", slot, key, addr }, ground = { stone: "#d8cfbd", grass: "#79a65a", sand: "#d8c79f" }[cfg.ground] || "#d8c79f";
   const g = solid([box(W - 2, .1, SD - 2, ground), ...(cfg.noSign ? [] : [box(.25, 3.8, .25, "#6e4c30", -3.6, 0, 7), box(.25, 3.8, .25, "#6e4c30", 3.6, 0, 7), box(8, 2.6, .2, "#ffffff", 0, 1.4, 7)])], cx, cz, 0, data, Y0);
   if (!cfg.noSign) mountSign(g, sign("מגרש ציבורי · מה לבנות כאן? תגיבו בריל", 7.6, 2.2, { bg: "#ffffff", fg: "#1f6f8b", font: "700" }), 0, 2.7, 7.11);
@@ -6297,10 +6355,22 @@ function buildCoast() {
     c.x = p.x; c.z = p.z;
     placeLabel(`${c.ic} ${c.name}`, p.x, c.id === "light" ? 34 : 10, p.z, "pl", 1.2);
     if (c.id === "harbor") {
-      const hg = solid([box(10, 1.4, 90, "#9a7348", 0, -1.1, 45), ...Array.from({ length: 10 }, (_, i) => cyl(.5, .5, 4, 6, "#6a4b2e", i % 2 ? -5.5 : 5.5, -3.4, 6 + i * 9)), box(16, 4, 10, "#efe9dd", 0, 0, -4), box(16.4, .4, 10.4, "#1f6f8b", 0, 4, -4), box(5, 2, .12, GLASS, 0, .5, 1.05),
-        ...[10, 40, 70].map(k => cyl(.08, .08, 2.6, 6, "#4a5056", 4.6, .3, k)), ...[10, 40, 70].map(k => box(.3, .2, .3, "*#fff1c2", 4.6, 2.9, k))],
-        p.x, p.z, out, { type: "place", id: "harbor" });
-      mountSign(hg, sign("נמל העולים", 10, .9, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 3.25, 1.07);
+      // the passenger terminal: a long two-story hall with a glass front to the land, a blue wave roof, a canopy over the drop-off, a control tower,
+      // a covered gangway out to the pier, two harbor cranes and a stack of containers on the quay
+      const HQ = [box(10, 1.4, 90, "#9a7348", 0, -1.1, 45), ...Array.from({ length: 10 }, (_, i) => cyl(.5, .5, 4, 6, "#6a4b2e", i % 2 ? -5.5 : 5.5, -3.4, 6 + i * 9)),
+        box(62, .4, 26, "#d8d1c2", 0, -.1, -10),   // the quay paving under it all
+        box(46, 8, 16, "#f4f1ea", 0, 0, -12), box(42, 4.6, .25, GLASS, 0, .6, -20.1), box(42, 2.2, .25, GLASS, 0, 5.2, -20.1), box(46.4, .5, .4, "#1f6f8b", 0, 4.9, -20.2),
+        box(47, .7, 17, "#1f6f8b", 0, 8, -12), box(26, 3.6, 11, "#ffffff", 4, 8.7, -13), box(26.4, .5, 11.4, "#1f6f8b", 4, 12.3, -13), box(24, 2.6, .2, GLASS, 4, 9.2, -18.6),
+        box(22, .5, 7, "#ffffff", 0, 5.4, -24), ...[-10, -3.5, 3.5, 10].map(x => cyl(.3, .3, 5.4, 10, "#e6e2da", x, 0, -26.6)), box(22.2, .2, 7.2, "*#fff1c2", 0, 5.3, -24),
+        cyl(2.2, 2.6, 15, 14, "#f4f1ea", -19, 8, -9), cyl(3.4, 3.4, 3, 14, GLASS, -19, 23, -9), cyl(3.8, 3.8, .6, 14, "#1f6f8b", -19, 26, -9), cyl(.12, .12, 4, 6, "#dddddd", -19, 26.6, -9),
+        box(5, 3.4, 10, "#e6e2da", 0, 1.2, -1), box(5.2, .4, 10.2, "#1f6f8b", 0, 4.6, -1), box(4, 2.6, .15, GLASS, 0, 1.6, 4.05),
+        ...[[-22, 2], [-16, 2], [-22, 6.2], [-16, 6.2]].flatMap(([x, z], i) => [box(5.6, 2.6, 2.4, ["#c0392b", "#2f6fb5", "#e8a020", "#2f8f5b"][i], x, 0, z), box(5.6, 2.6, 2.4, ["#2f8f5b", "#e8a020", "#c0392b", "#2f6fb5"][i], x, 2.6, z)]),
+        ...[[16, 8], [24, 14]].flatMap(([x, z]) => [box(.8, 22, .8, "#e8b23a", x - 3, 0, z - 3), box(.8, 22, .8, "#e8b23a", x + 3, 0, z - 3), box(.8, 22, .8, "#e8b23a", x - 3, 0, z + 3), box(.8, 22, .8, "#e8b23a", x + 3, 0, z + 3),
+          box(7.6, 2.2, 7.6, "#e8b23a", x, 22, z), box(1.4, 1.4, 30, "#e8b23a", x, 23.4, z + 8), box(3, 3, 3, "#2b2f34", x, 24.6, z - 1)]),
+        ...[10, 40, 70].map(k => cyl(.08, .08, 2.6, 6, "#4a5056", 4.6, .3, k)), ...[10, 40, 70].map(k => box(.3, .2, .3, "*#fff1c2", 4.6, 2.9, k))];
+      const hg = solid(HQ, p.x, p.z, out, { type: "place", id: "harbor" });
+      mountSign(hg, sign("⚓ נמל העולים", 22, 2.4, { bg: "#1f6f8b", fg: "#ffffff" }), 0, 10.2, -20.4, Math.PI);
+      mountSign(hg, sign("🚢 אולם הנוסעים · Arrivals", 12, 1, { bg: "#ffffff", fg: "#1f6f8b" }), 0, 6.2, -27.65, Math.PI);
       const cs = Math.cos(out), sn = Math.sin(out);
       for (const [bx, bz, cl] of [[14, 30, "#ffffff"], [-16, 46, "#e2b33a"], [15, 66, "#c0392b"], [-28, 96, "#ffffff"], [24, 110, "#2b4f74"]]) {
         const g = solid([box(4, 1.6, 10, cl, 0, -.4, 0), box(3.2, .3, 8, "#9a7348", 0, 1.2, 0), cyl(.12, .12, 10, 6, "#dddddd", 0, 1.2, .5),
@@ -6310,7 +6380,8 @@ function buildCoast() {
 
     } else if (c.id === "light") {
       const lg = solid([box(10, 1.6, 10, "#d8d1c2"), cyl(3, 4.6, 24, 16, "#ffffff"), cyl(3.55, 3.75, 3, 16, "#c0392b", 0, 6, 0), cyl(3.15, 3.3, 3, 16, "#c0392b", 0, 15, 0), cyl(3.4, 3.4, .6, 16, "#333333", 0, 24, 0),
-        cyl(2.2, 2.2, 3.4, 12, "*#ffe59a", 0, 24.6, 0), part(new THREE.ConeGeometry(3, 3, 14), "#c0392b", 0, 29.5, 0)], p.x, p.z, out + Math.PI, { type: "place", id: "light" });
+        cyl(2.2, 2.2, 3.4, 12, "*#ffe59a", 0, 24.6, 0), part(new THREE.ConeGeometry(3, 3, 14), "#c0392b", 0, 29.5, 0),
+        box(9, 3.8, 7, "#f4efe6", 9.5, 0, -1), box(9.6, .5, 7.6, "#c0392b", 9.5, 3.8, -1), box(2.2, 2.4, .15, "#6b4a2f", 9.5, 0, 2.55), box(14, .3, 16, "#d8d1c2", 4, -.05, 0)], p.x, p.z, out + Math.PI, { type: "place", id: "light" });   // and the keeper's cottage beside it
       mountSign(lg, sign("המגדלור", 6, .9, { bg: "#d8d1c2", fg: "#7a2a20" }), 0, .8, 5.06);
     } else if (c.id === "gallery") {
       // the Sababa Gallery: a white museum cube with a glass front, colored banners, a skylight, and a giant golden frame on the plaza for photos
@@ -6590,32 +6661,39 @@ function cityGate(sl, tx, tz, wide) {
   let best = null, bs = -Infinity;
   for (const c of cands) { const cl = Math.hypot(c.x - sl.x, c.z - sl.z) || 1, gx = tx - c.x, gz = tz - c.z, gl = Math.hypot(gx, gz) || 1;
     const s = ((c.x - sl.x) * dx + (c.z - sl.z) * dz) / cl + (gx * c.ox + gz * c.oz) / gl + (c.w ? .15 : 0); if (s > bs) { bs = s; best = c; } }
-  return best ? { x: best.x, z: best.z } : { x: sl.x, z: sl.z };
+  return best ? { x: best.x, z: best.z, ox: best.ox, oz: best.oz } : { x: sl.x, z: sl.z, ox: 0, oz: 1 };
 }
-// where a highway reaches the coast it doesn't just stop: a roundabout, an access road to the place, a car park beside it
-const TERM_SPEC = { harbor: { D: 80, Ri: 12, Ro: 27, aw: 14, lot: [46, 30], back: 14, name: "⚓ כיכר העולים" },
-  light: { D: 46, Ri: 5.5, Ro: 13.5, aw: 9, lot: [30, 19], back: 9, name: "🗼 כיכר המגדלור" }, gallery: { D: 46, Ri: 5.5, Ro: 13.5, aw: 9, lot: [30, 19], back: 18, name: "🖼️ כיכר הגלריה" } };
-let TERM_MEMO = null;
-function coastTerms() {
-  const cap = S.slots.find(s => s.city); if (!cap) return [];
-  const key = `${S.s}|${cap.x}|${cap.z}|${cap.blocks?.size}`; if (TERM_MEMO?.key === key) return TERM_MEMO.list;
-  const list = COAST.filter(c => TERM_SPEC[c.id]).map(c => { const T = TERM_SPEC[c.id], q = shorePt(c.t, S.s, .9), g = cityGate(cap, q.x, q.z, c.id === "harbor"), L = Math.hypot(q.x - g.x, q.z - g.z) || 1, ux = (q.x - g.x) / L, uz = (q.z - g.z) / L;
-    const J = { x: q.x - ux * T.D, z: q.z - uz * T.D }, p = shorePt(c.t, S.s, .97), out = Math.atan2(Math.cos(c.t) * RZ0, Math.sin(c.t) * RX0), F = { x: p.x - Math.sin(out) * T.back, z: p.z - Math.cos(out) * T.back };
-    const al = Math.hypot(F.x - J.x, F.z - J.z) || 1;
-    return { id: c.id, ...T, gate: g, J, F, ux, uz, al, ax: (F.x - J.x) / al, az: (F.z - J.z) / al, rf: (T.Ri + T.Ro) / 2 + (c.id === "harbor" ? 0 : 0) }; });
-  TERM_MEMO = { key, list }; return list;
+// where a highway reaches the coast it ends in a roundabout right in front of the building, with a small car park on the island in its middle
+const TERM_SPEC = { harbor: { Ri: 18, Ro: 31, back: 30, name: "⚓ כיכר העולים" }, light: { Ri: 9, Ro: 17, back: 9, name: "🗼 כיכר המגדלור" }, gallery: { Ri: 9, Ro: 17, back: 18, name: "🖼️ כיכר הגלריה" } };
+// and where a highway meets a city: a roundabout just outside it, the street running on straight out of it
+const GATE_SPEC = { wide: { Ri: 16, Ro: 31 }, std: { Ri: 6, Ro: 14 } };
+let HW_MEMO = null;
+function hwPlan() {
+  const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return { segs: [], rings: [], terms: [] };
+  const key = `${S.s}|${open.map(s => s.x + ":" + s.z + ":" + (s.blocks?.size || 0)).join("|")}|${PALM.geo ? PALM.geo.approach.x : "-"}`; if (HW_MEMO?.key === key) return HW_MEMO;
+  const rings = [], ring = (sl, tx, tz, wide) => { const g = cityGate(sl, tx, tz, wide), sp = wide ? GATE_SPEC.wide : GATE_SPEC.std, R = { ...sp, x: g.x + g.ox * (sp.Ro + 3), z: g.z + g.oz * (sp.Ro + 3), gate: g, wide, rf: (sp.Ri + sp.Ro) / 2 };
+    const same = rings.find(q => Math.hypot(q.x - R.x, q.z - R.z) < 1); if (same) return same; rings.push(R); return R; };
+  const terms = COAST.filter(c => TERM_SPEC[c.id]).map(c => { const T = TERM_SPEC[c.id], p = shorePt(c.t, S.s, .97), out = Math.atan2(Math.cos(c.t) * RZ0, Math.sin(c.t) * RX0), ox = Math.sin(out), oz = Math.cos(out);
+    const F = { x: p.x - ox * T.back, z: p.z - oz * T.back }, J = { x: F.x - ox * (T.Ro + 2), z: F.z - oz * (T.Ro + 2) };
+    return { id: c.id, ...T, J, F, ox, oz, rf: (T.Ri + T.Ro) / 2 }; });
+  const segs = open.slice(1).map(sl => { const A = ring(cap, sl.x, sl.z), B = ring(sl, cap.x, cap.z); return [A.x, A.z, B.x, B.z, 12, "city", { A, B }]; });
+  for (const T of terms) { const A = ring(cap, T.J.x, T.J.z, T.id === "harbor"); segs.push([A.x, A.z, T.J.x, T.J.z, T.id === "harbor" ? 32 : 12, T.id, { A, T }]); }
+  if (PALM.geo) { const A = ring(cap, PALM.geo.approach.x, PALM.geo.approach.z), sp = GATE_SPEC.std, B = { ...sp, x: PALM.geo.approach.x, z: PALM.geo.approach.z, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B);   // a roundabout where the road meets the bridge
+    segs.push([A.x, A.z, B.x, B.z, 8, "palm", { A, B }], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm", {}]); }
+  return HW_MEMO = { key, segs, rings, terms };
 }
-const termOf = id => coastTerms().find(t => t.id === id);
-function highwaySegs(full = false) {   // full: as the highways were drawn before the coast roundabouts (where the malls and סבבהום were placed, so they never move)
+const coastTerms = () => hwPlan().terms, termOf = id => coastTerms().find(t => t.id === id), gateRings = () => hwPlan().rings;
+function highwaySegs(full = false) {   // full: as the highways were drawn before the roundabouts (where the malls and סבבהום were placed, so they never move)
   const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return [];
+  if (!full) return hwPlan().segs;
   const from = (x, z, wide) => { const g = cityGate(cap, x, z, wide); return [g.x, g.z]; };
   const out = open.slice(1).map(t => [...from(t.x, t.z), ...(([gx, gz]) => [gx, gz])(Object.values(cityGate(t, cap.x, cap.z))), 12, "city"]);
-  for (const c of COAST) if (c.id !== "beach") { const T = termOf(c.id), q = T && !full ? T.J : shorePt(c.t, S.s, .9); out.push([...(T ? [T.gate.x, T.gate.z] : from(q.x, q.z, c.id === "harbor")), q.x, q.z, c.id === "harbor" ? 32 : 12, c.id]); }
+  for (const c of COAST) if (c.id !== "beach") { const q = shorePt(c.t, S.s, .9); out.push([...from(q.x, q.z, c.id === "harbor"), q.x, q.z, c.id === "harbor" ? 32 : 12, c.id]); }
   if (PALM.geo) out.push([...from(PALM.geo.approach.x, PALM.geo.approach.z), PALM.geo.approach.x, PALM.geo.approach.z, 8, "palm"], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm"]);
   return out;
 }
 // is a point on one of the highways (they cross the beach to the palm and the harbor, so you can walk and drive there too)?
-const onHighway = (x, z) => [...highwaySegs(), ...extraRoads()].some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
+const onHighway = (x, z) => [...gateRings(), ...coastTerms().map(T => ({ ...T, x: T.J.x, z: T.J.z }))].some(R => Math.hypot(x - R.x, z - R.z) < R.Ro + 1) || [...highwaySegs(), ...extraRoads()].some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
 // is a point inside (or right next to) a built city?
 const inCityBox = (x, z, m = 10) => S.slots.some(sl => { if (!sl.city || !sl.blocks?.size) return false; const B = cityBox(sl);
   return x > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - m && x < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + m && z > sl.z + BPZ(B.mnZ) - BZ / 2 - m && z < sl.z + BPZ(B.mxZ) + BZ / 2 + m; });
@@ -9963,28 +10041,32 @@ const VOICES = { Kore: "קורה · אישה", Leda: "לדה · אישה", Aoede
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 // mode: "rec" = you record the narration yourself, "tts" = automatic Google voice (needs a key in Supabase), "off"
-const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), mode: pref("sababa_voice_mode2", "off") };
+const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), mode: pref("sababa_voice_mode3", "tts") };   // on by default: the reels are read aloud, for those who can't see them
 // what the narrator says: the caption without emojis, handles read as words, "תושב/ת" read as "תושב"
 const spoken = s => (s.say ?? [s.cap, s.sub].filter(Boolean).join(". ")).replaceAll(COIN, " סבבונים")
   .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{200E}\u{200F}]/gu, "").replace(/@([\w.]+)/g, (m, u) => u.replace(/[._]+/g, " "))
   .replace(/#(\d)/g, "מספר $1").replace(/([\u0590-\u05FF]+)\/[\u0590-\u05FF]+/g, "$1").replace(/[״"]/g, "").replace(/·/g, ",").replace(/\s+/g, " ").replace(/^[\s,.]+|[\s,]+$/g, "").trim();
 const b64buf = b64 => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+// a spoken line: WAV or MP3 as it came, or (if a service sends bare sound) 16-bit samples at 24kHz
+async function decodeClip(dec, b64) { const buf = b64buf(b64); try { return await dec.decodeAudioData(buf.slice(0)); } catch {
+  const s = new Int16Array(buf, 0, buf.byteLength >> 1), out = new AudioBuffer({ length: Math.max(1, s.length), numberOfChannels: 1, sampleRate: 24000 }), d = out.getChannelData(0); for (let i = 0; i < s.length; i++) d[i] = s[i] / 32768; return out; } }
 async function voiceLine(line, auth) {
-  for (let i = 0; i < 45; i++) {
+  for (let i = 0, busy = 0; i < 60; i++) {
     const r = await rpc("voice_line", { line, voice: VOICE_CFG.voice, secret: auth.secret || null, username: auth.u || null, key: auth.k || null });
+    if (!r.ok && r.error === "busy" && busy++ < 4) { $("recT").textContent = "מחכה לקריינות…"; await sleep(15000); continue; }   // the free tier allows a few lines a minute: wait and ask again
     if (!r.ok) throw new Error(r.error || "voice");
     if (r.audio) return r.audio;
     await sleep(800);
   }
   throw new Error("timeout");
 }
-const VOICE_ERR = { no_key: "חסר מפתח Google בהגדרות (ראו הוראות)", unauthorized: "צריך קישור אישי או קוד מנהל", quota: "נגמרה מכסת הדיבוב להיום", tts: "שירות הדיבוב החזיר שגיאה", timeout: "הדיבוב לקח יותר מדי זמן", bad_text: "משפט ארוך מדי" };
+const VOICE_ERR = { no_key: "חסר מפתח Gemini בטבלה app_secrets (ראו הוראות)", busy: "גוגל ביקש לחכות (מגבלת השימוש החינמי). נסו שוב בעוד כמה דקות", unauthorized: "צריך קישור אישי או קוד מנהל", quota: "נגמרה מכסת הדיבוב להיום", tts: "שירות הדיבוב החזיר שגיאה", timeout: "הדיבוב לקח יותר מדי זמן", bad_text: "משפט ארוך מדי" };
 // fetch all lines, stretch shots so every sentence fits, then mix one soundtrack
 async function prepareVoice(shots, auth, clips) {
   if (!clips) {
     const lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
     $("recT").textContent = "מקליט דיבוב…";
-    clips = await Promise.all(lines.map(async l => l ? dec.decodeAudioData(b64buf(await voiceLine(l, auth))) : null));
+    clips = []; for (const [i, l] of lines.entries()) { $("recT").textContent = `מקליט קריינות… ${i + 1}/${lines.length}`; clips.push(l ? await decodeClip(dec, await voiceLine(l, auth)) : null); }   // one line at a time
   }
   let t = 0;
   shots.forEach((s, i) => { const c = clips[i]; if (c) s.d = Math.max(s.d, c.duration + .75); s.t0 = t; t += s.d; });
@@ -10232,13 +10314,13 @@ GO.studio = () => {
     () => { wireVoice(); $("dBody").querySelectorAll("[data-why]").forEach(b => b.onclick = () => toast(b.dataset.why, 5000)); $("adminOut").onclick = () => { ADMIN = false; try { localStorage.removeItem("sababa_admin"); } catch {} close(); toast("יצאת ממצב מנהל"); }; }, sub());
 };
 function voiceHtml() {
-  const M = { rec: "🎙️ הקלטה בקול שלי", tts: "🤖 קול אוטומטי (דורש מפתח Google)", off: "🔇 בלי קריינות" };
-  return `<div class="sec">🎙️ קריינות בעברית</div><div class="list"><div class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>${VOICE_CFG.mode === "rec" ? "לפני הצילום תקליטו כל כתובית בקול שלכם" : VOICE_CFG.mode === "tts" ? "קול עברי של גוגל מקריא כל כתובית" : "הריל ייצא בלי קול"}</small></span>
+  const M = { rec: "🎙️ הקלטה בקול שלי", tts: "🤖 קול אוטומטי (חינם, Gemini)", off: "🔇 בלי קריינות" };
+  return `<div class="sec">🎙️ קריינות בעברית</div><div class="list"><div class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>${VOICE_CFG.mode === "rec" ? "לפני הצילום תקליטו כל כתובית בקול שלכם" : VOICE_CFG.mode === "tts" ? "קול עברי אוטומטי מקריא כל כתובית, בשביל מי שלא רואה" : "הריל ייצא בלי קול"}</small></span>
     <select id="vMode">${Object.entries(M).filter(([k]) => k === "off" || (k === "tts" && ADMIN)).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.mode ? "selected" : ""}>${n}</option>`).join("")}</select></div>
     ${VOICE_CFG.mode === "tts" ? `<div class="li"><span class="ic">🗣️</span><span class="tx"><b>הקול</b></span><select id="vSel">${Object.entries(VOICES).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.voice ? "selected" : ""}>${n}</option>`).join("")}</select></div>` : ""}</div>`;
 }
 function wireVoice() {
-  $("vMode").onchange = e => { VOICE_CFG.mode = e.target.value; setPref("sababa_voice_mode2", e.target.value); stack.pop(); GO.studio(); };
+  $("vMode").onchange = e => { VOICE_CFG.mode = e.target.value; setPref("sababa_voice_mode3", e.target.value); stack.pop(); GO.studio(); };
   if ($("vSel")) $("vSel").onchange = e => { VOICE_CFG.voice = e.target.value; setPref("sababa_voice", e.target.value); };
 }
 /* ---------- the admin's own reel: pick scenes, places, angles and captions ---------- */
@@ -10508,7 +10590,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
