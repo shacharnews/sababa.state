@@ -1636,8 +1636,8 @@ async function bingoRun(me, key) {
 GAME_BUILT.add("dive");
 const DIVE_F = [1.5, 2.5, 3.5], DIVE_DD = (f, w) => Math.round((1.6 + (f - 1.5) * .7 + w * .4) * 10) / 10;
 // exactly the server's math: power from the meter, air time, and rotation from the tuck times
-const diveSim = (R, t1, holds, f, w) => { let x = t1 / R.period + R.phase; x -= Math.floor(x); const p = 1 - Math.abs(2 * x - 1), T = 1100 + 700 * p, wt = 900 * (1 - .05 * w);
-  return { p, T, wt, ang: t => { let tk = 0, prev = 0; for (let k = 0; k + 1 < holds.length || k < holds.length; k += 2) { const a = Math.max(prev, Math.min(t, holds[k])), b = Math.max(a, Math.min(t, holds[k + 1] ?? t)); tk += b - a; prev = b; } return (tk * wt + (t - tk) * 60) / 1000; } }; };
+const diveSim = (R, t1, holds, f, w) => { let x = t1 / R.period + R.phase; x -= Math.floor(x); const p = 1 - Math.abs(2 * x - 1), T = 2200 + 1400 * p, wt = 450 * (1 - .05 * w);   // the 20 m tower: twice the time in the air, half the spin, so there's time to do it
+  return { p, T, wt, ang: t => { let tk = 0, prev = 0; for (let k = 0; k + 1 < holds.length || k < holds.length; k += 2) { const a = Math.max(prev, Math.min(t, holds[k])), b = Math.max(a, Math.min(t, holds[k + 1] ?? t)); tk += b - a; prev = b; } return (tk * wt + (t - tk) * 30) / 1000; } }; };
 function diveScene() {
   const canvas = document.createElement("canvas"); canvas.className = "g3";
   const rd = new THREE.WebGLRenderer({ canvas, antialias: (devicePixelRatio || 1) < 2 }); rd.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6)); rd.setSize(innerWidth, innerHeight);
@@ -1648,7 +1648,7 @@ function diveScene() {
   skyG.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3)); const sky = new THREE.Mesh(skyG, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })); sc.add(sky);
   const pm = new THREE.PMREMGenerator(rd), es = new THREE.Scene(); es.add(sky.clone()); sc.environment = pm.fromScene(es, .02).texture; pm.dispose();
   sc.add(new THREE.HemisphereLight("#e8f4ff", "#9aa6a0", .9));
-  const sun = new THREE.DirectionalLight("#fff3dc", 2.4); sun.position.set(-8, 25, 14); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 16, bottom: -6, near: 1, far: 70 }); sc.add(sun);
+  const sun = new THREE.DirectionalLight("#fff3dc", 2.4); sun.position.set(-8, 25, 14); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 26, bottom: -6, near: 1, far: 80 }); sc.add(sun);
   const crowd = [], M = (c, r = .8, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const add = (m, x, y, z, sh = true) => { m.position.set(x, y, z); if (sh) m.castShadow = m.receiveShadow = true; sc.add(m); return m; };
   // deck, the pool (deep diving well) with lane ropes and tiles, water that moves a little
@@ -1664,13 +1664,13 @@ function diveScene() {
   const water = add(new THREE.Mesh(wg, new THREE.MeshPhysicalMaterial({ color: "#2ca6dc", roughness: .08, metalness: 0, transmission: 0, transparent: true, opacity: .86, clearcoat: 1 })), PX, -.12, PZ, false); water.receiveShadow = true;
   for (const [w, d, x, z] of [[PW + .8, .4, PX, PZ - PD / 2 - .2], [PW + .8, .4, PX, PZ + PD / 2 + .2], [.4, PD, PX - PW / 2 - .2, PZ], [.4, PD, PX + PW / 2 + .2, PZ]]) add(new THREE.Mesh(new THREE.BoxGeometry(w, .08, d), M("#ffffff", .5)), x, .04, z);
   for (let i = 1; i < 5; i++) { const z = PZ - PD / 2 + i * PD / 5; for (let k = 0; k < 44; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.1, 6, 4), M(k % 6 < 3 ? "#e8402a" : "#ffffff", .5)); b.position.set(PX - PW / 2 + .25 + k * PW / 44, -.08, z); sc.add(b); } }
-  // the diving tower: concrete with platforms at 3, 5, 7.5 and 10 meters, a ladder and rails
+  // the diving tower: concrete with platforms at 5, 10, 15 and 20 meters, a ladder and rails
   const conc = M("#d9d4ca", .85), blue = M("#2f7fa8", .5);
-  add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 10, 3), conc), -2.6, 5, PZ);
-  for (const [h, len, z] of [[3, 3.2, PZ + 3], [5, 3.6, PZ + 1.2], [7.5, 3.8, PZ - 1.2], [10, 4.2, PZ]]) { add(new THREE.Mesh(new THREE.BoxGeometry(len, .35, 2.2), conc), -2.6 + len / 2 - .7, h - .17, z);
+  add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 20, 3), conc), -2.6, 10, PZ);
+  for (const [h, len, z] of [[5, 3.2, PZ + 3], [10, 3.6, PZ + 1.2], [15, 3.8, PZ - 1.2], [20, 4.2, PZ]]) { add(new THREE.Mesh(new THREE.BoxGeometry(len, .35, 2.2), conc), -2.6 + len / 2 - .7, h - .17, z);
     add(new THREE.Mesh(new THREE.BoxGeometry(len, .04, 2.2), blue), -2.6 + len / 2 - .7, h + .02, z); }
-  for (const s of [-1, 1]) { add(new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 3.6, 6).rotateZ(Math.PI / 2), M("#c9ced4", .3, .8)), -1.7, 11, PZ + s * 1.05); for (const x of [-3, -.4]) add(new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 1, 6), M("#c9ced4", .3, .8)), x, 10.5, PZ + s * 1.05); }
-  for (let i = 0; i < 34; i++) add(new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .6, 5).rotateX(Math.PI / 2), M("#c9ced4", .3, .8)), -3.4, .3 + i * .3, PZ + .6, false);
+  for (const s of [-1, 1]) { add(new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 3.6, 6).rotateZ(Math.PI / 2), M("#c9ced4", .3, .8)), -1.7, 21, PZ + s * 1.05); for (const x of [-3, -.4]) add(new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 1, 6), M("#c9ced4", .3, .8)), x, 20.5, PZ + s * 1.05); }
+  for (let i = 0; i < 67; i++) add(new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .6, 5).rotateX(Math.PI / 2), M("#c9ced4", .3, .8)), -3.4, .3 + i * .3, PZ + .6, false);
   // stands with a crowd behind the pool, and the judges' table on the far side of the deck
   for (let r = 0; r < 6; r++) { add(new THREE.Mesh(new THREE.BoxGeometry(36, .5, 1), M("#b8bec6", .8)), PX, .25 + r * .5, PZ - PD / 2 - 3 - r, false);
     for (let i = 0; i < 46; i++) { if (Math.random() < .3) continue; const p = new THREE.Group(), c = ["#e8402a", "#2f7fd8", "#f2c230", "#2fa85a", "#ffffff", "#8e44ad", "#ff8a3a"][Math.floor(Math.random() * 7)];
@@ -1699,7 +1699,7 @@ function diveScene() {
     arms.forEach((A, i) => { A.a.rotation.x = -Math.PI * (1 - k) - .9 * k; A.a.rotation.z = (i ? -1 : 1) * (.06 * (1 - k) + .25 * k); A.b.rotation.x = -.2 * (1 - k) - 1.5 * k; });
     torso.rotation.x = .35 * k; head.position.z = .06 * k; spin.position.y = .2 * k; };
   const stand = () => { pose(0); arms.forEach(A => { A.a.rotation.x = 0; A.a.rotation.z = 0; A.b.rotation.x = 0; }); };
-  stand(); diver.position.set(.6, 10.92, PZ);
+  stand(); diver.position.set(.6, 20.92, PZ);
   // splash: drops flying out of the water and a ring of foam
   const drops = [], dropG = new THREE.SphereGeometry(.06, 5, 4), dropM = new THREE.MeshStandardMaterial({ color: "#eaf8ff", roughness: .2, transparent: true, opacity: .9 });
   const foam = new THREE.Mesh(new THREE.RingGeometry(.2, .5, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0 })); foam.position.y = -.1; sc.add(foam);
@@ -1720,7 +1720,7 @@ function diveScene() {
 function diveChoice() { try { const c = JSON.parse(localStorage.getItem("sababa_dive") || "null"); if (c && DIVE_F.includes(c.f) && c.w >= 0 && c.w <= 2) return c; } catch {} return { f: 1.5, w: 0 }; }
 async function divePlay() {
   const me = S.mine, key = me && keyOf(me.u), c = gcfg("dive"); let ch = diveChoice();
-  open("🤸 קפיצה למים", `<div class="hero" style="text-align:center"><p style="font-size:44px">🤸</p><p><b>עולים למקפצה של 10 מטר.</b> לוחצים כשמד הכוח מלא (כמה שיותר כוח, יותר זמן באוויר). באוויר: <b>מחזיקים את האצבע</b> כדי להתכרבל ולהסתובב מהר, <b>ומשחררים</b> כדי להיפתח ישר לפני המים.</p>
+  open("🤸 קפיצה למים", `<div class="hero" style="text-align:center"><p style="font-size:44px">🤸</p><p><b>עולים למקפצה של 20 מטר.</b> לוחצים כשמד הכוח מלא (כמה שיותר כוח, יותר זמן באוויר). באוויר: <b>מחזיקים את האצבע</b> כדי להתכרבל ולהסתובב מהר, <b>ומשחררים</b> כדי להיפתח ישר לפני המים.</p>
       <p class="note">3 שופטים × דרגת הקושי · בלי הגבלה · בחצות: ${P3(c)}</p></div>
     ${key ? `<div class="sec">🎯 איזו קפיצה?</div><div class="hero"><p style="margin-bottom:6px">סלטות</p><div class="btns" id="dvF">${DIVE_F.map(f => `<button class="btn ${f === ch.f ? "" : "ghost"}" data-f="${f}">${f}</button>`).join("")}</div>
       <p style="margin:10px 0 6px">ברגים (סיבוב סביב הגוף)</p><div class="btns" id="dvW">${[0, 1, 2].map(w => `<button class="btn ${w === ch.w ? "" : "ghost"}" data-w="${w}">${w ? w : "בלי"}</button>`).join("")}</div>
@@ -1755,7 +1755,7 @@ async function diveRun(me, key, ch) {
   const t0 = performance.now(); let alive = true, last = t0, phase = "ready", t1 = 0, take = 0, holds = [], down = false, sim = null, tw = 0, entered = 0, F = null;
   if (window.DBG) window.__dv = { D, R, get phase() { return phase; }, get sim() { return sim; }, get take() { return take; }, holds };
   const msg = t => $("dvM").innerHTML = t; msg("לחצו כשמד הכוח מלא כדי לקפוץ!");
-  const camP = new THREE.Vector3(3.8, 11.9, D.PZ + 9.8), camL = new THREE.Vector3(2, 10.5, D.PZ);
+  const camP = new THREE.Vector3(3.8, 21.9, D.PZ + 9.8), camL = new THREE.Vector3(2, 20.5, D.PZ);
   const press = () => { if (!alive) return; const ms = performance.now();
     if (phase === "ready") { t1 = Math.round(ms - t0); if (t1 < 300) return; sim = diveSim(R, t1, holds, ch.f, ch.w); phase = "air"; take = ms; $("dvP").style.display = "none"; msg(""); navigator.vibrate?.(20); return; }
     if (phase === "air" && !down) { const t = Math.round(ms - take); if (t < sim.T) { down = true; holds.push(t); } } };
@@ -1763,9 +1763,9 @@ async function diveRun(me, key, ch) {
   el.addEventListener("pointerdown", e => { if (e.target.closest("button")) return; press(); }); el.addEventListener("pointerup", lift); el.addEventListener("pointercancel", lift);
   const kd = e => { if (e.code === "Space" && !e.repeat) { e.preventDefault(); press(); } }, ku = e => { if (e.code === "Space") lift(); }; addEventListener("keydown", kd); addEventListener("keyup", ku);
   const loop3 = now => { if (!alive) return; requestAnimationFrame(loop3); const dt = Math.min(.05, (now - last) / 1000); last = now;
-    if (phase === "ready") { let x = (now - t0) / R.period + R.phase; x -= Math.floor(x); $("dvPi").style.height = (1 - Math.abs(2 * x - 1)) * 100 + "%"; D.diver.position.set(.6, 10.92, D.PZ); D.spin.rotation.z = 0; }
-    else if (phase === "air" || phase === "water") { const t = Math.min(now - take, sim.T), s = t / 1000, Ts = sim.T / 1000, v = 1 + 4 * sim.p, g = 2 * (10.92 + v * Ts) / (Ts * Ts);
-      const y = phase === "water" ? Math.max(-3, -(now - take - sim.T) / 1000 * 6) : 10.92 + v * s - g * s * s / 2, x = .6 + 2.8 * (t / sim.T);
+    if (phase === "ready") { let x = (now - t0) / R.period + R.phase; x -= Math.floor(x); $("dvPi").style.height = (1 - Math.abs(2 * x - 1)) * 100 + "%"; D.diver.position.set(.6, 20.92, D.PZ); D.spin.rotation.z = 0; }
+    else if (phase === "air" || phase === "water") { const t = Math.min(now - take, sim.T), s = t / 1000, Ts = sim.T / 1000, v = 1 + 4 * sim.p, g = 2 * (20.92 + v * Ts) / (Ts * Ts);
+      const y = phase === "water" ? Math.max(-3, -(now - take - sim.T) / 1000 * 6) : 20.92 + v * s - g * s * s / 2, x = .6 + 2.8 * (t / sim.T);
       D.diver.position.set(x, y, D.PZ); const ang = sim.ang(t); D.spin.rotation.z = -ang * Math.PI / 180;
       const want = down ? 1 : 0; D.pose(D.tuck = (D.tuck ?? 0) + (want - (D.tuck ?? 0)) * Math.min(1, dt * 14));
       if (down && ch.w) tw += dt * 360 * ch.w / Math.max(.5, (ch.f * 360 - 120) / sim.wt); D.twist.rotation.y = tw * Math.PI / 180;
@@ -9742,6 +9742,7 @@ const NEWS = {
     return { follow: el => { const p = ph(el); return { x: p.x, z: p.z }; }, a: at(st, 7, -.5, .3), b: at(PALM.geo.center, 2.4, .2, .38), pin: el => { const p = ph(el); return { x: p.x, y: 13.5, z: p.z, label: "🚡 הרכבל" }; } }; } },
   railst: { v: "2026-10-27", ic: "🛗", t: "תחנות רכבל עם רציף ולוח זמנים", sub: "עולים במעלית, מחכים על הרציף, ונוסעים מתוך הקרון", ok: () => !!PALM.stations?.length, shot: () => { const st = PALM.stations[0], p = platAt(st, 3, 0); return { a: at(p, 9, -.6, .28), b: at(p, 12, .2, .3) }; } },
   reef2: { v: "2026-10-27", ic: "🤿", t: "צלילה ארוכה יותר באי הדקל", sub: "יותר אוויר, שחייה מהירה ואוצרות זוהרים", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.W(60, 120), 3, -.5, .3), b: at(g.W(140, 60), 4, .2, .32) }; } },
+  dive20: { v: "2026-10-27", ic: "🤸", t: "מקפצה של 20 מטר בבריכה", sub: "יותר זמן באוויר לסלטות, קל יותר לנחות ישר", ok: () => !!GAMES.find(q => q.id === "dive" && gameSpot(q)), shot: () => { const p = gameSpot(GAMES.find(q => q.id === "dive")); return { a: at(p, 7, -.5, .3), b: at(p, 10, .3, .3) }; } },
   autopilot: { v: "2026-10-27", ic: "🧭", t: "נהיגה אוטומטית לרכב", sub: `בוחרים יעד במפה והרכב נוסע לבד · שדרוג ב־${fmtN(AUTO.PRICE)} סבבונים`, ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 70), car = mover(P_["car_" + h.cm], h.cc);
     P.push({ update(el) { const k = clamp01((el - t0) / d), q = path(ease(k)); car.set(q.x, .3, q.z, q.ry); }, dispose() { car.dispose(); } });
     const at_ = el => path(ease(clamp01((el - t0) / d))); return { follow: at_, a: at(path(0), 18, -.4, .45), b: at(path(1), 20, .3, .42), pin: el => ({ ...at_(el), y: 3.6, label: "🧭 נוסע לבד" }) }; } },
@@ -10098,26 +10099,26 @@ const GAME_REEL = {
           OV.text(x, n ? String(n) : "★", cx, cy + 17, 46, "#2b2b2b", 800);
           if (hit && n) { x.save(); x.globalAlpha = .55; x.fillStyle = "#e0403a"; x.beginPath(); x.arc(cx, cy, 38, 0, Math.PI * 2); x.fill(); x.restore(); } })); } });
     return [stStep(G, `1️⃣ כל ערב ב־${c.hour}:00`, "בינגו חי במתנ״ס"), stStep(G, "2️⃣ כרטיס חינם לכל תושב", "כדור חדש כל 5 שניות"), stStep(G, "3️⃣ שורה מלאה? בינגו!", "מי שלוחץ ראשון זוכה"), stStep(G, "🏆 הפרסים", P3(c), 3)]; },
-  dive: (c, g) => { const JUMP = 3.0, T = 1.9, F = 1.5;
+  dive: (c, g) => { const JUMP = 3.0, T = 3.4, F = 1.5;
     const G = gStage(() => diveScene(), { tuck: 0,
-      prep(o, G) { G.camP = new THREE.Vector3(3.8, 11.9, o.PZ + 9.8); G.camL = new THREE.Vector3(2, 10.5, o.PZ); },
+      prep(o, G) { G.camP = new THREE.Vector3(3.8, 21.9, o.PZ + 9.8); G.camL = new THREE.Vector3(2, 20.5, o.PZ); },
       script: [[JUMP + T, o => { o.splash(.6 + 2.8, .1); rpop({ x: RW / 2, y: 1000 }, "✨ כניסה מושלמת", "#ffffff", 76); }],
-        ...[9, 8.5, 9].map((v, i) => [7.6 + i * .45, (o, G) => { const J = o.judges[i]; J.sign.material.map?.dispose(); J.sign.material.map = o.signTex(String(v)); J.sign.material.needsUpdate = true; (G.up ||= [])[i] = 7.6 + i * .45; }])],
+        ...[9, 8.5, 9].map((v, i) => [9.1 + i * .45, (o, G) => { const J = o.judges[i]; J.sign.material.map?.dispose(); J.sign.material.map = o.signTex(String(v)); J.sign.material.needsUpdate = true; (G.up ||= [])[i] = 9.1 + i * .45; }])],
       tick(o, gt, dt, el, G) {
-        if (gt < JUMP) { o.diver.position.set(.6, 10.92, o.PZ); o.spin.rotation.z = 0; o.pose(0); }
-        else { const t = Math.min(gt - JUMP, T), s = t, v = 5, gg = 2 * (10.92 + v * T) / (T * T), y = gt - JUMP > T ? Math.max(-3, -(gt - JUMP - T) * 6) : 10.92 + v * s - gg * s * s / 2, x = .6 + 2.8 * t / T;
+        if (gt < JUMP) { o.diver.position.set(.6, 20.92, o.PZ); o.spin.rotation.z = 0; o.pose(0); }
+        else { const t = Math.min(gt - JUMP, T), s = t, v = 5, gg = 2 * (20.92 + v * T) / (T * T), y = gt - JUMP > T ? Math.max(-3, -(gt - JUMP - T) * 6) : 20.92 + v * s - gg * s * s / 2, x = .6 + 2.8 * t / T;
           o.diver.position.set(x, y, o.PZ); const k = t / T, ang = F * 360 * (k < .12 ? k * .3 : k > .82 ? 1 - (1 - k) * .3 : .036 + (ease((k - .12) / .7)) * .928);
           o.spin.rotation.z = -ang * Math.PI / 180; const want = k > .16 && k < .76 && gt - JUMP < T ? 1 : 0; G.tuck += (want - G.tuck) * Math.min(1, dt * 14); o.pose(G.tuck); }
         (G.up || []).forEach((t0, i) => { if (t0 != null) o.judges[i].arm.rotation.x = -Math.PI * .92 * Math.min(1, (gt - t0) / .35); });
-        if (gt > 7.2) { G.camP.lerp(new THREE.Vector3(o.PX + o.PW / 2 + 2.3, 4.2, o.PZ + 17), dt * 2); G.camL.lerp(new THREE.Vector3(o.PX + o.PW / 2 + 2.3, -.4, o.PZ + 3), dt * 2); }
+        if (gt > 8.7) { G.camP.lerp(new THREE.Vector3(o.PX + o.PW / 2 + 2.3, 4.2, o.PZ + 17), dt * 2); G.camL.lerp(new THREE.Vector3(o.PX + o.PW / 2 + 2.3, -.4, o.PZ + 3), dt * 2); }
         else { const dy = Math.max(1.6, o.diver.position.y + .4); G.camP.lerp(new THREE.Vector3(3.8, dy + 1, o.PZ + 9.8), Math.min(1, dt * 5)); G.camL.lerp(new THREE.Vector3(2, dy - .8, o.PZ), Math.min(1, dt * 6)); }
         o.cam.position.copy(G.camP); o.cam.lookAt(G.camL); o.frame(el, dt); },
       overlay: (x, gt) => { if (gt < JUMP) { let p = gt / 1.4; p -= Math.floor(p); const v = gt > JUMP - .35 ? 1 : 1 - Math.abs(2 * p - 1);
           x.fillStyle = "rgba(0,0,0,.45)"; rr(x, RW - 110, 700, 56, 560, 28); x.fill(); const gr = x.createLinearGradient(0, 1260, 0, 700); gr.addColorStop(0, "#2fd86a"); gr.addColorStop(.6, "#f2c230"); gr.addColorStop(1, "#e8402a");
           x.fillStyle = gr; rr(x, RW - 104, 1254 - 548 * v, 44, 548 * v, 22); x.fill(); OV.text(x, "💪", RW - 82, 680, 50); }
-        else if (gt < JUMP + T) OV.text(x, gt - JUMP > .3 && gt - JUMP < 1.45 ? "🌀 מחזיקים: מסתובבים" : "📏 משחררים: נפתחים", RW / 2, 1460, 50, "#fff", 900);
-        if (gt > 8.8) OV.alpha(x, clamp01((gt - 8.8) / .3), () => OV.btn(x, RW / 2, 1450, "⚖️ 9 · 8.5 · 9", "#f2b440", "#3a2a10")); } });
-    return [stStep(G, "1️⃣ עולים למקפצה של 10 מ׳", "לוחצים כשמד הכוח מלא"), stStep(G, "2️⃣ מחזיקים = סלטות", "משחררים כדי להיכנס ישר למים"), stStep(G, "3️⃣ שלושה שופטים", "הציון הכי גבוה של היום מנצח"), stStep(G, "🏆 בחצות", P3(c), 3)]; },
+        else if (gt < JUMP + T) OV.text(x, gt - JUMP > .55 && gt - JUMP < 2.6 ? "🌀 מחזיקים: מסתובבים" : "📏 משחררים: נפתחים", RW / 2, 1460, 50, "#fff", 900);
+        if (gt > 10.3) OV.alpha(x, clamp01((gt - 10.3) / .3), () => OV.btn(x, RW / 2, 1450, "⚖️ 9 · 8.5 · 9", "#f2b440", "#3a2a10")); } });
+    return [stStep(G, "1️⃣ עולים למקפצה של 20 מ׳", "לוחצים כשמד הכוח מלא"), stStep(G, "2️⃣ מחזיקים = סלטות", "משחררים כדי להיכנס ישר למים"), stStep(G, "3️⃣ שלושה שופטים", "הציון הכי גבוה של היום מנצח"), stStep(G, "🏆 בחצות", P3(c), 3)]; },
   reef: (c, g) => { const IT = [{ i: 0, k: "shell", x: -14, z: -26 }, { i: 1, k: "star", x: 10, z: -44 }, { i: 2, k: "pearl", x: -6, z: -62 }, { i: 3, k: "chest", x: 18, z: -80 }, { i: 4, k: "shell", x: 32, z: -30 }, { i: 5, k: "star", x: -34, z: -50 }, { i: 6, k: "shell", x: -24, z: -78 }];
     const G = gStage(() => reefScene(IT), { yaw: Math.PI, bag: 0, items: "",
       prep(o, G) { o.sc.children.forEach(m => { if (Math.abs(m.position.x - .3) < .05 && Math.abs(m.position.z) < .05 && m.position.y < 0) m.visible = false; });   // the boat's buoy, right in front of the camera
