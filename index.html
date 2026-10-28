@@ -10772,6 +10772,16 @@ async function boot() {
   setTimeout(loadBallot, 3600);
   setInterval(refresh, REFRESH_MS);
 }
+// the admin is a citizen too: with the admin code this phone also gets the personal key of the state's own account (@sababa.state),
+// so the admin plays the games, collects the salary and shops like everyone else, without needing their own personal link
+async function adminMe(qs) {
+  let r = null; try { r = await rpc("admin_me", { secret: pref("sababa_admin", "") }); } catch {} if (!r?.ok || !r.username || !r.key) return;   // (before upgrade-42.sql: nothing changes)
+  saveKey(r.username, r.key);
+  if (qs.get("u") && clean(qs.get("u")) !== r.username) return;   // looking at someone else's link: leave it
+  const take = (n = 0) => { const h = S.byUser.get(r.username); if (!h) return n < 20 && setTimeout(() => take(n + 1), 500);
+    if (S.mine !== h) { S.mine = h; if (!S.sel) mark(h); history.replaceState(null, "", `?u=${encodeURIComponent(h.u)}`); if (!qs.get("u")) toast(`👑 נכנסת כמנהל, וגם כאזרח: ‎@${nick(h.u)} · אפשר לשחק, לאסוף משכורת ולקנות`, 4500); } };
+  take();
+}
 // admin mode: open the site with ?admin once, type the code that upgrade-5.sql printed, and this phone remembers it
 let ADMIN = false;
 async function initAdmin(qs) {
@@ -10782,7 +10792,7 @@ async function initAdmin(qs) {
   }
   if (!code) return;
   let ok = false; try { ok = (await rpc("admin_check", { secret: code })) === true; } catch {}
-  if (ok) { ADMIN = true; try { localStorage.setItem("sababa_admin", code); } catch {} if (qs.has("admin")) toast("👑 מצב מנהל פעיל. כל תבניות הרילים פתוחות בסטודיו"); }
+  if (ok) { ADMIN = true; try { localStorage.setItem("sababa_admin", code); } catch {} if (qs.has("admin")) toast("👑 מצב מנהל פעיל. כל תבניות הרילים פתוחות בסטודיו"); adminMe(qs); }
   else { try { localStorage.removeItem("sababa_admin"); } catch {} if (qs.has("admin")) toast("קוד מנהל שגוי"); }
 }
 boot();
