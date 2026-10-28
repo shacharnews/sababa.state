@@ -7664,6 +7664,8 @@ function render() {
   top.after && top.after();
 }
 function close() { document.body.classList.remove("open"); stack.length = 0; if (VREC.resolve) { const r = VREC.resolve; VREC.resolve = null; stopMic(); r(null); } }
+// buttons drawn after the drawer opened (a list redrawn when data arrives, like the games list with your scores) still work
+$("dBody").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b && !b.onclick && !b.disabled && GO[b.dataset.go]) GO[b.dataset.go](b.dataset.arg); });
 $("dX").onclick = close; $("scrim").onclick = () => { if (performance.now() - openedAt > 450) close(); }; $("dBack").onclick = () => { stack.pop(); render(); };
 addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 const li = (go, ic, t, sub = "", arg = "") => `<button class="li" data-go="${go}" data-arg="${esc(arg)}"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="chev">‹</span></button>`;
