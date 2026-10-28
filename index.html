@@ -7251,6 +7251,11 @@ function autoGraph() {
     const A = meta?.A, B = meta?.B, T = meta?.T, pa = id(A ? A : { x: a, z: b }), pb = id(T ? T.J : B ? B : { x: c, z: d }); link(pa, pb);
     for (const R of [A, B]) if (R?.gate && R.sl && grids.get(R.sl)) { const G = grids.get(R.sl), g = id(R.gate), en = G.ends(R.gate), dd = e => Math.hypot(G.nodes[e].x - R.gate.x, G.nodes[e].z - R.gate.z), m = Math.min(...en.map(dd));   // into the city by the street right at the gate
       link(id(R), g); for (const e of en) if (dd(e) < m + 1) link(g, id(G.nodes[e])); } }
+  // the city square: its ring road (the houses around the plaza park on it) and the four streets that come into it
+  const C = CENTRAL.on, cap = S.slots.find(q => q.city), GC = cap && grids.get(cap);
+  if (C && GC) { const rr = (CENTRAL.RP + CENTRAL.RR) / 2, n = 24, ring = []; for (let k = 0; k < n; k++) { const an = k / n * Math.PI * 2; ring.push(id({ x: C.cx + Math.cos(an) * rr, z: C.cz + Math.sin(an) * rr })); }
+    ring.forEach((r, k) => link(r, ring[(k + 1) % n]));
+    [[1, 0, 0], [0, 1, 6], [-1, 0, 12], [0, -1, 18]].forEach(([sx, sz, k]) => { const E = { x: C.cx + sx * (C.hw + 3), z: C.cz + sz * (C.hd + 3) }, e = id(E); link(e, ring[k]); for (const q of GC.ends(E)) link(e, id(GC.nodes[q])); }); }
   if (PALM.geo) { const g = PALM.geo, jn = [...new Set(g.fronds.map(f => f.b.u - 6.6))].sort((p, q) => p - q), trunk = [g.gate, ...jn.map(u => g.W(u, 0)), g.W(PALM_HOTEL_U, 0)];
     for (let k = 1; k < trunk.length; k++) link(id(trunk[k - 1]), id(trunk[k]));
     for (const f of g.fronds) link(id(g.W(f.b.u - 6.6, 0)), id(f.at(f.L, 0))); }
@@ -7259,8 +7264,10 @@ function autoGraph() {
 // the shortest way along the roads from a to b: on to the nearest road at both ends, Dijkstra between, and the lanes, roundabouts and turns like the traffic
 function autoRoute(a, b) {
   const { N, E } = autoGraph(); if (!N.length) return null;
-  const snap = p => { let best = null; for (const [i, l] of E) for (const [j] of l) { if (j < i) continue; const A = N[i], B = N[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / L2)), q = { x: A.x + dx * k, z: A.z + dz * k }, d = Math.hypot(q.x - p.x, q.z - p.z);
-    if (!best || d < best.d) best = { d, q, i, j, k }; } return best; };
+  // on to the nearest road you can reach in a straight line (not through a house)
+  const boxes = WALK.boxes || [], clear = (p, q) => { const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 1.5); for (let k = 1; k < n; k++) { const x = p.x + (q.x - p.x) * k / n, z = p.z + (q.z - p.z) * k / n; if (boxes.some(b => x > b[0] - 1 && x < b[2] + 1 && z > b[1] - 1 && z < b[3] + 1) || !(onGrass(x, z, S.s, .01) || onPalm(x, z) || onHighway(x, z))) return false; } return true; };
+  const snap = p => { const all = []; for (const [i, l] of E) for (const [j] of l) { if (j < i) continue; const A = N[i], B = N[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / L2)), q = { x: A.x + dx * k, z: A.z + dz * k }, d = Math.hypot(q.x - p.x, q.z - p.z);
+    all.push({ d, q, i, j, k }); } all.sort((u, v) => u.d - v.d); return all.slice(0, 40).find(c => clear(p, c.q)) || all[0]; };   // (never across the water or through a house)
   const sa = snap(a), sb = snap(b); if (!sa || !sb) return null;
   const dist = new Map(), prev = new Map(), done = new Set(), cost = (n, s2) => Math.hypot(N[n].x - s2.q.x, N[n].z - s2.q.z);
   for (const n of [sa.i, sa.j]) { dist.set(n, cost(n, sa)); prev.set(n, -1); }
@@ -7295,6 +7302,11 @@ function autoDrive(c, top, dt) {
   const la = autoAt(R, A.s + Math.max(4, Math.abs(c.v) * .9)), want = Math.atan2(la.x - c.x, la.z - c.z), diff = angDiff(want, c.head);
   const far = autoAt(R, A.s + 18), bend = Math.abs(angDiff(Math.atan2(far.x - la.x, far.z - la.z), want));
   const tv = Math.min(top * .85, 4 + 14 / (1 + bend * 3), Math.sqrt(Math.max(0, left - 2)) * 2.2);
+  // the way is behind (pulling out of the driveway, or the road runs the other way): back out turning, then drive forward. Stuck against something: back up a little and try again
+  if (A.rev == null) A.rev = 0; A.still = Math.abs(c.v) < .4 ? (A.still || 0) + dt : 0;
+  if (A.rev <= 0 && (Math.abs(diff) > 1.75 || A.still > 1.5)) { A.rev = Math.abs(diff) > 1.75 ? 4 : 1.4; A.still = 0; }
+  if (A.rev > 0) { A.rev -= dt; if (Math.abs(diff) < .7 && A.rev < 3.4) A.rev = 0;
+    return { steer: Math.max(-1, Math.min(1, diff * 2.5)), gas: c.v > -2.5 ? -.7 : 0 }; }
   return { steer: Math.max(-1, Math.min(1, -diff * 2.2)), gas: c.v < tv - .5 ? Math.min(1, (tv - c.v) / 4 + .2) : c.v > tv + .5 ? -Math.min(1, (c.v - tv) / 4) : 0 };
 }
 function autoShop() {
@@ -7327,7 +7339,7 @@ function driveStep(dt) {
   const nx = c.x + Math.sin(c.head) * c.v * dt, nz = c.z + Math.cos(c.head) * c.v * dt, r = 1.2;
   // blocked only when driving into a wall (a car that starts against a house can always drive away from it)
   const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
-  const hit = WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz) || onHighway(nx, nz));
+  const hit = (!WALK.auto && WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4)) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz) || onHighway(nx, nz) || railWalk(nx, nz));   // (the autopilot keeps to its route: it only brushes past a corner of a house when pulling out)
   if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
   const C = CARS[WALK.h.cm], gy = groundAt(c.x, c.z);
   c.mv.set(c.x, WALK.cockpit && !C.bike ? gy - 100 : gy, c.z, c.head);   // from the driver's seat the car's own body is out of the way
