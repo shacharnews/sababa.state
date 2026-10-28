@@ -409,7 +409,7 @@ const GAME_DEF = {
   knesset: { reward: 50 }, vault: { daily: 1, first: [150, 120, 90, 70, 50, 30], board: true, order: "asc", prizes: [100, 60, 40] }, queue: { daily: 1, reward: 100, near: 10, per_hour: 5, from: 9, to: 23 },
   count: { daily: 1, max: 50, board: true, order: "desc", prizes: [150, 100, 50] }, fish: { board: true, order: "desc", prizes: [300, 200, 100], cooldown: 6 }, spy: { daily: 1, item: 15, bonus: 30 },
   sand: { daily: 1, board: true, order: "desc", prizes: [300, 200, 100], hearts: 3 }, pigeons: { board: true, order: "desc", prizes: [300, 200, 100], cooldown: 5 }, dig: { daily: 1, reward: 100, first: 200 },
-  bingo: { prizes: [200, 100], hour: 21 }, dive: { board: true, order: "desc", prizes: [300, 200, 100], cooldown: 5 }, reef: { daily: 3 }, league: { period: "week", daily: 5, reward: 100 },
+  bingo: { prizes: [200, 100], hour: 21 }, dive: { board: true, order: "desc", prizes: [300, 200, 100], cooldown: 5 }, reef: { daily: 3, air: 75000, speed: 4.2 }, league: { period: "week", daily: 5, reward: 100 },
   hoops: { daily: 1, shot: 8, bonus: 50 }, story: { daily: 1, board: true, order: "desc", prizes: [300, 200, 100], hearts: 3 },
   dogs: { period: "week", board: true, order: "desc", prizes: [300, 200, 100], hearts: 3, adopt: 300 }, hunt: { prizes: [300, 200, 100], rest: 30, places: 10 },
   photo: { daily: 1, board: true, order: "desc", prizes: [300, 200, 100], hearts: 3 }
@@ -500,7 +500,7 @@ function gameCard(id) {
 const gameScore = (id, s) => ({ fish: `${(+s).toFixed(1)} ק״ג`, vault: `${fmtN(s)} ניסיונות`, count: `${fmtN(s)} נקודות`, pigeons: `${fmtN(s)} נקודות`, dive: `${(+s).toFixed(1)} נקודות` }[id] || `${fmtN(s)} ❤️`);
 // the admin: the prizes and limits of every game
 const GAME_FIELDS = { reward: "פרס", prizes: "פרסי הטבלה (1, 2, 3)", first: "פרס לפי ניסיון (1…6)", daily: "פעמים ביום", cooldown: "שניות בין משחקים", max: "מקסימום לסיבוב", item: "לכל פריט",
-  bonus: "בונוס", near: "פרס ניחומים", hearts: "לבבות לתושב", adopt: "מחיר אימוץ", rest: "לשאר הזוכים", places: "כמה זוכים", shot: "לכל קליעה", hour: "שעה (0–23)", per_hour: "זוכים בכל הגרלה", from: "הגרלה ראשונה (שעה)", to: "הגרלה אחרונה (שעה)" };
+  bonus: "בונוס", near: "פרס ניחומים", hearts: "לבבות לתושב", adopt: "מחיר אימוץ", rest: "לשאר הזוכים", places: "כמה זוכים", shot: "לכל קליעה", hour: "שעה (0–23)", air: "אוויר בצלילה (אלפיות שנייה)", speed: "מהירות שחייה (מטר לשנייה)", per_hour: "זוכים בכל הגרלה", from: "הגרלה ראשונה (שעה)", to: "הגרלה אחרונה (שעה)" };
 // ---- game 1 · הכנסת · ההצבעה במליאה (upgrade-22.sql): a bill a day, vote for or against, the majority wins
 GAME_BUILT.add("knesset");
 const ilMidnightIn = () => { const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date()), g = t => +p.find(x => x.type === t).value;
@@ -929,7 +929,7 @@ function spyPlace(it) {
 async function spyPlay() {
   const me = S.mine, key = me && keyOf(me.u), c = gcfg("spy"), mine = key ? await gameMine() : null, played = mine?.games?.spy || mine?.games?.spy_find;
   open("🔭 תצפית מהמגדלור", `<div class="hero" style="text-align:center"><p style="font-size:44px">🔭</p><p><b>עולים למרפסת של המגדלור ומחפשים במשקפת.</b> היום הוסתרו באי 5 דברים מוזרים, במקום אחר לכל תושב. יש 90 שניות.</p>
-      <p class="note">גוררים כדי להסתובב, מקרבים עם המחוון, ולוחצים על מה שמצאתם · ${fmtN(c.item)} ${COIN} לכל פריט · כל החמישה: עוד ${fmtN(c.bonus)}</p></div>
+      <p class="note">מחליקים כדי להסתובב (או מחזיקים ◀ ▶), מקרבים עם המחוון, ולוחצים על מה שמצאתם · ${fmtN(c.item)} ${COIN} לכל פריט · כל החמישה: עוד ${fmtN(c.bonus)}</p></div>
     <div class="list" style="margin-top:8px">${Object.values(SPY_KINDS).map(([ic, n, w]) => info(ic, n, w)).join("")}</div>
     ${!key ? `<div class="hero" style="margin-top:10px"><p>רק תושבים עולים למגדלור. נכנסים מהקישור האישי.</p></div>`
       : `<div class="btns" style="margin-top:12px"><button class="btn" id="sGo" style="font-size:1.2em">${played ? "🔭 לראות מה מצאתי היום" : "🔭 לעלות למרפסת"}</button></div>`}`, () => {
@@ -953,7 +953,7 @@ function spyRun(me, key, R) {
   const EYE = 26, [LWX, LWZ] = warpXZ(L.x, L.z), LHY = terrainH(L.x, L.z);
   // the direction to a point as the island is drawn (bent), from the gallery
   const dirTo = (x, y, z) => { const [ax, az] = warpXZ(x, z), dx = ax - LWX, dz = az - LWZ, dy = y + terrainH(x, z) - (EYE + LHY); return [Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))]; };
-  let [yaw, pitch] = dirTo(S.slots[0]?.x || 0, 8, S.slots[0]?.z || 0), fov = 30;
+  let [yaw, pitch] = dirTo(S.slots[0]?.x || 0, 8, S.slots[0]?.z || 0), fov = 45, vy = 0, vp = 0, turn = 0;   // vy, vp: the glide after a swipe; turn: held ◀ ▶
   Object.assign(SPY, { on: true, frame, items, aim: (it, f = 8) => { [yaw, pitch] = dirTo(it.g.position.x, it.g.position.y + 4 * it.s, it.g.position.z); fov = f; }, tapAt: (x, y) => tap(x, y), screen: it => { place(); return screenOf(it); } });
   const fog = [scene.fog.near, scene.fog.far]; scene.fog.near = 1600; scene.fog.far = 5200; document.body.classList.add("indoors", "spying");
   const el = stage(`<style>#gStage.spy{background:transparent}#gStage.spy .vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 47%,transparent 0,transparent min(44vw,40vh),rgba(0,0,0,.6) calc(min(44vw,40vh) + 2px),#05070a calc(min(44vw,40vh) + 14px))}
@@ -964,7 +964,7 @@ function spyRun(me, key, R) {
     #gStage.spy input[type=range]{width:100%}#gStage.spy .x{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:20px}#gStage.spy .msg{position:absolute;top:20%;left:0;right:0;text-align:center;font-size:22px;font-weight:900;text-shadow:0 2px 8px #000;z-index:3;pointer-events:none}
     #gStage.spy .mark{position:absolute;font-size:28px;margin:-18px;pointer-events:none;z-index:2;text-shadow:0 0 8px #000}</style>
     <div class="vig"></div><div class="ch"></div><div class="hud"><button class="x" id="sX">✕</button><div class="its">${items.map(it => `<b data-k="${it.k}" class="${it.found ? "ok" : ""}">${SPY_KINDS[it.k][0]}</b>`).join("")}</div><div class="tm" id="sT">1:30</div></div>
-    <div class="msg" id="sMsg"></div><div class="bot"><p style="font-size:13px;opacity:.85;margin-bottom:6px">גוררים כדי להסתובב · לוחצים על מה שמצאתם</p><input type="range" id="sZ" min="3" max="45" step=".5" value="${45 - fov + 3}"><p style="font-size:12px;opacity:.7">🔎 זום</p></div>`);
+    <div class="msg" id="sMsg"></div><div class="bot"><p style="font-size:13px;opacity:.85;margin-bottom:6px">גוררים כדי להסתובב · לוחצים על מה שמצאתם</p><div style="display:flex;gap:10px;align-items:center;direction:ltr"><button class="x tn" data-tn="1" style="width:52px;height:52px;font-size:24px">◀</button><div style="flex:1"><input type="range" id="sZ" min="3" max="45" step=".5" value="${48 - fov}"><p style="font-size:12px;opacity:.7">🔎 זום</p></div><button class="x tn" data-tn="-1" style="width:52px;height:52px;font-size:24px">▶</button></div></div>`);
   el.classList.add("spy");
   const t0 = performance.now() - (90 - R.left) * 1000; let alive = true, busy = false;
   const say = (t, ms = 1600) => { const m = $("sMsg"); if (!m) return; m.innerHTML = t; clearTimeout(say.t); say.t = setTimeout(() => { if ($("sMsg")) $("sMsg").innerHTML = ""; }, ms); };
@@ -976,6 +976,8 @@ function spyRun(me, key, R) {
     const t = (performance.now() - t0) / 1000, left = Math.max(0, 90 - t);
     for (const it of items) { if (it.swim) { it.g.position.x = it.x + Math.cos(t * .5) * 14; it.g.position.z = it.z + Math.sin(t * .5) * 14; it.g.rotation.y = -t * .5; }
       else if (it.k === "balloon" || it.k === "hotair" || it.k === "ufo" || it.k === "kite") it.g.position.y = it.y + Math.sin(t * .8 + it.s) * 1.5; if (it.k === "ufo") it.g.rotation.y = t; }
+    if (!pts.size) { yaw += vy * dt; pitch = Math.max(-.7, Math.min(.35, pitch + vp * dt)); const f = Math.exp(-dt * 3.2); vy *= f; vp *= f; }   // the swing of the telescope after a swipe
+    if (turn) yaw += turn * dt * Math.max(.35, fov / 45 * 1.1);
     cam.fov = fov; cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); cam.position.set(L.x - Math.sin(yaw) * 4.4, EYE, L.z - Math.cos(yaw) * 4.4); cam.rotation.set(pitch, yaw, 0); cam.updateMatrixWorld();   // standing at the railing, on the side you look at
     renderWorld(cam, { x: L.x, z: L.z });
     const tm = $("sT"); if (tm) tm.textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, "0")}`;
@@ -983,12 +985,17 @@ function spyRun(me, key, R) {
   }
   // drag to look around, pinch or the slider to zoom, tap to point at what you found
   const pts = new Map(); let moved = 0, pinch = 0;
-  el.addEventListener("pointerdown", e => { if (e.target.closest("button,input")) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0; if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
+  el.querySelectorAll(".tn").forEach(b => { const go = e => { e.preventDefault(); turn = +b.dataset.tn; vy = 0; }, stop = () => turn = 0;
+    b.addEventListener("pointerdown", go); b.addEventListener("pointerup", stop); b.addEventListener("pointerleave", stop); b.addEventListener("pointercancel", stop); });
+  let lastMove = 0;
+  el.addEventListener("pointerdown", e => { if (e.target.closest("button,input")) return; pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0; vy = vp = 0; lastMove = performance.now(); if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
   el.addEventListener("pointermove", e => { const p = pts.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; moved += Math.abs(dx) + Math.abs(dy);
-    if (pts.size === 1) { const k = fov / innerHeight * Math.PI / 180; yaw += dx * k; pitch = Math.max(-.7, Math.min(.35, pitch + dy * k)); }
+    if (pts.size === 1) { const k = Math.max(fov, 12) / innerHeight * Math.PI / 180 * 2.2, now = performance.now(), dt2 = Math.max(.008, (now - lastMove) / 1000); lastMove = now;   // a swipe across the screen turns about two views' worth
+      yaw += dx * k; pitch = Math.max(-.7, Math.min(.35, pitch + dy * k)); vy = vy * .5 + dx * k / dt2 * .5; vp = vp * .5 + dy * k / dt2 * .5; }
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch) { fov = Math.max(3, Math.min(45, fov * pinch / d)); $("sZ").value = 48 - fov; } pinch = d; } });
-  const up = e => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; if (p && moved < 10 && !e.target.closest("button,input")) tap(e.clientX, e.clientY); };
+  const up = e => { const p = pts.get(e.pointerId); pts.delete(e.pointerId); if (pts.size < 2) pinch = 0; if (performance.now() - lastMove > 90) vy = vp = 0;   // held still before letting go: no glide
+    vy = Math.max(-4, Math.min(4, vy)); vp = Math.max(-2, Math.min(2, vp)); if (p && moved < 10 && !e.target.closest("button,input")) { vy = vp = 0; tap(e.clientX, e.clientY); } };
   el.addEventListener("pointerup", up); el.addEventListener("pointercancel", e => pts.delete(e.pointerId));
   el.addEventListener("wheel", e => { e.preventDefault(); fov = Math.max(3, Math.min(45, fov * (e.deltaY > 0 ? 1.1 : .9))); $("sZ").value = 48 - fov; }, { passive: false });
   $("sZ").oninput = e => { fov = 48 - +e.target.value; };
@@ -1088,8 +1095,9 @@ function sandScene() {
 function sandStage(extraCss = "") {
   const el = stage(`<style>#gStage.sand .g3{position:absolute;inset:0;width:100%;height:100%}#gStage.sand .hud{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;gap:8px;z-index:3}
     #gStage.sand .x{width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.4);color:#fff;font-size:20px;flex:none}#gStage.sand .ttl{flex:1;font-weight:900;font-size:17px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
-    #gStage.sand .bot{position:absolute;bottom:12px;left:10px;right:10px;z-index:3}#gStage.sand .pal{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
-    #gStage.sand .pal button{flex:none;min-width:62px;border:2px solid transparent;border-radius:14px;background:rgba(0,0,0,.45);color:#fff;padding:6px 4px;font:600 11px/1.2 inherit}#gStage.sand .pal button b{display:block;font-size:24px;line-height:1.2}
+    #gStage.sand .bot{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:8px;right:8px;z-index:3}#gStage.sand .pal{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;padding:4px 0 8px}
+    #gStage.sand .pal button{min-width:0;border:2px solid transparent;border-radius:12px;background:rgba(20,30,40,.62);color:#fff;padding:4px 2px;font-weight:600;font-size:10.5px;line-height:1.15;font-family:inherit}#gStage.sand .pal button b{display:block;font-size:22px;line-height:1.25}
+    #gStage.sand .step{text-align:center;font-weight:800;font-size:13px;margin-bottom:4px;text-shadow:0 1px 5px rgba(0,0,0,.7)}
     #gStage.sand .pal button.on{border-color:#f2b440;background:rgba(242,180,64,.35)}#gStage.sand .row{display:flex;gap:8px;align-items:center}#gStage.sand .row .btn{flex:1}
     #gStage.sand .dots{display:flex;gap:8px;justify-content:center;margin:2px 0 6px}#gStage.sand .dots button{width:26px;height:26px;border-radius:50%;border:3px solid rgba(255,255,255,.5)}#gStage.sand .dots button.on{border-color:#fff;transform:scale(1.15)}
     #gStage.sand .msg{position:absolute;top:66px;left:0;right:0;text-align:center;font-weight:900;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:3;pointer-events:none}${extraCss}</style>`);
@@ -1120,7 +1128,7 @@ function sandBuild(me, key, start) {
   const at = (x, z) => layout.findIndex(e => e.x === x && e.z === z);
   const hud = () => { el.querySelectorAll(".hud,.bot,.msg").forEach(n => n.remove());
     el.insertAdjacentHTML("beforeend", `<div class="hud"><button class="x" id="sbX">✕</button><div class="ttl">🏰 הארמון שלי · ${layout.length}/60</div></div><div class="msg" id="sbMsg"></div>
-      <div class="bot">${tool === "flag" ? `<div class="dots">${FLAG_COLORS.map((c, i) => `<button data-fc="${i}" class="${i === flag ? "on" : ""}" style="background:${c}"></button>`).join("")}</div>` : ""}
+      <div class="bot"><div class="step">${tool === "del" ? "🧽 לוחצים על חלק בחול כדי למחוק אותו" : tool === "rot" ? "🔄 לוחצים על חלק בחול כדי לסובב אותו" : `① בחרת: ${SAND_PIECES[tool][0]} ${SAND_PIECES[tool][1]} · ② לוחצים על משבצת בחול`}</div>${tool === "flag" ? `<div class="dots">${FLAG_COLORS.map((c, i) => `<button data-fc="${i}" class="${i === flag ? "on" : ""}" style="background:${c}"></button>`).join("")}</div>` : ""}
         <div class="pal">${Object.entries(SAND_PIECES).map(([k, [ic, n]]) => `<button data-tl="${k}" class="${tool === k ? "on" : ""}"><b>${ic}</b>${n}</button>`).join("")}<button data-tl="rot" class="${tool === "rot" ? "on" : ""}"><b>🔄</b>סיבוב</button><button data-tl="del" class="${tool === "del" ? "on" : ""}"><b>🧽</b>מחיקה</button></div>
         <div class="row"><button class="btn" id="sbSave">💾 לשמור את הארמון</button></div></div>`);
     el.querySelectorAll("[data-tl]").forEach(b => b.onclick = () => { tool = b.dataset.tl; hud(); });
@@ -1135,7 +1143,7 @@ function sandBuild(me, key, start) {
   let down = null;
   S3.canvas.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY }; });
   S3.canvas.addEventListener("pointermove", e => { if (!down) S3.showCursor(S3.cell(e.clientX, e.clientY)); });
-  S3.canvas.addEventListener("pointerup", e => { if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) { down = null; return; } down = null;
+  S3.canvas.addEventListener("pointerup", e => { if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 16) { down = null; return; } down = null;
     const c = S3.cell(e.clientX, e.clientY); if (!c) return; const i = at(c.x, c.z);
     if (tool === "del") { if (i >= 0) layout.splice(i, 1); }
     else if (tool === "rot") { if (i >= 0) layout[i].r = ((layout[i].r || 0) + 1) % 4; }
@@ -1850,6 +1858,10 @@ function reefScene(items) {
       const lid = new THREE.Mesh(new THREE.CylinderGeometry(.225, .225, .7, 14, 1, false, 0, Math.PI).rotateZ(Math.PI / 2), wd); lid.position.y = .4; g.add(lid);
       for (const x of [-.25, .25]) { const s = new THREE.Mesh(new THREE.BoxGeometry(.05, .42, .47), gold); s.position.set(x, .21, 0); g.add(s); } g.rotation.z = .12;
       const glow = new THREE.PointLight("#ffd34d", 3, 4); glow.position.y = .8; g.add(glow); }
+    // a glowing sign over every treasure (its icon in a bright ring), seen from far through the water, bobbing gently; a faint beam of light down to it
+    const mk = new THREE.Sprite(reefMark(it.k)); mk.position.y = 1.15; mk.scale.setScalar(it.k === "shell" ? .6 : it.k === "star" ? .7 : .9); g.add(mk);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.03, .12, 1, 6, 1, true).translate(0, .5, 0), new THREE.MeshBasicMaterial({ color: REEF_GLOW[it.k], transparent: true, opacity: .35, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(beam);
+    g.userData.mark = mk; g.userData.mph = rnd(0, 6);
     return { it, g, x, z, y: y + .6 }; });
   // the diver: wetsuit, tank, mask and fins
   const diver = new THREE.Group(), body = new THREE.Group(); diver.add(body); sc.add(diver);
@@ -1873,6 +1885,7 @@ function reefScene(items) {
       for (const w of weeds) { w.rotation.x = Math.sin(t * 1.2 + w.userData.ph) * .18; w.rotation.z = Math.cos(t * .9 + w.userData.ph) * .1; }
       for (const f of fans) f.rotation.x = Math.sin(t * 1.1) * .08;
       for (const f of fishes) { const u = f.userData, a = t * u.sp + u.ph; f.position.set(u.cx + Math.cos(a) * u.R, u.cy + Math.sin(a * 2) * .2, u.cz + Math.sin(a) * u.R); f.rotation.y = -a + (u.sp > 0 ? 0 : Math.PI); u.tail.rotation.y = Math.sin(t * 14 + u.ph) * .5; }
+      for (const o of objs) if (o.g.userData.mark) { const m = o.g.userData.mark; m.position.y = 1.15 + Math.sin(t * 2 + o.g.userData.mph) * .12; m.material.opacity = .75 + Math.sin(t * 4 + o.g.userData.mph) * .25; }
       for (const o of objs) if (o.g.userData.lid) { const op = Math.max(0, Math.sin(t * 1.3 + o.g.userData.ph)); o.g.userData.lid.rotation.x = -op * .9; o.open = op > .35; }
       for (let i = bubbles.length - 1; i >= 0; i--) { const b = bubbles[i]; b.b.position.y += b.v * dt; b.b.position.x += Math.sin(t * 5 + b.ph) * .003; if (b.b.position.y > -.05) { sc.remove(b.b); bubbles.splice(i, 1); } }
       legs.forEach((L, i) => L.rotation.x = Math.sin(t * (kick ? 9 : 3) + i * Math.PI) * (kick ? .35 : .12)); buoy.position.y = -.6 + Math.sin(t * 1.5) * .05; boat.rotation.z = Math.sin(t * .8) * .04;
@@ -1880,11 +1893,22 @@ function reefScene(items) {
     resize() { rd.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); },
     dispose() { rd.dispose(); sc.traverse(o => { o.geometry?.dispose?.(); o.material?.map?.dispose?.(); }); } };
 }
+// the sign over a treasure: its icon on a glowing disc in the color of what it's worth
+const REEF_GLOW = { shell: "#ffd0b8", star: "#ff9a5a", pearl: "#e8f4ff", chest: "#ffd34d" }, REEF_MK = {};
+function reefMark(k) {
+  if (REEF_MK[k]) return REEF_MK[k];
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d"), g = x.createRadialGradient(64, 64, 10, 64, 64, 62);
+  g.addColorStop(0, "rgba(255,255,255,.95)"); g.addColorStop(.55, REEF_GLOW[k] + "cc"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 62, 0, 7); x.fill();
+  x.strokeStyle = "rgba(255,255,255,.9)"; x.lineWidth = 5; x.beginPath(); x.arc(64, 64, 44, 0, 7); x.stroke();
+  x.font = "54px serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(REEF_K[k][0], 64, 68);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return REEF_MK[k] = new THREE.SpriteMaterial({ map: t, transparent: true, fog: false, depthWrite: false });
+}
 async function reefPlay() {
   const me = S.mine, key = me && keyOf(me.u), c = gcfg("reef");
   let St = null; if (key) try { St = await rpc("reef_state", { username: me.u, key }); } catch { St = null; }
   const left = St?.ok ? St.left : c.daily;
-  open("🤿 צלילה בשונית", `<div class="hero" style="text-align:center"><p style="font-size:44px">🤿</p><p><b>קופצים מהסירה לשונית האלמוגים של אי הדקל.</b> מחזיקים את האצבע איפה שרוצים לשחות, ואוספים מה שעוברים לידו. יש 45 שניות של אוויר, וצריך <b>לחזור לסירה</b> בזמן, אחרת השק נופל.</p>
+  open("🤿 צלילה בשונית", `<div class="hero" style="text-align:center"><p style="font-size:44px">🤿</p><p><b>קופצים מהסירה לשונית האלמוגים של אי הדקל.</b> מחזיקים את האצבע איפה שרוצים לשחות, ואוספים מה שעוברים לידו. יש ${Math.round((+c.air || 75000) / 1000)} שניות של אוויר, וצריך <b>לחזור לסירה</b> בזמן, אחרת השק נופל.</p>
       <p class="note">${c.daily} צלילות ביום · הפנינה נאספת רק כשהצדפה פתוחה · ככל שמתרחקים, עמוק יותר ושווה יותר</p></div>
     <div class="list" style="margin-top:8px">${Object.values(REEF_K).map(([ic, n, v]) => info(ic, n, `${v} ${COIN}${v === 50 ? " · לא בכל צלילה, רחוק ועמוק" : v === 25 ? " · בתוך צדפה שנפתחת ונסגרת" : ""}`)).join("")}</div>
     ${key ? `${St?.ok && St.hauls.length ? `<div class="hero" style="margin-top:10px;text-align:center"><p>הצלילות שלך היום: ${St.hauls.map(h => `${fmtN(h)} ${COIN}`).join(" · ")}</p></div>` : ""}
@@ -1905,12 +1929,12 @@ async function reefRun(me, key) {
     #gStage.reef .cmp{position:absolute;bottom:calc(82px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:4;text-align:center;font-weight:800;font-size:13px;text-shadow:0 1px 4px #000}#gStage.reef .cmp b{display:inline-block;font-size:26px;transition:transform .1s}
     #gStage.reef .pop{position:absolute;font-weight:900;font-size:26px;pointer-events:none;z-index:4;animation:gpop 1.1s forwards;text-shadow:0 2px 8px rgba(0,0,0,.7);transform:translateX(-50%)}
     #gStage.reef .hint{position:absolute;top:40%;left:0;right:0;text-align:center;z-index:4;font-weight:800;font-size:18px;text-shadow:0 2px 8px #000;pointer-events:none;transition:opacity .5s}</style>
-    <button class="x" id="rfX">✕</button><div class="air" id="rfA"><i id="rfAi" style="width:100%"></i></div><div class="airl" id="rfAl">🫧 45</div><div class="bag" id="rfB"></div>
+    <button class="x" id="rfX">✕</button><div class="air" id="rfA"><i id="rfAi" style="width:100%"></i></div><div class="airl" id="rfAl">🫧 ${Math.round((R.air || 45000) / 1000)}</div><div class="bag" id="rfB"></div>
     <div class="cmp" id="rfC"><b id="rfCa">⬆</b><br><span id="rfCd"></span></div><button class="home" id="rfH">⛵ חזרה לסירה</button><div class="hint" id="rfI">👇 מחזיקים את האצבע איפה שרוצים לשחות</div>`);
   el.classList.add("reef");
   let D; try { D = reefScene(R.items); } catch (e) { console.error(e); stageOff(); return toast("אי אפשר לצלול במכשיר הזה", 3000); }
   el.prepend(D.canvas); G3.on = true;
-  const AIR = R.air || 45000, SPD = 2.4, onResize = () => D.resize(); addEventListener("resize", onResize);
+  const AIR = R.air || 45000, SPD = (R.speed || 2.6) * .97, onResize = () => D.resize(); addEventListener("resize", onResize);
   const t0 = performance.now(); let away = false, quitAsk = 0, alive = true, last = t0, phase = "dive", target = null, homing = false, yaw = Math.PI, puffT = 0, upAt = null, F = null;
   const ids = [], times = [], bag = { shell: 0, star: 0, pearl: 0, chest: 0 }; let worth = 0;
   const pos = new THREE.Vector3(0, -.2, 0), camPos = new THREE.Vector3(0, -.3, 3.8), look = new THREE.Vector3(0, -2, -2);
@@ -3024,8 +3048,13 @@ function buildPalm() {
     const yt = solid([box(2.6, 1.4, 9, "#ffffff", 0, -.3, 0), box(2, 1, 4.6, "#ffffff", 0, 1.1, -.6), box(2.1, .5, 3.4, "*#bfe3f2", 0, 1.3, -.2), box(.1, .1, 3, "#2f6e7a", 0, .8, 3), part(new THREE.ConeGeometry(1.3, 2.6, 4), "#ffffff", 0, .3, 5.4, { x: Math.PI / 2, y: Math.PI / 4 })], p.x, p.z, ANG + r2);
     yt.position.y = -2.9; boats.push(yt); }
   // the train in the colors of the state's flag: white, a deep blue skirt and roof, a gold stripe along the windows, the sun on its doors
-  const car = z => [box(2.2, 2.4, 9.6, "#ffffff", 0, 0, z), box(2.25, .85, 9, "*#bfe3f2", 0, 1.05, z), box(2.3, .55, 9.6, RAIL_BLUE, 0, 0, z), box(2.3, .14, 9.62, RAIL_GOLD, 0, .7, z), box(2.3, .1, 9.62, RAIL_GOLD, 0, 1.98, z),
-    box(1.5, .14, 9.2, RAIL_BLUE, 0, 2.4, z), box(1.2, .5, 9.6, "#9aa0a6", 0, -.45, z), ...[-1, 1].map(sd => cyl(.34, .34, .04, 14, RAIL_GOLD, sd * 1.16, 1.5, z, { z: Math.PI / 2 }))];
+  const car = z => [box(2.2, 2.4, 9.6, "#ffffff", 0, 0, z), box(2.25, .85, 9, "*#bfe3f2", 0, 1.05, z), ...[-1, 1].flatMap(sd => [box(.05, .55, 9.6, RAIL_BLUE, sd * 1.12, 0, z), box(.05, .14, 9.62, RAIL_GOLD, sd * 1.13, .7, z), box(.05, .1, 9.62, RAIL_GOLD, sd * 1.13, 1.98, z)]), box(2.3, .06, 9.6, RAIL_BLUE, 0, -.02, z),
+    box(1.5, .14, 9.2, RAIL_BLUE, 0, 2.4, z), box(1.2, .5, 9.6, "#9aa0a6", 0, -.45, z), ...[-1, 1].map(sd => cyl(.34, .34, .04, 14, RAIL_GOLD, sd * 1.16, 1.5, z, { z: Math.PI / 2 })),
+    // inside (seen only from within: the outer walls are see-through from inside, so the view out is wide): the floor, blue seats facing each other, gold poles, wall panels below and above the windows, a lit ceiling
+    box(2.02, .06, 9.3, "#6f7d87", 0, .02, z), box(2.02, .04, 9.3, "*#efeae0", 0, 2.32, z), box(.5, .04, 8.8, "*#fff1c2", 0, 2.28, z),
+    ...[-1, 1].flatMap(sd => [box(.04, 1.02, 9.3, "#eef0f2", sd * 1.04, .06, z), box(.04, .4, 9.3, "#eef0f2", sd * 1.04, 1.92, z), box(.05, .1, 9.3, RAIL_GOLD, sd * 1.03, 1.02, z),
+      ...[-3.4, -1.2, 1.2, 3.4].flatMap(b => [box(.48, .42, 1.1, RAIL_BLUE, sd * .74, .06, z + b), box(.12, .55, 1.1, RAIL_BLUE, sd * .96, .48, z + b)]), ...[-4.2, -2.3, 0, 2.3, 4.2].map(b => box(.06, .9, .1, "#ffffff", sd * 1.03, 1.06, z + b))]),
+    ...[-2.3, 2.3].map(b => cyl(.035, .035, 2.26, 8, RAIL_GOLD, 0, .06, z + b))];
   const tr = solid([...car(-5), ...car(5), box(1.8, 2, .6, RAIL_BLUE, 0, .2, 0), sph(1.15, "#ffffff", 0, 1.2, 9.8, 1, 1, 1.1), sph(1.15, "#ffffff", 0, 1.2, -9.8, 1, 1, 1.1), sph(1.17, RAIL_BLUE, 0, .7, 9.8, 1, .4, 1.1), sph(1.17, RAIL_BLUE, 0, .7, -9.8, 1, .4, 1.1),
     sph(.8, "*#bfe3f2", 0, 1.6, 10.3, 1.1, .6, .8), sph(.8, "*#bfe3f2", 0, 1.6, -10.3, 1.1, .6, .8), sph(.18, "*#fff1c2", .6, .9, 10.85), sph(.18, "*#fff1c2", -.6, .9, 10.85), sph(.18, "*#ffd0c0", .6, .9, -10.85), sph(.18, "*#ffd0c0", -.6, .9, -10.85)], mr[0].x, mr[0].z, 0, { type: "place", id: "palmrail:0" }, 9.4); PALM.train = tr;
   railStations(g, mr);
@@ -3056,9 +3085,9 @@ function railStations(g, mr) {
     const P0 = i ? mr[2] : mr[0], Q0 = i ? mr[1] : mr[1], Lq = Math.hypot(Q0.x - P0.x, Q0.z - P0.z), t = { x: (Q0.x - P0.x) / Lq, z: (Q0.z - P0.z) / Lq }, ry = Math.atan2(t.x, t.z);
     const sx = i ? -1 : 1, lat = { x: t.z, z: -t.x }, W2 = (a, b) => ({ x: P0.x + lat.x * a * sx + t.x * b, z: P0.z + lat.z * a * sx + t.z * b });   // a: out from the track (away from the road), b: along it
     const tw = W2(7, 1), y0 = Math.max(.25, groundAt(tw.x, tw.z)), data = { type: "place", id: "palmrail:" + i }, X = a => a * sx, Q = [];
-    Q.push(box(3.2, .45, 23, "#e9e4da", X(2.95), 8.95 - y0, 0), box(3.25, .08, 23.05, RAIL_GOLD, X(2.95), 9.36 - y0, 0), box(.25, .1, 23, "#f2d79a", X(1.5), 9.42 - y0, 0));   // the platform, a yellow line at its edge
+    Q.push(box(3.2, .45, 23, "#e9e4da", X(2.95), 8.95 - y0, 0), box(.08, .45, 23.05, RAIL_GOLD, X(1.33), 8.95 - y0, 0), box(.25, .1, 23, "#f2d79a", X(1.5), 9.42 - y0, 0));   // the platform, a yellow line at its edge
     for (const b of [-9, 0, 9]) Q.push(cyl(.35, .4, 8.95 - y0, 8, "#f6f3ec", X(2.95), 0, b), box(.18, 3, .18, "#ffffff", X(4.3), 9.4 - y0, b));
-    Q.push(box(4.6, .35, 24, RAIL_GOLD, X(2.8), 12.3 - y0, 0), box(4.4, .3, 23.8, RAIL_BLUE, X(2.8), 12.65 - y0, 0));   // the canopy
+    Q.push(box(4.4, .3, 23.8, RAIL_BLUE, X(2.8), 12.5 - y0, 0), box(4.6, .02, 23.9, "*#f4f1e8", X(2.8), 12.48 - y0, 0), ...[.55, 5.05].map(a => box(.12, .4, 24, RAIL_GOLD, X(a), 12.35 - y0, 0)));   // the canopy: blue, a light ceiling, gold edges
     for (const b of [-6, 6]) Q.push(box(.08, 1.1, 2.4, RAIL_BLUE, X(4.42), 10.4 - y0, b));
     Q.push(box(.08, 1.6, 1, "#ffffff", X(4.45), 10.1 - y0, -10.5));
     // the tower: stairs and a lift up to the platform, glass on the sides, a door at the bottom
@@ -3069,7 +3098,11 @@ function railStations(g, mr) {
     mountSign(st, sign("🚪 לרכבל", 2.2, .6, { bg: RAIL_GOLD, fg: "#1b2430" }), X(9.52), 3 - y0, 1, sx * Math.PI / 2);
     mountSign(st, sign(`🚡 ${RAIL_NAMES[i]} · הרכבל לאי הדקל`, 8, .9, { bg: "#ffffff", fg: RAIL_BLUE }), X(5.1), 11.6 - y0, -4, sx * Math.PI / 2);
     const fl = flagMesh(2.6, 1.7), fp = W2(7, 1); fl.position.set(fp.x + Math.cos(ry) * 1.35, y0 + 16.6, fp.z - Math.sin(ry) * 1.35); fl.rotation.y = ry; world.add(fl); FLAGS.push(fl);
-    const door = W2(11.6, 1); PALM.stations.push({ i, x: door.x, z: door.z, name: RAIL_NAMES[i], ry: ry + sx * Math.PI / 2 });
+    const door = W2(11.6, 1), boards = [];
+    for (const [a, y, w2, h2, face] of [[4.56, 11.3, 3.4, 1.7, -1], [9.46, 4.3, 2.6, 1.3, 1]]) {   // on the tower's wall over the platform, and beside the street door
+      const cv = document.createElement("canvas"); cv.width = 512; cv.height = 256; const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), new THREE.MeshBasicMaterial({ map: tx })); m.position.set(X(a), y - y0, 1); m.rotation.y = face * sx * Math.PI / 2; m.userData.disposable = true; st.add(m); boards.push({ cv, tx }); }
+    PALM.stations.push({ i, x: door.x, z: door.z, name: RAIL_NAMES[i], ry: ry + sx * Math.PI / 2, P0, t, lx: lat.x * sx, lz: lat.z * sx, boards });
     placeLabel(`🚡 ${RAIL_NAMES[i]}`, tw.x, 18, tw.z);
   }
 }
@@ -4082,6 +4115,44 @@ function stopCard(i) {
     ${S.mine?.lot ? `<div class="btns" style="margin-top:10px"><button class="btn" id="stGo">🚶 ללכת לתחנה ולנסוע</button></div>` : ""}`, () => { const b = $("stGo"); if (b) b.onclick = () => { walkStart(S.mine.u); if (!WALK.on) return; WALK.x = A.x + Math.sin(A.ry) * 2.6; WALK.z = A.z + Math.cos(A.ry) * 2.6; WALK.head = A.ry + Math.PI / 2; WALK.cy = A.ry - Math.PI / 2; WALK.doors = walkDoors(); setTimeout(() => busPick(i), 400); }; });
 }
 // ---- the רכבל on the palm island: you wait on the platform, get on when the train stands in the station, ride over the water and get off at the other end
+// the timetable boards: when the next train leaves this station, live
+function railBoards() {
+  for (const st of PALM.stations || []) { const w = railWaitSec(st.i), to = RAIL_NAMES[1 - st.i];
+    for (const { cv, tx } of st.boards) { const x = cv.getContext("2d"); x.fillStyle = "#0f2a36"; x.fillRect(0, 0, 512, 256); x.fillStyle = RAIL_GOLD; x.fillRect(0, 0, 512, 52); x.fillRect(0, 248, 512, 8);
+      x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#0f2a36"; x.font = "800 30px system-ui, sans-serif"; x.fillText(`🚡 ${RAIL_NAMES[st.i]} · לוח זמנים`, 256, 37);
+      x.fillStyle = "#ffffff"; x.font = "700 30px system-ui, sans-serif"; x.fillText(`הרכבל הבא ל${to}`, 256, 104);
+      x.fillStyle = w === 0 ? "#7dffb0" : "#ffd75a"; x.font = "900 62px system-ui, sans-serif"; x.fillText(w == null ? "—" : w === 0 ? "בתחנה · עולים!" : `בעוד ${mss(w)}`, 256, 176);
+      x.fillStyle = "#bfe3f2"; x.font = "600 24px system-ui, sans-serif"; x.fillText(w == null ? "" : `יוצא ב־${ilClock(w + (w === 0 ? 0 : 8))} · נסיעה בחינם`, 256, 226); tx.needsUpdate = true; } }
+}
+// standing on the platform: up the tower from the street door, walk along it under the canopy, get on when the train stands here
+const platAt = (st, a, b) => ({ x: st.P0.x + st.lx * a + st.t.x * b, z: st.P0.z + st.lz * a + st.t.z * b });
+function railEnter(i) {
+  const st = PALM.stations?.[i]; if (!st) return; close(); WALK.wait = null; WALK.rail = null; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  WALK.plat = { i, a: 1.9, b: -6.5 }; const p = platAt(st, 1.9, -6.5), q = platAt(st, 4.5, 1); WALK.x = p.x; WALK.z = p.z; WALK.head = Math.atan2(q.x - p.x, q.z - p.z); WALK.cy = WALK.head + Math.PI; WALK.pitch = .12;   // facing the timetable board on the tower's wall
+  const s2 = $("wSt"); if (s2) s2.textContent = `🚡 ${st.name} · הרציף`; toast("🛗 עלית במעלית לרציף. הלוח על הקיר מראה מתי מגיע הרכבל", 3200);
+}
+function platStep(dt) {
+  const P = WALK.plat, st = PALM.stations[P.i], k = WALK.keys; let fx = WALK.joy.x, fy = WALK.joy.y;
+  if (k.ArrowUp || k.KeyW) fy += 1; if (k.ArrowDown || k.KeyS) fy -= 1; if (k.ArrowLeft || k.KeyA) fx -= 1; if (k.ArrowRight || k.KeyD) fx += 1;
+  const m = Math.min(1, Math.hypot(fx, fy)); WALK.t += dt * (m > .05 ? 1 : 0);
+  if (m > .05) { const sn = Math.sin(WALK.cy), c = Math.cos(WALK.cy), dx = -sn * fy + c * fx, dz = -c * fy - sn * fx, L = Math.hypot(dx, dz) || 1, sp = (2.2 + 3 * m) * m * dt;
+    P.a = Math.max(1.75, Math.min(4.15, P.a + (dx * st.lx + dz * st.lz) / L * sp)); P.b = Math.max(-11, Math.min(11, P.b + (dx * st.t.x + dz * st.t.z) / L * sp));   // along the platform, never off its edge
+    WALK.head += angDiff(Math.atan2(dx, dz), WALK.head) * Math.min(1, dt * 10); }
+  const p = platAt(st, P.a, P.b); WALK.x = p.x; WALK.z = p.z; const y0 = 9.4;
+  WALK.fig.visible = true; WALK.fig.position.set(p.x, y0 + Math.abs(Math.sin(WALK.t * 9)) * .06 * m, p.z); WALK.fig.rotation.set(0, WALK.head, 0);
+  WALK.pitch = Math.min(WALK.pitch, .2);   // under the canopy: the camera stays low and close
+  { const D = 3.6, cp = Math.cos(WALK.pitch), cx = p.x + Math.sin(WALK.cy) * cp * D, cz = p.z + Math.cos(WALK.cy) * cp * D; walkCam.position.set(cx, y0 + 1.7 + Math.sin(WALK.pitch) * D, cz); walkCam.lookAt(p.x, y0 + 1.6, p.z); }
+  const s2 = $("wSt"), w = railWaitSec(P.i), txt = `🚡 ${st.name} · ${w === 0 ? "הרכבל בתחנה!" : w == null ? "הרציף" : "הבא בעוד " + mss(w)}`; if (s2 && s2.textContent !== txt) s2.textContent = txt;
+}
+function railBoard(i) {   // on the platform, the train is in: get on
+  const ph = palmPhase(simT); if (!ph || ph.at !== i) return toast("🚡 הרכבל עוד לא בתחנה. הלוח מראה מתי הוא מגיע", 2500);
+  WALK.plat = null; WALK.rail = { from: i, on: true, head: ph.ry }; WALK.fig.visible = false; WALK.cabin = true; WALK.cabinLook = 0; WALK.cy = Math.atan2(PALM.geo.V.x, PALM.geo.V.z) + Math.PI;
+  toast(`🚡 עלית לרכבל · בדרך ל${PALM.stations[1 - i].name}`, 2500); walkButtons();
+}
+function railDown(i) {   // the lift back down to the street door
+  const st = PALM.stations[i]; WALK.plat = null; WALK.x = st.x + Math.sin(st.ry) * 2.5; WALK.z = st.z + Math.cos(st.ry) * 2.5; WALK.head = st.ry; WALK.cy = st.ry + Math.PI + .5; WALK.pitch = .3;
+  const s2 = $("wSt"); if (s2) s2.textContent = st.name; walkButtons();
+}
 function railWaitSec(i) { for (let s2 = 0; s2 < 200; s2 += .5) { const p = palmPhase(simT + s2); if (!p) return null; if (p.at === i) return s2; } return null; }
 function railShort(i) { const w = railWaitSec(i); return w == null ? "" : w === 0 ? "🚡 הרכבל בתחנה!" : `🚡 בעוד ${mss(w)}`; }
 function railCard(i) {
@@ -4089,7 +4160,7 @@ function railCard(i) {
   open(`🚡 ${esc(A.name)}`, `<div class="hero"><p><b>הרכבל של אי הדקל</b> בכחול וזהב של דגל המדינה, מעל המים, מהחוף עד מלון הדקל. נסיעה בחינם לכל תושב.</p>
     <p style="margin-top:6px">${railShort(i) || ""} · היעד: <b>${esc(B.name)}</b></p></div>
     ${S.mine?.lot ? `<div class="btns" style="margin-top:10px"><button class="btn" id="rlGo">🚶 ללכת לתחנה ולנסוע</button></div>` : ""}`, () => { const b = $("rlGo"); if (b) b.onclick = () => { walkStart(S.mine.u); if (!WALK.on) return;
-      WALK.x = A.x + Math.sin(A.ry) * 1.5; WALK.z = A.z + Math.cos(A.ry) * 1.5; WALK.head = A.ry + Math.PI; WALK.cy = A.ry + .5; WALK.doors = walkDoors(); setTimeout(() => railGo(i), 400); }; });
+      WALK.x = A.x; WALK.z = A.z; WALK.doors = walkDoors(); setTimeout(() => railEnter(i), 300); }; });
 }
 function railGo(i) {
   const A = PALM.stations?.[i]; if (!A) return; close(); WALK.wait = null; WALK.rail = { from: i, on: false }; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
@@ -4106,9 +4177,20 @@ function railStep(dt) {
   const R = WALK.rail, ph = palmPhase(simT), st = $("wSt"); if (!ph) { WALK.rail = null; WALK.fig.visible = true; return; }
   const to = PALM.stations[1 - R.from], t = `🚡 ברכבל · ל${to.name}`; if (st && st.textContent !== t) st.textContent = t;
   R.head += angDiff(ph.ry, R.head) * Math.min(1, dt * 3); WALK.x = ph.x; WALK.z = ph.z;
-  if (performance.now() - WALK.lastDrag > 900) WALK.cy += angDiff(R.head + Math.PI * .8, WALK.cy) * Math.min(1, dt * 1.5);
-  WALK.pitch = Math.max(WALK.pitch, .22); placeWalkCam(ph.x, 10.8, ph.z, 17);
-  if (ph.at === 1 - R.from) { WALK.rail = null; WALK.x = to.x + Math.sin(to.ry) * 2.5; WALK.z = to.z + Math.cos(to.ry) * 2.5; WALK.head = to.ry; WALK.cy = to.ry + .6; WALK.fig.visible = true; if (st) st.textContent = to.name; toast(`🚡 הגעת ל${to.name}!`, 2500); WALK.doors = walkDoors(); }
+  const tr = PALM.train, dir = tr ? tr.rotation.y : ph.ry;
+  if (WALK.cabin && tr) {   // in a seat by the window on the far side of the car, looking out across it at the palm and the lagoon (drag to look ahead, behind or down)
+    const V = PALM.geo.V, fw = { x: Math.sin(dir), z: Math.cos(dir) }, vv = Math.sign(V.x * -fw.z + V.z * fw.x) || 1;   // which side of the car the island is on
+    const cx = tr.position.x - fw.x * 5, cz = tr.position.z - fw.z * 5, ex = cx - V.x * .55, ez = cz - V.z * .55, ey = 9.4 + 1.3, base = Math.atan2(V.x, V.z);
+    if (performance.now() - WALK.lastDrag < 2500) WALK.cabinLook = angDiff(WALK.cy + Math.PI, base); else WALK.cabinLook = (WALK.cabinLook || 0) * Math.exp(-dt * .6);
+    if (walkCam.near !== .05) { walkCam.near = .05; walkCam.updateProjectionMatrix(); }
+    const la = base + Math.max(-1.3, Math.min(1.3, WALK.cabinLook || 0)); void vv;
+    walkCam.position.set(ex, ey, ez); walkCam.lookAt(ex + Math.sin(la) * 10, ey - 1.4 - (WALK.pitch - .22) * 6, ez + Math.cos(la) * 10);
+  } else {
+    if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
+    if (performance.now() - WALK.lastDrag > 900) WALK.cy += angDiff(R.head + Math.PI * .8, WALK.cy) * Math.min(1, dt * 1.5);
+    WALK.pitch = Math.max(WALK.pitch, .22); placeWalkCam(ph.x, 10.8, ph.z, 17); }
+  if (ph.at === 1 - R.from) { WALK.rail = null; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }   // off at the far station, on its platform
+    { const p = platAt(to, 1.9, -6.5), q = platAt(to, 4.5, 1); WALK.plat = { i: to.i, a: 1.9, b: -6.5 }; WALK.head = Math.atan2(q.x - p.x, q.z - p.z); WALK.cy = WALK.head + Math.PI; WALK.pitch = .12; } WALK.fig.visible = true; if (st) st.textContent = to.name; toast(`🚡 הגעת ל${to.name}! יורדים לרחוב בכפתור למטה`, 3000); WALK.doors = walkDoors(); walkButtons(); }
 }
 function busPick(i) {
   const A = S.busStops[i]; if (!A) return;
@@ -6905,7 +6987,7 @@ function animate(dt) {
     for (const m of ms) m.instanceMatrix.needsUpdate = true;
   }
   boats.forEach((b, i) => { b.position.y = -2.9 + Math.sin(t * 1.3 + i) * .25; b.rotation.z = Math.sin(t * .9 + i * 2) * .04; });
-  palmTrain(t); lineStep(dt);
+  palmTrain(t); lineStep(dt); if (PALM.stations?.length && Math.abs(t - (PALM.bt || -9)) > 1) { PALM.bt = t; railBoards(); }
   for (const j of JETS) {   // fountains: the spray flickers, the splash rings pulse
     if (j.ring) j.m.scale.setScalar(1 + .12 * Math.sin(t * 5 + j.ph)); else j.m.material.opacity = .5 + .1 * Math.sin(t * 11) + .05 * Math.sin(t * 23); }
   for (const f of FLAGS) { const p = f.geometry.attributes.position, base = f.userData.base, w = f.userData.w;
@@ -6957,7 +7039,7 @@ function walkDoors() {
   if (BALLOT.x != null) add(BALLOT.x, BALLOT.z + 4.6, 4.5, "ballot", "להיכנס לקלפי");
   if (PALM.geo) { const g = PALM.geo, ry = Math.atan2(-g.U.x, -g.U.z); add(g.hotel.x + Math.sin(ry) * 12, g.hotel.z + Math.cos(ry) * 12, 6, "palmhotel", "להיכנס: מלון הדקל"); }
   if (YK.door && S.ykSpot) add(YK.door.x, YK.door.z, 7, "yallkea", `להיכנס: ${YK.name}`);
-  for (const st of PALM.stations || []) add(st.x, st.z, 4.5, "rail:" + st.i, `🚡 ${st.name} · לעלות לרכבל`);
+  for (const st of PALM.stations || []) add(st.x, st.z, 4.5, "rail:" + st.i, `🚡 להיכנס ל${st.name}`);
   (S.busStops || []).forEach((st, i) => add(st.x + Math.sin(st.ry) * 1.6, st.z + Math.cos(st.ry) * 1.6, 3.4, "stop:" + i, `🚏 תחנת ${st.name} · לנסוע`));
   for (const p of S.projects) if (p.x != null && p.status === "done" && p.kind !== "monument") {
     const name = p.name || PROJECT_KINDS[p.kind]?.[1];
@@ -7015,9 +7097,9 @@ function walkStart(u) {
     <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div><button class="wcam glass" id="wCam" hidden>🎥 מהמושב</button>
     <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
   $("wAct").onclick = () => WALK.mode === "car" ? exitCar() : enterCar();
-  $("wCam").onclick = () => { WALK.cockpit = !WALK.cockpit; walkButtons(); };
+  $("wCam").onclick = () => { if (WALK.rail?.on) WALK.cabin = !WALK.cabin; else WALK.cockpit = !WALK.cockpit; walkButtons(); };
   $("wMapBtn").onclick = () => cmapOpen(); $("wNavX").onclick = () => { WALK.target = null; $("wNav").hidden = true; };
-  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (String(d.id).startsWith("rail:")) return railGo(+String(d.id).slice(5)); indoorStart(d.id, d); } };
+  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
   $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
   setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
   // the joystick
@@ -7029,7 +7111,7 @@ function walkStart(u) {
 }
 function exitWalk() {
   if (!WALK.on) return;
-  if (WALK.bus) { WALK.bus.bus.dispose(); WALK.bus = null; } WALK.wait = null; LINE.hide = -1; WALK.rail = null;
+  if (WALK.bus) { WALK.bus.bus.dispose(); WALK.bus = null; } WALK.wait = null; LINE.hide = -1; WALK.rail = null; WALK.plat = null; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
   if (IN.on) indoorStop("street");
   if (WALK.car) { WALK.car.mv.dispose(); WALK.car = null; hideParked(WALK.h, false); }
   npcClear();
@@ -7054,6 +7136,7 @@ function placeWalkCam(tx, ty, tz, D) {
 }
 function walkStep(dt) {
   if (WALK.rail?.on) return railStep(dt);
+  if (WALK.plat) return platStep(dt);
   if (WALK.rail) railWait();
   if (WALK.bus) return busStep(dt);
   if (WALK.wait) waitStep();
@@ -7184,9 +7267,12 @@ function walkButtons() {
   const b = $("wAct"), dr = $("wDoor"); if (!b) return;
   // the nearest door you're standing at
   let best = null, bd = Infinity;
-  if (WALK.mode !== "car") for (const d of WALK.doors) { const q = Math.hypot(d.x - WALK.x, d.z - WALK.z); if (q < d.r && q < bd) { bd = q; best = d; } }
-  WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `🚪 ${best.label}${String(best.id).startsWith("stop:") ? " · " + lineShort(+String(best.id).slice(5)) : String(best.id).startsWith("rail:") ? " · " + railShort(+String(best.id).slice(5)) : ""}`;
-  const cb = $("wCam"); if (cb) { cb.hidden = WALK.mode !== "car"; cb.textContent = WALK.cockpit ? "🎥 מבט מאחור" : "🎥 מהמושב"; }
+  if (WALK.plat) { const i = WALK.plat.i, w = railWaitSec(i); best = w === 0 ? { id: "railride:" + i, label: "🚡 לעלות לרכבל" } : { id: "raildown:" + i, label: `⬇️ לרדת לרחוב${w != null ? " · הרכבל בעוד " + mss(w) : ""}` }; }
+  else if (WALK.rail?.on) best = null;
+  else if (WALK.mode !== "car") for (const d of WALK.doors) { const q = Math.hypot(d.x - WALK.x, d.z - WALK.z); if (q < d.r && q < bd) { bd = q; best = d; } }
+  WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `${String(best.id).startsWith("rail") ? "" : "🚪 "}${best.label}${String(best.id).startsWith("stop:") ? " · " + lineShort(+String(best.id).slice(5)) : ""}`;
+  const cb = $("wCam"); if (cb) { cb.hidden = WALK.mode !== "car" && !WALK.rail?.on; cb.textContent = WALK.rail?.on ? (WALK.cabin ? "🎥 מבחוץ" : "🎥 מתוך הקרון") : WALK.cockpit ? "🎥 מבט מאחור" : "🎥 מהמושב"; }
+  if (WALK.plat || WALK.rail?.on) { b.hidden = true; $("wSpd").hidden = true; return; }
   if (WALK.mode === "car") { b.hidden = false; b.textContent = CARS[WALK.h.cm].bike ? "🚶 לרדת מהקטנוע" : "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
   $("wSpd").hidden = true;
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
@@ -9560,6 +9646,8 @@ const NEWS = {
   cityin: { v: "2026-10-27", ic: "🛣️", t: "מהכביש המהיר ישר לתוך העיר", sub: "הרכבים נכנסים ברחובות עד כיכר העיר", ok: () => gateRings().some(R => R.gate), shot: () => { const R = gateRings().find(q => q.wide) || gateRings().find(q => q.gate); return { a: at(R, 3.2, -.6, .38), b: at(R.gate, 4.2, .2, .36) }; } },
   rail: { v: "2026-10-27", ic: "🚡", t: "רכבל לאי הדקל", sub: "עולים בתחנה ונוסעים מעל המים · בצבעי הדגל", ok: () => !!PALM.stations?.length, shot: (t0, d) => { const st = PALM.stations[1], ph = () => palmPhase(simT) || st;   // where the train really is (the reel drives the island's clock)
     return { follow: el => { const p = ph(el); return { x: p.x, z: p.z }; }, a: at(st, 7, -.5, .3), b: at(PALM.geo.center, 2.4, .2, .38), pin: el => { const p = ph(el); return { x: p.x, y: 13.5, z: p.z, label: "🚡 הרכבל" }; } }; } },
+  railst: { v: "2026-10-27", ic: "🛗", t: "תחנות רכבל עם רציף ולוח זמנים", sub: "עולים במעלית, מחכים על הרציף, ונוסעים מתוך הקרון", ok: () => !!PALM.stations?.length, shot: () => { const st = PALM.stations[0], p = platAt(st, 3, 0); return { a: at(p, 9, -.6, .28), b: at(p, 12, .2, .3) }; } },
+  reef2: { v: "2026-10-27", ic: "🤿", t: "צלילה ארוכה יותר באי הדקל", sub: "יותר אוויר, שחייה מהירה ואוצרות זוהרים", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.W(60, 120), 3, -.5, .3), b: at(g.W(140, 60), 4, .2, .32) }; } },
   palmcars: { v: "2026-10-27", ic: "🚙", t: "רכבים נוסעים באי הדקל", sub: "עד קצה כל ענף ועד המלון", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.fronds[2].at(10, 0), 4.5, -.6, .4), b: at(g.fronds[7].at(40, 0), 5.5, .3, .38) }; } }
 };
 // the newest release is what "what's new" shows by itself (the date of the newest item)
@@ -10765,7 +10853,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, railGo, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
