@@ -2942,7 +2942,7 @@ function palmGeo() {
 // is a point on the palm island (or its bridge)?
 function onPalm(x, z) {
   const g = PALM.geo; if (!g) return false; const dx = x - g.O.x, dz = z - g.O.z, u = dx * g.U.x + dz * g.U.z, v = dx * g.V.x + dz * g.V.z;
-  if ((u > -34 && u < 42 && Math.abs(v) < 6.5) || (u > 40 && u < g.TE && Math.abs(v) < 11) || (u > g.TE - 2 && u < g.CC.u + g.CR - 26 && Math.abs(v) < 5) || Math.hypot(u - g.CC.u - g.CR, v) < 40) return true;
+  if ((u > -48 && u < 42 && Math.abs(v) < 6.5) || (u > 40 && u < g.TE && Math.abs(v) < 11) || (u > g.TE - 2 && u < g.CC.u + g.CR - 26 && Math.abs(v) < 5) || Math.hypot(u - g.CC.u - g.CR, v) < 40) return true;
   for (const f of g.fronds) { const pu = u - f.b.u, pv = v - f.b.v, s2 = pu * f.d.u + pv * f.d.v, w2 = Math.abs(pu * f.nv.u + pv * f.nv.v); if ((s2 > -4 && s2 < f.L && w2 < PALM_F.FW) || Math.hypot(s2 - f.L, w2) < PALM_F.FW) return true; }
   const r = Math.hypot(u - g.CC.u, v - g.CC.v), a = Math.atan2(v - g.CC.v, u - g.CC.u); return r > g.CR - 7 && r < g.CR + 7 && a > g.A0 && a < g.A1;
 }
@@ -2996,7 +2996,12 @@ function buildPalm() {
   // it runs beside the bridge and the trunk, over the water and the gardens, never above the road or the sidewalk
   const MV = -14.5, mr = [g.W(-24, MV), g.W(g.TE - 2, MV), g.W(g.CC.u + g.CR - 34, -7.2)], cutsN = g.fronds.filter(f => f.b.v < 0).map(f => [f.b.u - 12, f.b.u + 7]), cutN = u => cutsN.some(([a, b]) => u > a && u < b);
   for (let i = 0; i + 1 < mr.length; i++) { const A = mr[i], B = mr[i + 1], L = Math.hypot(B.x - A.x, B.z - A.z), ry = Math.atan2(B.x - A.x, B.z - A.z);
-    Q.push(box(1.4, .9, L, "#f6f3ec", (A.x + B.x) / 2, 8, (A.z + B.z) / 2, { y: ry }), box(1.46, .2, L, RAIL_GOLD, (A.x + B.x) / 2, 8.35, (A.z + B.z) / 2, { y: ry }), box(.5, .25, L, "#9aa0a6", (A.x + B.x) / 2, 8.9, (A.z + B.z) / 2, { y: ry }));
+    const mx = (A.x + B.x) / 2, mz = (A.z + B.z) / 2, L2 = L + (i ? 1.2 : 0);   // the guideway: a deep white beam with blue sides and a gold stripe, the rail on top
+    // in short pieces: the island is drawn gently bent, and a long straight box would leave its pillars behind, off to one side
+    const np = Math.max(1, Math.ceil(L2 / 8)), pl = L2 / np; void mx; void mz;
+    for (let q = 0; q < np; q++) { const f = (q + .5) / np, cx2 = A.x + (B.x - A.x) * (f * L2 / L), cz2 = A.z + (B.z - A.z) * (f * L2 / L), ln = pl + .05;
+      Q.push(box(2.2, 1.3, ln, RAIL_BLUE, cx2, 7.45, cz2, { y: ry }), box(2.26, .18, ln, RAIL_GOLD, cx2, 8.3, cz2, { y: ry }), box(2.2, .24, ln, "#f6f3ec", cx2, 8.68, cz2, { y: ry }), box(.8, .2, ln, "#9aa0a6", cx2, 8.92, cz2, { y: ry })); }
+    if (i) Q.push(cyl(1.2, 1.2, 1.3, 16, RAIL_BLUE, A.x, 7.45, A.z), cyl(1.2, 1.2, .24, 16, "#f6f3ec", A.x, 8.68, A.z));   // the bend, smooth
     for (let k = 0; k < L; k += 18) { if (i === 0 && (cut(-24 + k) || cutN(-24 + k))) continue;   // no pillar in the middle of a junction
       const px = A.x + (B.x - A.x) * k / L, pz = A.z + (B.z - A.z) * k / L; Q.push(cyl(.5, .6, 7.4, 8, "#f6f3ec", px, -.2, pz), cyl(.75, .55, .8, 8, RAIL_BLUE, px, 7.2, pz)); } }
   PALM.track = mr;
@@ -3098,11 +3103,13 @@ function railStations(g, mr) {
     mountSign(st, sign("🚪 לרכבל", 2.2, .6, { bg: RAIL_GOLD, fg: "#1b2430" }), X(9.52), 3 - y0, 1, sx * Math.PI / 2);
     mountSign(st, sign(`🚡 ${RAIL_NAMES[i]} · הרכבל לאי הדקל`, 8, .9, { bg: "#ffffff", fg: RAIL_BLUE }), X(5.1), 11.6 - y0, -4, sx * Math.PI / 2);
     const fl = flagMesh(2.6, 1.7), fp = W2(7, 1); fl.position.set(fp.x + Math.cos(ry) * 1.35, y0 + 16.6, fp.z - Math.sin(ry) * 1.35); fl.rotation.y = ry; world.add(fl); FLAGS.push(fl);
-    const door = W2(11.6, 1), boards = [];
+    const door = W2(11.6, 1), boards = [], road = i ? g.W(PALM_HOTEL_U - 12, -4.2) : g.W(door.x * 0 + ((door.x - g.O.x) * g.U.x + (door.z - g.O.z) * g.U.z), -6.4);   // the way from the road to the station's door
+    { const L = Math.hypot(door.x - road.x, door.z - road.z), m = { x: (door.x + road.x) / 2, z: (door.z + road.z) / 2 }, ry2 = Math.atan2(door.x - road.x, door.z - road.z);
+      solid([box(3.2, .06, L + 3, "#cfc6b4", 0, 0, 0), box(.12, .1, L + 3, RAIL_GOLD, -1.66, 0, 0), box(.12, .1, L + 3, RAIL_GOLD, 1.66, 0, 0)], m.x, m.z, ry2, null, Math.max(.26, groundAt(m.x, m.z) + .02)); }
     for (const [a, y, w2, h2, face] of [[4.56, 11.3, 3.4, 1.7, -1], [9.46, 4.3, 2.6, 1.3, 1]]) {   // on the tower's wall over the platform, and beside the street door
       const cv = document.createElement("canvas"); cv.width = 512; cv.height = 256; const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), new THREE.MeshBasicMaterial({ map: tx })); m.position.set(X(a), y - y0, 1); m.rotation.y = face * sx * Math.PI / 2; m.userData.disposable = true; st.add(m); boards.push({ cv, tx }); }
-    PALM.stations.push({ i, x: door.x, z: door.z, name: RAIL_NAMES[i], ry: ry + sx * Math.PI / 2, P0, t, lx: lat.x * sx, lz: lat.z * sx, boards });
+    PALM.stations.push({ i, x: door.x, z: door.z, name: RAIL_NAMES[i], ry: ry + sx * Math.PI / 2, P0, t, lx: lat.x * sx, lz: lat.z * sx, boards, road });
     placeLabel(`🚡 ${RAIL_NAMES[i]}`, tw.x, 18, tw.z);
   }
 }
@@ -3850,7 +3857,7 @@ function capGrid(sl0) {
   const plen = q => { let L = 0; for (let i = 1; i < q.length; i++) L += Math.hypot(q[i].x - q[i - 1].x, q[i].z - q[i - 1].z); return L; };
   const way = (A, B2) => { let best = null; for (const a of ends(A)) for (const b of ends(B2)) { const r = route(a, b); if (!r.length) continue; const q = [A, ...r, B2], L = plen(q); if (!best || L < best.L) best = { L, q }; }
     return best ? best.q.filter((p, i, a) => !i || Math.hypot(p.x - a[i - 1].x, p.z - a[i - 1].z) > .5) : [A, B2]; };
-  return live.length ? { route: (a, b) => { const A = enter(a), B = enter(b); return [A.P, ...route(A.k, B.k), B.P]; }, way, plen, nodes, adj, live, nearest, sl } : null;
+  return live.length ? { route: (a, b) => { const A = enter(a), B = enter(b); return [A.P, ...route(A.k, B.k), B.P]; }, way, plen, nodes, adj, live, nearest, ends, sl } : null;
 }
 // round the islands of the roundabouts: every point that would cut across one is pushed out onto the ring around it
 function roundAbout(pts) {
@@ -4125,6 +4132,8 @@ function railBoards() {
       x.fillStyle = "#bfe3f2"; x.font = "600 24px system-ui, sans-serif"; x.fillText(w == null ? "" : `יוצא ב־${ilClock(w + (w === 0 ? 0 : 8))} · נסיעה בחינם`, 256, 226); tx.needsUpdate = true; } }
 }
 // standing on the platform: up the tower from the street door, walk along it under the canopy, get on when the train stands here
+const railWalk = (x, z) => (PALM.stations || []).some(st => { const ax = st.road.x, az = st.road.z, dx = st.x - ax, dz = st.z - az, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
+  return Math.hypot(ax + dx * k - x, az + dz * k - z) < 2.4 || Math.hypot(x - st.x, z - st.z) < 4; });
 const platAt = (st, a, b) => ({ x: st.P0.x + st.lx * a + st.t.x * b, z: st.P0.z + st.lz * a + st.t.z * b });
 function railEnter(i) {
   const st = PALM.stations?.[i]; if (!st) return; close(); WALK.wait = null; WALK.rail = null; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
@@ -4307,7 +4316,7 @@ function layout() {
       const cm = c.car_model && CARS[c.car_model]?.tier === car ? c.car_model : CARS_DEFAULT(car)[hash(u + "m") % CARS_DEFAULT(car).length];
       const ck = COLORS[c.car_color] ? c.car_color : COLOR_KEYS[hash(u + "car") % (car === 3 ? 10 : 9)];
       const h = { id: c.id, u, city: slot.city, slot, lot, tier, hk, painted: !!c.car_color, joined: c.created_at, car, cm, ck, cc: COLORS[ck][0], coins: c.coins, lastShift: c.last_shift, streak: c.streak || 0, best: c.best_streak || c.streak || 0, last: c.last_collected,
-        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, x: lot ? lot.x : slot.x, z: lot ? lot.z - (lot.est ? 3 : 0) : slot.z };
+        wp: S.wpById.get(c.workplace_id) || null, level: c.job_level || 1, av: c.avatar || null, owned: c.avatar_owned || [], food: c.food || {}, auto: !!c.autopilot, x: lot ? lot.x : slot.x, z: lot ? lot.z - (lot.est ? 3 : 0) : slot.z };
       S.houses.push(h); S.byUser.set(h.u, h); if (lot) S.byAddr.set(`${lot.street} ${lot.num}`.toLowerCase(), h);
       if (lot) slot.blocks.set(`${lot.bx},${lot.bz}`, { bx: lot.bx, bz: lot.bz });
     });
@@ -7099,7 +7108,7 @@ function walkStart(u) {
   $("wAct").onclick = () => WALK.mode === "car" ? exitCar() : enterCar();
   $("wCam").onclick = () => { if (WALK.rail?.on) WALK.cabin = !WALK.cabin; else WALK.cockpit = !WALK.cockpit; walkButtons(); };
   $("wMapBtn").onclick = () => cmapOpen(); $("wNavX").onclick = () => { WALK.target = null; $("wNav").hidden = true; };
-  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
+  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (d.id === "auto") return WALK.auto ? autoStop("🛑 עצרת. ההגה אצלך") : S.mine?.auto ? cmapOpen() : autoShop(); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
   $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
   setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
   // the joystick
@@ -7111,7 +7120,7 @@ function walkStart(u) {
 }
 function exitWalk() {
   if (!WALK.on) return;
-  if (WALK.bus) { WALK.bus.bus.dispose(); WALK.bus = null; } WALK.wait = null; LINE.hide = -1; WALK.rail = null; WALK.plat = null; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
+  if (WALK.bus) { WALK.bus.bus.dispose(); WALK.bus = null; } WALK.wait = null; LINE.hide = -1; WALK.rail = null; WALK.plat = null; WALK.auto = null; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
   if (IN.on) indoorStop("street");
   if (WALK.car) { WALK.car.mv.dispose(); WALK.car = null; hideParked(WALK.h, false); }
   npcClear();
@@ -7155,7 +7164,7 @@ function walkStep(dt) {
       if (d > 0 && d < r) { nx = qx + ex / d * r; nz = qz + ez / d * r; }
       else if (d === 0) { const pen = [[nx - b[0] + r, -1, 0], [b[2] - nx + r, 1, 0], [nz - b[1] + r, 0, -1], [b[3] - nz + r, 0, 1]].sort((a, b2) => a[0] - b2[0])[0]; nx += pen[1] * pen[0]; nz += pen[2] * pen[0]; }
     }
-    if (onGrass(nx, nz, S.s, .005) || onPalm(nx, nz) || onHighway(nx, nz)) { WALK.x = nx; WALK.z = nz; }
+    if (onGrass(nx, nz, S.s, .005) || onPalm(nx, nz) || onHighway(nx, nz) || railWalk(nx, nz)) { WALK.x = nx; WALK.z = nz; }
     WALK.head += angDiff(Math.atan2(dx, dz), WALK.head) * Math.min(1, dt * 10);
     if (performance.now() - WALK.lastDrag > 900 && fy > .2) WALK.cy += angDiff(WALK.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);   // the camera swings in behind you
   }
@@ -7223,9 +7232,80 @@ function enterCar() {
   WALK.mode = "car"; WALK.fig.visible = !!CARS[h.cm].bike; WALK.cy = WALK.car.head + Math.PI; WALK.pitch = .22; walkButtons();   // on a scooter you ride on top, seen
 }
 function exitCar() {
-  const c = WALK.car; WALK.mode = "foot"; c.v = 0;
+  const c = WALK.car; WALK.mode = "foot"; c.v = 0; WALK.auto = null;
   // step out on the driver's side
   WALK.x = c.x + Math.cos(c.head) * 1.9; WALK.z = c.z - Math.sin(c.head) * 1.9; WALK.head = c.head; WALK.fig.visible = true; WALK.pitch = .3; walkButtons();
+}
+/* ---------- the autopilot (an upgrade bought with סבבונים): pick a destination on the map and the car drives itself there, along the roads ---------- */
+const AUTO = { G: null, key: null, PRICE: 3000 };
+// the whole island's road network as one graph: the streets of every city, the city gates and their roundabouts, the highways,
+// the roundabouts at the coast, the bridge and the trunk of the palm island with its fronds and the hotel's roundabout
+function autoGraph() {
+  const key = BUILD_NO + "|" + S.s; if (AUTO.G && AUTO.key === key) return AUTO.G;
+  const N = [], E = new Map(), at = new Map();
+  const id = p => { const k = Math.round(p.x * 2) + ":" + Math.round(p.z * 2); if (!at.has(k)) { at.set(k, N.length); N.push({ x: p.x, z: p.z }); } return at.get(k); };
+  const link = (a, b) => { if (a === b) return; const d = Math.hypot(N[a].x - N[b].x, N[a].z - N[b].z); for (const [p, q] of [[a, b], [b, a]]) { const l = E.get(p) || E.set(p, []).get(p); if (!l.some(e => e[0] === q)) l.push([q, d]); } };
+  const grids = new Map();
+  for (const sl of S.slots) if (sl.city && sl.blocks?.size) { const G = capGrid(sl); if (!G) continue; grids.set(sl, G); for (const [p, l] of G.adj) for (const [q] of l) link(id(G.nodes[p]), id(G.nodes[q])); }
+  for (const [a, b, c, d, w, kind, meta] of hwPlan().segs) {
+    const A = meta?.A, B = meta?.B, T = meta?.T, pa = id(A ? A : { x: a, z: b }), pb = id(T ? T.J : B ? B : { x: c, z: d }); link(pa, pb);
+    for (const R of [A, B]) if (R?.gate && R.sl && grids.get(R.sl)) { const G = grids.get(R.sl), g = id(R.gate), en = G.ends(R.gate), dd = e => Math.hypot(G.nodes[e].x - R.gate.x, G.nodes[e].z - R.gate.z), m = Math.min(...en.map(dd));   // into the city by the street right at the gate
+      link(id(R), g); for (const e of en) if (dd(e) < m + 1) link(g, id(G.nodes[e])); } }
+  if (PALM.geo) { const g = PALM.geo, jn = [...new Set(g.fronds.map(f => f.b.u - 6.6))].sort((p, q) => p - q), trunk = [g.gate, ...jn.map(u => g.W(u, 0)), g.W(PALM_HOTEL_U, 0)];
+    for (let k = 1; k < trunk.length; k++) link(id(trunk[k - 1]), id(trunk[k]));
+    for (const f of g.fronds) link(id(g.W(f.b.u - 6.6, 0)), id(f.at(f.L, 0))); }
+  AUTO.key = key; return AUTO.G = { N, E };
+}
+// the shortest way along the roads from a to b: on to the nearest road at both ends, Dijkstra between, and the lanes, roundabouts and turns like the traffic
+function autoRoute(a, b) {
+  const { N, E } = autoGraph(); if (!N.length) return null;
+  const snap = p => { let best = null; for (const [i, l] of E) for (const [j] of l) { if (j < i) continue; const A = N[i], B = N[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / L2)), q = { x: A.x + dx * k, z: A.z + dz * k }, d = Math.hypot(q.x - p.x, q.z - p.z);
+    if (!best || d < best.d) best = { d, q, i, j, k }; } return best; };
+  const sa = snap(a), sb = snap(b); if (!sa || !sb) return null;
+  const dist = new Map(), prev = new Map(), done = new Set(), cost = (n, s2) => Math.hypot(N[n].x - s2.q.x, N[n].z - s2.q.z);
+  for (const n of [sa.i, sa.j]) { dist.set(n, cost(n, sa)); prev.set(n, -1); }
+  for (;;) { let u = null; for (const [n, d] of dist) if (!done.has(n) && (u == null || d < dist.get(u))) u = n; if (u == null) break; done.add(u); if (done.has(sb.i) && done.has(sb.j)) break;
+    for (const [v, w] of E.get(u) || []) { const nd = dist.get(u) + w; if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); } } }
+  const endN = [sb.i, sb.j].filter(n => dist.has(n)).sort((p, q) => dist.get(p) + cost(p, sb) - dist.get(q) - cost(q, sb))[0]; if (endN == null) return null;
+  const chain = []; for (let n = endN; n !== -1 && n != null; n = prev.get(n)) chain.unshift(N[n]);
+  const same = (sa.i === sb.i && sa.j === sb.j) || (sa.i === sb.j && sa.j === sb.i);
+  let raw = same ? [a, sa.q, sb.q] : [a, sa.q, ...chain, sb.q]; if (Math.hypot(b.x - sb.q.x, b.z - sb.q.z) > 2) raw.push({ x: sb.q.x + (b.x - sb.q.x) * Math.min(1, 6 / Math.hypot(b.x - sb.q.x, b.z - sb.q.z)), z: sb.q.z + (b.z - sb.q.z) * Math.min(1, 6 / Math.hypot(b.x - sb.q.x, b.z - sb.q.z)) });
+  raw = raw.filter((p, i, A2) => !i || Math.hypot(p.x - A2[i - 1].x, p.z - A2[i - 1].z) > 1);
+  // a turn straight back (the road you're on points the other way): carry on to the next junction and come back, like a driver would
+  const d0 = []; for (let i = 1; i < raw.length; i++) { const A = raw[i - 1], B = raw[i], n = Math.max(1, Math.ceil(Math.hypot(B.x - A.x, B.z - A.z) / 20)); for (let k = 1; k <= n; k++) d0.push({ x: A.x + (B.x - A.x) * k / n, z: A.z + (B.z - A.z) * k / n }); }
+  const cr = centralRing(); let pts = ringPass(roundAbout(keepRight([raw[0], ...d0])), [...(cr ? [cr] : []), ...palmRings()]);
+  pts = pts.filter((p, i, A2) => !i || Math.hypot(p.x - A2[i - 1].x, p.z - A2[i - 1].z) > .4);
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
+  return { pts, cum, L: cum[cum.length - 1] };
+}
+const autoAt = (R, d) => { d = Math.max(0, Math.min(R.L, d)); let i = 0; while (i < R.pts.length - 2 && R.cum[i + 1] < d) i++; const a = R.pts[i], b = R.pts[i + 1] || a, f = (d - R.cum[i]) / ((R.cum[i + 1] - R.cum[i]) || 1); return { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f }; };
+function autoStart(t) {
+  if (WALK.mode !== "car" || !WALK.car) return; const R = autoRoute({ x: WALK.car.x, z: WALK.car.z }, t);
+  if (!R || R.L < 3) return toast("🧭 לא מצאנו דרך לשם בכבישים", 3000);
+  WALK.auto = { R, s: 0, t }; WALK.target = t; walkNav?.(); WALK.cockpit = false; walkButtons();
+  toast(`🚗 נוסעים לבד אל ${t.name} · ${fmtN(Math.round(R.L / 10) * 10)} מ׳. לגעת בג׳ויסטיק כדי לקחת את ההגה`, 4500);
+}
+function autoStop(msg) { WALK.auto = null; if (msg) toast(msg, 3500); walkButtons(); }
+// the self-driving: look a little ahead on the route, steer toward it, slow down for turns and roundabouts, stop at the destination
+function autoDrive(c, top, dt) {
+  const A = WALK.auto, R = A.R; let best = A.s, bd = Infinity;
+  for (let d = A.s; d < Math.min(R.L, A.s + 40); d += 1) { const q = autoAt(R, d), e = Math.hypot(q.x - c.x, q.z - c.z); if (e < bd) { bd = e; best = d; } }
+  A.s = best; const left = R.L - A.s;
+  if (left < 2.5 || bd > 25) { c.v = 0; return autoStop(left < 2.5 ? `🏁 הגעת: ${A.t.name}` : "🧭 ירדנו מהדרך. בחרו יעד שוב"); }
+  const la = autoAt(R, A.s + Math.max(4, Math.abs(c.v) * .9)), want = Math.atan2(la.x - c.x, la.z - c.z), diff = angDiff(want, c.head);
+  const far = autoAt(R, A.s + 18), bend = Math.abs(angDiff(Math.atan2(far.x - la.x, far.z - la.z), want));
+  const tv = Math.min(top * .85, 4 + 14 / (1 + bend * 3), Math.sqrt(Math.max(0, left - 2)) * 2.2);
+  return { steer: Math.max(-1, Math.min(1, -diff * 2.2)), gas: c.v < tv - .5 ? Math.min(1, (tv - c.v) / 4 + .2) : c.v > tv + .5 ? -Math.min(1, (c.v - tv) / 4) : 0 };
+}
+function autoShop() {
+  const h = S.mine; if (!h) return; const k = keyOf(h.u);
+  open("🧭 נהיגה אוטומטית", `<div class="hero" style="text-align:center"><p style="font-size:44px">🚗🧭</p><p><b>שדרוג לרכב: הרכב נוהג לבד.</b> בוחרים יעד במפה (כתובת, ‎@תושב, בניין או מקום), והרכב יוצא לדרך: ברחובות, בכיכרות, בכבישים המהירים ועד אי הדקל, בלי לגעת בג׳ויסטיק.</p>
+    <p class="note">נוגעים בג׳ויסטיק בכל רגע כדי לקחת את ההגה בחזרה · השדרוג נשאר לתמיד, לכל רכב שיהיה לך</p></div>
+    ${h.auto ? `<div class="hero" style="margin-top:10px;text-align:center"><p>✅ כבר יש לך את השדרוג</p></div>` : k ? `<div class="btns" style="margin-top:12px"><button class="btn" id="apBuy" style="font-size:1.1em">🧭 לשדרג ב־${fmtN(AUTO.PRICE)} ${COIN}</button></div><p class="note" style="text-align:center">בארנק: ${fmtN(h.coins || 0)} ${COIN}</p>`
+      : `<div class="hero" style="margin-top:10px"><p>רק תושבים קונים שדרוגים. נכנסים מהקישור האישי.</p></div>`}`, () => {
+    const b = $("apBuy"); if (b) b.onclick = async () => { b.disabled = true; let r; try { r = await rpc("buy_autopilot", { username: h.u, key: k }); } catch { r = null; }
+      if (r?.ok || r?.error === "owned") { patchCitizen(h, { coins: r.coins ?? h.coins, autopilot: true }); h.auto = true; close(); toast("🧭 השדרוג הותקן! בוחרים יעד ונוסעים", 3500); if (WALK.on) { walkButtons(); if (WALK.mode === "car") cmapOpen(); } }
+      else { b.disabled = false; toast(r?.error === "funds" ? ERR.funds : !r ? (ADMIN ? "צריך להריץ את upgrade-44.sql" : "השדרוג עוד לא זמין") : ERR[r.error] || "משהו השתבש", 3500); } }; });
 }
 function driveStep(dt) {
   const k = WALK.keys, c = WALK.car; let steer = 0, gas = 0;
@@ -7237,9 +7317,10 @@ function driveStep(dt) {
     if (Math.abs(diff) > 2.3) { const d2 = angDiff(want + Math.PI, c.head); gas = c.v > 1.5 ? -1 : -jm * .7; steer = c.v > 1.5 ? 0 : Math.max(-1, Math.min(1, d2 * 1.6)); }
     else { gas = jm * (1 - Math.min(.65, Math.abs(diff) / 2.2)); steer = Math.max(-1, Math.min(1, -diff * 1.8)); }
   }
-  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer)); WALK.steer = steer;
   // gentle, realistic acceleration: 50-72 km/h at the most in town
   const top = CARS[WALK.h.cm].tier === 3 ? 20 : CARS[WALK.h.cm].tier === 2 ? 17 : 14;
+  if (WALK.auto) { if (jm > .15 || gas || steer) autoStop("✋ לקחת את ההגה"); else { const a = autoDrive(c, top, dt); if (a) { gas = a.gas; steer = a.steer; } } }
+  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer)); WALK.steer = steer;
   if (gas > .05) c.v += (c.v < 0 ? 16 : 5.5 * (1 - Math.max(0, c.v) / top * .6)) * gas * dt; else if (gas < -.05) c.v += (c.v > 0 ? 16 : 4) * gas * dt; else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 5 * dt);
   c.v = Math.max(-5, Math.min(top, c.v));
   c.head -= steer * Math.min(1, Math.abs(c.v) / 5) * 1.35 * dt * Math.sign(c.v || 1);
@@ -7269,8 +7350,9 @@ function walkButtons() {
   let best = null, bd = Infinity;
   if (WALK.plat) { const i = WALK.plat.i, w = railWaitSec(i); best = w === 0 ? { id: "railride:" + i, label: "🚡 לעלות לרכבל" } : { id: "raildown:" + i, label: `⬇️ לרדת לרחוב${w != null ? " · הרכבל בעוד " + mss(w) : ""}` }; }
   else if (WALK.rail?.on) best = null;
+  else if (WALK.mode === "car") best = { id: "auto", label: WALK.auto ? "✋ לעצור את הנהיגה האוטומטית" : S.mine?.auto ? "🧭 נהיגה אוטומטית · לבחור יעד" : "🧭 נהיגה אוטומטית (שדרוג)" };
   else if (WALK.mode !== "car") for (const d of WALK.doors) { const q = Math.hypot(d.x - WALK.x, d.z - WALK.z); if (q < d.r && q < bd) { bd = q; best = d; } }
-  WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `${String(best.id).startsWith("rail") ? "" : "🚪 "}${best.label}${String(best.id).startsWith("stop:") ? " · " + lineShort(+String(best.id).slice(5)) : ""}`;
+  WALK.door = best; dr.hidden = !best; if (best) dr.textContent = `${/^(rail|auto)/.test(String(best.id)) ? "" : "🚪 "}${best.label}${String(best.id).startsWith("stop:") ? " · " + lineShort(+String(best.id).slice(5)) : ""}`;
   const cb = $("wCam"); if (cb) { cb.hidden = WALK.mode !== "car" && !WALK.rail?.on; cb.textContent = WALK.rail?.on ? (WALK.cabin ? "🎥 מבחוץ" : "🎥 מתוך הקרון") : WALK.cockpit ? "🎥 מבט מאחור" : "🎥 מהמושב"; }
   if (WALK.plat || WALK.rail?.on) { b.hidden = true; $("wSpd").hidden = true; return; }
   if (WALK.mode === "car") { b.hidden = false; b.textContent = CARS[WALK.h.cm].bike ? "🚶 לרדת מהקטנוע" : "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
@@ -7402,10 +7484,10 @@ function cmapSelect(p) {
   CMAP.sel = p; const el = $("cmSel"); if (!el) return;
   if (!p) { el.classList.remove("on"); el.innerHTML = ""; return; }
   const canWalk = !!S.mine?.lot;
-  el.innerHTML = `<b>${esc(p.ic || "📍")} ${esc(p.name)}</b><small>${esc(p.addr || "")}</small><div class="btns"><button class="btn ghost" id="cmSee">🔭 לראות</button>${canWalk ? `<button class="btn" id="cmGo">🧭 ללכת לשם</button>` : ""}</div>`;
+  el.innerHTML = `<b>${esc(p.ic || "📍")} ${esc(p.name)}</b><small>${esc(p.addr || "")}</small><div class="btns"><button class="btn ghost" id="cmSee">🔭 לראות</button>${canWalk ? `<button class="btn" id="cmGo">${WALK.on && WALK.mode === "car" && S.mine?.auto ? "🚗 לנסוע לשם לבד" : "🧭 ללכת לשם"}</button>` : ""}</div>`;
   el.classList.add("on");
   $("cmSee").onclick = () => { cmapClose(); if (WALK.on) exitWalk(); flyTo(p.x, p.z, p.cat === "city" ? 2.4 : 6, 1200); };
-  if ($("cmGo")) $("cmGo").onclick = () => { cmapClose(); const t = { x: p.x, z: p.z, name: p.name }; if (!WALK.on) walkStart(S.mine.u); WALK.target = t; walkNav(); toast(`🧭 הולכים אל ${p.name}. החץ למעלה מראה את הכיוון`, 4500); };
+  if ($("cmGo")) $("cmGo").onclick = () => { cmapClose(); const t = { x: p.x, z: p.z, name: p.name }; if (WALK.on && WALK.mode === "car" && S.mine?.auto) return autoStart(t); if (!WALK.on) walkStart(S.mine.u); WALK.target = t; walkNav(); toast(`🧭 הולכים אל ${p.name}. החץ למעלה מראה את הכיוון`, 4500); };
 }
 function cmapList() {
   const q = $("cmQ").value.trim().toLowerCase().replace(/^@/, ""), L = $("cmL"); let rows = [];
@@ -9648,6 +9730,9 @@ const NEWS = {
     return { follow: el => { const p = ph(el); return { x: p.x, z: p.z }; }, a: at(st, 7, -.5, .3), b: at(PALM.geo.center, 2.4, .2, .38), pin: el => { const p = ph(el); return { x: p.x, y: 13.5, z: p.z, label: "🚡 הרכבל" }; } }; } },
   railst: { v: "2026-10-27", ic: "🛗", t: "תחנות רכבל עם רציף ולוח זמנים", sub: "עולים במעלית, מחכים על הרציף, ונוסעים מתוך הקרון", ok: () => !!PALM.stations?.length, shot: () => { const st = PALM.stations[0], p = platAt(st, 3, 0); return { a: at(p, 9, -.6, .28), b: at(p, 12, .2, .3) }; } },
   reef2: { v: "2026-10-27", ic: "🤿", t: "צלילה ארוכה יותר באי הדקל", sub: "יותר אוויר, שחייה מהירה ואוצרות זוהרים", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.W(60, 120), 3, -.5, .3), b: at(g.W(140, 60), 4, .2, .32) }; } },
+  autopilot: { v: "2026-10-27", ic: "🧭", t: "נהיגה אוטומטית לרכב", sub: `בוחרים יעד במפה והרכב נוסע לבד · שדרוג ב־${fmtN(AUTO.PRICE)} סבבונים`, ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 70), car = mover(P_["car_" + h.cm], h.cc);
+    P.push({ update(el) { const k = clamp01((el - t0) / d), q = path(ease(k)); car.set(q.x, .3, q.z, q.ry); }, dispose() { car.dispose(); } });
+    const at_ = el => path(ease(clamp01((el - t0) / d))); return { follow: at_, a: at(path(0), 18, -.4, .45), b: at(path(1), 20, .3, .42), pin: el => ({ ...at_(el), y: 3.6, label: "🧭 נוסע לבד" }) }; } },
   palmcars: { v: "2026-10-27", ic: "🚙", t: "רכבים נוסעים באי הדקל", sub: "עד קצה כל ענף ועד המלון", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.fronds[2].at(10, 0), 4.5, -.6, .4), b: at(g.fronds[7].at(40, 0), 5.5, .3, .38) }; } }
 };
 // the newest release is what "what's new" shows by itself (the date of the newest item)
@@ -10773,7 +10858,7 @@ GO.blk = blkEdit;
 
 /* ============================ DATA ============================ */
 // newest schema first; if an upgrade wasn't run yet, fall back to the older column sets
-const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned,food",
+const COLSETS = ["id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned,food,autopilot", "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned,food",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift,avatar,avatar_owned",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level,coins,car_model,car_color,house_style,streak,best_streak,last_collected,last_shift",
   "id,ig_username,city_id,created_at,house_tier,car_tier,workplace_id,job_level", "id,ig_username,city_id,created_at"];
@@ -10853,7 +10938,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
