@@ -2872,7 +2872,7 @@ const RX0 = 820, RZ0 = 700, GRASS = .9, MAX_S = 6;
 const shoreF = t => 1 + .07 * Math.sin(3 * t + .6) + .05 * Math.sin(5 * t + 2.1) + .03 * Math.sin(8 * t + .3);
 const growth = n => Math.min(MAX_S, .55 + .45 * Math.sqrt(Math.max(0, n) / 1000));
 const polar = (x, z, s) => ({ t: Math.atan2(z / (RZ0 * s), x / (RX0 * s)), d: Math.hypot(x / (RX0 * s), z / (RZ0 * s)) });
-const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < GRASS * shoreF(p.t) - m; };
+const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < GRASS * shoreF(p.t) - m && !(LAND_LIVE && landWet(x, z)); };
 const shorePt = (t, s, k = 1) => ({ x: Math.cos(t) * RX0 * s * shoreF(t) * k, z: Math.sin(t) * RZ0 * s * shoreF(t) * k });
 const MILESTONES = [0, 100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000];
 // city sites are spread far enough apart that each city has room for everyone who arrives until the next city opens
@@ -3320,13 +3320,13 @@ function unwarpXZ(x, z) { if (!WRP.on) return [x, z]; let u = x, v = z; for (let
    The cities themselves (and a margin around them) stay level, so streets and houses stand straight. ---------- */
 const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 10 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
-function terrainBase(x, z) {
+function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
   let dm = 1e9; for (const b of HT_U.uCity.value) dm = Math.min(dm, Math.hypot(Math.max(b.x - x, x - b.z, 0), Math.max(b.y - z, z - b.w, 0)));
   const f = smooth01(20, 200, dm); if (f <= 0) return 0;
   const n = .5 + .5 * (.55 * Math.sin(.0042 * x + .3) * Math.cos(.0037 * z + 1.2) + .3 * Math.sin(.0091 * x - .0063 * z + 2) + .15 * Math.sin(.019 * x + .014 * z + .7));
   const r = 1 - Math.abs(Math.sin(.0064 * x - .0049 * z + .9));   // a ridge line that climbs into peaks
-  return HT_PEAK * c * f * (.55 * Math.pow(n, 2.2) + .45 * Math.pow(n, 1.6) * r * r);
+  return c * f * (HT_PEAK * (.55 * Math.pow(n, 2.2) + .45 * Math.pow(n, 1.6) * r * r) + landLift(x, z, t, d));
 }
 // after every layout: how big the island is and where the cities stand (they are kept level)
 function terrainUpdate() {
@@ -3336,13 +3336,14 @@ function terrainUpdate() {
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
   let i = open.length; for (const m of S.mallSpots) if (m && i < 10) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
-  S.ykSpot = ykSpot(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
+  S.ykSpot = landPinYk(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
 const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[10]; uniform vec4 uMound;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
+${landLiftGLSL}
 float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
 float terrainBase(vec2 p) {
@@ -3351,7 +3352,7 @@ float terrainBase(vec2 p) {
   float f = wsm0(20., 200., dm); if (f <= 0.) return 0.;
   float n = .5 + .5 * (.55 * sin(.0042 * p.x + .3) * cos(.0037 * p.y + 1.2) + .3 * sin(.0091 * p.x - .0063 * p.y + 2.) + .15 * sin(.019 * p.x + .014 * p.y + .7));
   float r = 1. - abs(sin(.0064 * p.x - .0049 * p.y + .9));
-  return ${HT_PEAK}. * c * f * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r);
+  return landBr(p, c * f * (${HT_PEAK}. * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r) + landLift(p, atan(q.y, q.x), length(q))) + landD(p));
 }
 const int WNS = ${SLOTS.length}; const vec2 WSL[WNS] = vec2[](${SLOTS.map(q => `vec2(${f6(q.x)}, ${f6(q.z)})`).join(", ")});
 float wsm(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
@@ -3381,7 +3382,7 @@ const WARP_WPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined (
 function warpMat(m) {
   if (!m || m.userData.warpOk || m.isShaderMaterial || m.isSpriteMaterial || m.isRawShaderMaterial) return; m.userData.warpOk = true;
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
-  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound;
+  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + warpGLSL()).replace("#include <project_vertex>", WARP_PROJ).replace("#include <worldpos_vertex>", WARP_WPOS); };
   m.customProgramCacheKey = () => key.call(m) + "|warp"; m.needsUpdate = true;
 }
@@ -3407,7 +3408,7 @@ function renderWorld(cam, pivot, turn = false) {
   if (WARPF.dirty || WARPF.n++ % 60 === 0) { WARPF.dirty = false; warpPatch(scene); WARPF.css = []; scene.traverse(o => { if ((o.isCSS2DObject || o.isSprite) && (o.parent === world || o.parent === scene)) WARPF.css.push(o); }); }
   const [wx, wz] = warpXZ(pivot.x, pivot.z), th = turn ? warpAng(pivot.x, pivot.z) : 0, c = Math.cos(th), sn = Math.sin(th);
   const p0 = cam.position.clone(), q0 = cam.quaternion.clone(), dx = p0.x - pivot.x, dz = p0.z - pivot.z, ox = wx - pivot.x, oz = wz - pivot.z;
-  const hy = terrainH(pivot.x, pivot.z); cam.position.set(wx + dx * c - dz * sn, p0.y + hy, wz + dx * sn + dz * c); if (th) cam.quaternion.premultiply(_wq.setFromAxisAngle(_wy, -th)); cam.updateMatrixWorld();
+  const hy = landSurf(pivot.x, pivot.z); cam.position.set(wx + dx * c - dz * sn, p0.y + hy, wz + dx * sn + dz * c); if (th) cam.quaternion.premultiply(_wq.setFromAxisAngle(_wy, -th)); cam.updateMatrixWorld();
   sun.position.x += ox; sun.position.z += oz; sun.target.position.x += ox; sun.target.position.z += oz; sun.position.y += hy; sun.target.position.y += hy;
   const saved = WARPF.css.map(o => { const b = o.position.clone(), [ax, az] = warpXZ(b.x, b.z); o.position.x = ax; o.position.z = az; o.position.y += terrainH(b.x, b.z); return b; });
   WARP_U.value = WRP.on ? 1 : 0; renderer.render(scene, cam); WARP_U.value = 0; if (PHOTO.want) photoGrab();
@@ -4258,10 +4259,11 @@ function label(html, cls, x, y, z, minZ = 0) {
 /* ============================ TERRAIN ============================ */
 const WATER = new THREE.MeshStandardMaterial({ color: "#2f8fb3", roughness: .28, metalness: .1 });
 const SHALLOW = new THREE.MeshStandardMaterial({ color: "#58b9cf", roughness: .3, metalness: .05, transparent: true, opacity: .85 });
-function blobShape(k) { const pts = []; for (let i = 0; i < 240; i++) { const t = i / 240 * Math.PI * 2, p = shorePt(t, S.s, k); pts.push(new THREE.Vector2(p.x, -p.z)); } return new THREE.Shape(pts); }
+function blobShape(k) { const pts = []; for (let i = 0; i < 720; i++) { const t = i / 720 * Math.PI * 2, p = shorePt(t, S.s, landInletK(t > Math.PI ? t - Math.PI * 2 : t, k)); pts.push(new THREE.Vector2(p.x, -p.z)); } return new THREE.Shape(pts); }
 const noHills = g => (g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(2), 1)), g);   // big flat pieces of ground: bent, but the hills mesh does the rising
 function flat(k, y, mat, receive = true) { const g = noHills(new THREE.ShapeGeometry(blobShape(k), 1)); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
 function buildTerrain() {
+  terrainUpdate(); landPrep();
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000).rotateX(-Math.PI / 2), WATER); sea.position.y = -3; sea.receiveShadow = true; world.add(sea);
   flat(1.12, -2.85, SHALLOW, false);
   const g = new THREE.ExtrudeGeometry(blobShape(1), { depth: 6, bevelEnabled: false, curveSegments: 1 }); g.rotateX(-Math.PI / 2); g.translate(0, -6, 0); noHills(g);
@@ -4276,21 +4278,22 @@ function buildTerrain() {
 const HILL_MAT = realism(new THREE.MeshLambertMaterial({ vertexColors: true }), { paving: false, roofs: false, terrain: true });
 function buildHills() {
   terrainUpdate();
-  const C = 10, X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
+  const C = 7, X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1)), LANDC = new Float32Array((nx + 1) * (nz + 1));
   // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
   const HW = [...highwaySegs(), ...extraRoads()], roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
-  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : 0; }
-  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
-  const vtx = (i, j) => { const h = H[j * (nx + 1) + i], x = -X + i * C, z = -Z + j * C;
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); LANDC[j * (nx + 1) + i] = landGap(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : 0; }
+  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], idx = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
+  const VI = new Int32Array((nx + 1) * (nz + 1)).fill(-1);   // one vertex per grid point, shared by its cells: a quarter of the memory, and smooth light on the slopes
+  const vtx = (i, j) => { const k = j * (nx + 1) + i; if (VI[k] >= 0) return VI[k]; const h = H[k], x = -X + i * C, z = -Z + j * C;
     const hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C), hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C), slope = Math.hypot(hx, hz);
     const pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;   // the edge of a hill takes the color of the flat land around it, so no seam shows
-    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); };
+    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); landColor(c, LANDC[k], x, z, h, slope); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); return VI[k] = pos.length / 3 - 1; };
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1]; if (Math.max(a, b, d, e) < .25) continue;
-    vtx(i, j); vtx(i, j + 1); vtx(i + 1, j); vtx(i + 1, j); vtx(i, j + 1); vtx(i + 1, j + 1);
+    const v00 = vtx(i, j), v01 = vtx(i, j + 1), v10 = vtx(i + 1, j), v11 = vtx(i + 1, j + 1); idx.push(v00, v01, v10, v10, v01, v11);
   }
   if (!pos.length) return;
-  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
   g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(pos.length / 3).fill(2), 1));   // bent like the map, but the heights are already in it
   g.computeVertexNormals(); const m = new THREE.Mesh(g, HILL_MAT); m.receiveShadow = m.castShadow = true; world.add(m);
 }
@@ -4358,7 +4361,7 @@ function layout() {
       need = Math.max(need, d / (GRASS * shoreF(t) - .05) + .02);
     }
   });
-  S.s = Math.min(MAX_S + .3, need * 1.3 + .12);   // room to spare around the cities: the countryside, the big mall, סבבהום's hill
+  S.s = Math.min(MAX_S * 2 + .6, (need * 1.3 + .12) * 2);   // room to spare around the cities: the countryside, the big mall, סבבהום's hill
   PALM.geo = palmGeo(); let pk = 0;
   for (const h of [...S.houses].sort((a, b) => a.id - b.id)) if (homePlace(h.u) === "palm" && PALM.geo.lots[pk]) {
     const l = PALM.geo.lots[pk++]; h.lot = l; h.x = l.x; h.z = l.z; S.byAddr.set(`${l.street} ${l.num}`.toLowerCase(), h); }
@@ -4506,12 +4509,12 @@ function buildCities() {
   if (cap) {
     const segs = highwaySegs();
     // the road bed in pieces of about 40m, so it climbs and dips with the land
-    const pieces = segs.flatMap(([a, b, c, d, w]) => { const n = Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / 40)); return Array.from({ length: n }, (_, i) => [a + (c - a) * i / n, b + (d - b) * i / n, a + (c - a) * (i + 1) / n, b + (d - b) * (i + 1) / n, w]); });
+    const pieces = segs.flatMap(([a, b, c, d, w]) => { const n = Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / 40)); return Array.from({ length: n }, (_, i) => [a + (c - a) * i / n, b + (d - b) * i / n, a + (c - a) * (i + 1) / n, b + (d - b) * (i + 1) / n, w]); }).filter(([a, b, c, d]) => !landInBr((a + c) / 2, (b + d) / 2));
     instanced(P.plane, pieces, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .3); return "#4a5057"; }, { shadow: false });
     const joints = segs.filter(sg => sg[5] === "palm").slice(1).map(sg => [sg[0], sg[1], sg[4]]);   // a smooth round turn where the palm road bends onto the bridge
     if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
     const hd = []; for (const [a, b, c, d, w, id, meta] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r), endR = (meta?.T || meta?.B)?.Ro;
-      const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = meta?.A ? meta.A.Ro + 6 : 20; k < L - (endR ? endR + 6 : 10); k += 14) for (const o of offs) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
+      const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = meta?.A ? meta.A.Ro + 6 : 20; k < L - (endR ? endR + 6 : 10); k += 14) for (const o of offs) if (!landInBr(a + (c - a) * k / L, b + (d - b) * k / L)) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane1, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
     for (const sg of segs) if (sg[4] > 20) buildSababaLanes(sg, cap);
     traffic.push(...routeTraffic());   // the cars on the highways drive on into the cities, onto the palm island, and back
@@ -6631,13 +6634,13 @@ function buildNature() {
   const sets = { tree: [], olive: [], cypress: [] }, palms = [];
   for (let i = 0; i < target * 6 && sets.tree.length + sets.olive.length + sets.cypress.length < target; i++) {
     const x = (r() * 2 - 1) * Rx, z = (r() * 2 - 1) * Rz;
-    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z) || S.workplaces.some(w => w.x != null && Math.hypot(w.x - x, w.z - z) < 20) || (S.mallSpots || []).some(m => m && Math.hypot(m.x - x, m.z - z) < 112) || (S.ykSpot && Math.hypot(S.ykSpot.x - x, S.ykSpot.z - z) < 92)) continue;
+    if (!onGrass(x, z, S.s, .02) || inCity(x, z) || nearRoad(x, z) || landBlock(x, z) || S.workplaces.some(w => w.x != null && Math.hypot(w.x - x, w.z - z) < 20) || (S.mallSpots || []).some(m => m && Math.hypot(m.x - x, m.z - z) < 112) || (S.ykSpot && Math.hypot(S.ykSpot.x - x, S.ykSpot.z - z) < 92)) continue;
     const n = Math.sin(x * .011) * Math.cos(z * .014) + Math.sin((x + z) * .005);
     if (n < -.25 && r() < .85) continue;
     const q = r(); (q < .45 ? sets.olive : q < .75 ? sets.tree : sets.cypress).push({ x, z, s: .7 + r() * .7 });
   }
   for (let i = 0; i < 4000 && palms.length < 70 * S.s; i++) { const t = r() * Math.PI * 2, q = shorePt(t, S.s, GRASS + .015 + r() * .06);
-    if (!inCity(q.x, q.z) && !COAST.some(c => c.x != null && Math.hypot(c.x - q.x, c.z - q.z) < 40)) palms.push({ x: q.x, z: q.z, s: .8 + r() * .5 }); }
+    if (!inCity(q.x, q.z) && !landBlock(q.x, q.z) && !COAST.some(c => c.x != null && Math.hypot(c.x - q.x, c.z - q.z) < 40)) palms.push({ x: q.x, z: q.z, s: .8 + r() * .5 }); }
   for (const [k, list] of Object.entries(sets)) { const m = instanced(P[k + "_lo"], list, (t, o) => { o.position.set(t.x, .12, t.z); o.scale.setScalar(t.s); o.rotation.y = t.x; });
     for (const t of [m, ...(m.userData.twins || [])]) { t.userData.country = true; t.castShadow = QUAL.tier < 2; } }
   instanced(P.palm, palms, (t, o) => { o.position.set(t.x, .05, t.z); o.scale.setScalar(t.s); o.rotation.y = t.z; });
@@ -6651,13 +6654,427 @@ function clearWorld() {
     ch.traverse(o => { if (o.isInstancedMesh) o.dispose(); if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); if (o.userData.disposable && o.material) { o.material.map?.dispose(); o.material.dispose(); } });
   }
 }
+// ====================== THE LAND (stage 1, Nov 2026): the island ×4, the mountain ridge, two rivers in their valleys, a different bridge on every crossing, interchange 115, the coastal road ======================
+// the land is the old hills plus a gentle coastal plain and the ridge (landLift, the same in JS and in the shader), plus one shared map of changes (the river valleys
+// carved in, the embankments of the new roads built up) that both the shader and the JS read, so a walker, a car, a tree and the camera all stand on the same ground
+var LAND_LIVE = false;   // (read by onGrass, which runs before this part of the file)
+const LAND = { on: false, rivers: [], br: [], roads: [], discs: [], xing: [], foot: [], lifts: [], over: null, grid: null };
+HT_U.uBr = { value: Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, 1, 0)) };
+HT_U.uBr2 = { value: Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, 0, 0)) }; HT_U.uBr3 = { value: Array.from({ length: 12 }, () => new THREE.Vector4(0, 0, 0, 0)) };
+const LAND_N = 1024; HT_U.uLand = { value: null }; HT_U.uLandB = { value: new THREE.Vector4(0, 0, 0, 0) };
+// the land: a coastal plain that rises gently inland, and one mountain ridge in the north with a pass where the palm road crosses it
+function landLift(x, z, t, d) {
+  const dn = d / (GRASS * shoreF(t)), up = 3.5 + 5 * smooth01(.35, .75, dn);
+  const win = smooth01(-2.7, -2.3, t) * (1 - smooth01(-.8, -.55, t)), rad = 1 - smooth01(0, .17, Math.abs(dn - .74)); if (win <= 0 || rad <= 0) return up;
+  const sad = 1 - .82 * Math.exp(-(((t + 1.24) / .11) ** 2));
+  const n1 = Math.sin(.0105 * x + .7) * Math.cos(.0127 * z - .4), n2 = Math.sin(.0213 * x - .0187 * z + 1.3), n3 = Math.sin(.043 * x + .037 * z + 2.1), n4 = Math.sin(.081 * x - .069 * z + .5);
+  const rr = 1 - Math.abs(.62 * n1 + .38 * n2), det = .5 + .5 * (.6 * n3 + .4 * n4), pv = .35 + .65 * (.5 + .5 * Math.sin(t * 5.3 + .9)) * (.6 + .4 * Math.sin(t * 11.7 + 2.2));
+  return up + Math.pow(win * rad, 1.4) * sad * (35 + 290 * pv * rr * rr + 25 * det);
+}
+const landLiftGLSL = `uniform vec4 uBr[12]; uniform vec4 uBr2[12]; uniform vec4 uBr3[12]; uniform sampler2D uLand; uniform vec4 uLandB;
+float landD(vec2 p) { if (uLandB.z <= 0.) return 0.; vec2 uv = ((p - uLandB.xy) / uLandB.zw + .5) / ${LAND_N}.; if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return 0.; return texture2D(uLand, uv).r; }
+float landLift(vec2 p, float t, float d) {
+  float dn = d / (${GRASS} * wshore(t)), up = 3.5 + 5. * wsm0(.35, .75, dn);
+  float win = wsm0(-2.7, -2.3, t) * (1. - wsm0(-.8, -.55, t)), rad = 1. - wsm0(0., .17, abs(dn - .74)); if (win <= 0. || rad <= 0.) return up;
+  float sq = (t + 1.24) / .11, sad = 1. - .82 * exp(-sq * sq);
+  float n1 = sin(.0105 * p.x + .7) * cos(.0127 * p.y - .4), n2 = sin(.0213 * p.x - .0187 * p.y + 1.3), n3 = sin(.043 * p.x + .037 * p.y + 2.1), n4 = sin(.081 * p.x - .069 * p.y + .5);
+  float rr = 1. - abs(.62 * n1 + .38 * n2), det = .5 + .5 * (.6 * n3 + .4 * n4), pv = .35 + .65 * (.5 + .5 * sin(t * 5.3 + .9)) * (.6 + .4 * sin(t * 11.7 + 2.2));
+  return up + pow(win * rad, 1.4) * sad * (35. + 290. * pv * rr * rr + 25. * det);
+}
+float landBr(vec2 p, float h) {
+  for (int i = 0; i < 12; i++) { vec4 a = uBr[i], b = uBr2[i], c = uBr3[i]; if (b.x <= 0.) continue; vec2 d = p - a.xy; float uu = abs(dot(d, a.zw)), vv = abs(d.x * a.w - d.y * a.z); if (uu > b.y + b.z + 1. || vv > b.x + c.y) continue;
+    float top = b.w + c.x * cos(1.5708 * min(1., uu / b.y)), g = mix(top, h, wsm0(b.y, b.y + b.z, uu)), k = 1. - wsm0(b.x, b.x + c.y, vv); h = max(h, mix(h, g, k)); }
+  return h;
+}`;
+function terrainBase(x, z) { const b = terrainBase0(x, z); if (!LAND.on || b === 0) return b; if (LAND.grid) return b + landDelta(x, z); return landFill(x, z, landCarve(x, z, b)); }
+// the shared map of changes: bilinear, exactly as the GPU reads it
+function landDelta(x, z) { const G = LAND.grid, u = (x - G.x0) / G.cx, v = (z - G.z0) / G.cz; if (u < 0 || v < 0 || u > LAND_N - 1 || v > LAND_N - 1) return 0;
+  const i = Math.min(LAND_N - 2, Math.floor(u)), j = Math.min(LAND_N - 2, Math.floor(v)), fu = u - i, fv = v - j, D = G.d, k = j * LAND_N + i;
+  return (D[k] * (1 - fu) + D[k + 1] * fu) * (1 - fv) + (D[k + LAND_N] * (1 - fu) + D[k + LAND_N + 1] * fu) * fv; }
+// where the camera stands: on a bridge it is the deck, not the river below (the same lift the shader gives the highway over each bridge)
+function landSurf(x, z) { let h = terrainH(x, z); if (!LAND.on || terrainBase0(x, z) === 0) return h;
+  for (const B of LAND.lifts) { const dx = x - B.x, dz = z - B.z, uu = Math.abs(dx * B.ux + dz * B.uz), vv = Math.abs(dx * B.uz - dz * B.ux); if (uu > B.hs + B.ramp + 1 || vv > B.w / 2 + B.lat) continue;
+    const top = B.deck - .26 + B.rise * Math.cos(1.5708 * Math.min(1, uu / B.hs)), g = top + (h - top) * smooth01(B.hs, B.hs + B.ramp, uu), k = 1 - smooth01(B.w / 2, B.w / 2 + B.lat, vv); h = Math.max(h, h + (g - h) * k); }
+  return h; }
+// a car on the overpass of interchange 115 drives over the highway, not under it: by which way it faces (along the overpass, or along the highway below)
+function landDeckUp(x, z, head) { const O = LAND.over; if (!O) return 0; const dx = x - O.x, dz = z - O.z; if (Math.abs(dx * O.ux + dz * O.uz) > O.hs || Math.abs(dx * O.uz - dz * O.ux) > 6.5) return 0;
+  if (Math.abs(Math.sin(head) * O.ux + Math.cos(head) * O.uz) < .6) return 0; return Math.max(0, O.deck - .3 - landSurf(x, z)); }
+// the lifts, the same in the shader: the decks of the bridges (and the arch of each footbridge), so whatever stands there stands on the deck
+function landLiftsSet() {
+  LAND.lifts = [...LAND.br.map(B => ({ x: B.x, z: B.z, ux: B.ux, uz: B.uz, w: B.w + 4, hs: B.hs, ramp: B.ramp, deck: B.deck, rise: 0, lat: 6 })),
+    ...LAND.xing.map(B => ({ x: B.x, z: B.z, ux: B.ux, uz: B.uz, w: 14, hs: B.hs, ramp: 110, deck: B.deck, rise: 0, lat: 4 })),
+    ...LAND.foot.map(B => ({ x: B.x, z: B.z, ux: B.ux, uz: B.uz, w: 3.6, hs: B.hs, ramp: 1.5, deck: B.deck + .26, rise: B.rise, lat: 1.2 }))].slice(0, 12);
+  for (let k = 0; k < 12; k++) { const B = LAND.lifts[k]; if (B) { HT_U.uBr.value[k].set(B.x, B.z, B.ux, B.uz); HT_U.uBr2.value[k].set(B.w / 2, B.hs, B.ramp, B.deck - .26); HT_U.uBr3.value[k].set(B.rise, B.lat, 0, 0); } else HT_U.uBr2.value[k].set(0, 0, 0, 0); }
+}
+// the water: a walker or a car can't go into the river, except over a bridge
+function landWet(x, z) { if (!LAND.on) return false;
+  for (const R of LAND.rivers) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const q = landNear(R, x, z); if (q && q.d < q.hw + 1) {
+    for (const B of LAND.br.concat(LAND.xing, LAND.foot)) { const dx = x - B.x, dz = z - B.z; if (Math.abs(dx * B.ux + dz * B.uz) < B.hs + 2 && Math.abs(dx * B.uz - dz * B.ux) < B.w / 2 + .5) return false; }
+    return true; } }
+  return false; }
+// the nearest point of a river to (x, z): how far, and the water level, the width and the valley there
+function landNear(R, x, z) {
+  let best = null;
+  for (const c of R.ch) { if (x < c[0] || x > c[2] || z < c[1] || z > c[3]) continue;
+    for (let i = c[4]; i < c[5]; i++) { const ax = R.x[i], az = R.z[i], dx = R.x[i + 1] - ax, dz = R.z[i + 1] - az, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)), d = Math.hypot(x - ax - dx * k, z - az - dz * k);
+      if (!best || d < best.d) best = { d, i, k }; } }
+  if (!best) return null; const { i, k } = best, L = (a) => a[i] + (a[i + 1] - a[i]) * k;
+  return { d: best.d, wl: L(R.wl), hw: L(R.hw), vw: L(R.vw), i, k };
+}
+function landCarve(x, z, h) {
+  for (const R of LAND.rivers) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const q = landNear(R, x, z); if (!q || q.d > q.hw + q.vw) continue;
+    const tgt = q.d < q.hw ? q.wl - 2.6 + 3.1 * smooth01(q.hw * .5, q.hw, q.d) : q.wl + .5 + (h - q.wl - .5) * smooth01(q.hw, q.hw + q.vw, q.d); h = Math.min(h, tgt); }
+  return h;
+}
+// embankments: under every new road, ramp and roundabout the land is built up to just below the road, with 1:2 side slopes
+function landFill(x, z, h) {
+  for (const B of LAND.br) { const dx = x - B.x, dz = z - B.z, uu = Math.abs(dx * B.ux + dz * B.uz), vv = Math.abs(dx * B.uz - dz * B.ux); if (uu < B.hs || uu > B.hs + B.ramp || vv > 60) continue;
+    const g = B.deck - .55 + (h - B.deck + .55) * smooth01(B.hs, B.hs + B.ramp, uu); if (g <= h) continue; const reach = B.w / 2 + 2 + (g - h) * 2.8, k = vv < B.w / 2 + 2 ? 1 : Math.max(0, 1 - (vv - B.w / 2 - 2) / (reach - B.w / 2 - 2)); h = Math.max(h, h + (g - h) * k); }
+  // each road (and roundabout) counts once, by its nearest point; the nearest of them is laid last, so it is the one exactly under you
+  const cand = [];
+  for (const R of LAND.roads) { if (!R.fill || x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const P = R.pts; let best = null;
+    for (let i = 0; i < P.length - 1; i++) { const a = P[i], b = P[i + 1], dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz || 1, k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2)), v = Math.hypot(x - a.x - dx * k, z - a.z - dz * k);
+      if (v > R.hw + 70 || (best && v >= best.v)) continue; const sAt = a.s + (b.s - a.s) * k; best = { v, y: a.y + (b.y - a.y) * k - .32, hw: R.hw, skip: R.skip && R.skip.some(([s0, s1]) => sAt > s0 && sAt < s1) }; }
+    if (best && !best.skip) cand.push(best); }
+  for (const D of LAND.discs) { const v = Math.max(0, Math.hypot(x - D.x, z - D.z) - D.r); if (v < 90) cand.push({ v, y: D.y - .32, hw: 0, disc: true }); }
+  cand.sort((p, q) => q.v - p.v);
+  for (const c of cand) { const dh = Math.abs(c.y - h); if (dh < .02) continue; const core = c.hw + (c.y < h ? (c.disc ? 8 : 9) : (c.disc ? 0 : 1)), reach = core + dh * 2.6; if (c.v >= reach) continue;   // built up where the land is low, cut where it is high (a cutting a little wider than the road, so the slopes never lean over it)
+    const t = c.v <= core ? 1 : 1 - (c.v - core) / (reach - core); h = h + (c.y - h) * t; }
+  return h;
+}
+// for the colors of the land: how far from the water's edge, and how much of the height here is mountain
+function landGap(x, z) { let g = 1e9; for (const R of LAND.rivers) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const q = landNear(R, x, z); if (q) g = Math.min(g, q.d - q.hw); } return g; }
+const landGl = (x, z) => terrainH(x, z);   // the shader stands things on the same ground now
+function landMtnPart(x, z) { const s = S.s, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), dn = d / (GRASS * shoreF(t)); return landLift(x, z, t, d) - 3.5 - 5 * smooth01(.35, .75, dn); }
+const LANDK = { forest: new THREE.Color("#4f7038"), alp: new THREE.Color("#7d8a55"), rock: new THREE.Color("#8b8579"), snow: new THREE.Color("#f3f4f1"), gravel: new THREE.Color("#b9ab88"), mud: new THREE.Color("#7a6a4c"), reed: new THREE.Color("#6d9a4a") };
+function landColor(c, gap, x, z, h, slope) {
+  const m = h > 20 ? landMtnPart(x, z) : 0;
+  if (m > 8) { const k = smooth01(8, 40, m); const mc = LANDK.forest.clone().lerp(LANDK.alp, smooth01(110, 170, h)).lerp(LANDK.rock, smooth01(150, 215, h)).lerp(LANDK.rock, smooth01(.5, .95, slope)).lerp(LANDK.snow, smooth01(230, 262, h) * (1 - smooth01(.9, 1.3, slope) * .6)); c.lerp(mc, k); }
+  if (gap < 9) { if (gap < 0) c.copy(LANDK.mud); else if (gap < 3.5) c.lerp(LANDK.gravel, .9); else c.lerp(LANDK.reed, .7 * (1 - smooth01(3.5, 9, gap))); }
+}
+// trees and stray things keep off the river banks and the new roads
+const landInBr = (x, z) => LAND.on && LAND.br.some(B => { const dx = x - B.x, dz = z - B.z; return Math.abs(dx * B.ux + dz * B.uz) < B.hs + B.ramp + 6 && Math.abs(dx * B.uz - dz * B.ux) < B.w / 2 + 2; });
+function landBlock(x, z) {
+  for (const R of LAND.rivers) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const q = landNear(R, x, z); if (q && q.d < q.hw + q.vw + 6) return true; }
+  for (const R of LAND.roads) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; for (let i = 0; i < R.pts.length - 1; i += 1) { const a = R.pts[i], b = R.pts[i + 1], dx = b.x - a.x, dz = b.z - a.z, k = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1))); if (Math.hypot(x - a.x - dx * k, z - a.z - dz * k) < R.hw + 14) return true; } }
+  for (const D of LAND.discs) if (Math.hypot(x - D.x, z - D.z) < D.r + 26) return true;
+  for (const F of LAND.foot) { const dx = x - F.x, dz = z - F.z; if (Math.abs(dx * F.ux + dz * F.uz) < F.hs + 6 && Math.abs(dx * F.uz - dz * F.ux) < 9) return true; }
+  for (const B of LAND.br) { const dx = x - B.x, dz = z - B.z; if (Math.abs(dx * B.ux + dz * B.uz) < B.hs + B.ramp && Math.abs(dx * B.uz - dz * B.ux) < B.w / 2 + 30) return true; }
+  return false;
+}
+// סבבהום stays exactly where it stands today (beside the lighthouse highway), the store's own driveway onto the highway is replaced by interchange 115
+const LAND_YK = { x: 458.57308064610015, z: -36.20400125324979 };
+function landPinYk() {
+  const sg = highwaySegs(true).find(g => g[5] === "light"); if (!sg) return ykSpot();
+  const [a, b, c, d] = sg, L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, t = (LAND_YK.x - a) * ux + (LAND_YK.z - b) * uz, hx = a + ux * t, hz = b + uz * t, fx = hx - LAND_YK.x, fz = hz - LAND_YK.z, fl = Math.hypot(fx, fz);
+  const ry = Math.atan2(fx / fl, fz / fl), cs = Math.cos(ry), sn = Math.sin(ry), W = (p, q) => ({ x: LAND_YK.x + p * cs + q * sn, z: LAND_YK.z - p * sn + q * cs }), e0 = W(-52, 46), e1 = W(-52.6, 46);
+  LAND.yk = Object.assign(LAND.yk || {}, { a, b, ux, uz, t, hx, hz, nx: -fx / fl, nz: -fz / fl, off: fl, W, ry });
+  return { x: LAND_YK.x, z: LAND_YK.z, ry, road: [e0.x, e0.z, e1.x, e1.z] };
+}
+
+// ---------- prepare: the rivers (water level always falling toward the sea), the crossings, and the new roads, before the land is drawn ----------
+function landSpline(ctl, step) { const cr = new THREE.CatmullRomCurve3(ctl.map(p => new THREE.Vector3(p.x, 0, p.z)), false, "centripetal"), n = Math.max(8, Math.round(cr.getLength() / step)); return cr.getSpacedPoints(n).map(v => ({ x: v.x, z: v.z })); }
+function landChunks(o, pad) { o.ch = []; const n = o.x.length; for (let i0 = 0; i0 < n - 1; i0 += 12) { const i1 = Math.min(n - 1, i0 + 12); let bb = [1e9, 1e9, -1e9, -1e9]; for (let i = i0; i <= i1; i++) { const p = pad(i); bb = [Math.min(bb[0], o.x[i] - p), Math.min(bb[1], o.z[i] - p), Math.max(bb[2], o.x[i] + p), Math.max(bb[3], o.z[i] + p)]; } o.ch.push([...bb, i0, i1]); }
+  o.bb = o.ch.reduce((B, c) => [Math.min(B[0], c[0]), Math.min(B[1], c[1]), Math.max(B[2], c[2]), Math.max(B[3], c[3])], [1e9, 1e9, -1e9, -1e9]); }
+function landRoad(pts, hw, o = {}) { let s = 0; pts.forEach((p, i) => { if (i) s += Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z); p.s = s; }); const R = { pts, hw, fill: o.fill !== false, skip: o.skip || null, kind: o.kind || "road", L: s };
+  R.bb = pts.reduce((B, p) => [Math.min(B[0], p.x - hw - 60), Math.min(B[1], p.z - hw - 60), Math.max(B[2], p.x + hw + 60), Math.max(B[3], p.z + hw + 60)], [1e9, 1e9, -1e9, -1e9]); LAND.roads.push(R); return R; }
+const landBez = (P0, P1, P2, P3, n) => Array.from({ length: n + 1 }, (_, i) => { const t = i / n, u = 1 - t; return { x: u * u * u * P0.x + 3 * u * u * t * P1.x + 3 * u * t * t * P2.x + t * t * t * P3.x, z: u * u * u * P0.z + 3 * u * u * t * P1.z + 3 * u * t * t * P2.z + t * t * t * P3.z }; });
+function landSegX(a, b, c, d) { const r = { x: b.x - a.x, z: b.z - a.z }, q = { x: d.x - c.x, z: d.z - c.z }, den = r.x * q.z - r.z * q.x; if (Math.abs(den) < 1e-9) return null; const t = ((c.x - a.x) * q.z - (c.z - a.z) * q.x) / den, u = ((c.x - a.x) * r.z - (c.z - a.z) * r.x) / den; return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { t, u } : null; }
+function landPrep() {
+  const key = [S.s.toFixed(4), highwaySegs().map(g => g.slice(0, 5).map(v => Math.round(v)).join(",")).join(";"), Math.round(S.ykSpot?.x || 0), coastTerms().length].join("|");
+  if (LAND.grid && LAND.key === key) return; LAND.key = key; LAND_LIVE = false;
+  LAND.on = false; LAND.grid = null; HT_U.uLandB.value.set(0, 0, 0, 0); LAND.rivers = []; LAND.br = []; LAND.roads = []; LAND.discs = []; LAND.xing = []; LAND.foot = [];
+  const s = S.s, PT = (t, k) => shorePt(t, s, k), H0 = (x, z) => terrainBase0(x, z);
+  const defs = [
+    { id: "w", ctl: [PT(-1.65, .64), { x: -110, z: -820 }, { x: -250, z: -640 }, { x: -470, z: -570 }, { x: -636, z: -531 }, { x: -650, z: -370 }, { x: -600, z: -190 }, { x: -530, z: -30 }, { x: -483, z: 90 }, { x: -510, z: 250 }, { x: -580, z: 430 }, { x: -650, z: 640 }, { x: -700, z: 880 }, { x: -722, z: 1120 }, PT(2.0, 1.12)] },
+    { id: "e", ctl: [PT(-1.1, .63), { x: 430, z: -640 }, { x: 400, z: -520 }, { x: 389, z: -404 }, { x: 470, z: -390 }, { x: 600, z: -395 }, { x: 760, z: -385 }, { x: 900, z: -370 }, { x: 1010, z: -345 }, { x: 1070, z: -250 }, { x: 1095, z: -110 }, { x: 1097, z: 31 }, { x: 1240, z: 115 }, { x: 1500, z: 170 }, { x: 1760, z: 195 }, PT(.12, 1.12)] }];
+  for (const D of defs) {
+    const P = landSpline(D.ctl, 12), n = P.length, R = { id: D.id, x: new Float64Array(n), z: new Float64Array(n), wl: new Float64Array(n), hw: new Float64Array(n), vw: new Float64Array(n), k: new Float64Array(n), pts: P };
+    const h0 = P.map(p => H0(p.x, p.z)), hs = h0.map((_, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { a += h0[j]; c++; } return a / c; });
+    let wl = h0[0] - 3.2 - .3 * Math.max(0, h0[0] - 30);
+    P.forEach((p, i) => { const f = i / (n - 1), pr = polar(p.x, p.z, s), ks = pr.d / shoreF(pr.t);   // ks: 1 = the waterline
+      R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; wl = Math.min(wl, h0[i] - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, .38); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
+      R.hw[i] = 5.5 + 17 * smooth01(0, .45, f) + 14 * (1 - smooth01(0, .012, f)) + 34 * smooth01(.9, 1, f);   // a spring lake, a mountain stream, a river, and a wide mouth
+      // the valley is as wide as the hills beside the river are high (sampled 50 and 100 m to each side), so its sides are gentle grassy slopes, not walls
+      const fr = landFrame(P, i), side = Math.max(hs[i], ...[50, 100].flatMap(o => [H0(p.x + fr.nx * o, p.z + fr.nz * o), H0(p.x - fr.nx * o, p.z - fr.nz * o)]));
+      R.vw[i] = Math.min(240, Math.max(34, 34 + 1.6 * Math.max(0, side - wl))); });
+    landChunks(R, i => R.hw[i] + R.vw[i] + 4); LAND.rivers.push(R);
+  }
+  LAND.mouths = LAND.rivers.map(R => { let i = R.x.length - 1; while (i > 0 && R.k[i - 1] > 1) i--; const pr = polar(R.x[i], R.z[i], s), q = shorePt(pr.t, s, 1); return { id: R.id, t: pr.t, d: (R.hw[R.x.length - 1] + 40) / Math.hypot(q.x, q.z) }; });
+  // ---- the bridges on the existing highways: wherever a river crosses one
+  for (const sg of highwaySegs()) { const [a, b, c, d, w, id] = sg; if (id === "palm") continue; const A = { x: a, z: b }, B = { x: c, z: d }, L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L;
+    for (const R of LAND.rivers) for (let i = 0; i < R.x.length - 1; i++) { const X = landSegX(A, B, { x: R.x[i], z: R.z[i] }, { x: R.x[i + 1], z: R.z[i + 1] }); if (!X) continue;
+      const x = a + (c - a) * X.t, z = b + (d - b) * X.t, hw = R.hw[i], vw = R.vw[i], wl = R.wl[i], rdx = R.x[i + 1] - R.x[i], rdz = R.z[i + 1] - R.z[i], sn = Math.abs(ux * rdz - uz * rdx) / (Math.hypot(rdx, rdz) || 1), hsp = (hw + vw + 10) / Math.max(.55, sn);   // the bridge spans the whole valley, rim to rim (longer where it crosses at a slant): no embankment ever reaches down into it
+      const gEnd = Math.max(H0(x + ux * (hsp + 120), z + uz * (hsp + 120)), H0(x - ux * (hsp + 120), z - uz * (hsp + 120))), deck = Math.max(wl + 9.5, Math.max(H0(x + ux * hsp, z + uz * hsp), H0(x - ux * hsp, z - uz * hsp)) + .8);
+      LAND.br.push({ x, z, ux, uz, w, hs: hsp, ramp: Math.min(170, Math.max(60, (deck - gEnd) / .05)), deck, wl, hw, ri: R.id, i, road: id, design: id === "gallery" ? "stone" : "arch" }); } }
+  LAND.on = LAND_LIVE = true;   // from here the land has its valleys (the new roads below are laid on the carved land)
+  const tH = (x, z) => terrainH(x, z);
+  // ---- the coastal road: from the gallery's junction along the south-west coast to the harbor's, crossing the western river near its mouth
+  { const T = coastTerms(), g = T.find(q => q.id === "gallery"), hb = T.find(q => q.id === "harbor");
+    if (g && hb) { const M = 300, raw = []; for (let i = 0; i <= M; i++) { const f = i / M, t = 2.35 + (Math.PI / 2 - 2.35) * f, e = Math.max(smooth01(.07, 0, f), smooth01(.93, 1, f)), q = PT(t, .835 + .065 * e); raw.push(q); }
+      const gJ = g.J, hJ = hb.J; raw[0] = { x: gJ.x, z: gJ.z }; raw[M] = { x: hJ.x, z: hJ.z };
+      const pts = landSpline(raw.filter((_, i) => i % 6 === 0 || i === M), 7).filter(p => Math.hypot(p.x - gJ.x, p.z - gJ.z) > g.Ro - 1 && Math.hypot(p.x - hJ.x, p.z - hJ.z) > hb.Ro - 1);
+      pts.forEach(p => p.g = tH(p.x, p.z)); pts.forEach((p, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - 5); j <= Math.min(pts.length - 1, i + 5); j++) { a += pts[j].g; c++; } p.y = Math.max(a / c, p.g) + .32; });
+      const R = landRoad(pts, 6, { kind: "coast" });
+      for (const RV of LAND.rivers) for (let i = 0; i < RV.x.length - 1; i++) for (let j = 0; j < pts.length - 1; j++) { const X = landSegX(pts[j], pts[j + 1], { x: RV.x[i], z: RV.z[i] }, { x: RV.x[i + 1], z: RV.z[i + 1] }); if (!X) continue;
+        const sx = pts[j].s + (pts[j + 1].s - pts[j].s) * X.t, hsp = (RV.hw[i] + RV.vw[i] + 10) / Math.max(.55, Math.abs((pts[j + 1].x - pts[j].x) * (RV.z[i + 1] - RV.z[i]) - (pts[j + 1].z - pts[j].z) * (RV.x[i + 1] - RV.x[i])) / (Math.hypot(pts[j + 1].x - pts[j].x, pts[j + 1].z - pts[j].z) * Math.hypot(RV.x[i + 1] - RV.x[i], RV.z[i + 1] - RV.z[i]) || 1)), deck = RV.wl[i] + 12, ramp = 110;
+        pts.forEach(p => { const u = Math.abs(p.s - sx); if (u < hsp + ramp) p.y = Math.max(p.y, deck + (p.y - deck) * smooth01(hsp, hsp + ramp, u)); });
+        R.skip = [[sx - hsp + 2, sx + hsp - 2]];
+        const p = pts[j], q = pts[j + 1], L = Math.hypot(q.x - p.x, q.z - p.z); LAND.xing.push({ x: p.x + (q.x - p.x) * X.t, z: p.z + (q.z - p.z) * X.t, ux: (q.x - p.x) / L, uz: (q.z - p.z) / L, hs: hsp, deck, wl: RV.wl[i], hw: RV.hw[i], w: 12, design: "cable", road: "coast" }); }
+      landChunk2(R); } }
+  // ---- interchange 115 for סבבהום: two roundabouts on embankments, an overpass, four ramps, and the store's own boulevard
+  if (LAND.yk) { const Y = LAND.yk, Fp = (al, of) => ({ x: Y.hx + Y.ux * al + Y.nx * of, z: Y.hz + Y.uz * al + Y.nz * of });
+    const J = 230, grade = al => terrainBase0(Fp(al, 0).x, Fp(al, 0).z) + (moundW(Fp(al, 0).x, Fp(al, 0).z) > 0 ? (HT_U.uMound.value.z - terrainBase0(Fp(al, 0).x, Fp(al, 0).z)) * moundW(Fp(al, 0).x, Fp(al, 0).z) : 0);
+    const yR = grade(J) + 7.8, Ro = 19, R1 = Fp(J, 52), R2 = Fp(J, -52); Y.J = J; Y.yR = yR; Y.R1 = R1; Y.R2 = R2; Y.Ro = Ro; Y.Fp = Fp; Y.grade = grade;
+    LAND.discs.push({ x: R1.x, z: R1.z, r: Ro + 1, y: yR }, { x: R2.x, z: R2.z, r: Ro + 1, y: yR });
+    const ramp = (pts, y0, y1) => { pts.forEach((p, i) => { const t = i / (pts.length - 1); p.y = y0 + (y1 - y0) * smooth01(0, 1, t) + .3; }); return pts; };
+    const rA = ramp(landBez(Fp(70, 9.8), Fp(140, 11.5), Fp(J - 48, 52), Fp(J - Ro, 52), 40), grade(70), yR);
+    const rB = ramp(landBez(Fp(J + Ro, 52), Fp(J + 48, 52), Fp(320, 11.5), Fp(390, 9.8), 40), yR, grade(390));
+    const rC = ramp(landBez(Fp(390, -9.8), Fp(320, -11.5), Fp(J + 48, -52), Fp(J + Ro, -52), 40), grade(390), yR);
+    const rD = ramp(landBez(Fp(J - Ro, -52), Fp(J - 48, -52), Fp(140, -11.5), Fp(70, -9.8), 40), yR, grade(70));
+    // a taper: the ramp lane opens out of the highway's edge (or closes into it) over 60 m, as on a real highway
+    const taper = (al0, al1, sd) => Array.from({ length: 13 }, (_, i) => { const t = i / 12, al = al0 + (al1 - al0) * t, w = 3.6 * t, p = Fp(al, sd * (6 + w)); return { ...p, y: grade(al) + .3, w: Math.max(.05, w) }; });
+    rA.unshift(...taper(10, 66, 1)); rB.push(...taper(450, 394, 1).reverse()); rC.unshift(...taper(450, 394, -1)); rD.push(...taper(10, 66, -1).reverse());
+    for (const r of [rA, rB, rC, rD]) landChunk2(landRoad(r, 3.6, { kind: "ramp" })); Y.rmp = { A: rA, B: rB, C: rC, D: rD };
+    const ov = Array.from({ length: 21 }, (_, i) => ({ ...Fp(J, -52 + Ro + (104 - 2 * Ro) * i / 20), y: yR + .3 })); const RO = landRoad(ov, 5.5, { kind: "over" }); RO.skip = [[(104 - 2 * Ro) / 2 - 15, (104 - 2 * Ro) / 2 + 15]]; landChunk2(RO);
+    const e0 = Y.W(-58, 46), yTop = HT_U.uMound.value.z, fr = landBez(e0, { x: e0.x + Y.ux * 70, z: e0.z + Y.uz * 70 }, Fp(J, 52 + Ro + 46), Fp(J, 52 + Ro), 50);
+    fr.forEach((p, i) => { const t = i / (fr.length - 1); p.y = yTop + (yR - yTop) * smooth01(.15, 1, t) + .3; }); Y.rmp.ov = ov; Y.rmp.fr = fr; landChunk2(landRoad(fr, 5, { kind: "front" }));
+  }
+  landGridBuild();
+  // the footbridges of the river park: up to three on each river, in the lowland stretch, away from the road bridges, each a different design
+  LAND.foot = [];
+  for (const R of LAND.rivers) { const P = R.pts, n = P.length;
+    [.42, .58, .74].map(f => Math.round(f * (n - 1))).filter(i => !inCityBox(P[i].x, P[i].z, 30) && !LAND.br.concat(LAND.xing).some(B => Math.hypot(B.x - P[i].x, B.z - P[i].z) < B.hs + 60)).forEach((i, k) => {
+      const design = (k + (R.id === "e" ? 1 : 0)) % 3, f = landFrame(P, i), p = P[i], hw = R.hw[i] + 5, gA = terrainH(p.x + f.nx * hw, p.z + f.nz * hw), gB = terrainH(p.x - f.nx * hw, p.z - f.nz * hw), y0 = Math.max(gA, gB, R.wl[i] + 1.4) + .2;
+      LAND.foot.push({ R, i, design, x: p.x, z: p.z, ux: -f.nx, uz: -f.nz, hs: hw, w: 3.4, y0, gA, gB, rise: [1.6, .6, .9][design], deck: y0 + .15, ry: f.ry + Math.PI / 2 }); }); }
+  const Y = LAND.yk; LAND.over = Y?.R1 ? { x: (Y.R1.x + Y.R2.x) / 2, z: (Y.R1.z + Y.R2.z) / 2, ux: Y.nx, uz: Y.nz, hs: 52 - Y.Ro + 2, deck: Y.yR + .3 } : null;
+  landLiftsSet();
+}
+function landChunk2(R) { /* roads keep one bounding box: they are short */ }
+// bake the changes (valleys, embankments) into the shared map, only around the rivers and the new roads; everywhere else it stays 0
+function landGridBuild() {
+  const s = S.s, X = RX0 * s * 1.25, Z = RZ0 * s * 1.25, n = LAND_N, cx = X * 2 / (n - 1), cz = Z * 2 / (n - 1), x0 = -X, z0 = -Z, d = new Float32Array(n * n), done = new Uint8Array(n * n);
+  const boxes = [...LAND.rivers.map(R => R.bb), ...LAND.roads.filter(r => r.fill).map(r => r.bb), ...LAND.discs.map(D => [D.x - D.r - 70, D.z - D.r - 70, D.x + D.r + 70, D.z + D.r + 70]),
+    ...LAND.br.map(B => { const e = B.hs + B.ramp + 10, w = B.w / 2 + 70; return [B.x - Math.abs(B.ux) * e - w, B.z - Math.abs(B.uz) * e - w, B.x + Math.abs(B.ux) * e + w, B.z + Math.abs(B.uz) * e + w]; })];
+  for (const b of boxes) { const i0 = Math.max(0, Math.floor((b[0] - x0) / cx)), i1 = Math.min(n - 1, Math.ceil((b[2] - x0) / cx)), j0 = Math.max(0, Math.floor((b[1] - z0) / cz)), j1 = Math.min(n - 1, Math.ceil((b[3] - z0) / cz));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * n + i; if (done[k]) continue; done[k] = 1; const x = x0 + i * cx, z = z0 + j * cz, b0 = terrainBase0(x, z); if (b0 === 0) continue; d[k] = landFill(x, z, landCarve(x, z, b0)) - b0; } }
+  const tex = new THREE.DataTexture(THREE.DataUtils ? Uint16Array.from(d, v => THREE.DataUtils.toHalfFloat(v)) : d, n, n, THREE.RedFormat, THREE.HalfFloatType); tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+  HT_U.uLand.value?.dispose?.(); HT_U.uLand.value = tex; HT_U.uLandB.value.set(x0, z0, cx, cz); LAND.grid = { x0, z0, cx, cz, d };
+  // the JS reads the rounded values the GPU reads, so both stand on exactly the same ground
+  for (let k = 0; k < d.length; k++) if (d[k]) d[k] = THREE.DataUtils.fromHalfFloat(THREE.DataUtils.toHalfFloat(d[k]));
+}
+
+// ---------- drawing helpers: everything below is built with its heights baked in ----------
+function landBake(o) { o.traverse(m => { if (m.isMesh && m.geometry?.attributes?.position && !m.isInstancedMesh) m.geometry.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(m.geometry.attributes.position.count).fill(2), 1)); }); return o; }
+function landRibbon(pts, o0, o1, colorAt, mat, yAt) {   // a strip along pts between lateral offsets o0..o1; colorAt(i, side) -> THREE.Color; yAt(i, side) -> y
+  const pos = [], col = [], idx = [];
+  pts.forEach((p, i) => { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1, nx = -dz / L, nz = dx / L;
+    for (const [sd, of] of [[0, typeof o0 === "function" ? o0(i) : o0], [1, typeof o1 === "function" ? o1(i) : o1]]) { pos.push(p.x + nx * of, yAt(i, sd), p.z + nz * of); const c = colorAt(i, sd); col.push(c.r, c.g, c.b); }
+    if (i < pts.length - 1) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3); });
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; world.add(m); landBake(m); return m;
+}
+const LANDM = { lam: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), water: new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }) };
+const landC = c => new THREE.Color(c);
+function landFrame(pts, i) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1; return { ux: dx / L, uz: dz / L, nx: -dz / L, nz: dx / L, ry: Math.atan2(dx, dz) }; }
+// a road: asphalt, edge lines, a dashed middle line (two-way roads), and concrete barriers where it stands high above the land
+function landDrawRoad(R, { dash = true, barrier = "auto", col = "#4a5057" } = {}) {
+  const P = R.pts, hw = R.hw, asp = landC(col), wht = landC("#f1eee6");
+  const W = i => P[i].w ?? hw;
+  landRibbon(P, i => -W(i) - .6, i => W(i) + .6, () => landC("#9a968c"), LANDM.lam, i => P[i].y - .08);   // the shoulder
+  landRibbon(P, i => -W(i), i => W(i), () => asp, LANDM.lam, i => P[i].y);
+  for (const sd of [-1, 1]) landRibbon(P, i => sd * Math.max(0, W(i) - .55), i => sd * Math.max(0, W(i) - .35), () => wht, LANDM.lam, i => P[i].y + .03);
+  const Q = [];
+  if (dash) for (let i = 0; i < P.length - 1; i++) { if (Math.floor(P[i].s / 6) % 2) continue; const f = landFrame(P, i); Q.push(box(.18, .03, Math.min(4.5, P[i + 1].s - P[i].s + .3), "#f1eee6", (P[i].x + P[i + 1].x) / 2, (P[i].y + P[i + 1].y) / 2 + .02, (P[i].z + P[i + 1].z) / 2, { y: f.ry })); }
+  for (let i = 0; i < P.length - 1; i++) { const p = P[i], q = P[i + 1], f = landFrame(P, i), mid = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2, y: (p.y + q.y) / 2 }, ground = terrainH(mid.x, mid.z), high = mid.y - ground > 1.6 || (R.skip && R.skip.some(([a, b]) => p.s > a - 4 && p.s < b + 4));
+    if (barrier === "always" || (barrier === "auto" && high)) for (const sd of [-1, 1]) { const L = Math.hypot(q.x - p.x, q.z - p.z) + .2, pitch = Math.atan2(q.y - p.y, L); Q.push(box(.5, .95, L, "#d9d5cc", mid.x + f.nx * sd * (hw + .35), mid.y - .05, mid.z + f.nz * sd * (hw + .35), { x: -pitch, y: f.ry })); } }
+  if (Q.length) landBake(solid(Q, 0, 0, 0, null, 0));
+}
+// a green road sign painted on a canvas: the exit number on a yellow tab, then the destinations with their arrows
+function landSignTex(lines, { tab, w = 10, h = 4, bg = "#0f6b3a" } = {}) {
+  const H = 420, W = Math.round(H * w / h), cv = document.createElement("canvas"); cv.width = W; cv.height = H; const x = cv.getContext("2d");
+  x.fillStyle = bg; x.fillRect(0, 0, W, H); x.strokeStyle = "#ffffff"; x.lineWidth = 12; x.strokeRect(16, 16, W - 32, H - 32);
+  let y0 = 40; if (tab) { x.fillStyle = "#f5c400"; const tw = W * .46; x.fillRect(W - tw - 40, 34, tw, 92); x.fillStyle = "#111"; x.font = "900 66px Heebo, Arial"; x.direction = "rtl"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(tab, W - tw / 2 - 40, 82); y0 = 140; }
+  const lh = (H - y0 - 30) / lines.length; lines.forEach(([t, arrow, small], k) => { const cy = y0 + lh * (k + .5); x.fillStyle = "#ffffff"; x.direction = "rtl"; x.textBaseline = "middle";
+    let fs = Math.round(lh * (small ? .5 : .62)); do { x.font = `${small ? 700 : 900} ${fs}px Heebo, Arial`; fs -= 4; } while (x.measureText(t).width > W - (arrow ? 280 : 120) && fs > 20); x.textAlign = "right"; x.fillText(t, W - 60, cy);
+    if (arrow) { x.save(); x.translate(110, cy); x.rotate({ "↑": 0, "↗": Math.PI / 4, "↖": -Math.PI / 4, "→": Math.PI / 2, "←": -Math.PI / 2 }[arrow] || 0); x.fillStyle = "#fff"; const a = lh * .36; x.beginPath(); x.moveTo(0, -a * 1.2); x.lineTo(a, -a * .1); x.lineTo(a * .38, -a * .1); x.lineTo(a * .38, a * 1.1); x.lineTo(-a * .38, a * 1.1); x.lineTo(-a * .38, -a * .1); x.lineTo(-a, -a * .1); x.closePath(); x.fill(); x.restore(); } });
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); m.userData.disposable = true; return m;
+}
+// an overhead sign gantry across the highway at (x, z), its signs facing traffic that drives in direction (fx, fz)
+function landGantry(x, z, fx, fz, w, panels) {
+  const y = terrainH(x, z) + .26, ry = Math.atan2(-fx, -fz), cs = Math.cos(ry), sn = Math.sin(ry), half = w / 2 + 3.2, Q = [];
+  for (const sd of [-1, 1]) Q.push(box(.7, 7.6, .7, "#9aa2a8", sd * half, 0, 0), box(1.4, .4, 1.4, "#c9c5bb", sd * half, -.3, 0));
+  Q.push(box(half * 2 + 1, .5, .5, "#9aa2a8", 0, 7.0, -.35), box(half * 2 + 1, .5, .5, "#9aa2a8", 0, 8.6, -.35)); for (let k = -half; k <= half; k += 2) Q.push(box(.12, 1.7, .12, "#9aa2a8", k, 7.1, -.35));
+  landBake(solid(Q, x, z, ry, null, y));
+  let px = half - .5; for (const [lines, o] of panels) { const pw = o.w || 9, ph = o.h || 4.2, m = landSignTex(lines, { ...o, w: pw, h: ph }); px -= pw / 2; const lx = o.cx ?? px;
+    m.position.set(x + lx * cs, y + 7.6 + ph / 2 - .4, z - lx * sn); m.rotation.y = ry; world.add(m); landBake(m); px -= pw / 2 + .6; }
+}
+function landPostSign(x, z, ry, lines, o = {}) { const y = terrainH(x, z) + .1, Q = [box(.25, 3.2, .25, "#9aa2a8", -1.3, 0, -.1), box(.25, 3.2, .25, "#9aa2a8", 1.3, 0, -.1)]; landBake(solid(Q, x, z, ry, null, y));
+  const m = landSignTex(lines, { w: 3.6, h: 1.9, ...o }); m.position.set(x, y + 3.6, z); m.rotation.y = ry; world.add(m); landBake(m); }
+
+// ---------- the bridges: every one different ----------
+function landBridge(B) {
+  const ry = Math.atan2(B.ux, B.uz), L = B.hs * 2, w = B.w, W2 = w / 2 + 1.6, Q = [], gAt = z => terrainH(B.x + B.ux * z, B.z + B.uz * z), top = B.deck;
+  const deck = (col, th = 1.8) => { Q.push(box(w + 3.2, th, L + 2, col, 0, top - th - .08, 0)); };
+  const piers = (n, col, wd = w + 1, th = 2.8, shape) => { for (let k = 1; k < n; k++) { const z = -B.hs + L * k / n, g = gAt(z) - 2.5, h = top - 1.8 - g; if (h > 1) Q.push(shape ? shape(z, g, h) : box(wd, h, th, col, 0, g, z)); } };
+  const abut = col => { for (const sd of [-1, 1]) { const z = sd * B.hs, g = gAt(z) - 3; Q.push(box(w + 6, top - g, 6, col, 0, g, z + sd * 1.5)); } };
+  const rail = (col, post = true) => { for (const sd of [-1, 1]) { Q.push(box(.3, .25, L, col, sd * W2, top + 1.05, 0)); if (post) for (let z = -B.hs + 1; z < B.hs; z += 2.5) Q.push(box(.14, 1.1, .14, col, sd * W2, top, z)); } };
+  if (B.design === "stone") {   // a stone viaduct: round arches on tall piers, a cornice and a stone parapet with old lamps
+    const n = Math.max(4, Math.round(L / 22)), sp = L / n, r = sp / 2 - 1.6, C = "#d8c7a1", D = "#c4b087";
+    deck(C, 2.2); abut(D);
+    for (let k = 0; k <= n; k++) { const z = -B.hs + sp * k, g = gAt(z) - 3, crown = top - 2.6, spring = crown - r; if (k > 0 && k < n) Q.push(box(w + 1.6, spring - g + .2, 3.2, D, 0, g, z), box(w + 2.6, 1.2, 4.6, C, 0, spring - .4, z)); }
+    for (let k = 0; k < n; k++) { const zc = -B.hs + sp * (k + .5), crown = top - 2.6, spring = crown - r;
+      for (let j = 0; j < 14; j++) { const z0 = zc - sp / 2 + sp * j / 14, z1 = z0 + sp / 14, zm = (z0 + z1) / 2 - zc, ya = Math.abs(zm) < r ? spring + Math.sqrt(r * r - zm * zm) : spring; Q.push(box(w + 1.4, Math.max(.1, top - 2.2 - ya), z1 - z0 + .05, C, 0, ya, (z0 + z1) / 2)); }
+      Q.push(box(w + 1.5, .5, .6, "#b9a47c", 0, spring + r - .3, zc)); }
+    for (const sd of [-1, 1]) { Q.push(box(.7, 1.1, L, D, sd * (W2 + .2), top, 0), box(.95, .25, L, C, sd * (W2 + .2), top + 1.1, 0)); for (let z = -B.hs + 6; z < B.hs; z += 16) Q.push(cyl(.12, .14, 4.2, 6, "#2f3438", sd * (W2 + .2), top + 1.1, z), box(.5, .6, .5, "*#ffe2a0", sd * (W2 + .2), top + 5.2, z)); }
+  } else if (B.design === "arch") {   // a white steel tied arch over the river, golden light along the arch at night, approach spans on slim round columns
+    const C = "#f4f2ec", main = Math.min(L * .72, 120), rise = main * .22; deck("#e9e6df", 2); abut("#d9d5cc");
+    for (let k = 1; k < 8; k++) { const z = -B.hs + L * k / 8; if (Math.abs(z) < main / 2 - 2) continue; const g = gAt(z) - 2.5; for (const sx of [-w / 3, w / 3]) Q.push(cyl(1, 1.1, top - 1.9 - g, 12, "#e2ded6", sx, g, z)); }
+    for (const sd of [-1, 1]) { const zz = sd * main / 2, g = gAt(zz) - 3; Q.push(box(w + 3, top - 1.9 - g, 4, "#d9d5cc", 0, g, zz)); }
+    for (const sd of [-1, 1]) { const X = sd * (W2 + 1.2); for (let k = 0; k < 30; k++) { const t0 = k / 30, t1 = (k + 1) / 30, z0 = -main / 2 + t0 * main, z1 = -main / 2 + t1 * main, y0 = top + Math.sin(t0 * Math.PI) * rise, y1 = top + Math.sin(t1 * Math.PI) * rise, Lk = Math.hypot(z1 - z0, y1 - y0);
+        Q.push(box(1.6, 1.8, Lk + .3, C, X, (y0 + y1) / 2 - .9, (z0 + z1) / 2, { x: -Math.atan2(y1 - y0, z1 - z0) })); }
+      for (let k = 1; k < 30; k += 2) { const t = k / 30, zz = -main / 2 + t * main, yy = top + Math.sin(t * Math.PI) * rise; Q.push(box(.14, yy - top - 1, .14, "#cdd4d8", X, top, zz)); }
+      Q.push(box(1.7, 1.3, main, C, X, top - .2, 0), box(.3, .3, main * .9, "*#ffcf5a", X, top + 1.1, 0)); }
+    for (let k = 0; k < 7; k++) { const t = (k + 1) / 8, zz = -main / 2 + t * main, yy = top + Math.sin(t * Math.PI) * rise; Q.push(box(2 * (W2 + 1.2), .9, .9, C, 0, yy - 1.2, zz)); }
+    rail("#c7ccd0");
+  } else if (B.design === "cable") {   // a cable-stayed bridge: one tall white pylon shaped like an upside-down Y on the bank, fans of cables holding the deck
+    const C = "#f2f0ea", pz = -B.hs * .32, ph = 58, g0 = gAt(pz) - 3; deck("#e4e1da", 1.6); abut("#d4d0c6");
+    for (const z of [-B.hs * .8, B.hs * .55]) { const g = gAt(z) - 3; Q.push(box(w * .6, top - 1.7 - g, 3, "#d8d4cc", 0, g, z)); }
+    const leg = (sd) => { const x0 = sd * (W2 + 3.5), y0 = g0, x1 = 0, y1 = top + ph * .6, n = 10; for (let k = 0; k < n; k++) { const a = k / n, b = (k + 1) / n, xa = x0 + (x1 - x0) * a, ya = y0 + (y1 - y0) * a, xb = x0 + (x1 - x0) * b, yb = y0 + (y1 - y0) * b; Q.push(box(2.6, Math.hypot(xb - xa, yb - ya) + .2, 3.4, C, (xa + xb) / 2, (ya + yb) / 2 - Math.hypot(xb - xa, yb - ya) / 2, pz, { z: Math.atan2(xb - xa, yb - ya) * -1 })); } };
+    leg(-1); leg(1); Q.push(box(3, ph * .42, 3.6, C, 0, top + ph * .58, pz), box(3.6, 1.2, 4.2, "*#ffe9b0", 0, top + ph, pz));
+    for (const dir of [-1, 1]) for (let k = 1; k <= 11; k++) { const zz = pz + dir * k * 7.5; if (Math.abs(zz) > B.hs - 2) continue; const ya = top + ph * .66 + k * 1.3, Lc = Math.hypot(zz - pz, ya - top - .6);
+      for (const sd of [-1, 1]) { const x = sd * (W2 - .2); Q.push(box(.12, .12, Lc, "#cfd6da", x, (ya + top + .6) / 2, (zz + pz) / 2, { x: -Math.atan2(ya - top - .6, pz - zz) })); } }
+    rail("#c7ccd0");
+  } else if (B.design === "over") {   // the overpass of interchange 115: a smooth concrete box girder on two V-shaped piers, glass railings
+    const C = "#cfcbc2"; deck(C, 1.9);
+    for (const z of [-15, 15]) { const g = gAt(z) - .5; for (const sd of [-1, 1]) { const h = top - 1.9 - g, Lk = Math.hypot(h, 3); Q.push(box(1.6, Lk, 1.6, "#bdb8ae", sd * 1.5, g, z, { z: sd * Math.atan2(3, h) })); } }
+    for (const sd of [-1, 1]) { Q.push(box(.12, 1.1, L, "%#a8d4ea", sd * W2, top, 0), box(.25, .14, L, "#8f969c", sd * W2, top + 1.1, 0)); for (let z = -B.hs + 1; z < B.hs; z += 3) Q.push(box(.12, 1.15, .12, "#8f969c", sd * W2, top, z)); }
+    Q.push(box(w + 3.4, .5, L + 2, "#f08a24", 0, top - 2.4, 0));
+  }
+  landBake(solid(Q, B.x, B.z, ry, null, 0));
+}
+// footbridges in the river park: a timber arch, a white single-mast bridge and a low steel bridge with lights on its handrail
+function landFoot(F) {
+  const { design, x: px, z: pz, y0, gA, gB, ry, rise } = F, L = F.hs * 2, Q = [], p = { x: px, z: pz };
+  const segs = (rise, col, wd) => { for (let k = 0; k < 16; k++) { const t0 = k / 16, t1 = (k + 1) / 16, z0 = -L / 2 + t0 * L, z1 = -L / 2 + t1 * L, ya = y0 + Math.sin(t0 * Math.PI) * rise, yb = y0 + Math.sin(t1 * Math.PI) * rise, Lk = Math.hypot(z1 - z0, yb - ya), r = { x: -Math.atan2(yb - ya, z1 - z0) };
+    Q.push(box(wd, .35, Lk + .1, col, 0, (ya + yb) / 2 - .2, (z0 + z1) / 2, r)); for (const sd of [-1, 1]) Q.push(box(.12, .1, Lk + .1, design === 2 ? "*#ffe2a0" : "#f4f1ea", sd * wd / 2, (ya + yb) / 2 + 1.05, (z0 + z1) / 2, r), box(.1, 1.1, .1, "#f4f1ea", sd * wd / 2, (ya + yb) / 2 - .05, z0)); } };
+  if (design === 0) { segs(rise, "#a8774a", 3.4); for (const sd of [-1, 1]) for (let k = 0; k < 16; k++) { const t0 = k / 16, t1 = (k + 1) / 16, z0 = -L / 2 + t0 * L, z1 = -L / 2 + t1 * L, ya = y0 - 1.6 + Math.sin(t0 * Math.PI) * (rise + 1.2), yb = y0 - 1.6 + Math.sin(t1 * Math.PI) * (rise + 1.2); Q.push(box(.45, .45, Math.hypot(z1 - z0, yb - ya) + .1, "#7a5232", sd * 1.8, (ya + yb) / 2 - .2, (z0 + z1) / 2, { x: -Math.atan2(yb - ya, z1 - z0) })); } }
+  else if (design === 1) { segs(rise, "#e9e7e2", 3.2); const mz = -L * .3; Q.push(box(.8, 22, .8, "#ffffff", 0, y0 - 1, mz)); for (let k = -3; k <= 6; k++) { const zz = mz + k * L * .09; if (Math.abs(zz) > L / 2 - 1) continue; const Lc = Math.hypot(zz - mz, 20); Q.push(box(.08, .08, Lc, "#d0d6da", 0, y0 + 10.6, (zz + mz) / 2, { x: -Math.atan2(20, mz - zz) })); } }
+  else segs(rise, "#5b6670", 3);
+  for (const sd of [-1, 1]) Q.push(box(4.4, y0 - Math.min(gA, gB) + 1, 3, "#cfc8b8", 0, Math.min(gA, gB) - 1, sd * (L / 2 - 1)));
+  landBake(solid(Q, p.x, p.z, ry, null, 0));
+}
+
+// ---------- everything drawn for the preview ----------
+function landBuild() {
+  if (!LAND.rivers.length) return; const PRE = P;
+  const rng2 = rng(91), WC = { up: landC("#7cc4e4"), mid: landC("#3f97c8"), low: landC("#357fae"), foam: landC("#eef7fb"), mouth: landC("#56c2cf") };
+  // ---- the rivers: the water, its gravel edges, the reeds; white water where it runs steep; the sea-green mouth
+  for (const R of LAND.rivers) {
+    const P = R.pts, n = P.length;
+    const wc = i => { const f = i / (n - 1), sl = i ? Math.abs(R.wl[i - 1] - R.wl[i]) / 12 : 0; const c = (f < .25 ? WC.up.clone().lerp(WC.mid, f / .25) : WC.mid.clone().lerp(WC.low, Math.min(1, (f - .25) / .5)));
+      if (R.k[i] > .9) c.lerp(WC.mouth, smooth01(.9, 1.04, R.k[i])); return R.k[i] > .84 ? c : c.lerp(WC.foam, smooth01(.06, .3, sl) * .7); };
+    const PW = P.slice(0, Math.max(3, P.findIndex((_, i) => R.k[i] >= 1.05))); landRibbon(PW, i => -R.hw[i] - 1.5, i => R.hw[i] + 1.5, i => wc(i), LANDM.water, i => R.wl[i] + .05);
+    // the banks: a clean edge of wet gravel and sand along the water, then the grass; laid just above the land (the hills are drawn 0.2 m up), so the water ends in a clean line
+    { const fr = i => landFrame(P, i), T = (i, o) => { const f = fr(i); return terrainH(P[i].x + f.nx * o, P[i].z + f.nz * o) + .2; }, top = (i, a, b) => { let m = -1e9; for (let o = a; o <= b + .01; o += 1) m = Math.max(m, T(i, o)); return m; };
+      const wetG = landC("#a3977a"), grv = landC("#cbbd93"), sand = landC("#e2d3a6"), wsand = landC("#c8b88c"), grs = landC("#86ad62"), im = Math.max(2, P.findIndex((_, i) => R.k[i] >= .9)), PB = P.slice(0, im + 1);   // (through the beach the mouth has the beach's own sand banks)
+      for (const sd of [-1, 1]) { const ins = i => R.hw[i] - 1.5, mid = i => R.hw[i] + 3, out = i => R.hw[i] + 7.5, yIn = PB.map((_, i) => Math.max(R.wl[i] + .14, top(i, ins(i), mid(i)) * 0 + (R.k[i] > .9 ? R.wl[i] + .14 : -1e9), Math.min(top(i, ins(i), mid(i)) + .06, R.wl[i] + .9)));
+        const yMid = PB.map((_, i) => Math.max(top(i, mid(i) - 2, mid(i) + 2) + .07, R.wl[i] + .35)), yOut = PB.map((_, i) => top(i, out(i) - 1, out(i) + 1) + .05);
+        landRibbon(PB, i => sd * ins(i), i => sd * mid(i), (i, e) => R.k[i] > .9 ? (e ? sand : wsand) : (e ? grv : wetG), LANDM.lam, (i, e) => e ? yMid[i] : yIn[i]);
+        landRibbon(PB, i => sd * mid(i), i => sd * out(i), (i, e) => R.k[i] > .9 ? sand : e ? grs : grv, LANDM.lam, (i, e) => e ? Math.max(yOut[i], yMid[i] - 2.5) : yMid[i]); } }
+    // the river mouth, where it meets the sea: two rock breakwaters along its banks (a red light on one, a green on the other), sandbars the river leaves,
+    // a pale plume of river water, and low rock reefs on both sides offshore with the surf breaking white on them
+    { let im = P.findIndex((_, i) => R.k[i] >= 1); if (im < 2) im = n - 2; const e = P[im], f = landFrame(P, im), hwM = R.hw[im], at = (al, of) => ({ x: e.x + f.ux * al + f.nx * of, z: e.z + f.uz * al + f.nz * of }), Q = [], FO = [];
+      for (const sd of [-1, 1]) { for (let al = -60; al <= 78; al += 2.4) for (const lo of [-1.9, 0, 1.9]) { if (lo && al > 74) continue; const p = at(al + (rng2() - .5), sd * (hwM + 7) + lo + (rng2() - .5)), hgt = 3.3 + rng2() * 1.3 - (lo ? .7 : 0);
+          Q.push(cyl(1 + rng2() * .5, 1.5 + rng2() * .6, hgt, 5 + Math.floor(rng2() * 2), rng2() < .5 ? "#9a948a" : "#857f76", p.x, -3.6, p.z, { y: rng2() * 6 })); }
+        const tip = at(80, sd * (hwM + 7)); Q.push(cyl(.8, 1, 5.6, 10, "#f2f0ea", tip.x, -.4, tip.z), cyl(.85, .85, 1.1, 10, sd > 0 ? "#2e9a52" : "#c8372d", tip.x, 2.4, tip.z), box(.7, .6, .7, sd > 0 ? "*#7dff9e" : "*#ff6a5c", tip.x, 5.2, tip.z));
+        // the reefs: a few low clusters of rock offshore, just breaking the surface, the surf white around them
+        for (let c2 = 0; c2 < 3; c2++) { const cc = at(105 + rng2() * 40 + c2 * 12, sd * (hwM + 60 + c2 * 42 + rng2() * 16)); FO.push(cc);
+          for (let k2 = 0; k2 < 5 + Math.floor(rng2() * 3); k2++) { const a2 = rng2() * Math.PI * 2, r2 = rng2(), x = cc.x + Math.cos(a2) * r2 * 14 * Math.abs(f.nx) + Math.cos(a2) * r2 * 6, z = cc.z + Math.sin(a2) * r2 * 14 * Math.abs(f.nz) + Math.sin(a2) * r2 * 6;
+            Q.push(cyl(1.2 + rng2() * 2.2, 2 + rng2() * 2.4, 1.3 + rng2() * .9, 6, rng2() < .5 ? "#8f8676" : "#7f786c", x, -4.1 + rng2() * .2, z, { y: rng2() * 6 })); } } }
+      const BAR = []; for (const [al, of, r1] of [[112, hwM * .55, 16], [118, -hwM * .6, 19]]) BAR.push([at(al, of), r1]);
+      landBake(solid(Q, 0, 0, 0, null, 0));
+      for (const [p, r1] of BAR) { const b = new THREE.Mesh(new THREE.CylinderGeometry(r1, r1 * 1.1, .3, 24), new THREE.MeshLambertMaterial({ color: "#d6d2a4", transparent: true, opacity: .6 })); b.position.set(p.x, -2.95, p.z); b.scale.set(2.2, 1, .7); b.rotation.y = f.ry + Math.PI / 2; world.add(b); landBake(b); }
+      const fm = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: .38, depthWrite: false });
+      for (const p of FO) { const r = new THREE.Mesh(new THREE.CircleGeometry(16, 20).rotateX(-Math.PI / 2), fm); r.position.set(p.x + f.ux * 5, -2.8, p.z + f.uz * 5); r.scale.set(1.6, 1, .75); r.rotation.y = f.ry + Math.PI / 2; world.add(r); landBake(r); }
+      const plume = new THREE.Mesh(new THREE.CircleGeometry(150, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#8fd3c6", transparent: true, opacity: .32, depthWrite: false })); plume.position.set(e.x + f.ux * 150, -2.9, e.z + f.uz * 150); plume.scale.set(1, 1, .6); plume.rotation.y = f.ry; world.add(plume); landBake(plume); }
+    // the spring: a small mountain lake at the top, ringed with rocks
+    const s0 = P[0], RK = []; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2, r = R.hw[0] + 3 + rng2() * 3, x = s0.x + Math.cos(a) * r, z = s0.z + Math.sin(a) * r; RK.push(cyl(.4 + rng2(), 1.4 + rng2() * 1.6, 1.4 + rng2() * 2, 6, "#8b8579", x, R.wl[0] - .6, z)); } landBake(solid(RK, 0, 0, 0, null, 0));
+    // the riverside park: a gravel path on one bank, trees on both, benches and lamps, reeds at the water
+    const path = [], trees = [], palms = [], reeds = [], lamps = []; let side = 1;
+    for (let i = 8; i < n - 6; i++) { if (R.k[i] > .9 || inCityBox(P[i].x, P[i].z, 6)) continue; const fr = landFrame(P, i), hw = R.hw[i];
+      if (i % 40 === 0) side = -side; const po = side * (hw + 10), px = P[i].x + fr.nx * po, pz = P[i].z + fr.nz * po; path.push({ x: px, z: pz, y: terrainH(px, pz) + .34 });
+      if (i % 3 === 0) for (const sd of [-1, 1]) { const o = sd * (hw + 15 + rng2() * 14), x = P[i].x + fr.nx * o, z = P[i].z + fr.nz * o, dy = terrainH(x, z) - landGl(x, z); (rng2() < .2 && R.k[i] < .6 ? palms : trees).push([x, z, dy, .8 + rng2() * .6]); }
+      if (i % 2 === 0) for (const sd of [-1, 1]) { const o = sd * (hw + 1.5 + rng2() * 2), x = P[i].x + fr.nx * o, z = P[i].z + fr.nz * o; if (!LAND.foot.some(F => Math.hypot(F.x - x, F.z - z) < F.hs + 8)) reeds.push([x, z, terrainH(x, z) - landGl(x, z)]); }
+      if (i % 9 === 0) lamps.push([px + fr.nx * side * 2.4, pz + fr.nz * side * 2.4, terrainH(px, pz) - landGl(px, pz), fr.ry]); }
+    for (let k = 0, run = []; k <= path.length; k++) { const p = path[k], q = path[k - 1]; if (p && (!q || Math.hypot(p.x - q.x, p.z - q.z) < 30)) run.push(p); else { if (run.length > 3) landRibbon(run, -1.3, 1.3, () => landC("#d8cba8"), LANDM.lam, i => run[i].y); run = p ? [p] : []; } }
+    instanced(PRE.tree, trees, ([x, z, dy, k], o) => { o.position.set(x, dy + .1, z); o.scale.setScalar(k); });
+    instanced(PRE.palm, palms, ([x, z, dy, k], o) => { o.position.set(x, dy + .1, z); o.scale.setScalar(k); });
+    instanced(PRE.cypress, reeds, ([x, z, dy], o) => { o.position.set(x, dy - .3, z); o.scale.set(.35, .28, .35); return "#5f8f3e"; });
+    instanced(PRE.lamp, lamps, ([x, z, dy, r], o) => { o.position.set(x, dy + .1, z); o.rotation.y = r; });
+    // three footbridges, each a different design, in the lowland stretch
+    for (const F of LAND.foot) if (F.R === R) landFoot(F);
+  }
+  // ---- the mountain forest: pines and cypresses on the lower slopes, bare rock and snow above
+  { const pines = [], S2 = S.s, X = RX0 * S2, Z = RZ0 * S2; for (let k = 0; k < 9000 && pines.length < 1400; k++) { const x = (rng2() * 2 - 1) * X, z = -rng2() * Z; const m = landMtnPart(x, z); if (m < 12) continue; const h = terrainH(x, z); if (h > 165 || landBlock(x, z)) continue; const nn = Math.sin(x * .02) * Math.cos(z * .017); if (nn < -.2 && rng2() < .7) continue; pines.push([x, z, .9 + rng2() * .8]); }
+    instanced(PRE.cypress, pines, ([x, z, k], o) => { o.position.set(x, 0, z); o.scale.set(k * 1.2, k * 1.5, k * 1.2); return "#3c6a37"; }); }
+  // ---- the roads: the coastal road, the ramps, the overpass and the store's boulevard
+  for (const R of LAND.roads) landDrawRoad(R, { dash: R.kind === "coast" || R.kind === "front" || R.kind === "over", barrier: "auto" });
+  // ---- the highway over each bridge: one smooth road from embankment to deck to embankment (the old straight pieces are left out there)
+  for (const B of LAND.br) { const pts = [], E = B.hs + B.ramp + 26; for (let u = -E; u <= E; u += 4) { const x = B.x + B.ux * u, z = B.z + B.uz * u, hb = terrainBase0(x, z) + .3; pts.push({ x, z, y: B.deck + .02 + (hb - B.deck) * smooth01(B.hs, B.hs + B.ramp, Math.abs(u)) }); }
+    const R = landRoad(pts, B.w / 2, { fill: false }); LAND.roads.pop(); landDrawRoad(R, { dash: true, barrier: "none" }); }
+  // ---- the bridges
+  for (const B of LAND.br) landBridge(B);
+  for (const B of LAND.xing) landBridge(B);
+  // ---- interchange 115: the roundabouts with a sculpture in each, the overpass, the signs
+  if (LAND.yk?.R1) { const Y = LAND.yk, yR = Y.yR, Ro = Y.Ro;
+    for (const c of [Y.R1, Y.R2]) { const ring = new THREE.Mesh(new THREE.RingGeometry(Ro - 8.5, Ro, 48).rotateX(-Math.PI / 2), LANDM.lam.clone()); ring.material.vertexColors = false; ring.material.color.set("#4a5057"); ring.position.set(c.x, yR + .3, c.z); world.add(ring); landBake(ring);
+      const isl = new THREE.Mesh(new THREE.CylinderGeometry(Ro - 8.5, Ro - 8.2, .6, 40), new THREE.MeshLambertMaterial({ color: "#78a95a" })); isl.position.set(c.x, yR + .35, c.z); world.add(isl); landBake(isl);
+      const Q = [box(.6, .5, .6, "#f1eee6", 0, 0, 0)]; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; Q.push(box(.3, .18, 1.5, "#ffffff", Math.cos(a) * (Ro - 8.6), .3, Math.sin(a) * (Ro - 8.6), { y: -a })); }
+      Q.push(box(2.6, 9, 2.6, "#f08a24", 0, .6, 0), box(4.2, 1.2, 4.2, "#2d6b45", 0, 9.6, 0), cyl(0, 2.8, 2.6, 4, "#2d6b45", 0, 10.8, 0, { y: Math.PI / 4 }));
+      landBake(solid(Q, c.x, c.z, 0, null, yR + .3)); }
+    landBridge({ x: (Y.R1.x + Y.R2.x) / 2, z: (Y.R1.z + Y.R2.z) / 2, ux: Y.nx, uz: Y.nz, hs: 52 - Ro, w: 11, deck: yR + .3, design: "over" });
+    const ex = "יציאה 115", fw = Y.Fp(-40, 0), fe = Y.Fp(470, 0);
+    landGantry(fw.x, fw.z, Y.ux, Y.uz, 12, [[[["סבבהום", "↗"], ["עולם הבית והרהיטים", "", 1]], { tab: ex, w: 9.5, h: 4.6 }], [[["המגדלור", "↑"], ["חוף המזרח", "", 1]], { w: 8.5, h: 4.6 }]]);
+    landGantry(fe.x, fe.z, -Y.ux, -Y.uz, 12, [[[["סבבהום", "↖"], ["עולם הבית והרהיטים", "", 1]], { tab: ex, w: 9.5, h: 4.6 }], [[["צ׳אחלאבוטה", "↑"], ["הבירה", "", 1]], { w: 10.5, h: 4.6 }]]);
+    const gw = Y.Fp(128, 17.5), ge = Y.Fp(332, -17.5); landPostSign(gw.x, gw.z, Math.atan2(-Y.ux, -Y.uz), [["115", "↗"]], { tab: null }); landPostSign(ge.x, ge.z, Math.atan2(Y.ux, Y.uz), [["115", "↖"]], { tab: null });
+    // a sign at each roundabout pointing the way
+    const r1s = Y.Fp(Y.J - 30, 52 + Ro + 6); landPostSign(r1s.x, r1s.z, Math.atan2(Y.ux, Y.uz), [["סבבהום ←"]], {});
+    // ---- סבבהום's grounds: a boulevard of trees, a tall pylon sign, a bus stop, a service road around the back with a loading dock, and planted slopes
+    const top = HT_U.uMound.value.z, Wt = Y.W, Q = [], tr = [], ol = [];
+    const svc = [Wt(-58, 46), Wt(-62, 0), Wt(-62, -60), Wt(-50, -104), Wt(0, -110), Wt(50, -104), Wt(62, -60), Wt(62, 0), Wt(58, 46)].map(p => ({ ...p })); const sv = landSpline(svc, 4); sv.forEach(p => p.y = terrainH(p.x, p.z) + .32); landDrawRoad(landRoad(sv, 3.5, { fill: false }), { dash: false, barrier: "none" }); LAND.roads.pop();
+    const lp = [Wt(-14, -97), Wt(-3, -97), Wt(8, -97)]; lp.forEach(p => landBake(solid([box(2.6, 3.4, 10, "#f4f2ec", 0, 0, 0), box(2.5, 2.4, 3, "#2d6b45", 0, 0, 5.8)], p.x, p.z, Y.ry, null, top + .3)));
+    landBake(solid([box(24, 1.3, 6, "#c9c5bb", 0, 0, 0), box(26, .3, 7, "#8f969c", 0, 1.3, 0)], Wt(0, -91).x, Wt(0, -91).z, Y.ry, null, top + .2));
+    const py = Wt(-66, 52); landBake(solid([box(3.6, 16, 1.6, "#2d6b45", 0, 0, 0), box(4.2, 4.4, 1.9, "#f08a24", 0, 11, 0), box(4.6, .6, 2.1, "#1f4d33", 0, 16, 0)], py.x, py.z, Y.ry + Math.PI, null, top + .2));
+    const pyS = sign("סבבהום", 3.8, 1.6, { bg: "#f08a24", fg: "#ffffff", font: "900" }); pyS.position.set(py.x - Math.sin(Y.ry) * .97, top + 13.5, py.z - Math.cos(Y.ry) * .97); pyS.rotation.y = Y.ry + Math.PI; world.add(pyS); landBake(pyS);
+    const bs = Wt(-70, 30); landBake(solid([box(6, .2, 2.4, "#c9c5bb", 0, 0, 0), box(5.6, 2.6, .1, "%#bfe3f2", 0, .2, -1), box(5.8, .15, 2.2, "#2f7fa8", 0, 2.8, -.1), box(.15, 2.6, .15, "#5b6670", -2.8, .2, -1), box(.15, 2.6, .15, "#5b6670", 2.8, .2, -1)], bs.x, bs.z, Y.ry + Math.PI / 2, null, top + .2));
+    // trees along the boulevard and around the edge of the hilltop, olive groves on the slopes
+    const fr = LAND.roads.find(r => r.kind === "front"); if (fr) fr.pts.forEach((p, i) => { if (i % 3) return; const f = landFrame(fr.pts, i); for (const sd of [-1, 1]) { const x = p.x + f.nx * sd * 8.5, z = p.z + f.nz * sd * 8.5; tr.push([x, z, terrainH(x, z) - landGl(x, z)]); } });
+    for (let k = 0; k < 40; k++) { const a = k / 40 * Math.PI * 2, x = LAND_YK.x + Math.cos(a) * 112, z = LAND_YK.z + Math.sin(a) * 112; if (!landBlock(x, z) && !onHighway(x, z)) tr.push([x, z, 0]); }
+    for (let k = 0; k < 260; k++) { const a = rng2() * Math.PI * 2, r = 125 + rng2() * 95, x = LAND_YK.x + Math.cos(a) * r, z = LAND_YK.z + Math.sin(a) * r; if (!landBlock(x, z) && !onHighway(x, z) && Math.floor(r / 9) % 2 === 0) ol.push([x, z]); }
+    instanced(PRE.tree, tr, ([x, z, dy], o) => { o.position.set(x, dy, z); o.scale.setScalar(.85); });
+    instanced(PRE.olive, ol, ([x, z], o) => { o.position.set(x, .1, z); o.scale.setScalar(.8); });
+  }
+  window.__PV = { rivers: LAND.rivers.map(R => ({ id: R.id, pts: R.pts.map((p, i) => [Math.round(p.x), Math.round(p.z), +R.wl[i].toFixed(1), +R.hw[i].toFixed(1)]) })), br: LAND.br.map(B => ({ x: B.x, z: B.z, deck: B.deck, hs: B.hs, design: B.design, road: B.road, ux: B.ux, uz: B.uz })), xing: LAND.xing.map(B => ({ x: B.x, z: B.z, deck: B.deck, hs: B.hs, design: B.design, ux: B.ux, uz: B.uz })), yk: LAND.yk ? { R1: LAND.yk.R1, R2: LAND.yk.R2, yR: LAND.yk.yR, top: HT_U.uMound.value.z, gW: LAND.yk.Fp(-40, 0), gE: LAND.yk.Fp(470, 0), gy: terrainH(LAND.yk.Fp(-40, 0).x, LAND.yk.Fp(-40, 0).z), J: LAND.yk.Fp(LAND.yk.J, 0), ux: LAND.yk.ux, uz: LAND.yk.uz } : null, coast: (LAND.roads.find(r => r.kind === "coast")?.pts || []).filter((_, i) => i % 6 === 0).map(p => [Math.round(p.x), Math.round(p.z)]), s: S.s };
+}
+
+// the coast where a river meets the sea: the beach is cut by the river's mouth (an estuary), so the river runs into the sea and not into the sand
+function landInletK(t, k) {
+  if (k < .88 || k > 1.06 || !LAND.mouths) return k;
+  // along each ray from the island's middle: where the ray meets the river's water (plus a 4 m bank), the beach stops there; so the mouth has straight banks that follow the river exactly
+  for (const M of LAND.mouths) { let dt = Math.abs(t - M.t); if (dt > Math.PI) dt = Math.PI * 2 - dt; if (dt > M.d * 1.6) continue; const R = LAND.rivers.find(r => r.id === M.id);
+    for (let kk = .845; kk < k; kk += .003) { const p = shorePt(t, S.s, kk), q = landNear(R, p.x, p.z); if (q && q.d < q.hw + 4) return kk; } }
+  return k;
+}
+
 function buildWorld() {
   BUILD_NO++; clearWorld(); layout(); ACH_IDX = null; QUAL.t0 = performance.now();
   // how far the map can be moved: the island, the palm island and the statues off the coast
   { const B = S.bound = { x0: -RX0 * S.s * 1.05, x1: RX0 * S.s * 1.05, z0: -RZ0 * S.s * 1.05, z1: RZ0 * S.s * 1.05 }, add = (x, z) => { B.x0 = Math.min(B.x0, x - 40); B.x1 = Math.max(B.x1, x + 40); B.z0 = Math.min(B.z0, z - 40); B.z1 = Math.max(B.z1, z + 40); };
     for (const poly of PALM.geo?.polys || []) for (const q of poly) add(q.x, q.z);
     for (const pr of S.projects || []) if (pr.params?.island && pr.x != null) add(pr.x, pr.z); }
-  buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildPalm(); buildNature();
+  buildTerrain(); buildCities(); buildCivic(); buildPublic(); buildCoast(); buildPalm(); buildNature(); landBuild();
   lastZoom = -1;
   const km2 = Math.PI * RX0 * RZ0 * S.s * S.s * .81 / 1e6;
   $("hudSub").textContent = `${fmtN(S.total)} תושבים · ${km2.toLocaleString("he-IL", { maximumFractionDigits: 1 })} קמ״ר`;
@@ -7259,6 +7676,21 @@ function autoGraph() {
   if (PALM.geo) { const g = PALM.geo, jn = [...new Set(g.fronds.map(f => f.b.u - 6.6))].sort((p, q) => p - q), trunk = [g.gate, ...jn.map(u => g.W(u, 0)), g.W(PALM_HOTEL_U, 0)];
     for (let k = 1; k < trunk.length; k++) link(id(trunk[k - 1]), id(trunk[k]));
     for (const f of g.fronds) link(id(g.W(f.b.u - 6.6, 0)), id(f.at(f.L, 0))); }
+  // interchange 115: the ramps one way, the roundabouts one way round (counterclockwise, as you drive on the right), the overpass and סבבהום's boulevard both ways, and into the car park
+  const Y = LAND.yk, M = Y?.rmp; if (M?.fr) { const one = (a, b) => { if (a === b) return; const d = Math.hypot(N[a].x - N[b].x, N[a].z - N[b].z), l = E.get(a) || E.set(a, []).get(a); if (!l.some(e => e[0] === b)) l.push([b, d]); };
+    const path = (pts, both) => { let prev = null, first = null; pts.forEach((p, i) => { if (i % 3 && i !== pts.length - 1) return; const q = id(p); if (first == null) first = q; if (prev != null && prev !== q) (both ? link : one)(prev, q); prev = q; }); return [first, prev]; };
+    const ring = c => { const r = Y.Ro - 4.3, ids = []; for (let k = 0; k < 16; k++) { const a = -k / 16 * Math.PI * 2; ids.push(id({ x: c.x + Math.cos(a) * r, z: c.z + Math.sin(a) * r })); } ids.forEach((q, k) => one(q, ids[(k + 1) % 16])); return ids; };
+    const near = (ids, p) => ids.reduce((m, q) => Math.hypot(N[q].x - p.x, N[q].z - p.z) < Math.hypot(N[m].x - p.x, N[m].z - p.z) ? q : m);
+    const split = p => { let best = null; for (const [i, l] of E) for (const [j] of l) { if (j < i) continue; const A = N[i], B = N[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1, k = ((p.x - A.x) * dx + (p.z - A.z) * dz) / L2; if (k <= 0 || k >= 1) continue; const d = Math.hypot(A.x + dx * k - p.x, A.z + dz * k - p.z); if (d < 10 && (!best || d < best.d)) best = { i, j, d, q: { x: A.x + dx * k, z: A.z + dz * k } }; }
+      if (!best) return null; const q = id(best.q), drop = (a, b) => { const l = E.get(a), k = l ? l.findIndex(e => e[0] === b) : -1; if (k >= 0) l.splice(k, 1); }; drop(best.i, best.j); drop(best.j, best.i); link(best.i, q); link(q, best.j); return q; };
+    const r1 = ring(Y.R1), r2 = ring(Y.R2), h10 = split(Y.Fp(10, 0)), h450 = split(Y.Fp(450, 0));
+    if (h10 != null && h450 != null) {
+      let [a, b] = path(M.A); one(h10, a); one(b, near(r1, N[b]));
+      [a, b] = path(M.B); one(near(r1, N[a]), a); one(b, h450);
+      [a, b] = path(M.C); one(h450, a); one(b, near(r2, N[b]));
+      [a, b] = path(M.D); one(near(r2, N[a]), a); one(b, h10);
+      [a, b] = path(M.ov, true); link(near(r2, N[a]), a); link(b, near(r1, N[b]));
+      [a, b] = path(M.fr, true); link(b, near(r1, N[b])); link(a, id(Y.W(0, 46))); } }
   AUTO.key = key; return AUTO.G = { N, E };
 }
 // the shortest way along the roads from a to b: on to the nearest road at both ends, Dijkstra between, and the lanes, roundabouts and turns like the traffic
@@ -7341,7 +7773,7 @@ function driveStep(dt) {
   const inB = (x, z, b) => x > b[0] - r && x < b[2] + r && z > b[1] - r && z < b[3] + r, dist = (x, z, b) => Math.hypot(x - Math.max(b[0], Math.min(x, b[2])), z - Math.max(b[1], Math.min(z, b[3])));
   const hit = (!WALK.auto && WALK.boxes.some(b => inB(nx, nz, b) && dist(nx, nz, b) < dist(c.x, c.z, b) - 1e-4)) || !(onGrass(nx, nz, S.s, .01) || onPalm(nx, nz) || onHighway(nx, nz) || railWalk(nx, nz));   // (the autopilot keeps to its route: it only brushes past a corner of a house when pulling out)
   if (hit) c.v *= -.25; else { c.x = nx; c.z = nz; }
-  const C = CARS[WALK.h.cm], gy = groundAt(c.x, c.z);
+  const C = CARS[WALK.h.cm], gy = groundAt(c.x, c.z) + landDeckUp(c.x, c.z, c.head);
   c.mv.set(c.x, WALK.cockpit && !C.bike ? gy - 100 : gy, c.z, c.head);   // from the driver's seat the car's own body is out of the way
   if (C.bike) { WALK.fig.position.set(c.x - Math.sin(c.head) * .3, gy + .45, c.z - Math.cos(c.head) * .3); WALK.fig.rotation.y = c.head; WALK.fig.visible = !WALK.cockpit; }
   WALK.x = c.x; WALK.z = c.z;
@@ -9735,7 +10167,6 @@ const NEWS = {
   hunt: { v: "2026-10-27", ic: "🗺️", t: "חיפוש אוצרות בעיר", sub: "חידה לכל מקום · פרסים למהירים", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 3.2, -.8, .45), b: at(c, 4.4, -.2, .4) }; } },
   tiktok: { v: "2026-10-27", ic: "🎵", t: "מצטרפים גם מטיקטוק", sub: "שולחים קוד בהודעה ומקבלים בית", ok: () => !!S.slots[0]?.city, shot: () => { const c = S.slots[0]; return { a: at(c, 2, .6, .5), b: at(c, 2.8, 1.1, .45) }; } },
   draw6: { v: "2026-10-27", ic: "🎟️", t: "6 פרסים בהגרלה היומית", sub: "וכל יום בית מיוחד אחר: טירה, וילה ועוד", ok: () => S.houses.some(h => h.lot && h.tier === 3), shot: () => { const h = S.houses.find(q => q.lot && q.tier === 3); return { a: at(h, 12, -.5, .32), b: at(h, 16, .4, .28), mark: h }; } },
-  voice: { v: "2026-10-27", ic: "🔊", t: "קריינות בעברית בכל ריל", sub: "בשביל מי שלא רואה טוב, או בכלל ♿", ok: () => !!S.slots[0]?.city, shot: () => ({ a: at(ORIGIN, reelFit() * 1.1, -.4), b: at(S.slots[0], 2.4, .2, .45) }) },
   harbor2: { v: "2026-10-27", ic: "⚓", t: "בניין הנמל וכיכר העולים", sub: "נתיבי סבבה נגמרים בכיכר עם חניון", ok: () => !!termOf("harbor"), shot: () => { const T = termOf("harbor"); return { a: at(T.J, 3.4, -.6, .36), b: at(T.F, 5.5, .3, .32) }; } },
   cityin: { v: "2026-10-27", ic: "🛣️", t: "מהכביש המהיר ישר לתוך העיר", sub: "הרכבים נכנסים ברחובות עד כיכר העיר", ok: () => gateRings().some(R => R.gate), shot: () => { const R = gateRings().find(q => q.wide) || gateRings().find(q => q.gate); return { a: at(R, 3.2, -.6, .38), b: at(R.gate, 4.2, .2, .36) }; } },
   rail: { v: "2026-10-27", ic: "🚡", t: "רכבל לאי הדקל", sub: "עולים בתחנה ונוסעים מעל המים · בצבעי הדגל", ok: () => !!PALM.stations?.length, shot: (t0, d) => { const st = PALM.stations[1], ph = () => palmPhase(simT) || st;   // where the train really is (the reel drives the island's clock)
@@ -9746,7 +10177,13 @@ const NEWS = {
   autopilot: { v: "2026-10-27", ic: "🧭", t: "נהיגה אוטומטית לרכב", sub: `בוחרים יעד במפה והרכב נוסע לבד · שדרוג ב־${fmtN(AUTO.PRICE)} סבבונים`, ok: () => !!founder()?.lot, shot: (t0, d, P) => { const h = founder(), path = roadAhead(h, 70), car = mover(P_["car_" + h.cm], h.cc);
     P.push({ update(el) { const k = clamp01((el - t0) / d), q = path(ease(k)); car.set(q.x, .3, q.z, q.ry); }, dispose() { car.dispose(); } });
     const at_ = el => path(ease(clamp01((el - t0) / d))); return { follow: at_, a: at(path(0), 18, -.4, .45), b: at(path(1), 20, .3, .42), pin: el => ({ ...at_(el), y: 3.6, label: "🧭 נוסע לבד" }) }; } },
-  palmcars: { v: "2026-10-27", ic: "🚙", t: "רכבים נוסעים באי הדקל", sub: "עד קצה כל ענף ועד המלון", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.fronds[2].at(10, 0), 4.5, -.6, .4), b: at(g.fronds[7].at(40, 0), 5.5, .3, .38) }; } }
+  palmcars: { v: "2026-10-27", ic: "🚙", t: "רכבים נוסעים באי הדקל", sub: "עד קצה כל ענף ועד המלון", ok: () => !!PALM.geo, shot: () => { const g = PALM.geo; return { a: at(g.fronds[2].at(10, 0), 4.5, -.6, .4), b: at(g.fronds[7].at(40, 0), 5.5, .3, .38) }; } },
+  island4: { v: "2026-11-04", ic: "⛰️", t: "האי גדל פי 4", sub: "רכס הרים בצפון, ושני נהרות יורדים ממנו לים", ok: () => LAND.rivers.length > 0, shot: () => ({ a: at({ x: -60, z: -150 }, .42, -.35, .5), b: at({ x: -200, z: -620 }, .7, .15, .4) }) },
+  rivers: { v: "2026-11-04", ic: "🏞️", t: "שני נהרות בבקעות", sub: "מהמעיין בהרים, דרך הבקעה ופארק הנהר, עד הים", ok: () => LAND.rivers.length > 0, shot: () => { const P = LAND.rivers[0].pts; return { a: at(P[Math.round(P.length * .12)], 2.2, -.5, .42), b: at(P[Math.round(P.length * .42)], 4.2, .3, .36) }; } },
+  bridges: { v: "2026-11-04", ic: "🌉", t: "על כל נהר גשר אחר", sub: "גשר אבן בקשתות, גשר קשת לבן וגשר כבלים", ok: () => LAND.br.length > 0, shot: () => { const B = LAND.br.find(q => q.design === "stone") || LAND.br[0]; return { a: at(B, 3.6, -.8, .3), b: at(B, 5, .2, .3) }; } },
+  ic115: { v: "2026-11-04", ic: "🔀", t: "מחלף 115 לסבבהום", sub: "נתיבי יציאה, כיכרות, גשר מעל הכביש ושלטים", ok: () => !!LAND.yk?.R1, shot: () => { const Y = LAND.yk; return { a: at(Y.Fp(Y.J, 0), 2.6, -.5, .42), b: at(Y.R1, 5, .3, .36) }; } },
+  mouths: { v: "2026-11-04", ic: "🌊", t: "הנהר נשפך לים", sub: "שוברי גלים, שוניות סלע ושרטונות חול", ok: () => LAND.rivers.length > 0, shot: () => { const R = LAND.rivers[0], P = R.pts, i = Math.max(0, P.findIndex((_, k) => R.k[k] >= 1)); return { a: at(P[Math.max(0, i - 12)], 2.4, -.5, .42), b: at(P[i], 3.6, .3, .36) }; } },
+  coastrd: { v: "2026-11-04", ic: "🛣️", t: "כביש החוף החדש", sub: "מהגלריה עד הנמל, מעל שפך הנהר", ok: () => LAND.xing.length > 0, shot: () => { const B = LAND.xing[0]; return { a: at(B, 4, -.5, .3), b: at(B, 2.4, .4, .4) }; } }
 };
 // the newest release is what "what's new" shows by itself (the date of the newest item)
 const NEWS_V0 = "2026-10-12", newsVer = k => NEWS[k]?.v || NEWS_V0, SITE_VERSION = Object.keys(NEWS).map(newsVer).sort().at(-1);
@@ -10304,8 +10741,7 @@ function doorProp(D, shotOf) {
 function reelFrame(el, dt) {
   const s = REEL.shots.find(q => el < q.t0 + q.d) || REEL.shots.at(-1), k = ease(clamp01((el - s.t0) / s.d)); REEL.vt = el;
   if (s.stage) { if (s !== REEL.shot) { REEL.shot = s; ring.visible = pin.visible = false; } stageFrame(s, el, dt); reelComposite(el, s, s.stage.obj.canvas); return; }
-  if (s.inside) { if (s !== REEL.shot) { REEL.shot = s; ring.visible = pin.visible = false; } simT += dt; insideFrame(s, k); reelComposite(el, s);
-    if (s.fromDoor) { const f = 1 - clamp01((el - s.t0) / .45); if (f > 0) { REEL.cx.fillStyle = `rgba(255,246,228,${f})`; REEL.cx.fillRect(0, 0, RW, RH); } } return; }
+  if (s.inside) { if (s !== REEL.shot) { REEL.shot = s; ring.visible = pin.visible = false; } simT += dt; insideFrame(s, k); reelComposite(el, s, null, s.fromDoor ? 1 - clamp01((el - s.t0) / .45) : 0); return; }
   if (s !== REEL.shot) {
     REEL.shot = s;
     if (s.build != null && s.build !== S.total) buildSubset(s.build);
@@ -10317,8 +10753,7 @@ function reelFrame(el, dt) {
   const h = L(s.h[0], s.h[1]); if (Math.abs(h - timeMode.h) > .02) { timeMode = { live: false, h }; applyTime(); scene.fog.color.copy(scene.background); }
   animate(dt);
   renderWorld(reelCam, reelCam.userData.pivot || controls.target, true);
-  reelComposite(el, s);
-  if (s.door) { const f = clamp01((k - .82) / .18); if (f > 0) { REEL.cx.fillStyle = `rgba(255,246,228,${f})`; REEL.cx.fillRect(0, 0, RW, RH); } }
+  reelComposite(el, s, null, s.door ? clamp01((k - .82) / .18) : 0);
 }
 
 async function pickEncoder() {
@@ -10371,7 +10806,7 @@ const VOICES = { Kore: "קורה · אישה", Leda: "לדה · אישה", Aoede
 const pref = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const setPref = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 // mode: "rec" = you record the narration yourself, "tts" = automatic Google voice (needs a key in Supabase), "off"
-const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), mode: pref("sababa_voice_mode3", "tts") };   // on by default: the reels are read aloud, for those who can't see them
+const VOICE_CFG = { voice: pref("sababa_voice", "Kore"), mode: "off" };   // the narration is switched off: the reels come out with no voice (the code stays, should it come back)
 // what the narrator says: the caption without emojis, handles read as words, "תושב/ת" read as "תושב"
 const spoken = s => (s.say ?? [s.cap, s.sub].filter(Boolean).join(". ")).replaceAll(COIN, " סבבונים")
   .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{200E}\u{200F}]/gu, "").replace(/@([\w.]+)/g, (m, u) => u.replace(/[._]+/g, " "))
@@ -10418,7 +10853,7 @@ const VOICE_ERR = { nocredit: "נגמרה היתרה בחשבון של Gemini. �
 // fetch all lines, stretch shots so every sentence fits, then mix one soundtrack
 async function prepareVoice(shots, auth, clips) {
   if (!clips) {
-    const lines = shots.map(spoken), dec = new OfflineAudioContext(1, 48000, 48000);
+    const lines = shots.map((q, i) => i && shots[i - 1].cap === q.cap && (shots[i - 1].sub || "") === (q.sub || "") ? "" : spoken(q)), dec = new OfflineAudioContext(1, 48000, 48000);
     $("recT").textContent = "מקליט דיבוב…";
     // all the lines in one request (google's free tier allows only a few a day), one per line, then cut back into the lines
     const idx = lines.map((l, i) => l ? i : -1).filter(i => i >= 0), text = idx.map(i => /[.!?]$/.test(lines[i]) ? lines[i] : lines[i] + ".").join("\n");
@@ -10573,9 +11008,10 @@ function wrapText(x, text, maxW) {
   if (cur) lines.push(cur); return lines.slice(0, 3);
 }
 const pv = new THREE.Vector3();
-function reelComposite(el, s, src) {
+function reelComposite(el, s, src, flash = 0) {
   const x = REEL.cx;
   x.drawImage(src || renderer.domElement, 0, 0, RW, RH);
+  if (flash > 0) { x.fillStyle = `rgba(255,246,228,${flash})`; x.fillRect(0, 0, RW, RH); }   // the light through the door: under the captions, so they stay readable across the cut
   // gentle vignettes so text reads on any background
   let g = x.createLinearGradient(0, 0, 0, 380); g.addColorStop(0, "rgba(0,0,0,.55)"); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(0, 0, RW, 380);
   g = x.createLinearGradient(0, RH - 760, 0, RH); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,.6)"); x.fillStyle = g; x.fillRect(0, RH - 760, RW, 760);
@@ -10588,7 +11024,9 @@ function reelComposite(el, s, src) {
   if (REEL.flag) { x.save(); x.shadowColor = "rgba(0,0,0,.4)"; x.shadowBlur = 16; x.drawImage(REEL.flag, RW - 70 - 120, 110, 120, 80); x.restore(); }
   x.font = "800 50px Heebo, Arial, sans-serif"; x.fillText("רפובליקת סבבה", RW - 220, 150);
   x.font = "500 32px Heebo, Arial, sans-serif"; x.globalAlpha = .85; x.fillText(`יום ${fmtN(dayNo())} · ${fmtN(S.total)} תושבים`, RW - 220, 196); x.globalAlpha = 1;
-  const into = el - s.t0, left = s.t0 + s.d - el, a = clamp01(Math.min(into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
+  // the same caption over two shots in a row (the door, then inside the building): it stays on screen across the cut, instead of fading out and popping in again
+  const si = REEL.shots.indexOf(s), same = q => q && !q.stage === !s.stage && q.cap === s.cap && (q.sub || "") === (s.sub || ""), cont = same(REEL.shots[si - 1]), more = same(REEL.shots[si + 1]);
+  const into = cont ? 9 : el - s.t0, left = more ? 9 : s.t0 + s.d - el, a = clamp01(Math.min(into / .35, left / .3)), lift = (1 - Math.min(1, into / .35)) * 40;
   // a pin over the house in focus
   // ...or over the ship or the car being followed
   const pn = s.mark?.lot ? { x: s.mark.x, y: LAWN + (s.mark.tier === 1 ? 7 : 10), z: s.mark.z, label: "@" + nick(s.mark.u) } : s.pin ? s.pin(el) : null;
@@ -10675,12 +11113,14 @@ GO.studio = () => {
     () => { wireVoice(); $("dBody").querySelectorAll("[data-why]").forEach(b => b.onclick = () => toast(b.dataset.why, 5000)); $("adminOut").onclick = () => { ADMIN = false; try { localStorage.removeItem("sababa_admin"); } catch {} close(); toast("יצאת ממצב מנהל"); }; }, sub());
 };
 function voiceHtml() {
+  return "";   // (narration removed from the studio)
   const M = { rec: "🎙️ הקלטה בקול שלי", tts: "🤖 קול אוטומטי (חינם, Gemini)", off: "🔇 בלי קריינות" };
   return `<div class="sec">🎙️ קריינות בעברית</div><div class="list"><div class="li"><span class="ic">🎙️</span><span class="tx"><b>קריינות לכתוביות</b><small>${VOICE_CFG.mode === "rec" ? "לפני הצילום תקליטו כל כתובית בקול שלכם" : VOICE_CFG.mode === "tts" ? "קול עברי אוטומטי מקריא כל כתובית, בשביל מי שלא רואה" : "הריל ייצא בלי קול"}</small></span>
     <select id="vMode">${Object.entries(M).filter(([k]) => k === "off" || (k === "tts" && ADMIN)).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.mode ? "selected" : ""}>${n}</option>`).join("")}</select></div>
     ${VOICE_CFG.mode === "tts" ? `<div class="li"><span class="ic">🗣️</span><span class="tx"><b>הקול</b></span><select id="vSel">${Object.entries(VOICES).map(([k, n]) => `<option value="${k}" ${k === VOICE_CFG.voice ? "selected" : ""}>${n}</option>`).join("")}</select></div>` : ""}</div>`;
 }
 function wireVoice() {
+  if (!$("vMode")) return;
   $("vMode").onchange = e => { VOICE_CFG.mode = e.target.value; setPref("sababa_voice_mode3", e.target.value); stack.pop(); GO.studio(); };
   if ($("vSel")) $("vSel").onchange = e => { VOICE_CFG.voice = e.target.value; setPref("sababa_voice", e.target.value); };
 }
