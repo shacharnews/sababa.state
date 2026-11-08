@@ -3338,7 +3338,7 @@ const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uK: { value: 24 }, uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
 function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
@@ -3383,15 +3383,16 @@ float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
-  float dm = 1e9; for (int i = 0; i < 16; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
+  float dm = 1e9; for (int i = 0; i < uK; i++) { if (i >= 16) break; vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   { vec2 d = p - uNav.xy; vec2 l = vec2(d.x * uNav.z - d.y * uNav.w, d.x * uNav.w + d.y * uNav.z); dm = min(dm, length(max(abs(l) - vec2(490., 175.), vec2(0.)))); }
   { vec2 d = p - uAir.xy; vec2 l = vec2(d.x * uAir.z - d.y * uAir.w, d.x * uAir.w + d.y * uAir.z); dm = min(dm, length(max(abs(l) - vec2(1720., 340.), vec2(0.)))); }
-  float f = wsm0(20., 200., dm); if (f <= 0.) return landBr(p, landD(p));
+  float f = wsm0(20., 200., dm), hb = landD(p); if (f > 0.) {
   float n = .5 + .5 * (.55 * sin(.0042 * p.x + .3) * cos(.0037 * p.y + 1.2) + .3 * sin(.0091 * p.x - .0063 * p.y + 2.) + .15 * sin(.019 * p.x + .014 * p.y + .7));
   float r = 1. - abs(sin(.0064 * p.x - .0049 * p.y + .9));
   float RN = wsm0(-.5, -.66, q.y), RS = wsm0(.44, .6, q.y), rg = pow(max(0., 1. - abs(sin(.0016 * p.x + .0009 * p.y + .4))), 3.), dn = .5 + .5 * sin(.011 * p.x + .004 * p.y) * cos(.006 * p.x - .009 * p.y);
   float reg = RN * (30. + 170. * pow(n, 1.3) * (.45 + .55 * r)) + RS * (22. + 22. * n + 8. * dn + 200. * rg * (.55 + .45 * n));
-  return landBr(p, c * f * (${HT_PEAK}. * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r) + landLift(p, atan(q.y, q.x), length(q)) + reg) + landD(p));
+  hb += c * f * (${HT_PEAK}. * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r) + landLift(p, atan(q.y, q.x), length(q)) + reg); }
+  return landBr(p, hb);
 }
 const int WNS = ${SLOTS.length}; const vec2 WSL[WNS] = vec2[](${SLOTS.map(q => `vec2(${f6(q.x)}, ${f6(q.z)})`).join(", ")});
 float wsm(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
@@ -3403,9 +3404,10 @@ float warpA0(vec2 p) { float c2 = ${f6(WRP.A2 * WRP.k2)} * cos(${WRP.k2} * (p.x 
   float dxz = ${f6(WRP.A1 * WRP.k1)} * cos(${WRP.k1} * p.y + 1.3) + c2, dzx = ${f6(WRP.A1 * WRP.k1b)} * cos(${WRP.k1b} * p.x + .7) + c2b; return atan(dzx - dxz, 2. + c2 - c2b); }
 vec4 warpWorld(vec4 wp, mat4 M) {
   if (uWarp < .5) return wp;
-  if (max(length(M[0].xyz), length(M[2].xyz)) > 3. || warpv > .5) { if (warpv < 1.5) wp.y += terrainH(wp.xz); wp.xz += warpMask(wp.xz) * warpD0(wp.xz); return wp; }
-  vec2 o = M[3].xz, d = wp.xz - o; float m = warpMask(o), th = m * warpA0(o), c = cos(th), s = sin(th);
-  wp.y += terrainH(o); wp.xz = o + m * warpD0(o) + vec2(d.x * c - d.y * s, d.x * s + d.y * c); return wp;
+  // one call of the land height per vertex (big meshes bend point by point, small objects by their origin)
+  bool pt = max(length(M[0].xyz), length(M[2].xyz)) > 3. || warpv > .5; vec2 o = pt ? wp.xz : M[3].xz, d = wp.xz - o; float m = warpMask(o), th = pt ? 0. : m * warpA0(o), c = cos(th), s = sin(th);
+  if (!pt || warpv < 1.5) wp.y += terrainH(o);
+  wp.xz = o + m * warpD0(o) + vec2(d.x * c - d.y * s, d.x * s + d.y * c); return wp;
 }`;
 const WARP_PROJ = `vec4 mvPosition = vec4( transformed, 1.0 );
 mat4 warpM = modelMatrix;
@@ -3421,7 +3423,7 @@ const WARP_WPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined (
 function warpMat(m) {
   if (!m || m.userData.warpOk || m.isShaderMaterial || m.isSpriteMaterial || m.isRawShaderMaterial) return; m.userData.warpOk = true;
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
-  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
+  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uK = HT_U.uK; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + warpGLSL()).replace("#include <project_vertex>", WARP_PROJ).replace("#include <worldpos_vertex>", WARP_WPOS); };
   m.customProgramCacheKey = () => key.call(m) + "|warp"; m.needsUpdate = true;
 }
@@ -4458,7 +4460,10 @@ function buildHills() {
   terrainUpdate();
   const C = Math.max(7, 7 * S.s / 3.6), X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
   // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
-  const HW = [...highwaySegs(), ...extraRoads()], roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
+  // only the roads near a point are measured (beyond 20 m the answer is the same): a grid of 200 m cells, each with the roads that pass near it
+  const HW0 = [...highwaySegs(), ...extraRoads()], HWG = new Map(), HWC = 200;
+  for (const sg of HW0) { const [a, b, c, d, w] = sg, o = w / 2 + 20; for (let gx = Math.floor((Math.min(a, c) - o) / HWC); gx <= Math.floor((Math.max(a, c) + o) / HWC); gx++) for (let gz = Math.floor((Math.min(b, d) - o) / HWC); gz <= Math.floor((Math.max(b, d) + o) / HWC); gz++) { const k = gx * 100003 + gz; let L = HWG.get(k); if (!L) HWG.set(k, L = []); L.push(sg); } }
+  const roadDist = (x, z) => { let m = 1e9; const HW = HWG.get(Math.floor(x / HWC) * 100003 + Math.floor(z / HWC)); if (!HW) return m; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : h < 0 ? h : 0; }
   const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
   // a town's river bed: every cell along it is in the mesh (the flat ground and the sand have a hole there)
@@ -9092,7 +9097,7 @@ function landLift(x, z, t, d) {
   const rr = 1 - Math.abs(.62 * n1 + .38 * n2), det = .5 + .5 * (.6 * n3 + .4 * n4), pv = .35 + .65 * (.5 + .5 * Math.sin(t * 5.3 + .9)) * (.6 + .4 * Math.sin(t * 11.7 + 2.2));
   return up + Math.pow(win * rad, 1.4) * sad * (35 + 290 * pv * rr * rr + 25 * det);
 }
-const landLiftGLSL = `uniform vec4 uBr[24]; uniform vec4 uBr2[24]; uniform vec4 uBr3[24]; uniform sampler2D uLand; uniform vec4 uLandB;
+const landLiftGLSL = `uniform int uK; uniform vec4 uBr[24]; uniform vec4 uBr2[24]; uniform vec4 uBr3[24]; uniform sampler2D uLand; uniform vec4 uLandB;
 float landD(vec2 p) { if (uLandB.z <= 0.) return 0.; vec2 uv = ((p - uLandB.xy) / uLandB.zw + .5) / ${LAND_N}.; if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return 0.; return texture2D(uLand, uv).r; }
 float landLift(vec2 p, float t, float d) {
   float dn = d / (${GRASS} * wshore(t)), up = 3.5 + 5. * wsm0(.35, .75, dn);
@@ -9103,7 +9108,7 @@ float landLift(vec2 p, float t, float d) {
   return up + pow(win * rad, 1.4) * sad * (35. + 290. * pv * rr * rr + 25. * det);
 }
 float landBr(vec2 p, float h) {
-  for (int i = 0; i < 24; i++) { vec4 a = uBr[i], b = uBr2[i], c = uBr3[i]; if (b.x <= 0.) continue; vec2 d = p - a.xy; float uu = abs(dot(d, a.zw)), vv = abs(d.x * a.w - d.y * a.z); if (uu > b.y + b.z + 1. || vv > b.x + c.y || (c.z > .5 && uu < b.y - 1.)) continue;
+  for (int i = 0; i < uK; i++) { vec4 a = uBr[i], b = uBr2[i], c = uBr3[i]; if (b.x <= 0.) continue; vec2 d = p - a.xy; float uu = abs(dot(d, a.zw)), vv = abs(d.x * a.w - d.y * a.z); if (uu > b.y + b.z + 1. || vv > b.x + c.y || (c.z > .5 && uu < b.y - 1.)) continue;
     float top = b.w + c.x * cos(1.5708 * min(1., uu / b.y)), g = mix(top, h, wsm0(b.y, b.y + b.z, uu)), k = 1. - wsm0(b.x, b.x + c.y, vv); h = max(h, mix(h, g, k)); }
   return h;
 }`;
@@ -12966,7 +12971,7 @@ function figureProp(h, from = 0) {
   return { update(el) { f.visible = el >= from; }, dispose() { f.removeFromParent(); f.traverse(o => o.geometry?.dispose()); if (MINE_FIG) MINE_FIG.visible = true; } };
 }
 // routes that stay on the roads: along the lines between the blocks (never through a building)
-function cityBox(slot) { if (slot.townBox) return slot.townBox; const bl = [...slot.blocks.values()]; return { mnX: Math.min(...bl.map(b => b.bx)), mxX: Math.max(...bl.map(b => b.bx)), mnZ: Math.min(...bl.map(b => b.bz)), mxZ: Math.max(...bl.map(b => b.bz)) }; }
+function cityBox(slot) { if (slot.townBox) return slot.townBox; if (slot._cb && slot._cbN === slot.blocks.size && slot._cbM === slot.blocks) return slot._cb; const bl = [...slot.blocks.values()]; slot._cbN = bl.length; slot._cbM = slot.blocks; return slot._cb = { mnX: Math.min(...bl.map(b => b.bx)), mxX: Math.max(...bl.map(b => b.bx)), mnZ: Math.min(...bl.map(b => b.bz)), mxZ: Math.max(...bl.map(b => b.bz)) }; }
 const nearestEdge = (lo, hi, v, f) => { let best = lo, bd = Infinity; for (let e = lo; e <= hi; e++) { const d = Math.abs(f(e) - v); if (d < bd) { bd = d; best = e; } } return best; };
 const frontRoad = h => { const slot = h.slot;
   if (h.lot.palm) { const g = PALM.geo.gate; return { zH: g.z, xV: g.x, stop: { x: g.x, z: g.z } }; }
@@ -13114,7 +13119,7 @@ const NEWS = {
   pier: { v: "2026-11-05", ic: "🌉", t: "גשר עץ לאי הפסל", sub: "מרכז מבקרים, שערי כניסה, גשר של 550 מ׳, והאי גדל עם טיילת וספסלים", ok: () => PIERS.some(Boolean), shot: () => { const Pi = PIERS.find(Boolean); return { a: at(Pi.C, 2.2, -.6, .3), b: at({ x: (Pi.C.x + Pi.sh.x) / 2, z: (Pi.C.z + Pi.sh.z) / 2 }, 2.6, .5, .3) }; } },
   sports: { v: "2026-11-05", ic: "🏟️", t: "קריית הספורט נפתחה", sub: "אצטדיון ל־15,000, אולם ספורט ומגרשי כדורסל · הפנדלים עברו לאצטדיון", ok: () => natOpen("sports"), shot: () => { const [x, z] = spW(0, -40); return { a: { x, z, zoom: 1.6, az: -.6, el: .34 }, b: { x, z, zoom: 3.2, az: .4, el: .3 } }; } },
   sababus: { v: "2026-11-06", ic: "🚌", t: "סבבוס: אוטובוסים חדשים ותחנות מרכזיות", sub: "אוטובוסי אקורדיון בעיר (קווים 1, 2), אוטובוס בין עירוני (קו 405), ותחנה מרכזית בכניסה לכל עיר", ok: () => (S.stations || []).length > 0, shot: () => { const st = S.stations[0]; return { a: { x: st.x, z: st.z, zoom: 4, az: -.6, el: .38 }, b: { x: st.x, z: st.z, zoom: 7, az: .5, el: .3 } }; } },
-  smooth: { v: "2026-11-08", ic: "⚡", t: "האתר מהיר יותר, ומבט על כל האי", sub: "רק מה שעל המסך נבנה לתצוגה · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
+  smooth: { v: "2026-11-08", ic: "⚡", t: "האתר נפתח מהר יותר ולא נתקע, ומבט על כל האי", sub: "הכנת התצוגה עברה לרקע ונעשתה קלה פי ארבעה · רק מה שעל המסך נבנה לתצוגה · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
   oldtown: { v: "2026-11-08", ic: "🌉", t: "נווה זורם נבנתה מחדש: העיר העתיקה על הנהר", sub: "כיכר השוק משני צידי הנהר ומדרחוב על הגשר · גשרי רחוב לרכבים · רחובות קשת וסמטאות · כיכרות קטנות עם ספסלים מול המים · כל תושב באותה כתובת", ok: () => TOWNS.size > 0, shot: () => { const T = [...TOWNS.values()][0]; return { a: { x: T.plan.M.x, z: T.plan.M.z, zoom: 1.4, az: -.5, el: .45 }, b: { x: T.plan.M.x, z: T.plan.M.z, zoom: 3.2, az: .5, el: .35 } }; } },
   capital: { v: "2026-11-07", ic: "🏙️", t: "הבירה גדלה: שדרת הלאום והשכונות החדשות", sub: "מגדל ההגשמה ומנהלת הבינוי על שדרת הלאום · גינות ציבוריות · רשת במזרח ובמערב, ווילות בצפון ובתי אבן בדרום · שלוש ערים על האי: נווה זורם עברה דרומה לאורך הנהר, והעיר השלישית תקום מזרחית לקריה · כל אחת מהשלוש ממשיכה לגדול", ok: () => !!DIST.plan, shot: () => { const R = DIST.rect; return { a: { x: (R.x0 + R.x1) / 2, z: (R.z0 + R.z1) / 2, zoom: 1.2, az: -.6, el: .4 }, b: { x: (R.x0 + R.x1) / 2, z: R.oz0, zoom: 2.4, az: .4, el: .3 } }; } },
   armour: { v: "2026-11-06", ic: "🛡️", t: "בסיס השריון נפתח", sub: "במדבר הדרומי: 72 טנקים, נגמ״שים ומובילי טנקים, ושטח אימונים עם סוללות ירי · רק משרתי יבשה נכנסים", ok: () => natOpen("armour"), shot: () => { const N = NAT.armour; return { a: { x: N.x, z: N.z - 200, zoom: 1.4, az: -.6, el: .38 }, b: { x: N.x, z: N.z, zoom: 3, az: .5, el: .3 } }; } },
@@ -14327,6 +14332,9 @@ async function boot() {
   await loadExtras(); await loadProjects();
   try { await Promise.all([document.fonts.load("800 64px Heebo"), document.fonts.load("700 64px Heebo")]); } catch {}
   buildWorld(); applyTime();
+  // the shaders are prepared in the background (the browser's own threads) before the first picture, so the page never freezes on them
+  $("loadMsg").textContent = "מכינים את התצוגה…"; warpPatch(scene); WARPF.dirty = true;
+  try { if (renderer.compileAsync) await Promise.race([renderer.compileAsync(scene, camera), new Promise(r => setTimeout(r, 25000))]); } catch (e) { console.warn(e); }
   const cap = S.slots[0];
   // straight over the capital (no long flight in from the whole island: on a phone that flight stuttered and could stop half way)
   controls.target.set(cap.x, 0, cap.z); camera.position.copy(VIEW_DIR).multiplyScalar(2000).add(controls.target); setZoom(1.6);
