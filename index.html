@@ -93,9 +93,9 @@ body.night .lbl.st{background:rgba(20,26,36,.85);color:#f1ece0}
 
 /* ---------- drawer ---------- */
 .scrim{position:fixed;inset:0;z-index:9;background:rgba(5,10,20,.25);opacity:0;pointer-events:none;transition:opacity .3s}
-.drawer{position:fixed;z-index:10;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:84vh;display:flex;flex-direction:column;border-radius:28px 28px 0 0;background:var(--bg-strong);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:0 -10px 40px rgba(0,0,0,.25);transform:translateY(102%);transition:transform .38s cubic-bezier(.2,.9,.25,1),background .6s}
+.drawer{position:fixed;z-index:10;left:0;right:0;bottom:0;max-width:640px;margin:0 auto;max-height:84vh;display:flex;flex-direction:column;border-radius:28px 28px 0 0;background:var(--bg-strong);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);box-shadow:none;transform:translateY(102%);transition:transform .38s cubic-bezier(.2,.9,.25,1),background .6s,box-shadow .38s}
 body.open .scrim{opacity:1;pointer-events:auto}
-body.open .drawer{transform:none}
+body.open .drawer{transform:none;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
 .grab{width:40px;height:5px;border-radius:3px;margin:8px auto 0;background:rgba(127,127,127,.35)}
 .dhead{display:flex;align-items:center;gap:8px;padding:8px 18px 10px}
 .dhead h2{flex:1;margin:0;font-size:22px;font-weight:800;letter-spacing:-.4px}
@@ -3338,7 +3338,7 @@ const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 24 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
 function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
@@ -3358,21 +3358,24 @@ function terrainUpdate() {
     v.set(sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 30, sl.z + BPZ(B.mnZ) - BZ / 2 - 30, sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 30, sl.z + BPZ(B.mxZ) + BZ / 2 + 30); });
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
-  let i = open.length; for (const m of S.mallSpots) if (m && i < 16) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
-  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 16) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
-  if (NAT.memorial && i < 16) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
-  if (NAT.sports && i < 16) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
-  if (NAT.kirya && natP("kirya") && i < 16) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
-  if (NAT.sechq && natP("sechq") && i < 16) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
-  if (NAT.north && natP("north") && i < 16) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
-  if (DIST.rect && i < 16) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
-  if (NAT.armour && natP("armour") && i < 16) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
-  if (NAT.yamit && i < 16) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
+  let i = open.length; for (const m of S.mallSpots) if (m && i < 24) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
+  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 24) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
+  if (NAT.memorial && i < 24) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
+  if (NAT.sports && i < 24) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
+  if (NAT.kirya && natP("kirya") && i < 24) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
+  if (NAT.sechq && natP("sechq") && i < 24) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
+  if (NAT.north && natP("north") && i < 24) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
+  if (DIST.rect && i < 24) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
+  if (NAT.armour && natP("armour") && i < 24) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
+  if (NAT.yamit && i < 24) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
+  // the central bus stations, each on level ground with the road to its roundabout
+  try { for (const st of centralStations()) { if (i >= 24) break; const c = Math.cos(st.ry), s2 = Math.sin(st.ry), P = [[-50, -37], [50, -37], [-50, st.town ? 70 : 54], [50, st.town ? 70 : 54]].map(([a, b]) => [st.x + a * c + b * s2, st.z - a * s2 + b * c]);
+    HT_U.uCity.value[i++].set(Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))); } } catch (e) { }
   S.ykSpot = landPinYk(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[24]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
 ${landLiftGLSL}
@@ -3380,7 +3383,7 @@ float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
-  float dm = 1e9; for (int i = 0; i < 16; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
+  float dm = 1e9; for (int i = 0; i < 24; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   { vec2 d = p - uNav.xy; vec2 l = vec2(d.x * uNav.z - d.y * uNav.w, d.x * uNav.w + d.y * uNav.z); dm = min(dm, length(max(abs(l) - vec2(490., 175.), vec2(0.)))); }
   { vec2 d = p - uAir.xy; vec2 l = vec2(d.x * uAir.z - d.y * uAir.w, d.x * uAir.w + d.y * uAir.z); dm = min(dm, length(max(abs(l) - vec2(1720., 340.), vec2(0.)))); }
   float f = wsm0(20., 200., dm); if (f <= 0.) return landBr(p, landD(p));
@@ -3846,6 +3849,16 @@ const BUS_C = SB.IV, CITYBUS_C = "#4fb4dc";   // the paint reads darker than its
 function centralStations() {
   const out = [], segs = highwaySegs();
   const done = new Set(), rings = [...gateRings()].sort((p, q) => (q.wide ? 1 : 0) - (p.wide ? 1 : 0));   // the main entrance first: the wide road from the harbour
+  // a town: its station stands on the line of the avenue, just past the roundabout at the end of it, facing back to the town (a short road joins them)
+  for (const R of rings) { if (!R.sl || !R.gate || done.has(R.sl) || !isTown(R.sl)) continue; const ox = R.gate.ox, oz = R.gate.oz, x = R.x + ox * (R.Ro + 14 + 50), z = R.z + oz * (R.Ro + 14 + 50), ry = Math.atan2(-ox, -oz), c = Math.cos(ry), s2 = Math.sin(ry);
+    const clear = [[-47, -33], [47, -33], [-47, 50], [47, 50], [0, 0]].every(([a, b]) => { const X = x + a * c + b * s2, Z = z - a * s2 + b * c; return onGrass(X, Z, MAX_S, .04) && !natSiteAt(X, Z, 6) && !segs.some(([p, q, c3, d, w]) => { const dx = c3 - p, dz = d - q, kk = Math.max(0, Math.min(1, ((X - p) * dx + (Z - q) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - p - dx * kk, Z - q - dz * kk) < w / 2 + 10; }); });
+    if (clear) { out.push({ x, z, ry, sl: R.sl, ring: R, town: true }); done.add(R.sl); } }
+  // the capital (its planned quarters all round the old city): the station stands beside a highway just past the last quarter, facing the road
+  { const cap = S.slots[0]; if (cap?.city && DIST.rect && !done.has(cap)) for (const [a, b, c, d, w, id] of segs) { if (done.has(cap) || id === "palm" || !inBuilt(a, b, 30)) continue;
+      const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L; let t0 = 0; while (t0 < L && inBuilt(a + ux * t0, b + uz * t0, 30)) t0 += 5;
+      for (let t = t0 + 60; t < Math.min(L - 60, t0 + 500) && !done.has(cap); t += 20) for (const sd of [1, -1]) { const nx = uz * sd, nz = -ux * sd, off = w / 2 + 14 + 50, x = a + ux * t + nx * off, z = b + uz * t + nz * off, ry = Math.atan2(-nx, -nz), c2 = Math.cos(ry), s2 = Math.sin(ry);
+        const clear = !out.some(o => Math.hypot(o.x - x, o.z - z) < 700) && [[-47, -33], [47, -33], [-47, 50], [47, 50], [0, 0], [0, -33]].every(([p2, q2]) => { const X = x + p2 * c2 + q2 * s2, Z = z - p2 * s2 + q2 * c2; return onGrass(X, Z, MAX_S, .04) && !inBuilt(X, Z, 8) && !natSiteAt(X, Z, 6) && !(S.mallSpots || []).some(m => m && Math.hypot(m.x - X, m.z - Z) < 150) && !(S.ykSpot && Math.hypot(S.ykSpot.x - X, S.ykSpot.z - Z) < YK.R1 + 60) && ![...segs, ...extraRoads()].some(([p, q, c3, d3, w3]) => { const dx = c3 - p, dz = d3 - q, kk = Math.max(0, Math.min(1, ((X - p) * dx + (Z - q) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - p - dx * kk, Z - q - dz * kk) < w3 / 2 + 6; }); });
+        if (clear) { out.push({ x, z, ry, sl: cap, ring: null }); done.add(cap); break; } } } }
   for (const R of rings) { if (!R.sl || !R.gate || done.has(R.sl)) continue; const ox = R.gate.ox, oz = R.gate.oz, rx = oz, rz = -ox;
     for (const [sd, ou, sw] of [[1, 40, 46], [-1, 40, 46], [1, 80, 46], [-1, 80, 46], [1, 40, 90], [-1, 40, 90], [1, 120, 70], [-1, 120, 70]]) { const x = R.x + ox * ou + rx * sd * (R.Ro + sw), z = R.z + oz * ou + rz * sd * (R.Ro + sw), ry = Math.atan2(-rx * sd, -rz * sd), c = Math.cos(ry), s2 = Math.sin(ry);
       const clear = [[-47, -33], [47, -33], [-47, 50], [47, 50], [0, 0], [0, -33], [0, 50]].every(([a, b]) => { const X = x + a * c + b * s2, Z = z - a * s2 + b * c; return !inCityBox(X, Z, 4) && !segs.some(([p, q, c, d, w]) => { const dx = c - p, dz = d - q, k = Math.max(0, Math.min(1, ((X - p) * dx + (Z - q) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - p - dx * k, Z - q - dz * k) < w / 2 + 6; }) && !natSiteAt(X, Z, 4) && !distNear(X, Z, 22) && !(S.mallSpots || []).some(m => m && Math.hypot(m.x - X, m.z - Z) < 125) && !(S.ykSpot && Math.hypot(S.ykSpot.x - X, S.ykSpot.z - Z) < 110) && !S.workplaces.some(w => w.x != null && S.wpCfg?.get(w.id)?.x != null && Math.hypot(w.x - X, w.z - Z) < 25); });
@@ -3885,7 +3898,10 @@ function buildCentralStations() {
     placeLabel(`🚌 התחנה המרכזית`, st.x, 14, st.z);
     // from each gate a road goes straight on to the street (the edge of the city, or the highway) and joins it
     { const c = Math.cos(st.ry), s2 = Math.sin(st.ry), Wp = (a, b) => [st.x + a * c + b * s2, st.z - a * s2 + b * c], RQ = [];
-      for (const lx of [-39.5, 39.5]) { const [gx, gz] = Wp(lx, 47); let hit = 0; for (let t = 0; t < 200; t += 1) { const [x, z] = Wp(lx, 47 + t); if (inCityBox(x, z, -2) || onHighway(x, z)) { hit = t; break; } }
+      // a town's station: a road along its front joins its two gates, and goes on to the roundabout at the end of the avenue
+      if (st.town) { const L = st.ring.Ro + 14 + 50 - 54 - st.ring.Ro + 3; const [fx, fz] = Wp(0, 54); RQ.push(part(new THREE.BoxGeometry(86, .08, 8, 22, 1, 2), AS, fx, .34, fz, { y: st.ry }));
+        const [ax, az] = Wp(0, 58 + L / 2); RQ.push(part(new THREE.BoxGeometry(8, .08, L + 2, 2, 1, Math.ceil(L / 4) + 1), AS, ax, .34, az, { y: st.ry })); }
+      else for (const lx of [-39.5, 39.5]) { const [gx, gz] = Wp(lx, 47); let hit = 0; for (let t = 0; t < 200; t += 1) { const [x, z] = Wp(lx, 47 + t); if (inCityBox(x, z, -2) || onHighway(x, z)) { hit = t; break; } }
         if (hit > 1) { const [ex, ez] = Wp(lx, 47 + hit + 2); RQ.push(part(new THREE.BoxGeometry(7, .08, hit + 2, 1, 1, Math.ceil((hit + 2) / 4)), AS, (gx + ex) / 2, .34, (gz + ez) / 2, { y: st.ry })); } }
       if (RQ.length) solid(RQ, 0, 0, 0, null, CURB - .3); }
     // the buses at the platforms: the city buses at the front bays, the intercity coach at the back
@@ -4333,18 +4349,32 @@ function busPick(i) {
 
 /* ---------- builders ---------- */
 const o3 = new THREE.Object3D(), col3 = new THREE.Color();
-function instanced(pf, items, place, { shadow = true, receive = true } = {}) {
-  const make = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length)); m.count = items.length; m.castShadow = shadow; m.receiveShadow = receive; world.add(m); return m; };
-  const m = make(pf.base, MAT), twins = ["glow", "red", "paint", "tint", "glass"].filter(k => pf[k]).map(k => { const t = make(pf[k], BMAT[k]); t.userData.kind = k; return t; });
-  const painted = !!(pf.paint || pf.tint), white = new THREE.Color("#ffffff");
-  items.forEach((it, i) => { o3.position.set(0, 0, 0); o3.rotation.set(0, 0, 0); o3.scale.set(1, 1, 1); let c = place(it, o3);
+// many copies spread over the island are split into tiles of the map, so the ones out of view are not drawn at all (one mesh across the whole island is always drawn)
+let SEA = null;
+const MAP_TILE = 600;
+function tiled(items, xz, fn) {
+  if (items.length < 80) return [fn(items)];
+  const g = new Map(); for (const it of items) { const [x, z] = xz(it), k = Math.floor(x / MAP_TILE) + "," + Math.floor(z / MAP_TILE); (g.get(k) || g.set(k, []).get(k)).push(it); }
+  return [...g.values()].map(fn);
+}
+function instanced(pf, items, place, { shadow = true, receive = true, tile = true } = {}) {
+  const painted = !!(pf.paint || pf.tint), white = new THREE.Color("#ffffff"), rows = [];
+  items.forEach(it => { o3.position.set(0, 0, 0); o3.rotation.set(0, 0, 0); o3.scale.set(1, 1, 1); let c = place(it, o3);
     if (pf.vary) { const hv = Math.abs(Math.sin(o3.position.x * 12.9898 + o3.position.z * 78.233) * 43758.5453) % 1; o3.rotation.y += hv * 6.283; o3.scale.multiplyScalar(.9 + hv * .22);
       if (!c) c = col3.setRGB(.9 + hv * .16, .94 + (1 - hv) * .1, .88 + hv * .1).getHexString().replace(/^/, "#"); }
-    o3.updateMatrix();
-    m.setMatrixAt(i, o3.matrix); m.setColorAt(i, painted ? white : col3.set(c || "#ffffff"));
-    for (const t of twins) { t.setMatrixAt(i, o3.matrix); t.setColorAt(i, t.userData.kind === "paint" || t.userData.kind === "tint" ? col3.set(c || "#ffffff") : white); } });
-  for (const x of [m, ...twins]) if (x.instanceColor) x.instanceColor.needsUpdate = true;
-  m.userData.twins = twins; return m;
+    o3.updateMatrix(); rows.push([o3.matrix.clone(), c, o3.position.x, o3.position.z]); });
+  // copies spread over the map go into one mesh per tile of the map (the bins keep the items' order)
+  const bins = tile && rows.length >= 80 ? tiled(rows, r => [r[2], r[3]], L => L) : [rows];
+  let first = null;
+  for (const L of bins) {
+    const make = (geo, mat) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, L.length)); m.count = L.length; m.castShadow = shadow; m.receiveShadow = receive; world.add(m); return m; };
+    const m = make(pf.base, MAT), twins = ["glow", "red", "paint", "tint", "glass"].filter(k => pf[k]).map(k => { const t = make(pf[k], BMAT[k]); t.userData.kind = k; return t; });
+    L.forEach(([mx, c], i) => { m.setMatrixAt(i, mx); m.setColorAt(i, painted ? white : col3.set(c || "#ffffff"));
+      for (const t of twins) { t.setMatrixAt(i, mx); t.setColorAt(i, t.userData.kind === "paint" || t.userData.kind === "tint" ? col3.set(c || "#ffffff") : white); } });
+    for (const x of [m, ...twins]) if (x.instanceColor) x.instanceColor.needsUpdate = true;
+    m.userData.twins = twins; first ||= m;
+  }
+  return first;
 }
 function solid(parts, x, z, ry = 0, data, y = 0) {
   const pf = prefab(parts, false), grp = new THREE.Group();
@@ -4384,15 +4414,31 @@ function blobShape(k) { const pts = []; for (let i = 0; i < 720; i++) { const t 
 const noHills = g => (g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(2), 1)), g);   // big flat pieces of ground: bent, but the hills mesh does the rising
 // a town's river runs in its own bed below the streets: the flat ground has a hole there, and the hills mesh carries the bed and its banks
 function townHoles(kmax = 1) { const out = []; for (const Lw of LAND.low || []) { const R = LAND.rivers.find(r => r.id === Lw.id); if (!R) continue; const L = [], Rt = [];
-    for (let i = Math.max(0, Lw.i0 - 3); i < R.x.length; i++) { if (R.k[i] > kmax - .04) break; const f = landFrame(R.pts, i), o = R.hw[i] + R.vw[i]; L.push([R.x[i] + f.nx * o, R.z[i] + f.nz * o]); Rt.push([R.x[i] - f.nx * o, R.z[i] - f.nz * o]); }
+    for (let i = Math.max(0, Lw.i0 - 3); i < Math.min(R.x.length, (Lw.i1 ?? 1e9) + 4); i++) { if (R.k[i] > kmax - .04) break; const f = landFrame(R.pts, i), o = R.hw[i] + R.vw[i]; L.push([R.x[i] + f.nx * o, R.z[i] + f.nz * o]); Rt.push([R.x[i] - f.nx * o, R.z[i] - f.nz * o]); }
     if (L.length > 2) out.push([...L, ...Rt.reverse()]); } return out; }
-function flat(k, y, mat, receive = true) { const sh = blobShape(k); for (const H of townHoles(k)) sh.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z)))); const g = noHills(new THREE.ShapeGeometry(sh, 1)); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
+// flat ground in triangles no longer than L metres: the map bends under them (the flat layers lie a few cm apart, so long triangles bent differently show as stripes)
+function refineFlat(g, L = 200) {
+  const src = g.index ? g.toNonIndexed() : g, P = src.attributes.position.array; let T = [];
+  for (let i = 0; i < P.length; i += 9) T.push([[P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]]]);
+  const key = (a, b) => { const A = a.join(","), B = b.join(","); return A < B ? A + "|" + B : B + "|" + A; }, long = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]) > L, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  for (let it = 0; it < 10; it++) { const S2 = new Set(); for (const [a, b, c] of T) { if (long(a, b)) S2.add(key(a, b)); if (long(b, c)) S2.add(key(b, c)); if (long(c, a)) S2.add(key(c, a)); } if (!S2.size) break;
+    const out = []; for (const [a, b, c] of T) { const s0 = S2.has(key(a, b)), s1 = S2.has(key(b, c)), s2 = S2.has(key(c, a));
+      if (!s0 && !s1 && !s2) { out.push([a, b, c]); continue; } const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+      if (s0 && s1 && s2) out.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
+      else if (s0 && s1) out.push([ab, b, bc], [a, ab, bc], [a, bc, c]); else if (s1 && s2) out.push([bc, c, ca], [b, bc, ca], [b, ca, a]); else if (s2 && s0) out.push([ca, a, ab], [c, ca, ab], [c, ab, b]);
+      else if (s0) out.push([a, ab, c], [ab, b, c]); else if (s1) out.push([b, bc, a], [bc, c, a]); else out.push([c, ca, b], [ca, a, b]); }
+    T = out; }
+  const out = new THREE.BufferGeometry(), A = new Float32Array(T.length * 9); T.forEach((t, i) => t.forEach((p, j) => A.set(p, i * 9 + j * 3))); out.setAttribute("position", new THREE.BufferAttribute(A, 3)); out.computeVertexNormals(); return out;
+}
+function flat(k, y, mat, receive = true) { const sh = blobShape(k); for (const H of townHoles(k)) sh.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z)))); const g = noHills(refineFlat(new THREE.ShapeGeometry(sh, 1).rotateX(-Math.PI / 2))); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
 function buildTerrain() {
   terrainUpdate(); landPrep(); distAssign(); townAssign();
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000).rotateX(-Math.PI / 2), WATER); sea.position.y = -3; sea.receiveShadow = true; world.add(sea);
+  // the open sea is the lowest layer: drawn first and never in front of anything (its big squares bend with the map less finely than the shallows over it)
+  const seaMat = WATER.clone(); seaMat.depthWrite = false;
+  const sea = new THREE.Mesh(noHills(new THREE.PlaneGeometry(80000, 80000, 32, 32).rotateX(-Math.PI / 2)), seaMat); sea.renderOrder = -10; sea.position.y = -3; sea.userData.sea = true; SEA = sea; sea.receiveShadow = true; world.add(sea);   // it moves with the view, so its edge is never in sight
   flat(1.12, -2.85, SHALLOW, false);
   const sh1 = blobShape(1); for (const H of townHoles(1)) sh1.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z))));
-  const g = new THREE.ExtrudeGeometry(sh1, { depth: 6, bevelEnabled: false, curveSegments: 1 }); g.rotateX(-Math.PI / 2); g.translate(0, -6, 0); noHills(g);
+  const g = noHills(refineFlat(new THREE.ExtrudeGeometry(sh1, { depth: 6, bevelEnabled: false, curveSegments: 1 }).rotateX(-Math.PI / 2).translate(0, -6, 0)));
   const sand = new THREE.Mesh(g, realism(new THREE.MeshLambertMaterial({ color: "#e6cf98" }), { paving: false })); sand.receiveShadow = true; world.add(sand);
   flat(1.015, -2.6, new THREE.MeshBasicMaterial({ color: "#e9f7fb", transparent: true, opacity: .55 }), false);
   flat(GRASS, .1, realism(new THREE.MeshLambertMaterial({ color: "#8bb36a" }), { paving: false }));
@@ -4404,27 +4450,51 @@ function buildTerrain() {
 const HILL_MAT = realism(new THREE.MeshLambertMaterial({ vertexColors: true }), { paving: false, roofs: false, terrain: true });
 function buildHills() {
   terrainUpdate();
-  const C = Math.max(9, 9.5 * S.s / 3.6), X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
+  const C = Math.max(7, 7 * S.s / 3.6), X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
   // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
   const HW = [...highwaySegs(), ...extraRoads()], roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : h < 0 ? h : 0; }
-  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], idx = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
+  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
   // a town's river bed: every cell along it is in the mesh (the flat ground and the sand have a hole there)
   const TR = (LAND.low || []).map(L => ({ L, R: LAND.rivers.find(r => r.id === L.id) })).filter(t => t.R), CORR = new Uint8Array((nx + 1) * (nz + 1));
-  if (TR.length) for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C; for (const t of TR) { const B = t.R.bb; if (x < B[0] || x > B[2] || z < B[1] || z > B[3]) continue; const q = landNear(t.R, x, z); if (q && q.i >= t.L.i0 - 3 && q.d < q.hw + q.vw + C * 1.5) CORR[j * (nx + 1) + i] = 1; } }
-  const VI = new Int32Array((nx + 1) * (nz + 1)).fill(-1);   // one vertex per grid point, shared by its cells: a quarter of the memory, and smooth light on the slopes (its land colour worked out only there: most of the island is flat and has none)
-  const vtx = (i, j) => { const k = j * (nx + 1) + i; if (VI[k] >= 0) return VI[k]; const h = H[k], x = -X + i * C, z = -Z + j * C;
-    const hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C), hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C), slope = Math.hypot(hx, hz);
-    const pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;   // the edge of a hill takes the color of the flat land around it, so no seam shows
-    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); landColor(c, landGap(x, z), x, z, h, slope); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); return VI[k] = pos.length / 3 - 1; };
+  if (TR.length) for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C; for (const t of TR) { const B = t.R.bb; if (x < B[0] || x > B[2] || z < B[1] || z > B[3]) continue; const q = landNear(t.R, x, z); if (q && q.i >= t.L.i0 - 3 && q.i <= (t.L.i1 ?? 1e9) + 3 && q.d < q.hw + q.vw + C * 1.5) CORR[j * (nx + 1) + i] = 1; } }
+  // below the level of the land only in a river's own channel (and a town's river bed): the banks and the valley stay on the flat ground, so the water and its sand lie as they always did
+  const CHAN = new Uint8Array((nx + 1) * (nz + 1));
+  for (const R of LAND.rivers || []) { const B = R.bb; if (!B) continue; for (let j = Math.max(0, Math.floor((B[1] + Z) / C)); j <= Math.min(nz, Math.ceil((B[3] + Z) / C)); j++) for (let i = Math.max(0, Math.floor((B[0] + X) / C)); i <= Math.min(nx, Math.ceil((B[2] + X) / C)); i++) { const k = j * (nx + 1) + i; if (H[k] >= 0 || CHAN[k]) continue; const q = landNear(R, -X + i * C, -Z + j * C); if (q && q.d < q.hw + 2) CHAN[k] = 1; } }
+  for (let k = 0; k < H.length; k++) if (H[k] < 0 && !CORR[k] && !CHAN[k]) H[k] = 0;
+  // the mesh in square pieces of the map, so the pieces out of view are not drawn; the light on the slopes comes from the land's own slope, so no seam shows between pieces
+  const CH = 40, PIECES = new Map(), piece = (i, j) => { const key = Math.floor(i / CH) * 1000 + Math.floor(j / CH); let P = PIECES.get(key); if (!P) PIECES.set(key, P = { pos: [], col: [], nor: [], idx: [], vi: new Map() }); return P; };   // one vertex per grid point, shared by its cells: a quarter of the memory, and smooth light on the slopes (its land colour worked out only there: most of the island is flat and has none)
+  // along a river through the hills the cells are cut in three each way, their heights taken from the land itself, so the water and its banks meet the hills closely
+  const SD = 3, NEAR = new Uint8Array((nx + 1) * (nz + 1));
+  for (const R of LAND.rivers || []) { const B = R.bb; if (!B) continue; for (let j = Math.max(0, Math.floor((B[1] - 40 + Z) / C)); j <= Math.min(nz, Math.ceil((B[3] + 40 + Z) / C)); j++) for (let i = Math.max(0, Math.floor((B[0] - 40 + X) / C)); i <= Math.min(nx, Math.ceil((B[2] + 40 + X) / C)); i++) { const k = j * (nx + 1) + i; if (NEAR[k] || CORR[k]) continue; const q = landNear(R, -X + i * C, -Z + j * C); if (q && q.d < q.hw + q.vw + C) NEAR[k] = 1; } }
+  const chanAt = (x, z) => (LAND.rivers || []).some(R => { const B = R.bb; if (!B || x < B[0] || x > B[2] || z < B[1] || z > B[3]) return false; const q = landNear(R, x, z); return q && q.d < q.hw + 2; }) || (TR.length && townAt(x, z));
+  const hAt = (x, z) => { const h = terrainH(x, z); return h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : h < 0 && chanAt(x, z) ? h : 0; };
+  const inc = new Uint8Array(nx * nz), sub = new Uint8Array(nx * nz);
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1]; if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * S.s)) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;   // in the south the desert runs right down to the beach (no green rim)
-    const v00 = vtx(i, j), v01 = vtx(i, j + 1), v10 = vtx(i + 1, j), v11 = vtx(i + 1, j + 1); idx.push(v00, v01, v10, v10, v01, v11);
-  }
-  if (!pos.length) return;
-  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
-  g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(pos.length / 3).fill(2), 1));   // bent like the map, but the heights are already in it
-  g.computeVertexNormals(); const m = new THREE.Mesh(g, HILL_MAT); m.receiveShadow = m.castShadow = true; world.add(m);
+    const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1];
+    // in the south the desert runs right down to the beach (no green rim)
+    if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * S.s)) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;
+    inc[j * nx + i] = 1; if (NEAR[j * (nx + 1) + i] || NEAR[j * (nx + 1) + i + 1] || NEAR[(j + 1) * (nx + 1) + i] || NEAR[(j + 1) * (nx + 1) + i + 1]) sub[j * nx + i] = 1; }
+  // a point of the fine grid (fi, fj in thirds of a cell): on the coarse grid its own height; inside a cut cell the land's; on the edge with an uncut cell, the edge's straight line (no crack)
+  const subC = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && sub[j * nx + i];
+  const hF = (fi, fj) => { const i = Math.floor(fi / SD), j = Math.floor(fj / SD), ri = fi - i * SD, rj = fj - j * SD;
+    if (!ri && !rj) return H[j * (nx + 1) + i];
+    if (!rj) { if (!(subC(i, j) && subC(i, j - 1))) return H[j * (nx + 1) + i] + (H[j * (nx + 1) + i + 1] - H[j * (nx + 1) + i]) * ri / SD; }
+    else if (!ri) { if (!(subC(i, j) && subC(i - 1, j))) return H[j * (nx + 1) + i] + (H[(j + 1) * (nx + 1) + i] - H[j * (nx + 1) + i]) * rj / SD; }
+    return hAt(-X + fi * C / SD, -Z + fj * C / SD); };
+  const FW = nx * SD + 1, vtx = (P, fi, fj) => { const k = fj * FW + fi; if (P.vi.has(k)) return P.vi.get(k); const h = hF(fi, fj), x = -X + fi * C / SD, z = -Z + fj * C / SD;
+    let hx, hz; if (fi % SD === 0 && fj % SD === 0) { const i = fi / SD, j = fj / SD; hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C); hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C); }
+    else { const e = C / SD; hx = (hAt(x + e, z) - hAt(x - e, z)) / (2 * e); hz = (hAt(x, z + e) - hAt(x, z - e)) / (2 * e); }
+    const slope = Math.hypot(hx, hz), pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;
+    // the edge of a hill takes the color of the flat land around it, so no seam shows
+    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); landColor(c, landGap(x, z), x, z, h, slope); const nl = Math.hypot(hx, 1, hz); P.pos.push(x, .2 + h, z); P.col.push(c.r, c.g, c.b); P.nor.push(-hx / nl, 1 / nl, -hz / nl); const v = P.pos.length / 3 - 1; P.vi.set(k, v); return v; };
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { if (!inc[j * nx + i]) continue; const P = piece(i, j), n = sub[j * nx + i] ? SD : 1, st = SD / n;
+    for (let v = 0; v < n; v++) for (let u = 0; u < n; u++) { const fi = i * SD + u * st, fj = j * SD + v * st, v00 = vtx(P, fi, fj), v01 = vtx(P, fi, fj + st), v10 = vtx(P, fi + st, fj), v11 = vtx(P, fi + st, fj + st); P.idx.push(v00, v01, v10, v10, v01, v11); } }
+  for (const P of PIECES.values()) { if (!P.idx.length) continue;
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P.pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(P.col, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(P.nor, 3)); g.setIndex(P.idx);
+    // bent like the map, but the heights are already in it
+    g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(P.pos.length / 3).fill(2), 1));
+    const m = new THREE.Mesh(g, HILL_MAT); m.receiveShadow = m.castShadow = true; world.add(m); }
 }
 
 /* ============================ LAYOUT ============================ */
@@ -4536,11 +4606,11 @@ function distRect(cap) {
   return { x0, x1, z0, z1, ox0: x0 - o, ox1: x1 + o, oz0: z0 - on, oz1: z1 + o, ex: 6 * 48, nz: 5 * 64, sz: 5 * 72 };
 }
 // what the district may not be built on: water, the rivers and their banks, the national sites, the malls, סבבהום, the other cities and the ground they grow into, the highways and their roundabouts
-function distBlocked(x, z, m = 0, own = null) {
+function distBlocked(x, z, m = 0, own = null, noRiver = false) {
   if (!onGrass(x, z, MAX_S, .03) || natSiteAt(x, z, 4 + m)) return true;
   if (SLOTS.some((q, k) => k && q.at !== own?.at && Math.hypot(x - q.x, z - q.z) < CITY_REACH + m)) return true;
   if (own && !inTerritory(x, z, own)) return true;   // a town: its own ground
-  if (LAND.on && LAND.rivers?.some(R => { if (x < R.bb[0] - 60 || x > R.bb[2] + 60 || z < R.bb[1] - 60 || z > R.bb[3] + 60) return false; const q = landNear(R, x, z); return q && q.d < q.hw + q.vw + 8 + m; })) return true;
+  if (!noRiver && LAND.on && LAND.rivers?.some(R => { if (x < R.bb[0] - 60 || x > R.bb[2] + 60 || z < R.bb[1] - 60 || z > R.bb[3] + 60) return false; const q = landNear(R, x, z); return q && q.d < q.hw + q.vw + 8 + m; })) return true;
   if (LAND.on && landOnLift(x, z, 6)) return true;
   if ((S.mallSpots || []).some(p => p && Math.hypot(p.x - x, p.z - z) < 118 + m) || (S.ykSpot && Math.hypot(S.ykSpot.x - x, S.ykSpot.z - z) < YK.R1 + 12 + m)) return true;
   if (S.slots.some(sl => sl.city && sl !== S.slots[0] && sl !== own && sl.blocks?.size && inSlotBox(sl, x, z, 20 + m))) return true;
@@ -4615,7 +4685,7 @@ function distPlan(cap) {
 }
 // every street must lead out to the boulevard (the town's inner ring road): a piece cut off by a highway, a river or a station (and its lots) is dropped
 function planConnect(streets, lots, eat, own, cut) {
-  { const drawn = (s, x, z) => s.bridge || (s.zone === "C" ? onGrass(x, z, MAX_S, .02) : !(cut && cut(x, z)) && (!distBlocked(x, z, -4, own) || onHighway(x, z))), nodes = [], par = [], fd = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; }, un = (a, b) => { par[fd(a)] = fd(b); };
+  { const drawn = (s, x, z) => s.bridge || (s.zone === "C" ? onGrass(x, z, MAX_S, .02) : !(cut && cut(x, z)) && (!distBlocked(x, z, -4, own, !!cut) || onHighway(x, z))), nodes = [], par = [], fd = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; }, un = (a, b) => { par[fd(a)] = fd(b); };
     for (const s of streets) { let prev = -1; for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 8));
       for (let k = i === 1 ? 0 : 1; k <= n; k++) { const x = a.x + (b.x - a.x) * k / n, z = a.z + (b.z - a.z) * k / n; if (!drawn(s, x, z)) { prev = -1; continue; } const id = nodes.length; nodes.push({ x, z, s }); par.push(id); if (prev >= 0) un(prev, id); prev = id; } } }
     const H = new Map(), hk = (x, z) => Math.floor(x / 16) + ":" + Math.floor(z / 16); nodes.forEach((p, i) => { const k = hk(p.x, p.z); (H.get(k) || H.set(k, []).get(k)).push(i); });
@@ -4645,13 +4715,32 @@ function buildDistrict() { for (const D of PLANS()) buildPlan(D); }
 function buildPlan(D) {
   const pieces = [], lawns = [], trees = [], lamps = [];
   const nearBr = (x, z) => D.own && LAND.on && LAND.xing.some(B => B.town && Math.abs((x - B.x) * B.ux + (z - B.z) * B.uz) < B.hs + B.ramp + 8 && Math.abs((x - B.x) * B.uz - (z - B.z) * B.ux) < B.w);
-  for (const s of D.streets) { if (!distLaid(s) || s.bridge) continue; for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / (nearBr((a.x + b.x) / 2, (a.z + b.z) / 2) || nearBr(a.x, a.z) || nearBr(b.x, b.z) ? 2.5 : 10)));
+  // each street in runs of pieces (a run stops where something is in the way: a site, the river, a highway's verge)
+  const runs = [], ends = [];
+  for (const s of D.streets) { if (!distLaid(s) || s.bridge) continue; let cur = null; for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / (nearBr((a.x + b.x) / 2, (a.z + b.z) / 2) || nearBr(a.x, a.z) || nearBr(b.x, b.z) ? 2.5 : 10)));
     for (let k = 0; k < n; k++) { const xa = a.x + (b.x - a.x) * k / n, za = a.z + (b.z - a.z) * k / n, xb = a.x + (b.x - a.x) * (k + 1) / n, zb = a.z + (b.z - a.z) * (k + 1) / n, mx = (xa + xb) / 2, mz = (za + zb) / 2;
-      if (s.zone !== "C" && (D.cut?.(mx, mz) || distBlocked(mx, mz, -4, D.own) && !onHighway(mx, mz))) continue; if (s.zone === "C" && !onGrass(mx, mz, MAX_S, .02)) continue; pieces.push([xa, za, xb, zb, s.w, nearBr(mx, mz) ? Math.max(.27, landSurf(mx, mz) + .04) : .27]); }
+      if (s.zone !== "C" && (D.cut?.(mx, mz) || distBlocked(mx, mz, -4, D.own, !!D.cut) && !onHighway(mx, mz)) || s.zone === "C" && !onGrass(mx, mz, MAX_S, .02)) { cur = null; continue; }
+      const pc = [xa, za, xb, zb, s.w, nearBr(mx, mz) ? Math.max(.27, landSurf(mx, mz) + .04) : .27]; if (cur && Math.hypot(cur.P.at(-1)[2] - xa, cur.P.at(-1)[3] - za) < .01) cur.P.push(pc); else runs.push(cur = { s, P: [pc] }); }
     if (s.zone === "C") for (let k = 0; k < L; k += 36) { const t = k / L; lamps.push([a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, Math.atan2(b.x - a.x, b.z - a.z)]); } } }
+  // no street ends in nothing: a run's loose end (one that meets no other street, highway, roundabout or bridge) is taken back to its last junction or its last garden; a run with neither is not built
+  { const G = new Map(), gk = (x, z) => Math.floor(x / 40) + "," + Math.floor(z / 40), segD = (x, z, p) => { const dx = p[2] - p[0], dz = p[3] - p[1], t = Math.max(0, Math.min(1, ((x - p[0]) * dx + (z - p[1]) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(p[0] + dx * t - x, p[1] + dz * t - z); };
+    const index = () => { G.clear(); runs.forEach((r, ri) => { if (r.dead) return; for (const p of r.P) for (const [x, z] of [[p[0], p[1]], [p[2], p[3]]]) { const k = gk(x, z); (G.get(k) || G.set(k, []).get(k)).push([ri, p]); } }); };
+    const near = (x, z, ri, d) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [rj, p] of G.get(gk(x + i * 40, z + j * 40)) || []) if (rj !== ri && segD(x, z, p) < d + p[4] / 2) return true; return false; };
+    const shownLots = D.lots.filter(l => lotShown(D, l)), LG = new Map(); for (const l of shownLots) { const k = gk(l.x, l.z); (LG.get(k) || LG.set(k, []).get(k)).push(l); }
+    const lotNear = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of LG.get(gk(x + i * 40, z + j * 40)) || []) if (Math.hypot(l.x - x, l.z - z) < 24) return true; return false; };
+    const rings = (typeof gateRings === "function" ? gateRings() : []) || [], tied = (x, z) => onHighway(x, z) || nearBr(x, z) || rings.some(R => Math.hypot(R.x - x, R.z - z) < (R.Ro || 14) + 8);
+    for (let pass = 0; pass < 3; pass++) { index(); runs.forEach((r, ri) => { if (r.dead) return; for (const end of [0, 1]) { if (!r.P.length) break; const P = end ? r.P : [...r.P].reverse(), last = P.at(-1), E = end ? [last[2], last[3]] : [last[0], last[1]];
+        if (near(E[0], E[1], ri, 4) || tied(E[0], E[1])) continue;
+        let keep = -1; for (let i = P.length - 1; i >= 0 && keep < 0; i--) { const p = P[i], m = [(p[0] + p[2]) / 2, (p[1] + p[3]) / 2]; if (near(p[0], p[1], ri, 3) || near(p[2], p[3], ri, 3) || lotNear(m[0], m[1]) || tied(m[0], m[1])) keep = i; }
+        const kept = keep < 0 ? [] : P.slice(0, keep + 1); r.P = end ? kept : kept.reverse(); if (!r.P.length) r.dead = true; } }); }
+    // what still ends on its own (a street with gardens up to a fence) ends in a turning circle
+    index(); runs.forEach((r, ri) => { if (r.dead || !r.P.length) return; for (const [x, z] of [[r.P[0][0], r.P[0][1]], [r.P.at(-1)[2], r.P.at(-1)[3]]]) if (!near(x, z, ri, 4) && !tied(x, z)) ends.push([x, z, r.P[0][4] * .95]); }); }
+  for (const r of runs) if (!r.dead) pieces.push(...r.P);
   instanced(P.plane, pieces, ([a, b, c, d, w, y], o) => { o.position.set((a + c) / 2, y, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .6); return "#4a5057"; }, { shadow: false });
   const brEnd = (x, z) => LAND.on && LAND.xing.some(B => B.town && Math.abs(Math.abs((x - B.x) * B.ux + (z - B.z) * B.uz) - B.hs) < 4 && Math.abs((x - B.x) * B.uz - (z - B.z) * B.ux) < B.w);
-  const joints = []; for (const s of D.streets) if (distLaid(s) && !s.bridge) for (const p of s.pts) { if (D.own && brEnd(p.x, p.z)) continue; if (s.zone !== "C" ? D.cut?.(p.x, p.z) || distBlocked(p.x, p.z, -4, D.own) && !onHighway(p.x, p.z) : !onGrass(p.x, p.z, MAX_S, .02)) continue; joints.push([p.x, p.z, s.w / 2]); }
+  const PE = new Set(pieces.flatMap(p => [Math.round(p[0]) + "," + Math.round(p[1]), Math.round(p[2]) + "," + Math.round(p[3])]));
+  const joints = []; for (const s of D.streets) if (distLaid(s) && !s.bridge) for (const p of s.pts) { if (D.own && brEnd(p.x, p.z) || !PE.has(Math.round(p.x) + "," + Math.round(p.z))) continue; if (s.zone !== "C" ? D.cut?.(p.x, p.z) || distBlocked(p.x, p.z, -4, D.own, !!D.cut) && !onHighway(p.x, p.z) : !onGrass(p.x, p.z, MAX_S, .02)) continue; joints.push([p.x, p.z, s.w / 2]); }
+  joints.push(...ends);
   if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .265, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
   // every lot laid out: its garden (with or without a house yet), a tree behind
   for (const l of D.lots) { if (!lotShown(D, l)) continue; const w = l.villa ? 24 : 18, d = l.villa ? 20 : 13; lawns.push([l.x, l.z, l.face, w, d, l.villa ? "#a6cc84" : "#9fcf7c"]); const bx = l.x - Math.sin(l.face) * (d / 2 - 2), bz = l.z - Math.cos(l.face) * (d / 2 - 2); if ((l.num || 0) % 2) trees.push([bx + Math.cos(l.face) * 6, bz - Math.sin(l.face) * 6, l.villa ? 1.1 : .85]); }
@@ -4701,7 +4790,8 @@ function townPlan(sl) {
   const RV = townRiver(sl), z0 = sl.z, r0 = RV?.at(z0), Mx = r0 ? r0.x : sl.x, V = r0 ? r0.hw + r0.vw + 2 : 0, F = townFrame(V), F0 = townFrame(), { hx, hz } = F, P2 = (x, z) => ({ x, z }), TAU = Math.PI * 2, NS = 128;
   const streets = [], lots = [], eat = [], civic = [], biz = [], pub = [], bridges = [], foot = [], prom = [];
   const st = (pts, w, name, ring, zone, extra) => { const q = { pts, w, name, ring, zone, ...extra }; streets.push(q); return q; };
-  const bankX = (z, sd) => { const r = RV?.at(z); return r ? r.x + sd * (r.hw + r.vw + 4) : Mx; };
+  // the top of the river's bank at a given z, on one side: walking out from the water until the ground is level again (where the bridges begin and the streets end)
+  const BKC = new Map(), bankX = (z, sd) => { const key = Math.round(z) * 2 + sd; if (BKC.has(key)) return BKC.get(key); const r = RV?.at(z); if (!r) return Mx; let x = r.x + sd * r.hw; for (let k = 0; k < 120 && terrainH(x, z) < -.05; k++) x += sd * 2; BKC.set(key, x + sd * 2); return x + sd * 2; };
   // the market: two squares, the bridge between them, the avenue out to the gates (always laid: the town's own streets)
   const sqW = [bankX(z0, -1) - TOWN_SQ, bankX(z0, -1)], sqE = [bankX(z0, 1), bankX(z0, 1) + TOWN_SQ];
   st([P2(sl.x - F0.R, z0), P2(sqW[1], z0)], 14, "שדרת השוק", 0, "C"); st([P2(sqE[0], z0), P2(sl.x + F0.R, z0)], 14, "שדרת השוק", 0, "C");
@@ -4725,11 +4815,32 @@ function townPlan(sl) {
       a.z = zAt(a.x); b.z = zAt(b.x); if (k === 4) { st([a, b], 8, "", k, "OC", { bridge: true, arc: `${k}:${sz < 0 ? 6 : 2}` }); bridges.push({ a, b, w: 8, design: "road", ring: k, sz }); } else if (k === 2 || k === 6) foot.push({ a, b, ring: k, sz }); } }   // about every 110 m along the river: a bridge for cars, then one for people
   const brEnds = bridges.flatMap(B => [B.a, B.b]);
   for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (q.lane && q.pts.some(p => brEnds.some(e => Math.hypot(e.x - p.x, e.z - p.z) < 45))) streets.splice(i, 1); }
+  // a national site next door (its fence): no street goes in. A lane that would is left out; a ring is cut at the fence and taken back to its last junction, so no street ends in nothing
+  const site = (x, z) => natSiteAt(x, z, 10);
+  for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (q.lane && q.pts.some(p => site(p.x, p.z))) streets.splice(i, 1); }
+  const lanesNow = streets.filter(q => q.lane);   // a ring is taken back to a lane coming out to it from the ring inside (that lane is built whenever the ring is)
+  for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (!q.arc || q.bridge) continue; { const n = q.pts.length, e = (A, B) => { const L = Math.hypot(B.x - A.x, B.z - A.z) || 1; return site(B.x + (B.x - A.x) / L * 16, B.z + (B.z - A.z) / L * 16); }; if (!q.pts.some(p => site(p.x, p.z)) && !(n > 1 && (e(q.pts[1], q.pts[0]) || e(q.pts[n - 2], q.pts[n - 1])))) continue; }
+    const runs = []; let cur = [], cutA = false; q.pts.forEach((p, j) => { if (site(p.x, p.z)) { if (cur.length) runs.push({ pts: cur, a: cutA, b: true }); cur = []; cutA = true; } else if ((r => !!r && Math.abs(p.x - r.x) < r.hw + 2)(RV?.at(p.z))) { if (cur.length) runs.push({ pts: cur, a: cutA, b: false }); cur = []; cutA = false; } else cur.push(p); }); if (cur.length) runs.push({ pts: cur, a: cutA, b: false });   // the river splits a ring too (its ends there are the river's squares, not cut)
+    // a run that reaches the arc's own end where the ring goes on into the site is cut there too
+    const past = (A, B) => { const L = Math.hypot(B.x - A.x, B.z - A.z) || 1; return site(B.x + (B.x - A.x) / L * 16, B.z + (B.z - A.z) / L * 16); };
+    for (const r of runs) { if (!r.a && r.pts.length > 1 && past(r.pts[1], r.pts[0])) r.a = true; if (!r.b && r.pts.length > 1 && past(r.pts.at(-2), r.pts.at(-1))) r.b = true; }
+    // the last junction from a cut end: a lane's end on the run (or the run's far end, where the ring goes on)
+    const trim = (pts, fromEnd) => { const P = fromEnd ? pts : [...pts].reverse(); let best = -1, bp = null; for (let j = 1; j < P.length; j++) { const A = P[j - 1], B = P[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1;
+        for (const e of lanesNow.filter(l => l.ring === q.ring).map(l => l.pts.at(-1))) { const t = Math.max(0, Math.min(1, ((e.x - A.x) * dx + (e.z - A.z) * dz) / L2)); if (Math.hypot(A.x + dx * t - e.x, A.z + dz * t - e.z) < 3) { best = j; bp = P2(A.x + dx * t, A.z + dz * t); } } }
+      if (best < 0) return null; const out = [...P.slice(0, best), bp]; return fromEnd ? out : out.reverse(); };
+    const keep = []; for (const r of runs) { let pts = r.pts; if (r.b) pts = pts && trim(pts, true); if (pts && r.a) pts = trim(pts, false); if (pts && pts.length >= 2) keep.push({ ...q, pts }); }
+    streets.splice(i, 1, ...keep); }
+  // bridges, footbridges and river squares only where the ring is there on both banks
+  const endNear = (p, r) => streets.some(q => q.arc && !q.bridge && q.pts.some((B, j) => { if (!j) return false; const A = q.pts[j - 1], dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(A.x + dx * t - p.x, A.z + dz * t - p.z) < r; }));
+  for (let i = foot.length - 1; i >= 0; i--) if (!endNear(foot[i].a, 14) || !endNear(foot[i].b, 14)) foot.splice(i, 1);
+  for (let i = bridges.length - 1; i >= 0; i--) { const B = bridges[i]; if (!B.ring || endNear(B.a, 14) && endNear(B.b, 14)) continue; bridges.splice(i, 1); const j = streets.findIndex(q => q.bridge && q.ring === B.ring && q.pts[0] === B.a); if (j >= 0) streets.splice(j, 1); }
+  brEnds.length = 0; brEnds.push(...bridges.flatMap(B => [B.a, B.b]));
   const plazas = [];
   if (RV) for (let k = 1; k <= TOWN_K; k++) { const pts = []; for (let i = 0; i <= NS * 4; i++) pts.push(at(k, (i / (NS * 4)) * TAU)); const D = 16;
-    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], ra = RV.at(a.z), rb = RV.at(b.z); if (!ra || !rb) continue; const fa = Math.abs(a.x - ra.x) - (ra.hw + ra.vw + D), fb = Math.abs(b.x - rb.x) - (rb.hw + rb.vw + D); if ((fa > 0) === (fb > 0)) continue;
+    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], ra = RV.at(a.z), rb = RV.at(b.z); if (!ra || !rb) continue; const sa = Math.sign(a.x - ra.x), sb = Math.sign(b.x - rb.x), fa = Math.abs(a.x - ra.x) - Math.abs(bankX(a.z, sa) - ra.x) - 12, fb = Math.abs(b.x - rb.x) - Math.abs(bankX(b.z, sb) - rb.x) - 12; if ((fa > 0) === (fb > 0)) continue;
       const p = fa > 0 ? a : b; if (brEnds.some(e => Math.hypot(e.x - p.x, e.z - p.z) < 40) || plazas.some(q => Math.hypot(q.x - p.x, q.z - p.z) < 30)) continue; const r = RV.at(p.z);
       plazas.push({ x: p.x, z: p.z, ry: Math.atan2(Math.sign(r.x - p.x), 0), ring: k, arc: `${k}:${arcOf(Math.atan2(p.z - z0, p.x - Mx))}` }); } }
+  for (let i = plazas.length - 1; i >= 0; i--) if (!endNear(plazas[i], 20)) plazas.splice(i, 1);
   // the promenade: a path along each bank at the water's edge, the length of the town
   if (RV) for (const sd of [-1, 1]) { const pts = []; for (let z = z0 - F.RZ + 30; z <= z0 + F.RZ - 30; z += 12) { const r = RV.at(z); if (r) pts.push(P2(r.x + sd * (r.hw + 5), z)); } prom.push(pts); }
   // the lots: both sides of every ring and the outer side of the market's ring road, a house every 16 m; not on a lane's corner, the avenue, the river or its valley
@@ -4741,10 +4852,14 @@ function townPlan(sl) {
       for (let d = carry; d < L; d += 16) { const sx = a.x + ux * d, sz = a.z + uz * d, nx = uz, nz = -ux, out = (sx - Mx) * nx + (sz - z0) * nz > 0 ? 1 : -1, t = Math.atan2(sz - z0, sx - Mx);
         if (wet(sx, sz, 6)) continue;
         for (const side of k ? [1, -1] : [1]) { const x = sx + nx * out * side * 12, z = sz + nz * out * side * 12; if (!free(x, z)) continue;
-          lots.push({ x, z, face: Math.atan2(sx - x, sz - z), dist: true, town: true, zone: k <= 2 ? "O" : "OC", ring: k, sx, sz, arc: k ? `${k}:${arcOf(t)}` : "0", side, seq: lots.length, d: Math.hypot(x - sl.x, z - sl.z) }); } }
+          lots.push({ x, z, face: Math.atan2(sx - x, sz - z), dist: true, town: true, zone: k <= 2 ? "O" : "OC", ring: k, sx, sz, arc: k ? `${k}:${arcOf(((i - 1) + d / L) / NS * TAU - Math.PI / 8)}` : "0", side, seq: lots.length, d: Math.hypot(x - sl.x, z - sl.z) }); } }
       carry = ((carry - L) % 16 + 16) % 16; } }
   for (let i = lots.length - 1; i >= 0; i--) if (plazas.some(q => Math.hypot(q.x - lots[i].x, q.z - lots[i].z) < 20)) lots.splice(i, 1);
-  const cut = (x, z) => wet(x, z, 10) && !brEnds.some(e => Math.hypot(e.x - x, e.z - z) < 24);
+  // a lot on a stretch of ring that was not built (cut at a site's fence) has no street: none there
+  const segD = (x, z, A, B) => { const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((x - A.x) * dx + (z - A.z) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(A.x + dx * t - x, A.z + dz * t - z); };
+  const ringSt = new Map(); for (const q of streets) if (q.arc && !q.bridge && q.ring) (ringSt.get(q.ring) || ringSt.set(q.ring, []).get(q.ring)).push(q);
+  for (let i = lots.length - 1; i >= 0; i--) { const l = lots[i]; if (!l.ring) continue; if (!(ringSt.get(l.ring) || []).some(q => q.pts.some((p, j) => j && segD(l.sx, l.sz, q.pts[j - 1], p) < 3))) lots.splice(i, 1); }
+  const cut = (x, z) => terrainH(x, z) < -.05 && !brEnds.some(e => Math.hypot(e.x - x, e.z - z) < 24);
   planConnect(streets, lots, eat, sl, cut);
   return { streets, lots, civic, eat, biz, pub, bridges, foot, prom, plazas, cut, own: sl, open: 0, M: { x: Mx, z: z0 }, F };
 }
@@ -4779,12 +4894,16 @@ function townAssign() {
     plan.open = mine.length ? Math.min(TOWN_K, maxRing + 1) : 0;
     // what is laid: the stretches someone lives on, the lanes out to them, the bridges of the rings reached
     const usedArc = new Set(mine.filter(h => h.lot?.town).map(h => h.lot.arc));
+    // the stretches by the river (north and south) have no lanes of their own (a lane there would run down the river): their way out is along the ring to the next stretch on each bank
+    const laneSec = new Set(plan.streets.filter(q => q.lane).map(q => q.sector));
+    for (const a of [...usedArc]) { if (a === "0") continue; const [k, q] = a.split(":").map(Number); if (!laneSec.has(q)) for (const n of [(q + 1) % 8, (q + 7) % 8]) usedArc.add(`${k}:${n}`); }
     for (const a of [...usedArc]) { if (a === "0") continue; const [k, q] = a.split(":").map(Number); for (let j = 1; j < k; j++) usedArc.add(`${j}:${q}`); }   // the way out to it: the same sector's inner rings
     for (const l of plan.lots) l.laid = usedArc.has(l.arc);
     const reach = new Map(); for (const q of plan.streets) if (q.arc && q.arc !== "0" && !q.bridge) { q.laid = usedArc.has(q.arc); if (q.laid) { const [k, a] = q.arc.split(":").map(Number); reach.set(a, Math.max(reach.get(a) || 0, k)); } }
     for (const q of plan.streets) if (q.lane) q.laid = q.ring <= (reach.get(q.sector) || 0);
     const maxK = Math.max(0, ...[...usedArc].filter(a => a !== "0").map(a => +a.split(":")[0]));
     for (const q of plan.streets) if (q.bridge && q.ring) q.laid = usedArc.has(q.arc);
+    townPrune(plan, mine, usedArc);
     // the bridges, built by the land with its own (a deck at the banks' height, piers in the water); footbridges on the rings in between
     if (LAND.on) { const RV = townRiver(sl);
       for (const B of plan.bridges) { if (B.ring && !usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`)) continue; const dx = B.b.x - B.a.x, dz = B.b.z - B.a.z, L = Math.hypot(dx, dz), x = (B.a.x + B.b.x) / 2, z = (B.a.z + B.b.z) / 2, q = RV ? landNear(RV.R, x, z) : null;
@@ -4794,6 +4913,27 @@ function townAssign() {
         LAND.foot.push({ R: RV.R, i, design, x, z, ux: dx / L, uz: dz / L, hs: L / 2, w: 3.4, y0, gA, gB, rise: [1.6, .6, .9][design], deck: y0 + .15, ry: Math.atan2(dx, dz), town: true }); }
       landLiftsSet(); }
     const F = plan.F, M = plan.M; TOWNS.set(sl.at, { slot: sl, style: TOWN_STYLE[sl.at], plan, ext: { x0: M.x - F.R, x1: M.x + F.R, z0: M.z - F.RZ, z1: M.z + F.RZ } }); }
+}
+// no street that ends in nothing: a built stretch of ring whose end meets no other street, square or bridge is taken back to its last junction
+// (or to its last house, a short cul-de-sac); the empty gardens along the part not built are not laid out either
+function townPrune(plan, mine, usedArc) {
+  const segD = (p, A, B) => { const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(A.x + dx * t - p.x, A.z + dz * t - p.z); };
+  const onSt = (p, q, r) => q.pts.some((B, j) => j && segD(p, q.pts[j - 1], B) < r);
+  const crossings = [...plan.bridges.filter(B => !B.ring || usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`)), ...plan.foot.filter(B => usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`))].flatMap(B => [B.a, B.b]);
+  const homes = mine.filter(h => h.lot?.town).map(h => ({ x: h.lot.sx, z: h.lot.sz }));
+  for (let pass = 0; pass < 3; pass++) for (const q of plan.streets) { if (!q.arc || q.arc === "0" || q.bridge || !q.laid) continue;
+    const others = plan.streets.filter(o => o !== q && distLaid(o) && !o.bridge);
+    for (const end of [0, 1]) { const P = end ? q.pts : [...q.pts].reverse(), E = P.at(-1);
+      if (others.some(o => onSt(E, o, 6)) || plan.plazas.some(c => Math.hypot(c.x - E.x, c.z - E.z) < 20) || crossings.some(c => Math.hypot(c.x - E.x, c.z - E.z) < 20)) continue;
+      // walk back from the loose end to the first point worth keeping: another street's end on it, or a house
+      const keep = [...others.flatMap(o => [o.pts[0], o.pts.at(-1)]).filter(p => onSt(p, q, 4)), ...homes.filter(p => onSt(p, q, 3))];
+      let cut = -1, cp = null; for (let j = P.length - 1; j >= 1 && cut < 0; j--) { const A = P[j - 1], B = P[j]; let bt = -1; for (const k of keep) { if (segD(k, A, B) >= 4) continue; const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((k.x - A.x) * dx + (k.z - A.z) * dz) / (dx * dx + dz * dz || 1))); if (t > bt) bt = t; }
+        if (bt >= 0) { cut = j; const dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz) || 1, t = Math.min(1, bt + 9 / L); cp = { x: A.x + dx * t, z: A.z + dz * t }; } }
+      if (cut < 0) { q.laid = false; break; }
+      const kept = [...P.slice(0, cut), cp]; q.pts = end ? kept : kept.reverse(); } }
+  // gardens only along what is built (and every home keeps its garden)
+  const built = plan.streets.filter(q => q.arc && q.arc !== "0" && !q.bridge && q.laid);
+  for (const l of plan.lots) if (l.laid && l.ring && !mine.some(h => h.lot === l) && !built.some(q => onSt({ x: l.sx, z: l.sz }, q, 3))) l.laid = false;
 }
 // the town's own parts: the market squares' paving and fountains, the promenades with their trees and lamps (the streets, lots and bridges are built with the rest)
 function buildTowns() {
@@ -4963,7 +5103,8 @@ function buildCities() {
     const pieces = segs.flatMap(([a, b, c, d, w]) => { const n = Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / 8)); return Array.from({ length: n }, (_, i) => [a + (c - a) * i / n, b + (d - b) * i / n, a + (c - a) * (i + 1) / n, b + (d - b) * (i + 1) / n, w]); }).filter(([a, b, c, d]) => !landInBr((a + c) / 2, (b + d) / 2));
     instanced(P.plane, pieces, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .3); return "#4a5057"; }, { shadow: false });
     const joints = segs.filter(sg => sg[5] === "palm").slice(1).map(sg => [sg[0], sg[1], sg[4]]);   // a smooth round turn where the palm road bends onto the bridge
-    if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
+
+  if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
     const hd = []; for (const [a, b, c, d, w, id, meta] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r), endR = (meta?.T || meta?.B)?.Ro;
       const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = meta?.A ? meta.A.Ro + 6 : 20; k < L - (endR ? endR + 6 : 10); k += 14) for (const o of offs) if (!landInBr(a + (c - a) * k / L, b + (d - b) * k / L)) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane1, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
@@ -4976,13 +5117,13 @@ function buildCities() {
   // houses
   const groups = {};
   for (const h of S.houses) if (h.lot) (groups[h.hk] ||= []).push(h);
-  for (const [key, list] of Object.entries(groups)) {
+  for (const [key, all] of Object.entries(groups)) tiled(all, h => [h.x, h.z], list => {
     const m = instanced(P[key], list, (h, o) => { o.position.set(h.x, LAWN, h.z); o.rotation.y = h.lot.face;
       if (h.lot.dist) { const T = DIST_ZONES[h.lot.zone].tints; return key === "3_2" ? houseLook(h).color : T[hash(h.u + "w") % T.length]; }   // each quarter its colours
-      return key === "3_2" ? houseLook(h).color : BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; });
+      return key === "3_2" ? houseLook(h).color : BODY_TINTS[hash(h.u + "w") % BODY_TINTS.length]; }, { tile: false });
     // every layer of the house can be tapped (the bow tie house is mostly its colored layer)
     for (const t of [m, ...(m.userData.twins || [])]) { Object.assign(t.userData, { type: "house", items: list }); S.picks.push(t); }
-  }
+  });
   // the bow tie houses carry their owner's name on the knot, front and back
   for (const h of groups["3_2"] || []) {
     const { text, color } = houseLook(h), c = Math.cos(h.lot.face), s = Math.sin(h.lot.face), dark = "#" + new THREE.Color(color).multiplyScalar(.55).getHexString();
@@ -4995,16 +5136,16 @@ function buildCities() {
   buildEstates();
   // parked cars: every model in the owner's color
   for (const key of CAR_KEYS) {
-    const list = S.houses.filter(h => h.lot && h.cm === key); if (!list.length) continue;
+    const all = S.houses.filter(h => h.lot && h.cm === key); if (!all.length) continue;
     const zo = Math.min(2.6, 4.4 - CARS[key].L / 2);
-    const m = instanced(P["car_" + key], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
-      const sx = h.lot.est ? 7 : 3.9; o.position.set(h.x + sx * cs + zo * sn, LAWN, h.z - sx * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; });
-    Object.assign(m.userData, { type: "house", items: list, parked: key }); S.picks.push(m);
+    tiled(all, h => [h.x, h.z], list => { const m = instanced(P["car_" + key], list, (h, o) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face);
+      const sx = h.lot.est ? 7 : 3.9; o.position.set(h.x + sx * cs + zo * sn, LAWN, h.z - sx * sn + zo * cs); o.rotation.y = h.lot.face; return h.cc; }, { tile: false });
+    Object.assign(m.userData, { type: "house", items: list, parked: key }); S.picks.push(m); });
   }
   // gardens
   const back = (h, k) => { const cs = Math.cos(h.lot.face), sn = Math.sin(h.lot.face); return [h.x - k * cs - k * sn, h.z + k * sn - k * cs]; };
-  instanced(P.olive, S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), (h, o) => { const [x, z] = back(h, 4.6); o.position.set(x, LAWN, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; });
-  instanced(P.palm, S.houses.filter(h => h.lot && h.tier === 3), (h, o) => { const [x, z] = back(h, 5.2); o.position.set(x, LAWN, z); });
+  tiled(S.houses.filter(h => h.lot && h.tier < 3 && hash(h.u + "t") % 3 === 0), h => [h.x, h.z], L => instanced(P.olive, L, (h, o) => { const [x, z] = back(h, 4.6); o.position.set(x, LAWN, z); o.scale.setScalar(.75 + (hash(h.u) % 4) / 10); o.rotation.y = h.id; }));
+  tiled(S.houses.filter(h => h.lot && h.tier === 3), h => [h.x, h.z], L => instanced(P.palm, L, (h, o) => { const [x, z] = back(h, 5.2); o.position.set(x, LAWN, z); }));
   // street lamps + pools of light
   const L = [...lamps.values()];
   instanced(P.lamp, L, (l, o) => { o.position.set(l.x, CURB, l.z); o.rotation.y = l.r; });
@@ -5034,8 +5175,8 @@ function buildCities() {
   if (CENTRAL.on) { const C = CENTRAL.on, r0 = rng(77); for (const r of [28, 31.6]) { const L = 2 * Math.PI * r; for (let k = 0; k < 5; k++)
     traffic.push({ ring: { cx: C.cx, cz: C.cz, r }, x0: 0, x1: L, dir: -1, p: (k + r0() * .6) / 5 * L, v: 6 + r0() * 4, c: COLORS[COLOR_KEYS[Math.floor(r0() * 10)]][0], m: TRAFFIC_MIX[Math.floor(r0() * TRAFFIC_MIX.length)] }); } }
   trafficSets = [...new Set(traffic.map(t => t.m))].map(k => { const list = traffic.filter(t => t.m === k);
-    return { list, mesh: instanced(P["car_" + k], list, (t, o) => { placeCar(t, o); return t.c; }) }; });
-  walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false });
+    return { list, mesh: instanced(P["car_" + k], list, (t, o) => { placeCar(t, o); return t.c; }, { tile: false }) }; });
+  walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false, tile: false });
 
   open.forEach((slot, si) => { if (slot === S.slots[0] && CENTRAL.on) buildCentral(slot); else plaza(slot, false); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
   // future city sites that are already on the island
@@ -5215,6 +5356,8 @@ const ITEM_SIZES = { s: ["קטן", .6], m: ["רגיל", 1], l: ["גדול", 1.6]
 const ITEM_X = [-15, -7.5, 0, 7.5, 15], ITEM_Z = [-6, 0, 6];
 // one GLB file, as many copies as needed, standing on the ground at (x, z), `height` tall
 const FINISH_MATS = { gold: ["#d9b65a", .85, .3], blue: ["#1f4fa8", .3, .35], marble: ["#f2efe8", 0, .55], patina: ["#5f9384", .55, .42], silver: ["#c9ced3", .9, .25] };
+// a model out of view is not drawn (heavy models are hundreds of thousands of triangles); its bounds get a margin for the bend of the map. A rigged model is always drawn
+function cullPad(n) { if (n.isSkinnedMesh) { n.frustumCulled = false; return; } const g = n.geometry; if (!g.userData.padded) { let r = n; while (r.parent) r = r.parent; r.updateMatrixWorld(true); g.computeBoundingSphere(); g.boundingSphere.radius += 60 / Math.max(1e-3, Math.abs(n.matrixWorld.getMaxScaleOnAxis()) || 1); g.userData.padded = true; } n.frustumCulled = true; }
 function itemModel(url, x, y, z, height, ry, data, finish) {
   url = String(url || "").trim(); if (!url) return; const build = BUILD_NO;
   if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
@@ -5225,7 +5368,7 @@ function itemModel(url, x, y, z, height, ry, data, finish) {
     m.position.set(-c.x * k, -bb.min.y * k, -c.z * k); m.scale.setScalar(k);
     const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry;
     const F = FINISH_MATS[finish], fm = F && new THREE.MeshStandardMaterial({ color: F[0], metalness: F[1], roughness: F[2], envMapIntensity: 1.1 });
-    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (fm) n.material = fm; if (data) { n.userData = { ...data }; S.picks.push(n); } });
+    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; cullPad(n); if (fm) n.material = fm; if (data) { n.userData = { ...data }; S.picks.push(n); } });
     world.add(grp);
   }).catch(() => { if (ADMIN) toast("לא הצלחנו לטעון את קובץ התלת־ממד. בדקו את הכתובת", 5000); });
 }
@@ -6157,7 +6300,7 @@ function ykSpotFree() {
 function ykSpotHwy(R1) {
   const segs = highwaySegs(true).filter(sg => sg[5] !== "palm"); if (!segs.length) return null;
   for (const [a, b, c, d, w] of segs) {
-    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 30)) t0 += 5;
+    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inBuilt(a + ux * t0, b + uz * t0, 30)) t0 += 5;
     for (let t = t0 + 260; t < L - 120; t += 40) for (const sd of [-1, 1]) {
       const off = w / 2 + R1 + 12, x = a + ux * t + nx * sd * off, z = b + uz * t + nz * sd * off;
       let ok = true; for (let i = 0; i < 16 && ok; i++) { const an = i / 16 * Math.PI * 2, X = x + Math.cos(an) * R1, Z = z + Math.sin(an) * R1;
@@ -6651,26 +6794,27 @@ function mallBuy(s2) {
 
 // the k-th mall stands beside the highway to the harbor, a little out of the capital, facing the road
 function mallSpot(k) { return mallSpotOn(k, false) || mallSpotOn(k, true) || mallSpotFree(k); }   // never lost: a looser search, then any open land out of town
-function nearHwy(x, z) { let best = null; for (const [a, b, c, d, w, id] of highwaySegs(true)) { if (id === "palm") continue; const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))), px = a + dx * t, pz = b + dz * t, q = Math.hypot(x - px, z - pz);
+function nearHwy(x, z) { let best = null; for (const [a, b, c, d, w, id] of highwaySegs()) { if (id === "palm") continue; const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))), px = a + dx * t, pz = b + dz * t, q = Math.hypot(x - px, z - pz);
     if (!best || q < best.d) best = { x: px, z: pz, d: q, w }; } return best; }
 function mallSpotFree(k) {
   const sl = S.slots.find(s2 => s2.city); if (!sl) return null; let n = 0;
   for (let r = 260; r < 1400; r += 40) for (let i = 0; i < 24; i++) { const an = i / 24 * Math.PI * 2 + r * .01, x = sl.x + Math.cos(an) * r, z = sl.z + Math.sin(an) * r, ry = Math.atan2(sl.x - x, sl.z - z), cs = Math.cos(ry), sn = Math.sin(ry);
-    const ok = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].every(([p, q]) => { const lx = p * MALL_W / 2, lz = q * MALL_D / 2, X = x + lx * cs + lz * sn, Z = z - lx * sn + lz * cs; return onGrass(X, Z, S.s, .02) && !inCityBox(X, Z, 10) && !onPalm(X, Z) && !highwaySegs().some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((X - a) * dx + (Z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - a - dx * t, Z - b - dz * t) < w / 2 + 16; }); });
+    const ok = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]].every(([p, q]) => { const lx = p * MALL_W / 2, lz = q * MALL_D / 2, X = x + lx * cs + lz * sn, Z = z - lx * sn + lz * cs; return onGrass(X, Z, S.s, .02) && !inBuilt(X, Z, 10) && !onPalm(X, Z) && !highwaySegs().some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((X - a) * dx + (Z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - a - dx * t, Z - b - dz * t) < w / 2 + 16; }); });
     if (!ok) continue; const h = nearHwy(x, z); if (!h || h.d > 700) continue; if (n++ < k) continue;
     const ry2 = Math.atan2(h.x - x, h.z - z), fx = Math.sin(ry2), fz = Math.cos(ry2);   // facing the nearest highway, with a road all the way to it
     return { x, z, ry: ry2, road: [x + fx * MALL_D / 2, z + fz * MALL_D / 2, h.x - fx * (h.w / 2 - 1), h.z - fz * (h.w / 2 - 1)] }; }
   return null;
 }
 function mallSpotOn(k, loose) {
-  const segs = highwaySegs(true); if (!segs.length) return null;
+  // beside the highways as they are drawn (with their roundabouts and the bends round the towns), so the mall's road always reaches one
+  const segs = highwaySegs(); if (!segs.length) return null;
   for (const [a, b, c, d, w, id] of [...segs.filter(sg => sg[5] === "harbor"), ...segs.filter(sg => sg[5] !== "harbor" && sg[5] !== "palm")]) {
-    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inCityBox(a + ux * t0, b + uz * t0, 30)) t0 += 5;
+    const L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, nx = uz, nz = -ux; let t0 = 0; while (t0 < L && inBuilt(a + ux * t0, b + uz * t0, 30)) t0 += 5;
     let n = 0;
     for (let t = t0 + (loose ? 40 : 110); t < L - (loose ? 60 : 100); t += loose ? 15 : 30) for (const sd of [1, -1]) {
       const off = w / 2 + MALL_D / 2 + 14, x = a + ux * t + nx * sd * off, z = b + uz * t + nz * sd * off, fx = -nx * sd, fz = -nz * sd, ry = Math.atan2(fx, fz), cs = Math.cos(ry), sn = Math.sin(ry);
       const ok = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0], [0, -1], [0, 1]].every(([p, q]) => { const lx = p * MALL_W / 2, lz = q * MALL_D / 2, X = x + lx * cs + lz * sn, Z = z - lx * sn + lz * cs;
-        return onGrass(X, Z, S.s, loose ? .015 : .04) && !inCityBox(X, Z, loose ? 6 : 20) && !onPalm(X, Z) && (loose || !S.workplaces.some(w2 => w2.x != null && S.wpCfg?.get(w2.id)?.x != null && Math.hypot(w2.x - X, w2.z - Z) < 40)); });
+        return onGrass(X, Z, S.s, loose ? .015 : .04) && !inBuilt(X, Z, loose ? 6 : 20) && !onPalm(X, Z) && (loose || !S.workplaces.some(w2 => w2.x != null && S.wpCfg?.get(w2.id)?.x != null && Math.hypot(w2.x - X, w2.z - Z) < 40)); });
       if (!ok) continue; if (n++ < k) { t += 160; continue; }
       return { x, z, ry, road: [x + fx * (MALL_D / 2), z + fz * (MALL_D / 2), a + ux * t + nx * sd * (w / 2 - 1), b + uz * t + nz * sd * (w / 2 - 1)] };
     }
@@ -8766,7 +8910,7 @@ function placeModel(p, x, z, y, height, ry, onFeet) {
     m.position.set(-cx0 * k, -bb.min.y * k, -cz0 * k); m.scale.setScalar(k);   // centered on the feet, standing on the top
     if (onFeet) onFeet((feet.max.x - feet.min.x) * k, (feet.max.z - feet.min.z) * k);
     const grp = new THREE.Group(); grp.add(m); grp.position.set(x, y, z); grp.rotation.y = ry + (+o.turn || 0) * Math.PI / 180;
-    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; n.frustumCulled = false; if (o.finish === "patina") n.material = PATINA_MAT; n.userData = { type: "project", p }; S.picks.push(n); });
+    m.traverse(n => { if (!n.isMesh) return; n.castShadow = n.receiveShadow = true; cullPad(n); if (o.finish === "patina") n.material = PATINA_MAT; n.userData = { type: "project", p }; S.picks.push(n); });
     world.add(grp);
   }).catch(() => { if (ADMIN) toast("לא הצלחנו לטעון את קובץ הפסל. בדקו את הכתובת", 5000); });
 }
@@ -8912,9 +9056,9 @@ function buildNature() {
   }
   for (let i = 0; i < 4000 && palms.length < 70 * S.s; i++) { const t = r() * Math.PI * 2, q = shorePt(t, S.s, GRASS + .015 + r() * .06);
     if (!inCity(q.x, q.z) && !landBlock(q.x, q.z) && !natSiteAt(q.x, q.z, 8) && !COAST.some(c => c.x != null && Math.hypot(c.x - q.x, c.z - q.z) < 40)) palms.push({ x: q.x, z: q.z, s: .8 + r() * .5 }); }
-  for (const [k, list] of Object.entries(sets)) { const m = instanced(P[k + "_lo"], list, (t, o) => { o.position.set(t.x, .12, t.z); o.scale.setScalar(t.s); o.rotation.y = t.x; });
-    for (const t of [m, ...(m.userData.twins || [])]) { t.userData.country = true; t.castShadow = QUAL.tier < 2; } }
-  instanced(P.palm, palms, (t, o) => { o.position.set(t.x, .05, t.z); o.scale.setScalar(t.s); o.rotation.y = t.z; });
+  for (const [k, all] of Object.entries(sets)) tiled(all, t => [t.x, t.z], list => { const m = instanced(P[k + "_lo"], list, (t, o) => { o.position.set(t.x, .12, t.z); o.scale.setScalar(t.s); o.rotation.y = t.x; }, { tile: false });
+    for (const t of [m, ...(m.userData.twins || [])]) { t.userData.country = true; t.castShadow = QUAL.tier < 2; } });
+  tiled(palms, t => [t.x, t.z], L => instanced(P.palm, L, (t, o) => { o.position.set(t.x, .05, t.z); o.scale.setScalar(t.s); o.rotation.y = t.z; }));
 }
 
 /* ============================ BUILD / REBUILD ============================ */
@@ -8959,8 +9103,8 @@ float landBr(vec2 p, float h) {
 }`;
 // on a river's sunken stretch (from a town down to the sea): its bed, below the level of the flat land
 const lowAt = (x, z) => { if (!LAND.low?.length) return false; for (const L of LAND.low) { const R = LAND.rivers.find(r => r.id === L.id); if (!R) continue;
-    if (!L.bb) { L.bb = [1e9, 1e9, -1e9, -1e9]; for (let i = Math.max(0, L.i0 - 3); i < R.x.length; i++) { const o = R.hw[i] + R.vw[i] + 30; L.bb = [Math.min(L.bb[0], R.x[i] - o), Math.min(L.bb[1], R.z[i] - o), Math.max(L.bb[2], R.x[i] + o), Math.max(L.bb[3], R.z[i] + o)]; } }
-    if (x < L.bb[0] || x > L.bb[2] || z < L.bb[1] || z > L.bb[3]) continue; const q = landNear(R, x, z); if (q && q.i >= L.i0 - 3 && q.d < q.hw + q.vw + 20) return true; } return false; };
+    if (!L.bb) { L.bb = [1e9, 1e9, -1e9, -1e9]; for (let i = Math.max(0, L.i0 - 3); i < Math.min(R.x.length, (L.i1 ?? 1e9) + 4); i++) { const o = R.hw[i] + R.vw[i] + 30; L.bb = [Math.min(L.bb[0], R.x[i] - o), Math.min(L.bb[1], R.z[i] - o), Math.max(L.bb[2], R.x[i] + o), Math.max(L.bb[3], R.z[i] + o)]; } }
+    if (x < L.bb[0] || x > L.bb[2] || z < L.bb[1] || z > L.bb[3]) continue; const q = landNear(R, x, z); if (q && q.i >= L.i0 - 3 && q.i <= (L.i1 ?? 1e9) + 3 && q.d < q.hw + q.vw + 20) return true; } return false; };
 const townAt = (x, z) => lowAt(x, z) || S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });   // inside a town (its river keeps its bed under the level streets)
 function terrainBase(x, z) { const b = terrainBase0(x, z); if (!LAND.on) return b; if (b === 0) return LAND.grid && townAt(x, z) ? landDelta(x, z) : 0; if (LAND.grid) return b + landDelta(x, z); return landFill(x, z, landCarve(x, z, b)); }
 // the shared map of changes: bilinear, exactly as the GPU reads it
@@ -9045,7 +9189,8 @@ function landBlock(x, z) {
   return false;
 }
 // סבבהום stays exactly where it stands today (beside the lighthouse highway), the store's own driveway onto the highway is replaced by interchange 115
-const LAND_YK = { x: 458.57308064610015, z: -36.20400125324979 };
+// סבבהום's hilltop: far enough east that its slopes stay clear of the capital's ring road (שד׳ הלאום) and the bus station
+const LAND_YK = { x: 640, z: -60 };
 function landPinYk() {
   const sg = highwaySegs(true).find(g => g[5] === "light"); if (!sg) return ykSpot();
   const [a, b, c, d] = sg, L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, t = (LAND_YK.x - a) * ux + (LAND_YK.z - b) * uz, hx = a + ux * t, hz = b + uz * t, fx = hx - LAND_YK.x, fz = hz - LAND_YK.z, fl = Math.hypot(fx, fz);
@@ -9080,7 +9225,8 @@ function landPrep() {
     const h0 = P.map(p => H0(p.x, p.z)), hs = h0.map((_, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { a += h0[j]; c++; } return a / c; });
     let wl = h0[0] - 3.2 - .3 * Math.max(0, h0[0] - 30), floor = .38; const inTown = (x, z) => S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });
     P.forEach((p, i) => { const f = i / (n - 1), pr = polar(p.x, p.z, s), ks = pr.d / shoreF(pr.t);   // ks: 1 = the waterline
-      R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; if (inTown(p.x, p.z) && floor > -1) { floor = -1.4; (LAND.low ||= []).push({ id: D.id, i0: i }); } wl = Math.min(wl, (inTown(p.x, p.z) ? 0 : h0[i]) - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, floor); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
+      // the river is low only through the town; out of it, it is as it always was
+      R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; if (inTown(p.x, p.z)) { if (floor > -1) { floor = -1.4; (LAND.low ||= []).push({ id: D.id, i0: i, i1: i }); } LAND.low.at(-1).i1 = i; } else if (floor < -1 && i > LAND.low.at(-1).i1 + 2) floor = .38; wl = Math.min(wl, (inTown(p.x, p.z) ? 0 : h0[i]) - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, floor); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
       R.hw[i] = 5.5 + 17 * smooth01(0, .45, f) + 14 * (1 - smooth01(0, .012, f)) + 34 * smooth01(.9, 1, f);   // a spring lake, a mountain stream, a river, and a wide mouth
       // the valley is as wide as the hills beside the river are high (sampled 50 and 100 m to each side), so its sides are gentle grassy slopes, not walls
       const fr = landFrame(P, i), side = Math.max(hs[i], ...[50, 100].flatMap(o => [H0(p.x + fr.nx * o, p.z + fr.nz * o), H0(p.x - fr.nx * o, p.z - fr.nz * o)]));
@@ -9628,7 +9774,7 @@ function hwPlan() {
   if (PALM.geo) { const A = ring(cap, PALM.geo.approach.x, PALM.geo.approach.z), sp = GATE_SPEC.std, B = { ...sp, x: PALM.geo.approach.x, z: PALM.geo.approach.z, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B);   // a roundabout where the road meets the bridge
     segs.push([A.x, A.z, B.x, B.z, 8, "palm", { A, B }], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm", {}]); }
   if (natP("navy") && NAT.navy.gx != null) { const N = NAT.navy, A = ring(cap, N.gx, N.gz), sp = GATE_SPEC.std, B = { ...sp, x: N.gx, z: N.gz, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B); segs.push([A.x, A.z, B.x, B.z, 12, "navy", { A, B }]); }   // the road to the navy base
-  for (const T of S.slots.filter(isTown)) { const F = townFrame(), E = { x0: T.x - F.R - 70, x1: T.x + F.R + 70, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };
+  for (const T of S.slots.filter(isTown)) { const F = townFrame(), E = { x0: T.x - F.R - 230, x1: T.x + F.R + 230, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };   // at the two ends of the avenue, room for the town's bus station
     const hits = (a, b, c, d) => { for (let k = 0; k <= 60; k++) { const t = k / 60, x = a + (c - a) * t, z = b + (d - b) * t; if (x > E.x0 + 30 && x < E.x1 - 30 && z > E.z0 + 30 && z < E.z1 - 30) return true; } return false; };
     for (let i = segs.length - 1; i >= 0; i--) { const sg = segs[i], [a, b, c, d, w, id, M] = sg; if (id === "palm" || !hits(a, b, c, d)) continue; if ([M?.A, M?.B].some(r => r?.gate && Math.hypot(r.x - T.x, r.z - T.z) < F.R + 120)) continue;
       let best = null; for (const [wx, wz] of [[E.x0, E.z0], [E.x1, E.z0], [E.x0, E.z1], [E.x1, E.z1]]) { if (hits(a, b, wx, wz) || hits(wx, wz, c, d) || !onGrass(wx, wz, S.s, .03)) continue; const L = Math.hypot(wx - a, wz - b) + Math.hypot(c - wx, d - wz); if (!best || L < best.L) best = { wx, wz, L }; }
@@ -9649,6 +9795,9 @@ function highwaySegs(full = false) {   // full: as the highways were drawn befor
 // is a point on one of the highways (they cross the beach to the palm and the harbor, so you can walk and drive there too)?
 const onHighway = (x, z) => [...gateRings(), ...coastTerms().map(T => ({ ...T, x: T.J.x, z: T.J.z }))].some(R => Math.hypot(x - R.x, z - R.z) < R.Ro + 1) || [...highwaySegs(), ...extraRoads()].some(([a, b, c, d, w]) => { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(x - a - dx * k, z - b - dz * k) < w / 2 + 1; });
 // is a point inside (or right next to) a built city?
+// the capital's planned quarters (all their rings, built or not): nothing else is put there
+const inDist = (x, z, m = 0) => { const D = DIST.rect; return !!D && x > D.ox0 - D.ex - 10 - m && x < D.ox1 + D.ex + 10 + m && z > D.oz0 - D.nz - 40 - m && z < D.oz1 + D.sz + 10 + m; };
+const inBuilt = (x, z, m = 10) => inCityBox(x, z, m) || inDist(x, z, m);
 const inCityBox = (x, z, m = 10) => S.slots.some(sl => { if (!sl.city || !(sl.blocks?.size || sl.townBox)) return false; const B = cityBox(sl);
   return x > sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - m && x < sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + m && z > sl.z + BPZ(B.mnZ) - BZ / 2 - m && z < sl.z + BPZ(B.mxZ) + BZ / 2 + m; });
 function placeCheck(x, z, id) {
@@ -9776,8 +9925,11 @@ function loop(now) {
   if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
   if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
   animate(dt);
-  sunFollow(tg, camera.right * 2 / camera.zoom);
-  if (camera.zoom !== lastZoom) { lastZoom = camera.zoom; for (const l of LABELS) l.visible = lastZoom >= l.userData.minZ; }
+  sunFollow(tg, camera.right * 2 / camera.zoom); if (SEA) { SEA.position.x = Math.round(tg.x / 2500) * 2500; SEA.position.z = Math.round(tg.z / 2500) * 2500; }
+  if (camera.zoom !== lastZoom) { lastZoom = camera.zoom; for (const l of LABELS) l.visible = lastZoom >= l.userData.minZ;
+    // far out (the whole island in view) the fog and the camera's depth grow with the view, so the island does not fade or cut off; close up they are as they always were
+    const W = (camera.right - camera.left) / camera.zoom, X = Math.max(0, W - 3000); scene.fog.near = 2200 + X * .9; scene.fog.far = 5200 + X * 2.4;
+    const D = Math.max(8000, W * 3); if (camera.far !== D) { camera.near = -D; camera.far = D; camera.updateProjectionMatrix(); } }
   renderWorld(camera, controls.target);
 }
 
@@ -10044,7 +10196,7 @@ function autoGraph() {
     for (const R of [A, B]) if (R?.gate && R.sl && grids.get(R.sl)) { const G = grids.get(R.sl), g = id(R.gate), en = G.ends(R.gate), dd = e => Math.hypot(G.nodes[e].x - R.gate.x, G.nodes[e].z - R.gate.z), m = Math.min(...en.map(dd));   // into the city by the street right at the gate
       link(id(R), g); for (const e of en) if (dd(e) < m + 1) link(g, id(G.nodes[e])); } }
   // the capital's new quarters: every street laid, its points in a chain; each end and each point joined to the nearest road it touches
-  for (const DP of PLANS()) { const mine = [], sOf = new Map(), drawn = (s, x, z) => s.bridge || (s.zone === "C" ? onGrass(x, z, MAX_S, .02) : !(DP.cut && DP.cut(x, z)) && (!distBlocked(x, z, -4, DP.own) || onHighway(x, z)));
+  for (const DP of PLANS()) { const mine = [], sOf = new Map(), drawn = (s, x, z) => s.bridge || (s.zone === "C" ? onGrass(x, z, MAX_S, .02) : !(DP.cut && DP.cut(x, z)) && (!distBlocked(x, z, -4, DP.own, !!DP.cut) || onHighway(x, z)));
     for (const s of DP.streets) { if (!distLaid(s)) continue; let prev = null;   // a node every 8 m; where the street isn't built (over water, a highway's verge) the chain breaks
       for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 8));
         for (let k = i === 1 ? 0 : 1; k <= n; k++) { const x = a.x + (b.x - a.x) * k / n, z = a.z + (b.z - a.z) * k / n; if (!drawn(s, x, z)) { prev = null; continue; } const q = id({ x, z }); if (prev != null) link(prev, q); prev = q; mine.push(q); sOf.set(q, s); } } }
@@ -12956,6 +13108,7 @@ const NEWS = {
   pier: { v: "2026-11-05", ic: "🌉", t: "גשר עץ לאי הפסל", sub: "מרכז מבקרים, שערי כניסה, גשר של 550 מ׳, והאי גדל עם טיילת וספסלים", ok: () => PIERS.some(Boolean), shot: () => { const Pi = PIERS.find(Boolean); return { a: at(Pi.C, 2.2, -.6, .3), b: at({ x: (Pi.C.x + Pi.sh.x) / 2, z: (Pi.C.z + Pi.sh.z) / 2 }, 2.6, .5, .3) }; } },
   sports: { v: "2026-11-05", ic: "🏟️", t: "קריית הספורט נפתחה", sub: "אצטדיון ל־15,000, אולם ספורט ומגרשי כדורסל · הפנדלים עברו לאצטדיון", ok: () => natOpen("sports"), shot: () => { const [x, z] = spW(0, -40); return { a: { x, z, zoom: 1.6, az: -.6, el: .34 }, b: { x, z, zoom: 3.2, az: .4, el: .3 } }; } },
   sababus: { v: "2026-11-06", ic: "🚌", t: "סבבוס: אוטובוסים חדשים ותחנות מרכזיות", sub: "אוטובוסי אקורדיון בעיר (קווים 1, 2), אוטובוס בין עירוני (קו 405), ותחנה מרכזית בכניסה לכל עיר", ok: () => (S.stations || []).length > 0, shot: () => { const st = S.stations[0]; return { a: { x: st.x, z: st.z, zoom: 4, az: -.6, el: .38 }, b: { x: st.x, z: st.z, zoom: 7, az: .5, el: .3 } }; } },
+  smooth: { v: "2026-11-08", ic: "⚡", t: "האתר מהיר יותר, ומבט על כל האי", sub: "רק מה שעל המסך נבנה לתצוגה · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
   oldtown: { v: "2026-11-08", ic: "🌉", t: "נווה זורם נבנתה מחדש: העיר העתיקה על הנהר", sub: "כיכר השוק משני צידי הנהר ומדרחוב על הגשר · גשרי רחוב לרכבים · רחובות קשת וסמטאות · כיכרות קטנות עם ספסלים מול המים · כל תושב באותה כתובת", ok: () => TOWNS.size > 0, shot: () => { const T = [...TOWNS.values()][0]; return { a: { x: T.plan.M.x, z: T.plan.M.z, zoom: 1.4, az: -.5, el: .45 }, b: { x: T.plan.M.x, z: T.plan.M.z, zoom: 3.2, az: .5, el: .35 } }; } },
   capital: { v: "2026-11-07", ic: "🏙️", t: "הבירה גדלה: שדרת הלאום והשכונות החדשות", sub: "מגדל ההגשמה ומנהלת הבינוי על שדרת הלאום · גינות ציבוריות · רשת במזרח ובמערב, ווילות בצפון ובתי אבן בדרום · שלוש ערים על האי: נווה זורם עברה דרומה לאורך הנהר, והעיר השלישית תקום מזרחית לקריה · כל אחת מהשלוש ממשיכה לגדול", ok: () => !!DIST.plan, shot: () => { const R = DIST.rect; return { a: { x: (R.x0 + R.x1) / 2, z: (R.z0 + R.z1) / 2, zoom: 1.2, az: -.6, el: .4 }, b: { x: (R.x0 + R.x1) / 2, z: R.oz0, zoom: 2.4, az: .4, el: .3 } }; } },
   armour: { v: "2026-11-06", ic: "🛡️", t: "בסיס השריון נפתח", sub: "במדבר הדרומי: 72 טנקים, נגמ״שים ומובילי טנקים, ושטח אימונים עם סוללות ירי · רק משרתי יבשה נכנסים", ok: () => natOpen("armour"), shot: () => { const N = NAT.armour; return { a: { x: N.x, z: N.z - 200, zoom: 1.4, az: -.6, el: .38 }, b: { x: N.x, z: N.z, zoom: 3, az: .5, el: .3 } }; } },
@@ -14181,7 +14334,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
