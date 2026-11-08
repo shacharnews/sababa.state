@@ -3338,7 +3338,7 @@ const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 24 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
 function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
@@ -3358,24 +3358,24 @@ function terrainUpdate() {
     v.set(sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 30, sl.z + BPZ(B.mnZ) - BZ / 2 - 30, sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 30, sl.z + BPZ(B.mxZ) + BZ / 2 + 30); });
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
-  let i = open.length; for (const m of S.mallSpots) if (m && i < 24) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
-  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 24) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
-  if (NAT.memorial && i < 24) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
-  if (NAT.sports && i < 24) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
-  if (NAT.kirya && natP("kirya") && i < 24) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
-  if (NAT.sechq && natP("sechq") && i < 24) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
-  if (NAT.north && natP("north") && i < 24) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
-  if (DIST.rect && i < 24) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
-  if (NAT.armour && natP("armour") && i < 24) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
-  if (NAT.yamit && i < 24) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
+  let i = open.length; for (const m of S.mallSpots) if (m && i < 16) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
+  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 16) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
+  if (NAT.memorial && i < 16) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
+  if (NAT.sports && i < 16) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
+  if (NAT.kirya && natP("kirya") && i < 16) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
+  if (NAT.sechq && natP("sechq") && i < 16) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
+  if (NAT.north && natP("north") && i < 16) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
+  if (DIST.rect && i < 16) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
+  if (NAT.armour && natP("armour") && i < 16) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
+  if (NAT.yamit && i < 16) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
   // the central bus stations, each on level ground with the road to its roundabout
-  try { for (const st of centralStations()) { if (i >= 24) break; const c = Math.cos(st.ry), s2 = Math.sin(st.ry), P = [[-50, -37], [50, -37], [-50, st.town ? 70 : 54], [50, st.town ? 70 : 54]].map(([a, b]) => [st.x + a * c + b * s2, st.z - a * s2 + b * c]);
+  try { for (const st of centralStations()) { if (i >= 16) break; const c = Math.cos(st.ry), s2 = Math.sin(st.ry), P = [[-50, -37], [50, -37], [-50, st.town ? 70 : 54], [50, st.town ? 70 : 54]].map(([a, b]) => [st.x + a * c + b * s2, st.z - a * s2 + b * c]);
     HT_U.uCity.value[i++].set(Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))); } } catch (e) { }
   S.ykSpot = landPinYk(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[24]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
 ${landLiftGLSL}
@@ -3383,7 +3383,7 @@ float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
-  float dm = 1e9; for (int i = 0; i < 24; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
+  float dm = 1e9; for (int i = 0; i < 16; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   { vec2 d = p - uNav.xy; vec2 l = vec2(d.x * uNav.z - d.y * uNav.w, d.x * uNav.w + d.y * uNav.z); dm = min(dm, length(max(abs(l) - vec2(490., 175.), vec2(0.)))); }
   { vec2 d = p - uAir.xy; vec2 l = vec2(d.x * uAir.z - d.y * uAir.w, d.x * uAir.w + d.y * uAir.z); dm = min(dm, length(max(abs(l) - vec2(1720., 340.), vec2(0.)))); }
   float f = wsm0(20., 200., dm); if (f <= 0.) return landBr(p, landD(p));
@@ -4417,18 +4417,24 @@ function townHoles(kmax = 1) { const out = []; for (const Lw of LAND.low || []) 
     for (let i = Math.max(0, Lw.i0 - 3); i < Math.min(R.x.length, (Lw.i1 ?? 1e9) + 4); i++) { if (R.k[i] > kmax - .04) break; const f = landFrame(R.pts, i), o = R.hw[i] + R.vw[i]; L.push([R.x[i] + f.nx * o, R.z[i] + f.nz * o]); Rt.push([R.x[i] - f.nx * o, R.z[i] - f.nz * o]); }
     if (L.length > 2) out.push([...L, ...Rt.reverse()]); } return out; }
 // flat ground in triangles no longer than L metres: the map bends under them (the flat layers lie a few cm apart, so long triangles bent differently show as stripes)
-function refineFlat(g, L = 200) {
-  const src = g.index ? g.toNonIndexed() : g, P = src.attributes.position.array; let T = [];
-  for (let i = 0; i < P.length; i += 9) T.push([[P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]]]);
-  const key = (a, b) => { const A = a.join(","), B = b.join(","); return A < B ? A + "|" + B : B + "|" + A; }, long = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]) > L, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-  for (let it = 0; it < 10; it++) { const S2 = new Set(); for (const [a, b, c] of T) { if (long(a, b)) S2.add(key(a, b)); if (long(b, c)) S2.add(key(b, c)); if (long(c, a)) S2.add(key(c, a)); } if (!S2.size) break;
-    const out = []; for (const [a, b, c] of T) { const s0 = S2.has(key(a, b)), s1 = S2.has(key(b, c)), s2 = S2.has(key(c, a));
-      if (!s0 && !s1 && !s2) { out.push([a, b, c]); continue; } const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
-      if (s0 && s1 && s2) out.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
-      else if (s0 && s1) out.push([ab, b, bc], [a, ab, bc], [a, bc, c]); else if (s1 && s2) out.push([bc, c, ca], [b, bc, ca], [b, ca, a]); else if (s2 && s0) out.push([ca, a, ab], [c, ca, ab], [c, ab, b]);
-      else if (s0) out.push([a, ab, c], [ab, b, c]); else if (s1) out.push([b, bc, a], [bc, c, a]); else out.push([c, ca, b], [ca, a, b]); }
-    T = out; }
-  const out = new THREE.BufferGeometry(), A = new Float32Array(T.length * 9); T.forEach((t, i) => t.forEach((p, j) => A.set(p, i * 9 + j * 3))); out.setAttribute("position", new THREE.BufferAttribute(A, 3)); out.computeVertexNormals(); return out;
+function refineFlat(g, L = 300) {
+  // the corners welded once (the shape's own vertices), then each long edge split at its middle, shared by the two triangles on it (numbers for keys: fast and light on a phone)
+  const src = g.attributes.position.array, idx0 = g.index ? g.index.array : null, n0 = idx0 ? idx0.length : src.length / 3, X = [], Y = [], Z = [], weld = new Map(), T = [];
+  const vid = j => { const x = src[j * 3], y = src[j * 3 + 1], z = src[j * 3 + 2], k = Math.round(x * 100) * 1e7 + Math.round(z * 100) + Math.round(y * 100) * 1e-3; let v = weld.get(k); if (v === undefined) { v = X.length; X.push(x); Y.push(y); Z.push(z); weld.set(k, v); } return v; };
+  for (let i = 0; i < n0; i += 3) T.push(vid(idx0 ? idx0[i] : i), vid(idx0 ? idx0[i + 1] : i + 1), vid(idx0 ? idx0[i + 2] : i + 2));
+  const L2 = L * L, long = (a, b) => (X[a] - X[b]) ** 2 + (Z[a] - Z[b]) ** 2 > L2;
+  for (let it = 0; it < 12; it++) { const mids = new Map(), mid = (a, b) => { const k = a < b ? a * 4194304 + b : b * 4194304 + a; let v = mids.get(k); if (v === undefined) { v = X.length; X.push((X[a] + X[b]) / 2); Y.push((Y[a] + Y[b]) / 2); Z.push((Z[a] + Z[b]) / 2); mids.set(k, v); } return v; };
+    let any = false; for (let i = 0; i < T.length; i += 3) if (long(T[i], T[i + 1]) || long(T[i + 1], T[i + 2]) || long(T[i + 2], T[i])) { any = true; break; } if (!any) break;
+    const out = []; for (let i = 0; i < T.length; i += 3) { const a = T[i], b = T[i + 1], c = T[i + 2], s0 = long(a, b), s1 = long(b, c), s2 = long(c, a);
+      if (!s0 && !s1 && !s2) { out.push(a, b, c); continue; } const ab = s0 ? mid(a, b) : -1, bc = s1 ? mid(b, c) : -1, ca = s2 ? mid(c, a) : -1;
+      if (s0 && s1 && s2) out.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca);
+      else if (s0 && s1) out.push(ab, b, bc, a, ab, bc, a, bc, c); else if (s1 && s2) out.push(bc, c, ca, b, bc, ca, b, ca, a); else if (s2 && s0) out.push(ca, a, ab, c, ca, ab, c, ab, b);
+      else if (s0) out.push(a, ab, c, ab, b, c); else if (s1) out.push(b, bc, a, bc, c, a); else out.push(c, ca, b, ca, a, b); }
+    T.length = 0; for (const v of out) T.push(v); }
+  const pos = new Float32Array(X.length * 3); for (let i = 0; i < X.length; i++) { pos[i * 3] = X[i]; pos[i * 3 + 1] = Y[i]; pos[i * 3 + 2] = Z[i]; }
+  const out = new THREE.BufferGeometry(); out.setAttribute("position", new THREE.BufferAttribute(pos, 3)); out.setIndex(X.length > 65000 ? new THREE.Uint32BufferAttribute(T, 1) : new THREE.Uint16BufferAttribute(T, 1));
+  // the sand's sides stand upright: their own face normals (welded shared corners would round them); the flat tops face up
+  const res = idx0 ? out : out.toNonIndexed(); res.computeVertexNormals(); return res;
 }
 function flat(k, y, mat, receive = true) { const sh = blobShape(k); for (const H of townHoles(k)) sh.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z)))); const g = noHills(refineFlat(new THREE.ShapeGeometry(sh, 1).rotateX(-Math.PI / 2))); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
 function buildTerrain() {
