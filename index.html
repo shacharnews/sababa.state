@@ -3338,7 +3338,7 @@ const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uS: { value: 1 }, uCity: { value: Array.from({ length: 24 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b = terrainBase(x, z), w = moundW(x, z); return w > 0 ? b + (HT_U.uMound.value.z - b) * w : b; }   // סבבהום's flat hilltop blends into the land around it
 function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
@@ -3358,21 +3358,24 @@ function terrainUpdate() {
     v.set(sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 30, sl.z + BPZ(B.mnZ) - BZ / 2 - 30, sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 30, sl.z + BPZ(B.mxZ) + BZ / 2 + 30); });
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
-  let i = open.length; for (const m of S.mallSpots) if (m && i < 16) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
-  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 16) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
-  if (NAT.memorial && i < 16) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
-  if (NAT.sports && i < 16) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
-  if (NAT.kirya && natP("kirya") && i < 16) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
-  if (NAT.sechq && natP("sechq") && i < 16) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
-  if (NAT.north && natP("north") && i < 16) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
-  if (DIST.rect && i < 16) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
-  if (NAT.armour && natP("armour") && i < 16) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
-  if (NAT.yamit && i < 16) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
+  let i = open.length; for (const m of S.mallSpots) if (m && i < 24) HT_U.uCity.value[i++].set(m.x - 105, m.z - 105, m.x + 105, m.z + 105);
+  for (const k of ["wishtower", "nbia"]) { const [x0, z0, x1, z1] = natLot(k); if (i < 24) HT_U.uCity.value[i++].set(x0 - 6, z0 - 6, x1 + 6, z1 + 6); }   // the national plots are kept level
+  if (NAT.memorial && i < 24) { const [x0, z0, x1, z1] = memBox(); HT_U.uCity.value[i++].set(x0 - 4, z0 - 4, x1 + 4, z1 + 4); }
+  if (NAT.sports && i < 24) { const R = NAT.sports.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 40, R.z - R.d / 2 + 40, R.x + R.w / 2 - 40, R.z + R.d / 2 - 40); }   // the sports city's site is graded level
+  if (NAT.kirya && natP("kirya") && i < 24) { const R = NAT.kirya.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the Kirya's compound, one level
+  if (NAT.sechq && natP("sechq") && i < 24) { const R = NAT.sechq.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 6, R.z - R.d / 2 + 6, R.x + R.w / 2 - 6, R.z + R.d / 2 - 6); }   // the service's compound, one level
+  if (NAT.north && natP("north") && i < 24) { const R = NAT.north.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // the northern base, graded level
+  if (DIST.rect && i < 24) { const D = DIST.rect; HT_U.uCity.value[i++].set(D.ox0 - D.ex - 10, D.oz0 - D.nz - 40, D.ox1 + D.ex + 10, D.oz1 + D.sz + 10); }   // the capital's new quarters, one level
+  if (NAT.armour && natP("armour") && i < 24) { const A = NAT.armour; HT_U.uCity.value[i++].set(A.x - AR.HX - 14, A.z - AR.HZ - 14, A.x + AR.HX + 14, A.z + AR.HZ + 14); }   // the armour base (its training ground keeps the desert as it lies)
+  if (NAT.yamit && i < 24) { const R = NAT.yamit.R; HT_U.uCity.value[i++].set(R.x - R.w / 2 + 4, R.z - R.d / 2 + 4, R.x + R.w / 2 - 4, R.z + R.d / 2 - 4); }   // and the water park's, every pool on one level
+  // the central bus stations, each on level ground with the road to its roundabout
+  try { for (const st of centralStations()) { if (i >= 24) break; const c = Math.cos(st.ry), s2 = Math.sin(st.ry), P = [[-50, -37], [50, -37], [-50, st.town ? 70 : 54], [50, st.town ? 70 : 54]].map(([a, b]) => [st.x + a * c + b * s2, st.z - a * s2 + b * c]);
+    HT_U.uCity.value[i++].set(Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))); } } catch (e) { }
   S.ykSpot = landPinYk(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[24]; uniform vec4 uMound; uniform vec4 uNav; uniform vec4 uAir;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
 ${landLiftGLSL}
@@ -3380,7 +3383,7 @@ float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
-  float dm = 1e9; for (int i = 0; i < 16; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
+  float dm = 1e9; for (int i = 0; i < 24; i++) { vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   { vec2 d = p - uNav.xy; vec2 l = vec2(d.x * uNav.z - d.y * uNav.w, d.x * uNav.w + d.y * uNav.z); dm = min(dm, length(max(abs(l) - vec2(490., 175.), vec2(0.)))); }
   { vec2 d = p - uAir.xy; vec2 l = vec2(d.x * uAir.z - d.y * uAir.w, d.x * uAir.w + d.y * uAir.z); dm = min(dm, length(max(abs(l) - vec2(1720., 340.), vec2(0.)))); }
   float f = wsm0(20., 200., dm); if (f <= 0.) return landBr(p, landD(p));
@@ -3846,6 +3849,10 @@ const BUS_C = SB.IV, CITYBUS_C = "#4fb4dc";   // the paint reads darker than its
 function centralStations() {
   const out = [], segs = highwaySegs();
   const done = new Set(), rings = [...gateRings()].sort((p, q) => (q.wide ? 1 : 0) - (p.wide ? 1 : 0));   // the main entrance first: the wide road from the harbour
+  // a town: its station stands on the line of the avenue, just past the roundabout at the end of it, facing back to the town (a short road joins them)
+  for (const R of rings) { if (!R.sl || !R.gate || done.has(R.sl) || !isTown(R.sl)) continue; const ox = R.gate.ox, oz = R.gate.oz, x = R.x + ox * (R.Ro + 14 + 50), z = R.z + oz * (R.Ro + 14 + 50), ry = Math.atan2(-ox, -oz), c = Math.cos(ry), s2 = Math.sin(ry);
+    const clear = [[-47, -33], [47, -33], [-47, 50], [47, 50], [0, 0]].every(([a, b]) => { const X = x + a * c + b * s2, Z = z - a * s2 + b * c; return onGrass(X, Z, MAX_S, .04) && !natSiteAt(X, Z, 6) && !segs.some(([p, q, c3, d, w]) => { const dx = c3 - p, dz = d - q, kk = Math.max(0, Math.min(1, ((X - p) * dx + (Z - q) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - p - dx * kk, Z - q - dz * kk) < w / 2 + 10; }); });
+    if (clear) { out.push({ x, z, ry, sl: R.sl, ring: R, town: true }); done.add(R.sl); } }
   for (const R of rings) { if (!R.sl || !R.gate || done.has(R.sl)) continue; const ox = R.gate.ox, oz = R.gate.oz, rx = oz, rz = -ox;
     for (const [sd, ou, sw] of [[1, 40, 46], [-1, 40, 46], [1, 80, 46], [-1, 80, 46], [1, 40, 90], [-1, 40, 90], [1, 120, 70], [-1, 120, 70]]) { const x = R.x + ox * ou + rx * sd * (R.Ro + sw), z = R.z + oz * ou + rz * sd * (R.Ro + sw), ry = Math.atan2(-rx * sd, -rz * sd), c = Math.cos(ry), s2 = Math.sin(ry);
       const clear = [[-47, -33], [47, -33], [-47, 50], [47, 50], [0, 0], [0, -33], [0, 50]].every(([a, b]) => { const X = x + a * c + b * s2, Z = z - a * s2 + b * c; return !inCityBox(X, Z, 4) && !segs.some(([p, q, c, d, w]) => { const dx = c - p, dz = d - q, k = Math.max(0, Math.min(1, ((X - p) * dx + (Z - q) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(X - p - dx * k, Z - q - dz * k) < w / 2 + 6; }) && !natSiteAt(X, Z, 4) && !distNear(X, Z, 22) && !(S.mallSpots || []).some(m => m && Math.hypot(m.x - X, m.z - Z) < 125) && !(S.ykSpot && Math.hypot(S.ykSpot.x - X, S.ykSpot.z - Z) < 110) && !S.workplaces.some(w => w.x != null && S.wpCfg?.get(w.id)?.x != null && Math.hypot(w.x - X, w.z - Z) < 25); });
@@ -3885,7 +3892,10 @@ function buildCentralStations() {
     placeLabel(`🚌 התחנה המרכזית`, st.x, 14, st.z);
     // from each gate a road goes straight on to the street (the edge of the city, or the highway) and joins it
     { const c = Math.cos(st.ry), s2 = Math.sin(st.ry), Wp = (a, b) => [st.x + a * c + b * s2, st.z - a * s2 + b * c], RQ = [];
-      for (const lx of [-39.5, 39.5]) { const [gx, gz] = Wp(lx, 47); let hit = 0; for (let t = 0; t < 200; t += 1) { const [x, z] = Wp(lx, 47 + t); if (inCityBox(x, z, -2) || onHighway(x, z)) { hit = t; break; } }
+      // a town's station: a road along its front joins its two gates, and goes on to the roundabout at the end of the avenue
+      if (st.town) { const L = st.ring.Ro + 14 + 50 - 54 - st.ring.Ro + 3; const [fx, fz] = Wp(0, 54); RQ.push(part(new THREE.BoxGeometry(86, .08, 8, 22, 1, 2), AS, fx, .34, fz, { y: st.ry }));
+        const [ax, az] = Wp(0, 58 + L / 2); RQ.push(part(new THREE.BoxGeometry(8, .08, L + 2, 2, 1, Math.ceil(L / 4) + 1), AS, ax, .34, az, { y: st.ry })); }
+      else for (const lx of [-39.5, 39.5]) { const [gx, gz] = Wp(lx, 47); let hit = 0; for (let t = 0; t < 200; t += 1) { const [x, z] = Wp(lx, 47 + t); if (inCityBox(x, z, -2) || onHighway(x, z)) { hit = t; break; } }
         if (hit > 1) { const [ex, ez] = Wp(lx, 47 + hit + 2); RQ.push(part(new THREE.BoxGeometry(7, .08, hit + 2, 1, 1, Math.ceil((hit + 2) / 4)), AS, (gx + ex) / 2, .34, (gz + ez) / 2, { y: st.ry })); } }
       if (RQ.length) solid(RQ, 0, 0, 0, null, CURB - .3); }
     // the buses at the platforms: the city buses at the front bays, the intercity coach at the back
@@ -4334,9 +4344,8 @@ function busPick(i) {
 /* ---------- builders ---------- */
 const o3 = new THREE.Object3D(), col3 = new THREE.Color();
 // many copies spread over the island are split into tiles of the map, so the ones out of view are not drawn at all (one mesh across the whole island is always drawn)
+let SEA = null;
 const MAP_TILE = 600;
-const LOD = { near: new Set(), far: new Set(), mid: new Set() };   // a mesh in two versions: the detailed one close up, the light one from far away
-const SMALL = new Set();   // small details (cars, lamps, benches, people): too small to see from far away, so not drawn then
 function tiled(items, xz, fn) {
   if (items.length < 80) return [fn(items)];
   const g = new Map(); for (const it of items) { const [x, z] = xz(it), k = Math.floor(x / MAP_TILE) + "," + Math.floor(z / MAP_TILE); (g.get(k) || g.set(k, []).get(k)).push(it); }
@@ -4358,11 +4367,6 @@ function instanced(pf, items, place, { shadow = true, receive = true, tile = tru
       for (const t of twins) { t.setMatrixAt(i, mx); t.setColorAt(i, t.userData.kind === "paint" || t.userData.kind === "tint" ? col3.set(c || "#ffffff") : white); } });
     for (const x of [m, ...twins]) if (x.instanceColor) x.instanceColor.needsUpdate = true;
     m.userData.twins = twins; first ||= m;
-    // small: every copy small (a road made of stretched planes is not)
-    if (!pf.base.boundingSphere) pf.base.computeBoundingSphere(); let big = 0, strip = false; const e = new THREE.Vector3(); for (const [mx] of L) { big = Math.max(big, mx.getMaxScaleOnAxis()); const sx = e.setFromMatrixColumn(mx, 0).length(), sz = e.setFromMatrixColumn(mx, 2).length(); if (Math.max(sx, sz) > 2.5 * Math.min(sx, sz)) strip = true; }
-    const rad = pf.base.boundingSphere.radius * big;
-    if (rad < 3.2) for (const x of [m, ...twins]) { SMALL.add(x); if (SMALL.far) x.visible = false; }
-    else if (rad < 25 && !strip) for (const x of [m, ...twins]) { LOD.mid.add(x); if (LOD.vfar) x.visible = false; }   // houses, trees: less than a pixel when the whole island is on the screen
   }
   return first;
 }
@@ -4404,15 +4408,31 @@ function blobShape(k) { const pts = []; for (let i = 0; i < 720; i++) { const t 
 const noHills = g => (g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(2), 1)), g);   // big flat pieces of ground: bent, but the hills mesh does the rising
 // a town's river runs in its own bed below the streets: the flat ground has a hole there, and the hills mesh carries the bed and its banks
 function townHoles(kmax = 1) { const out = []; for (const Lw of LAND.low || []) { const R = LAND.rivers.find(r => r.id === Lw.id); if (!R) continue; const L = [], Rt = [];
-    for (let i = Math.max(0, Lw.i0 - 3); i < R.x.length; i++) { if (R.k[i] > kmax - .04) break; const f = landFrame(R.pts, i), o = R.hw[i] + R.vw[i]; L.push([R.x[i] + f.nx * o, R.z[i] + f.nz * o]); Rt.push([R.x[i] - f.nx * o, R.z[i] - f.nz * o]); }
+    for (let i = Math.max(0, Lw.i0 - 3); i < Math.min(R.x.length, (Lw.i1 ?? 1e9) + 4); i++) { if (R.k[i] > kmax - .04) break; const f = landFrame(R.pts, i), o = R.hw[i] + R.vw[i]; L.push([R.x[i] + f.nx * o, R.z[i] + f.nz * o]); Rt.push([R.x[i] - f.nx * o, R.z[i] - f.nz * o]); }
     if (L.length > 2) out.push([...L, ...Rt.reverse()]); } return out; }
-function flat(k, y, mat, receive = true) { const sh = blobShape(k); for (const H of townHoles(k)) sh.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z)))); const g = noHills(new THREE.ShapeGeometry(sh, 1)); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
+// flat ground in triangles no longer than L metres: the map bends under them (the flat layers lie a few cm apart, so long triangles bent differently show as stripes)
+function refineFlat(g, L = 200) {
+  const src = g.index ? g.toNonIndexed() : g, P = src.attributes.position.array; let T = [];
+  for (let i = 0; i < P.length; i += 9) T.push([[P[i], P[i + 1], P[i + 2]], [P[i + 3], P[i + 4], P[i + 5]], [P[i + 6], P[i + 7], P[i + 8]]]);
+  const key = (a, b) => { const A = a.join(","), B = b.join(","); return A < B ? A + "|" + B : B + "|" + A; }, long = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]) > L, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  for (let it = 0; it < 10; it++) { const S2 = new Set(); for (const [a, b, c] of T) { if (long(a, b)) S2.add(key(a, b)); if (long(b, c)) S2.add(key(b, c)); if (long(c, a)) S2.add(key(c, a)); } if (!S2.size) break;
+    const out = []; for (const [a, b, c] of T) { const s0 = S2.has(key(a, b)), s1 = S2.has(key(b, c)), s2 = S2.has(key(c, a));
+      if (!s0 && !s1 && !s2) { out.push([a, b, c]); continue; } const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+      if (s0 && s1 && s2) out.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
+      else if (s0 && s1) out.push([ab, b, bc], [a, ab, bc], [a, bc, c]); else if (s1 && s2) out.push([bc, c, ca], [b, bc, ca], [b, ca, a]); else if (s2 && s0) out.push([ca, a, ab], [c, ca, ab], [c, ab, b]);
+      else if (s0) out.push([a, ab, c], [ab, b, c]); else if (s1) out.push([b, bc, a], [bc, c, a]); else out.push([c, ca, b], [ca, a, b]); }
+    T = out; }
+  const out = new THREE.BufferGeometry(), A = new Float32Array(T.length * 9); T.forEach((t, i) => t.forEach((p, j) => A.set(p, i * 9 + j * 3))); out.setAttribute("position", new THREE.BufferAttribute(A, 3)); out.computeVertexNormals(); return out;
+}
+function flat(k, y, mat, receive = true) { const sh = blobShape(k); for (const H of townHoles(k)) sh.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z)))); const g = noHills(refineFlat(new THREE.ShapeGeometry(sh, 1).rotateX(-Math.PI / 2))); const m = new THREE.Mesh(g, mat); m.position.y = y; m.receiveShadow = receive; world.add(m); return m; }
 function buildTerrain() {
   terrainUpdate(); landPrep(); distAssign(); townAssign();
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(400000, 400000).rotateX(-Math.PI / 2), WATER); sea.position.y = -3; sea.receiveShadow = true; world.add(sea);
+  // the open sea is the lowest layer: drawn first and never in front of anything (its big squares bend with the map less finely than the shallows over it)
+  const seaMat = WATER.clone(); seaMat.depthWrite = false;
+  const sea = new THREE.Mesh(noHills(new THREE.PlaneGeometry(80000, 80000, 32, 32).rotateX(-Math.PI / 2)), seaMat); sea.renderOrder = -10; sea.position.y = -3; sea.userData.sea = true; SEA = sea; sea.receiveShadow = true; world.add(sea);   // it moves with the view, so its edge is never in sight
   flat(1.12, -2.85, SHALLOW, false);
   const sh1 = blobShape(1); for (const H of townHoles(1)) sh1.holes.push(new THREE.Path(H.map(([x, z]) => new THREE.Vector2(x, -z))));
-  const g = new THREE.ExtrudeGeometry(sh1, { depth: 6, bevelEnabled: false, curveSegments: 1 }); g.rotateX(-Math.PI / 2); g.translate(0, -6, 0); noHills(g);
+  const g = noHills(refineFlat(new THREE.ExtrudeGeometry(sh1, { depth: 6, bevelEnabled: false, curveSegments: 1 }).rotateX(-Math.PI / 2).translate(0, -6, 0)));
   const sand = new THREE.Mesh(g, realism(new THREE.MeshLambertMaterial({ color: "#e6cf98" }), { paving: false })); sand.receiveShadow = true; world.add(sand);
   flat(1.015, -2.6, new THREE.MeshBasicMaterial({ color: "#e9f7fb", transparent: true, opacity: .55 }), false);
   flat(GRASS, .1, realism(new THREE.MeshLambertMaterial({ color: "#8bb36a" }), { paving: false }));
@@ -4424,36 +4444,51 @@ function buildTerrain() {
 const HILL_MAT = realism(new THREE.MeshLambertMaterial({ vertexColors: true }), { paving: false, roofs: false, terrain: true });
 function buildHills() {
   terrainUpdate();
-  const C = Math.max(9, 9.5 * S.s / 3.6), X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
+  const C = Math.max(7, 7 * S.s / 3.6), X = RX0 * S.s * GRASS * 1.15, Z = RZ0 * S.s * GRASS * 1.15, nx = Math.ceil(X * 2 / C), nz = Math.ceil(Z * 2 / C), H = new Float32Array((nx + 1) * (nz + 1));
   // beside the highways the land dips a little below the road, so the road always lies on its own embankment and never under the grass
   const HW = [...highwaySegs(), ...extraRoads()], roadDist = (x, z) => { let m = 1e9; for (const [a, b, c, d, w] of HW) { const dx = c - a, dz = d - b, k = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))); m = Math.min(m, Math.hypot(x - a - dx * k, z - b - dz * k) - w / 2); } return m; };
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C, h = terrainH(x, z); H[j * (nx + 1) + i] = h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : h < 0 ? h : 0; }
-  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), pos = [], col = [], idx = [], c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
+  const g0 = new THREE.Color("#8bb36a"), g1 = new THREE.Color("#82ab60"), g2 = new THREE.Color("#7ca35b"), c = new THREE.Color(), low = new THREE.Color("#86ad62"), dry = new THREE.Color("#a3a86c"), rock = new THREE.Color("#9b9182");
   // a town's river bed: every cell along it is in the mesh (the flat ground and the sand have a hole there)
   const TR = (LAND.low || []).map(L => ({ L, R: LAND.rivers.find(r => r.id === L.id) })).filter(t => t.R), CORR = new Uint8Array((nx + 1) * (nz + 1));
-  if (TR.length) for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C; for (const t of TR) { const B = t.R.bb; if (x < B[0] || x > B[2] || z < B[1] || z > B[3]) continue; const q = landNear(t.R, x, z); if (q && q.i >= t.L.i0 - 3 && q.d < q.hw + q.vw + C * 1.5) CORR[j * (nx + 1) + i] = 1; } }
-  const INC = new Uint8Array(nx * nz);
-  const VI = new Int32Array((nx + 1) * (nz + 1)).fill(-1);   // one vertex per grid point, shared by its cells: a quarter of the memory, and smooth light on the slopes (its land colour worked out only there: most of the island is flat and has none)
-  const vtx = (i, j) => { const k = j * (nx + 1) + i; if (VI[k] >= 0) return VI[k]; const h = H[k], x = -X + i * C, z = -Z + j * C;
-    const hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C), hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C), slope = Math.hypot(hx, hz);
-    const pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;   // the edge of a hill takes the color of the flat land around it, so no seam shows
-    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); landColor(c, landGap(x, z), x, z, h, slope); pos.push(x, .2 + h, z); col.push(c.r, c.g, c.b); return VI[k] = pos.length / 3 - 1; };
+  if (TR.length) for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -X + i * C, z = -Z + j * C; for (const t of TR) { const B = t.R.bb; if (x < B[0] || x > B[2] || z < B[1] || z > B[3]) continue; const q = landNear(t.R, x, z); if (q && q.i >= t.L.i0 - 3 && q.i <= (t.L.i1 ?? 1e9) + 3 && q.d < q.hw + q.vw + C * 1.5) CORR[j * (nx + 1) + i] = 1; } }
+  // below the level of the land only in a river's own channel (and a town's river bed): the banks and the valley stay on the flat ground, so the water and its sand lie as they always did
+  const CHAN = new Uint8Array((nx + 1) * (nz + 1));
+  for (const R of LAND.rivers || []) { const B = R.bb; if (!B) continue; for (let j = Math.max(0, Math.floor((B[1] + Z) / C)); j <= Math.min(nz, Math.ceil((B[3] + Z) / C)); j++) for (let i = Math.max(0, Math.floor((B[0] + X) / C)); i <= Math.min(nx, Math.ceil((B[2] + X) / C)); i++) { const k = j * (nx + 1) + i; if (H[k] >= 0 || CHAN[k]) continue; const q = landNear(R, -X + i * C, -Z + j * C); if (q && q.d < q.hw + 2) CHAN[k] = 1; } }
+  for (let k = 0; k < H.length; k++) if (H[k] < 0 && !CORR[k] && !CHAN[k]) H[k] = 0;
+  // the mesh in square pieces of the map, so the pieces out of view are not drawn; the light on the slopes comes from the land's own slope, so no seam shows between pieces
+  const CH = 40, PIECES = new Map(), piece = (i, j) => { const key = Math.floor(i / CH) * 1000 + Math.floor(j / CH); let P = PIECES.get(key); if (!P) PIECES.set(key, P = { pos: [], col: [], nor: [], idx: [], vi: new Map() }); return P; };   // one vertex per grid point, shared by its cells: a quarter of the memory, and smooth light on the slopes (its land colour worked out only there: most of the island is flat and has none)
+  // along a river through the hills the cells are cut in three each way, their heights taken from the land itself, so the water and its banks meet the hills closely
+  const SD = 3, NEAR = new Uint8Array((nx + 1) * (nz + 1));
+  for (const R of LAND.rivers || []) { const B = R.bb; if (!B) continue; for (let j = Math.max(0, Math.floor((B[1] - 40 + Z) / C)); j <= Math.min(nz, Math.ceil((B[3] + 40 + Z) / C)); j++) for (let i = Math.max(0, Math.floor((B[0] - 40 + X) / C)); i <= Math.min(nx, Math.ceil((B[2] + 40 + X) / C)); i++) { const k = j * (nx + 1) + i; if (NEAR[k] || CORR[k]) continue; const q = landNear(R, -X + i * C, -Z + j * C); if (q && q.d < q.hw + q.vw + C) NEAR[k] = 1; } }
+  const chanAt = (x, z) => (LAND.rivers || []).some(R => { const B = R.bb; if (!B || x < B[0] || x > B[2] || z < B[1] || z > B[3]) return false; const q = landNear(R, x, z); return q && q.d < q.hw + 2; }) || (TR.length && townAt(x, z));
+  const hAt = (x, z) => { const h = terrainH(x, z); return h > 0 ? h - Math.min(h * .6, 2.5) * (1 - smooth01(2, 16, roadDist(x, z))) : h < 0 && chanAt(x, z) ? h : 0; };
+  const inc = new Uint8Array(nx * nz), sub = new Uint8Array(nx * nz);
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1]; if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * S.s)) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;   // in the south the desert runs right down to the beach (no green rim)
-    const v00 = vtx(i, j), v01 = vtx(i, j + 1), v10 = vtx(i + 1, j), v11 = vtx(i + 1, j + 1); idx.push(v00, v01, v10, v10, v01, v11); INC[j * nx + i] = 1;
-  }
-  if (!pos.length) return;
-  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
-  g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(pos.length / 3).fill(2), 1));   // bent like the map, but the heights are already in it
-  g.computeVertexNormals(); const m = new THREE.Mesh(g, HILL_MAT); m.receiveShadow = m.castShadow = true; world.add(m);
-  // the same hills, a ninth of the triangles, for the view from far away (the whole island on the screen)
-  const SP = 3, cp = [], cc = [], ci = [], CV = new Map(), cv = (i, j) => { const k = j * (nx + 1) + i; if (CV.has(k)) return CV.get(k); const v = vtx(i, j); cp.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]); cc.push(col[v * 3], col[v * 3 + 1], col[v * 3 + 2]); CV.set(k, cp.length / 3 - 1); return cp.length / 3 - 1; };
-  for (let J = 0; J < nz; J += SP) for (let I = 0; I < nx; I += SP) { const I1 = Math.min(nx, I + SP), J1 = Math.min(nz, J + SP); let n = 0; for (let j = J; j < J1; j++) for (let i = I; i < I1; i++) n += INC[j * nx + i]; if (!n) continue;
-    if (n === (I1 - I) * (J1 - J)) { const v00 = cv(I, J), v01 = cv(I, J1), v10 = cv(I1, J), v11 = cv(I1, J1); ci.push(v00, v01, v10, v10, v01, v11); continue; }
-    for (let j = J; j < J1; j++) for (let i = I; i < I1; i++) if (INC[j * nx + i]) { const v00 = cv(i, j), v01 = cv(i, j + 1), v10 = cv(i + 1, j), v11 = cv(i + 1, j + 1); ci.push(v00, v01, v10, v10, v01, v11); } }   // the edge of the hills (and a river through them) keeps its fine cells
-  if (ci.length) { const g2 = new THREE.BufferGeometry(); g2.setAttribute("position", new THREE.Float32BufferAttribute(cp, 3)); g2.setAttribute("color", new THREE.Float32BufferAttribute(cc, 3)); g2.setIndex(ci);
-    g2.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(cp.length / 3).fill(2), 1)); g2.computeVertexNormals(); const m2 = new THREE.Mesh(g2, HILL_MAT); m2.receiveShadow = true; m2.castShadow = false; world.add(m2);
-    m.userData.lod = "near"; m2.userData.lod = "far"; LOD.near.add(m); LOD.far.add(m2); m.visible = !LOD.vfar; m2.visible = !!LOD.vfar; }
+    const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1];
+    // in the south the desert runs right down to the beach (no green rim)
+    if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * S.s)) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;
+    inc[j * nx + i] = 1; if (NEAR[j * (nx + 1) + i] || NEAR[j * (nx + 1) + i + 1] || NEAR[(j + 1) * (nx + 1) + i] || NEAR[(j + 1) * (nx + 1) + i + 1]) sub[j * nx + i] = 1; }
+  // a point of the fine grid (fi, fj in thirds of a cell): on the coarse grid its own height; inside a cut cell the land's; on the edge with an uncut cell, the edge's straight line (no crack)
+  const subC = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && sub[j * nx + i];
+  const hF = (fi, fj) => { const i = Math.floor(fi / SD), j = Math.floor(fj / SD), ri = fi - i * SD, rj = fj - j * SD;
+    if (!ri && !rj) return H[j * (nx + 1) + i];
+    if (!rj) { if (!(subC(i, j) && subC(i, j - 1))) return H[j * (nx + 1) + i] + (H[j * (nx + 1) + i + 1] - H[j * (nx + 1) + i]) * ri / SD; }
+    else if (!ri) { if (!(subC(i, j) && subC(i - 1, j))) return H[j * (nx + 1) + i] + (H[(j + 1) * (nx + 1) + i] - H[j * (nx + 1) + i]) * rj / SD; }
+    return hAt(-X + fi * C / SD, -Z + fj * C / SD); };
+  const FW = nx * SD + 1, vtx = (P, fi, fj) => { const k = fj * FW + fi; if (P.vi.has(k)) return P.vi.get(k); const h = hF(fi, fj), x = -X + fi * C / SD, z = -Z + fj * C / SD;
+    let hx, hz; if (fi % SD === 0 && fj % SD === 0) { const i = fi / SD, j = fj / SD; hx = (H[j * (nx + 1) + Math.min(nx, i + 1)] - H[j * (nx + 1) + Math.max(0, i - 1)]) / (2 * C); hz = (H[Math.min(nz, j + 1) * (nx + 1) + i] - H[Math.max(0, j - 1) * (nx + 1) + i]) / (2 * C); }
+    else { const e = C / SD; hx = (hAt(x + e, z) - hAt(x - e, z)) / (2 * e); hz = (hAt(x, z + e) - hAt(x, z - e)) / (2 * e); }
+    const slope = Math.hypot(hx, hz), pr = polar(x, z, S.s), sf = shoreF(pr.t), flatC = pr.d > GRASS * .8 * sf ? g0 : pr.d > GRASS * .55 * sf ? g1 : g2;
+    // the edge of a hill takes the color of the flat land around it, so no seam shows
+    c.copy(low).lerp(dry, Math.min(1, h / HT_PEAK * 1.4)).lerp(rock, smooth01(.45, .9, slope)); c.lerp(flatC, 1 - smooth01(0, 5, h)); landColor(c, landGap(x, z), x, z, h, slope); const nl = Math.hypot(hx, 1, hz); P.pos.push(x, .2 + h, z); P.col.push(c.r, c.g, c.b); P.nor.push(-hx / nl, 1 / nl, -hz / nl); const v = P.pos.length / 3 - 1; P.vi.set(k, v); return v; };
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { if (!inc[j * nx + i]) continue; const P = piece(i, j), n = sub[j * nx + i] ? SD : 1, st = SD / n;
+    for (let v = 0; v < n; v++) for (let u = 0; u < n; u++) { const fi = i * SD + u * st, fj = j * SD + v * st, v00 = vtx(P, fi, fj), v01 = vtx(P, fi, fj + st), v10 = vtx(P, fi + st, fj), v11 = vtx(P, fi + st, fj + st); P.idx.push(v00, v01, v10, v10, v01, v11); } }
+  for (const P of PIECES.values()) { if (!P.idx.length) continue;
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(P.pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(P.col, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(P.nor, 3)); g.setIndex(P.idx);
+    // bent like the map, but the heights are already in it
+    g.setAttribute("warpv", new THREE.BufferAttribute(new Float32Array(P.pos.length / 3).fill(2), 1));
+    const m = new THREE.Mesh(g, HILL_MAT); m.receiveShadow = m.castShadow = true; world.add(m); }
 }
 
 /* ============================ LAYOUT ============================ */
@@ -4674,13 +4709,32 @@ function buildDistrict() { for (const D of PLANS()) buildPlan(D); }
 function buildPlan(D) {
   const pieces = [], lawns = [], trees = [], lamps = [];
   const nearBr = (x, z) => D.own && LAND.on && LAND.xing.some(B => B.town && Math.abs((x - B.x) * B.ux + (z - B.z) * B.uz) < B.hs + B.ramp + 8 && Math.abs((x - B.x) * B.uz - (z - B.z) * B.ux) < B.w);
-  for (const s of D.streets) { if (!distLaid(s) || s.bridge) continue; for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / (nearBr((a.x + b.x) / 2, (a.z + b.z) / 2) || nearBr(a.x, a.z) || nearBr(b.x, b.z) ? 2.5 : 10)));
+  // each street in runs of pieces (a run stops where something is in the way: a site, the river, a highway's verge)
+  const runs = [], ends = [];
+  for (const s of D.streets) { if (!distLaid(s) || s.bridge) continue; let cur = null; for (let i = 1; i < s.pts.length; i++) { const a = s.pts[i - 1], b = s.pts[i], L = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(1, Math.ceil(L / (nearBr((a.x + b.x) / 2, (a.z + b.z) / 2) || nearBr(a.x, a.z) || nearBr(b.x, b.z) ? 2.5 : 10)));
     for (let k = 0; k < n; k++) { const xa = a.x + (b.x - a.x) * k / n, za = a.z + (b.z - a.z) * k / n, xb = a.x + (b.x - a.x) * (k + 1) / n, zb = a.z + (b.z - a.z) * (k + 1) / n, mx = (xa + xb) / 2, mz = (za + zb) / 2;
-      if (s.zone !== "C" && (D.cut?.(mx, mz) || distBlocked(mx, mz, -4, D.own, !!D.cut) && !onHighway(mx, mz))) continue; if (s.zone === "C" && !onGrass(mx, mz, MAX_S, .02)) continue; pieces.push([xa, za, xb, zb, s.w, nearBr(mx, mz) ? Math.max(.27, landSurf(mx, mz) + .04) : .27]); }
+      if (s.zone !== "C" && (D.cut?.(mx, mz) || distBlocked(mx, mz, -4, D.own, !!D.cut) && !onHighway(mx, mz)) || s.zone === "C" && !onGrass(mx, mz, MAX_S, .02)) { cur = null; continue; }
+      const pc = [xa, za, xb, zb, s.w, nearBr(mx, mz) ? Math.max(.27, landSurf(mx, mz) + .04) : .27]; if (cur && Math.hypot(cur.P.at(-1)[2] - xa, cur.P.at(-1)[3] - za) < .01) cur.P.push(pc); else runs.push(cur = { s, P: [pc] }); }
     if (s.zone === "C") for (let k = 0; k < L; k += 36) { const t = k / L; lamps.push([a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, Math.atan2(b.x - a.x, b.z - a.z)]); } } }
+  // no street ends in nothing: a run's loose end (one that meets no other street, highway, roundabout or bridge) is taken back to its last junction or its last garden; a run with neither is not built
+  { const G = new Map(), gk = (x, z) => Math.floor(x / 40) + "," + Math.floor(z / 40), segD = (x, z, p) => { const dx = p[2] - p[0], dz = p[3] - p[1], t = Math.max(0, Math.min(1, ((x - p[0]) * dx + (z - p[1]) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(p[0] + dx * t - x, p[1] + dz * t - z); };
+    const index = () => { G.clear(); runs.forEach((r, ri) => { if (r.dead) return; for (const p of r.P) for (const [x, z] of [[p[0], p[1]], [p[2], p[3]]]) { const k = gk(x, z); (G.get(k) || G.set(k, []).get(k)).push([ri, p]); } }); };
+    const near = (x, z, ri, d) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [rj, p] of G.get(gk(x + i * 40, z + j * 40)) || []) if (rj !== ri && segD(x, z, p) < d + p[4] / 2) return true; return false; };
+    const shownLots = D.lots.filter(l => lotShown(D, l)), LG = new Map(); for (const l of shownLots) { const k = gk(l.x, l.z); (LG.get(k) || LG.set(k, []).get(k)).push(l); }
+    const lotNear = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of LG.get(gk(x + i * 40, z + j * 40)) || []) if (Math.hypot(l.x - x, l.z - z) < 24) return true; return false; };
+    const rings = (typeof gateRings === "function" ? gateRings() : []) || [], tied = (x, z) => onHighway(x, z) || nearBr(x, z) || rings.some(R => Math.hypot(R.x - x, R.z - z) < (R.Ro || 14) + 8);
+    for (let pass = 0; pass < 3; pass++) { index(); runs.forEach((r, ri) => { if (r.dead) return; for (const end of [0, 1]) { if (!r.P.length) break; const P = end ? r.P : [...r.P].reverse(), last = P.at(-1), E = end ? [last[2], last[3]] : [last[0], last[1]];
+        if (near(E[0], E[1], ri, 4) || tied(E[0], E[1])) continue;
+        let keep = -1; for (let i = P.length - 1; i >= 0 && keep < 0; i--) { const p = P[i], m = [(p[0] + p[2]) / 2, (p[1] + p[3]) / 2]; if (near(p[0], p[1], ri, 3) || near(p[2], p[3], ri, 3) || lotNear(m[0], m[1]) || tied(m[0], m[1])) keep = i; }
+        const kept = keep < 0 ? [] : P.slice(0, keep + 1); r.P = end ? kept : kept.reverse(); if (!r.P.length) r.dead = true; } }); }
+    // what still ends on its own (a street with gardens up to a fence) ends in a turning circle
+    index(); runs.forEach((r, ri) => { if (r.dead || !r.P.length) return; for (const [x, z] of [[r.P[0][0], r.P[0][1]], [r.P.at(-1)[2], r.P.at(-1)[3]]]) if (!near(x, z, ri, 4) && !tied(x, z)) ends.push([x, z, r.P[0][4] * .95]); }); }
+  for (const r of runs) if (!r.dead) pieces.push(...r.P);
   instanced(P.plane, pieces, ([a, b, c, d, w, y], o) => { o.position.set((a + c) / 2, y, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .6); return "#4a5057"; }, { shadow: false });
   const brEnd = (x, z) => LAND.on && LAND.xing.some(B => B.town && Math.abs(Math.abs((x - B.x) * B.ux + (z - B.z) * B.uz) - B.hs) < 4 && Math.abs((x - B.x) * B.uz - (z - B.z) * B.ux) < B.w);
-  const joints = []; for (const s of D.streets) if (distLaid(s) && !s.bridge) for (const p of s.pts) { if (D.own && brEnd(p.x, p.z)) continue; if (s.zone !== "C" ? D.cut?.(p.x, p.z) || distBlocked(p.x, p.z, -4, D.own, !!D.cut) && !onHighway(p.x, p.z) : !onGrass(p.x, p.z, MAX_S, .02)) continue; joints.push([p.x, p.z, s.w / 2]); }
+  const PE = new Set(pieces.flatMap(p => [Math.round(p[0]) + "," + Math.round(p[1]), Math.round(p[2]) + "," + Math.round(p[3])]));
+  const joints = []; for (const s of D.streets) if (distLaid(s) && !s.bridge) for (const p of s.pts) { if (D.own && brEnd(p.x, p.z) || !PE.has(Math.round(p.x) + "," + Math.round(p.z))) continue; if (s.zone !== "C" ? D.cut?.(p.x, p.z) || distBlocked(p.x, p.z, -4, D.own, !!D.cut) && !onHighway(p.x, p.z) : !onGrass(p.x, p.z, MAX_S, .02)) continue; joints.push([p.x, p.z, s.w / 2]); }
+  joints.push(...ends);
   if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .265, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
   // every lot laid out: its garden (with or without a house yet), a tree behind
   for (const l of D.lots) { if (!lotShown(D, l)) continue; const w = l.villa ? 24 : 18, d = l.villa ? 20 : 13; lawns.push([l.x, l.z, l.face, w, d, l.villa ? "#a6cc84" : "#9fcf7c"]); const bx = l.x - Math.sin(l.face) * (d / 2 - 2), bz = l.z - Math.cos(l.face) * (d / 2 - 2); if ((l.num || 0) % 2) trees.push([bx + Math.cos(l.face) * 6, bz - Math.sin(l.face) * 6, l.villa ? 1.1 : .85]); }
@@ -5043,7 +5097,8 @@ function buildCities() {
     const pieces = segs.flatMap(([a, b, c, d, w]) => { const n = Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / 8)); return Array.from({ length: n }, (_, i) => [a + (c - a) * i / n, b + (d - b) * i / n, a + (c - a) * (i + 1) / n, b + (d - b) * (i + 1) / n, w]); }).filter(([a, b, c, d]) => !landInBr((a + c) / 2, (b + d) / 2));
     instanced(P.plane, pieces, ([a, b, c, d, w], o) => { o.position.set((a + c) / 2, .26, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .3); return "#4a5057"; }, { shadow: false });
     const joints = segs.filter(sg => sg[5] === "palm").slice(1).map(sg => [sg[0], sg[1], sg[4]]);   // a smooth round turn where the palm road bends onto the bridge
-    if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
+
+  if (joints.length) instanced(P.disc, joints, ([x, z, r], o) => { o.position.set(x, .255, z); o.scale.set(r, 1, r); return "#4a5057"; }, { shadow: false });
     const hd = []; for (const [a, b, c, d, w, id, meta] of segs) { const L = Math.hypot(c - a, d - b), r = Math.atan2(c - a, d - b), vx = Math.cos(r), vz = -Math.sin(r), endR = (meta?.T || meta?.B)?.Ro;
       const offs = w > 20 ? [-12.2, -8.6, -5, 5, 8.6, 12.2] : [0]; for (let k = meta?.A ? meta.A.Ro + 6 : 20; k < L - (endR ? endR + 6 : 10); k += 14) for (const o of offs) if (!landInBr(a + (c - a) * k / L, b + (d - b) * k / L)) hd.push([a + (c - a) * k / L + vx * o, b + (d - b) * k / L + vz * o, r]); }
     instanced(P.plane1, hd, ([x, z, r], o) => { o.position.set(x, .29, z); o.rotation.y = r; o.scale.set(.3, 1, 5); return "#e8e3d4"; }, { shadow: false });
@@ -5296,7 +5351,7 @@ const ITEM_X = [-15, -7.5, 0, 7.5, 15], ITEM_Z = [-6, 0, 6];
 // one GLB file, as many copies as needed, standing on the ground at (x, z), `height` tall
 const FINISH_MATS = { gold: ["#d9b65a", .85, .3], blue: ["#1f4fa8", .3, .35], marble: ["#f2efe8", 0, .55], patina: ["#5f9384", .55, .42], silver: ["#c9ced3", .9, .25] };
 // a model out of view is not drawn (heavy models are hundreds of thousands of triangles); its bounds get a margin for the bend of the map. A rigged model is always drawn
-function cullPad(n) { LOD.mid.add(n); if (LOD.vfar) n.visible = false; if (n.isSkinnedMesh) { n.frustumCulled = false; return; } const g = n.geometry; if (!g.userData.padded) { let r = n; while (r.parent) r = r.parent; r.updateMatrixWorld(true); g.computeBoundingSphere(); g.boundingSphere.radius += 60 / Math.max(1e-3, Math.abs(n.matrixWorld.getMaxScaleOnAxis()) || 1); g.userData.padded = true; } n.frustumCulled = true; }
+function cullPad(n) { if (n.isSkinnedMesh) { n.frustumCulled = false; return; } const g = n.geometry; if (!g.userData.padded) { let r = n; while (r.parent) r = r.parent; r.updateMatrixWorld(true); g.computeBoundingSphere(); g.boundingSphere.radius += 60 / Math.max(1e-3, Math.abs(n.matrixWorld.getMaxScaleOnAxis()) || 1); g.userData.padded = true; } n.frustumCulled = true; }
 function itemModel(url, x, y, z, height, ry, data, finish) {
   url = String(url || "").trim(); if (!url) return; const build = BUILD_NO;
   if (!MODEL_CACHE.has(url)) MODEL_CACHE.set(url, new Promise((ok, no) => modelLoader().load(url, g => ok(g.scene), undefined, no)));
@@ -9041,8 +9096,8 @@ float landBr(vec2 p, float h) {
 }`;
 // on a river's sunken stretch (from a town down to the sea): its bed, below the level of the flat land
 const lowAt = (x, z) => { if (!LAND.low?.length) return false; for (const L of LAND.low) { const R = LAND.rivers.find(r => r.id === L.id); if (!R) continue;
-    if (!L.bb) { L.bb = [1e9, 1e9, -1e9, -1e9]; for (let i = Math.max(0, L.i0 - 3); i < R.x.length; i++) { const o = R.hw[i] + R.vw[i] + 30; L.bb = [Math.min(L.bb[0], R.x[i] - o), Math.min(L.bb[1], R.z[i] - o), Math.max(L.bb[2], R.x[i] + o), Math.max(L.bb[3], R.z[i] + o)]; } }
-    if (x < L.bb[0] || x > L.bb[2] || z < L.bb[1] || z > L.bb[3]) continue; const q = landNear(R, x, z); if (q && q.i >= L.i0 - 3 && q.d < q.hw + q.vw + 20) return true; } return false; };
+    if (!L.bb) { L.bb = [1e9, 1e9, -1e9, -1e9]; for (let i = Math.max(0, L.i0 - 3); i < Math.min(R.x.length, (L.i1 ?? 1e9) + 4); i++) { const o = R.hw[i] + R.vw[i] + 30; L.bb = [Math.min(L.bb[0], R.x[i] - o), Math.min(L.bb[1], R.z[i] - o), Math.max(L.bb[2], R.x[i] + o), Math.max(L.bb[3], R.z[i] + o)]; } }
+    if (x < L.bb[0] || x > L.bb[2] || z < L.bb[1] || z > L.bb[3]) continue; const q = landNear(R, x, z); if (q && q.i >= L.i0 - 3 && q.i <= (L.i1 ?? 1e9) + 3 && q.d < q.hw + q.vw + 20) return true; } return false; };
 const townAt = (x, z) => lowAt(x, z) || S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });   // inside a town (its river keeps its bed under the level streets)
 function terrainBase(x, z) { const b = terrainBase0(x, z); if (!LAND.on) return b; if (b === 0) return LAND.grid && townAt(x, z) ? landDelta(x, z) : 0; if (LAND.grid) return b + landDelta(x, z); return landFill(x, z, landCarve(x, z, b)); }
 // the shared map of changes: bilinear, exactly as the GPU reads it
@@ -9127,7 +9182,8 @@ function landBlock(x, z) {
   return false;
 }
 // סבבהום stays exactly where it stands today (beside the lighthouse highway), the store's own driveway onto the highway is replaced by interchange 115
-const LAND_YK = { x: 458.57308064610015, z: -36.20400125324979 };
+// סבבהום's hilltop: far enough east that its slopes stay clear of the capital's ring road (שד׳ הלאום) and the bus station
+const LAND_YK = { x: 640, z: -60 };
 function landPinYk() {
   const sg = highwaySegs(true).find(g => g[5] === "light"); if (!sg) return ykSpot();
   const [a, b, c, d] = sg, L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, t = (LAND_YK.x - a) * ux + (LAND_YK.z - b) * uz, hx = a + ux * t, hz = b + uz * t, fx = hx - LAND_YK.x, fz = hz - LAND_YK.z, fl = Math.hypot(fx, fz);
@@ -9162,7 +9218,8 @@ function landPrep() {
     const h0 = P.map(p => H0(p.x, p.z)), hs = h0.map((_, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { a += h0[j]; c++; } return a / c; });
     let wl = h0[0] - 3.2 - .3 * Math.max(0, h0[0] - 30), floor = .38; const inTown = (x, z) => S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });
     P.forEach((p, i) => { const f = i / (n - 1), pr = polar(p.x, p.z, s), ks = pr.d / shoreF(pr.t);   // ks: 1 = the waterline
-      R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; if (inTown(p.x, p.z) && floor > -1) { floor = -1.4; (LAND.low ||= []).push({ id: D.id, i0: i }); } wl = Math.min(wl, (inTown(p.x, p.z) ? 0 : h0[i]) - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, floor); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
+      // the river is low only through the town; out of it, it is as it always was
+      R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; if (inTown(p.x, p.z)) { if (floor > -1) { floor = -1.4; (LAND.low ||= []).push({ id: D.id, i0: i, i1: i }); } LAND.low.at(-1).i1 = i; } else if (floor < -1 && i > LAND.low.at(-1).i1 + 2) floor = .38; wl = Math.min(wl, (inTown(p.x, p.z) ? 0 : h0[i]) - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, floor); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
       R.hw[i] = 5.5 + 17 * smooth01(0, .45, f) + 14 * (1 - smooth01(0, .012, f)) + 34 * smooth01(.9, 1, f);   // a spring lake, a mountain stream, a river, and a wide mouth
       // the valley is as wide as the hills beside the river are high (sampled 50 and 100 m to each side), so its sides are gentle grassy slopes, not walls
       const fr = landFrame(P, i), side = Math.max(hs[i], ...[50, 100].flatMap(o => [H0(p.x + fr.nx * o, p.z + fr.nz * o), H0(p.x - fr.nx * o, p.z - fr.nz * o)]));
@@ -9710,7 +9767,7 @@ function hwPlan() {
   if (PALM.geo) { const A = ring(cap, PALM.geo.approach.x, PALM.geo.approach.z), sp = GATE_SPEC.std, B = { ...sp, x: PALM.geo.approach.x, z: PALM.geo.approach.z, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B);   // a roundabout where the road meets the bridge
     segs.push([A.x, A.z, B.x, B.z, 8, "palm", { A, B }], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm", {}]); }
   if (natP("navy") && NAT.navy.gx != null) { const N = NAT.navy, A = ring(cap, N.gx, N.gz), sp = GATE_SPEC.std, B = { ...sp, x: N.gx, z: N.gz, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B); segs.push([A.x, A.z, B.x, B.z, 12, "navy", { A, B }]); }   // the road to the navy base
-  for (const T of S.slots.filter(isTown)) { const F = townFrame(), E = { x0: T.x - F.R - 70, x1: T.x + F.R + 70, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };
+  for (const T of S.slots.filter(isTown)) { const F = townFrame(), E = { x0: T.x - F.R - 230, x1: T.x + F.R + 230, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };   // at the two ends of the avenue, room for the town's bus station
     const hits = (a, b, c, d) => { for (let k = 0; k <= 60; k++) { const t = k / 60, x = a + (c - a) * t, z = b + (d - b) * t; if (x > E.x0 + 30 && x < E.x1 - 30 && z > E.z0 + 30 && z < E.z1 - 30) return true; } return false; };
     for (let i = segs.length - 1; i >= 0; i--) { const sg = segs[i], [a, b, c, d, w, id, M] = sg; if (id === "palm" || !hits(a, b, c, d)) continue; if ([M?.A, M?.B].some(r => r?.gate && Math.hypot(r.x - T.x, r.z - T.z) < F.R + 120)) continue;
       let best = null; for (const [wx, wz] of [[E.x0, E.z0], [E.x1, E.z0], [E.x0, E.z1], [E.x1, E.z1]]) { if (hits(a, b, wx, wz) || hits(wx, wz, c, d) || !onGrass(wx, wz, S.s, .03)) continue; const L = Math.hypot(wx - a, wz - b) + Math.hypot(c - wx, d - wz); if (!best || L < best.L) best = { wx, wz, L }; }
@@ -9858,15 +9915,11 @@ function loop(now) {
   if (cx !== tg.x || cz !== tg.z) { camera.position.x += cx - tg.x; camera.position.z += cz - tg.z; tg.x = cx; tg.z = cz; }
   if (now - lastTimeTick > 20000) { lastTimeTick = now; if (timeMode.live) applyTime(); }
   animate(dt);
-  sunFollow(tg, camera.right * 2 / camera.zoom);
+  sunFollow(tg, camera.right * 2 / camera.zoom); if (SEA) { SEA.position.x = Math.round(tg.x / 2500) * 2500; SEA.position.z = Math.round(tg.z / 2500) * 2500; }
   if (camera.zoom !== lastZoom) { lastZoom = camera.zoom; for (const l of LABELS) l.visible = lastZoom >= l.userData.minZ;
-    // the whole island in view: the fog and the camera's depth grow with the view (the island no longer fades and cuts off), and the view leans toward straight down
-    const W = (camera.right - camera.left) / camera.zoom, fz = fitZoom(); scene.fog.near = 2200 + W * .9; scene.fog.far = 5200 + W * 2.4;
-    const D = Math.max(8000, W * 3); if (camera.far !== D) { camera.near = -D; camera.far = D; camera.updateProjectionMatrix(); }
-    controls.maxPolarAngle = .55 + .6 * smooth01(fz * 1.2, fz * 4, camera.zoom);
-    const far = W > 2600; if (far !== SMALL.far) { SMALL.far = far; for (const m of SMALL) if (m.parent) m.visible = !far; else SMALL.delete(m);
-      renderer.shadowMap.autoUpdate = !far; renderer.shadowMap.needsUpdate = true; }
-    const vfar = W > 15000; if (vfar !== LOD.vfar) { LOD.vfar = vfar; for (const [set, on] of [[LOD.near, !vfar], [LOD.far, vfar], [LOD.mid, !vfar]]) for (const m of set) if (m.parent) m.visible = on; else set.delete(m); } }   // from far away the shadows are too small to see: the map is not redrawn every frame
+    // far out (the whole island in view) the fog and the camera's depth grow with the view, so the island does not fade or cut off; close up they are as they always were
+    const W = (camera.right - camera.left) / camera.zoom, X = Math.max(0, W - 3000); scene.fog.near = 2200 + X * .9; scene.fog.far = 5200 + X * 2.4;
+    const D = Math.max(8000, W * 3); if (camera.far !== D) { camera.near = -D; camera.far = D; camera.updateProjectionMatrix(); } }
   renderWorld(camera, controls.target);
 }
 
@@ -13045,7 +13098,7 @@ const NEWS = {
   pier: { v: "2026-11-05", ic: "🌉", t: "גשר עץ לאי הפסל", sub: "מרכז מבקרים, שערי כניסה, גשר של 550 מ׳, והאי גדל עם טיילת וספסלים", ok: () => PIERS.some(Boolean), shot: () => { const Pi = PIERS.find(Boolean); return { a: at(Pi.C, 2.2, -.6, .3), b: at({ x: (Pi.C.x + Pi.sh.x) / 2, z: (Pi.C.z + Pi.sh.z) / 2 }, 2.6, .5, .3) }; } },
   sports: { v: "2026-11-05", ic: "🏟️", t: "קריית הספורט נפתחה", sub: "אצטדיון ל־15,000, אולם ספורט ומגרשי כדורסל · הפנדלים עברו לאצטדיון", ok: () => natOpen("sports"), shot: () => { const [x, z] = spW(0, -40); return { a: { x, z, zoom: 1.6, az: -.6, el: .34 }, b: { x, z, zoom: 3.2, az: .4, el: .3 } }; } },
   sababus: { v: "2026-11-06", ic: "🚌", t: "סבבוס: אוטובוסים חדשים ותחנות מרכזיות", sub: "אוטובוסי אקורדיון בעיר (קווים 1, 2), אוטובוס בין עירוני (קו 405), ותחנה מרכזית בכניסה לכל עיר", ok: () => (S.stations || []).length > 0, shot: () => { const st = S.stations[0]; return { a: { x: st.x, z: st.z, zoom: 4, az: -.6, el: .38 }, b: { x: st.x, z: st.z, zoom: 7, az: .5, el: .3 } }; } },
-  smooth: { v: "2026-11-08", ic: "⚡", t: "האתר מהיר יותר, ומבט על כל האי", sub: "רק מה שעל המסך נבנה לתצוגה · פרטים קטנים נעלמים כשמתרחקים · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
+  smooth: { v: "2026-11-08", ic: "⚡", t: "האתר מהיר יותר, ומבט על כל האי", sub: "רק מה שעל המסך נבנה לתצוגה · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
   oldtown: { v: "2026-11-08", ic: "🌉", t: "נווה זורם נבנתה מחדש: העיר העתיקה על הנהר", sub: "כיכר השוק משני צידי הנהר ומדרחוב על הגשר · גשרי רחוב לרכבים · רחובות קשת וסמטאות · כיכרות קטנות עם ספסלים מול המים · כל תושב באותה כתובת", ok: () => TOWNS.size > 0, shot: () => { const T = [...TOWNS.values()][0]; return { a: { x: T.plan.M.x, z: T.plan.M.z, zoom: 1.4, az: -.5, el: .45 }, b: { x: T.plan.M.x, z: T.plan.M.z, zoom: 3.2, az: .5, el: .35 } }; } },
   capital: { v: "2026-11-07", ic: "🏙️", t: "הבירה גדלה: שדרת הלאום והשכונות החדשות", sub: "מגדל ההגשמה ומנהלת הבינוי על שדרת הלאום · גינות ציבוריות · רשת במזרח ובמערב, ווילות בצפון ובתי אבן בדרום · שלוש ערים על האי: נווה זורם עברה דרומה לאורך הנהר, והעיר השלישית תקום מזרחית לקריה · כל אחת מהשלוש ממשיכה לגדול", ok: () => !!DIST.plan, shot: () => { const R = DIST.rect; return { a: { x: (R.x0 + R.x1) / 2, z: (R.z0 + R.z1) / 2, zoom: 1.2, az: -.6, el: .4 }, b: { x: (R.x0 + R.x1) / 2, z: R.oz0, zoom: 2.4, az: .4, el: .3 } }; } },
   armour: { v: "2026-11-06", ic: "🛡️", t: "בסיס השריון נפתח", sub: "במדבר הדרומי: 72 טנקים, נגמ״שים ומובילי טנקים, ושטח אימונים עם סוללות ירי · רק משרתי יבשה נכנסים", ok: () => natOpen("armour"), shot: () => { const N = NAT.armour; return { a: { x: N.x, z: N.z - 200, zoom: 1.4, az: -.6, el: .38 }, b: { x: N.x, z: N.z, zoom: 3, az: .5, el: .3 } }; } },
@@ -14271,7 +14324,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
