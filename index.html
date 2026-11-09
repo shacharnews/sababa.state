@@ -4410,7 +4410,7 @@ const LABELS = [];
 // names that float over places once you zoom in: always sharp, whatever the angle or the size of the sign on the building
 const placeLabel = (text, x, y, z, kind = "pl", minZ = 2.6) => (MAP_LABELS.push({ text, x, z, kind }), label(esc(text), kind === "gov" ? "pl gov" : kind, x, y, z, minZ));
 const MAP_LABELS = [];   // every name placed in the city, for the city map
-const workTop = w => ({ tech: 29, office: (w.floors || 7) * 3.2 + 7, hotel: (w.floors || 8) * 2.8 + 6, factory: 18, bank: 15, school: 11 }[w.kind] || 10);
+const workTop = w => w.townTop || ({ tech: 29, office: (w.floors || 7) * 3.2 + 7, hotel: (w.floors || 8) * 2.8 + 6, factory: 18, bank: 15, school: 11 }[w.kind] || 10);
 function label(html, cls, x, y, z, minZ = 0) {
   const el = document.createElement("div"); el.className = "lbl " + cls; el.innerHTML = html;
   const o = new CSS2DObject(el); o.position.set(x, y, z); o.userData.minZ = minZ; world.add(o); LABELS.push(o); return o;
@@ -4956,34 +4956,128 @@ function townPrune(plan, mine, usedArc) {
   const onSt = (p, q, r) => q.pts.some((B, j) => j && segD(p, q.pts[j - 1], B) < r);
   const crossings = [...plan.bridges.filter(B => !B.ring || usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`)), ...plan.foot.filter(B => usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`))].flatMap(B => [B.a, B.b]);
   const homes = mine.filter(h => h.lot?.town).map(h => ({ x: h.lot.sx, z: h.lot.sz }));
+  for (const q of plan.streets) { if (q.pts0) q.pts = q.pts0; else q.pts0 = q.pts; }   // (always cut from the whole street, however many times the town is laid out)
+  // the loose ends of what is laid are walked back to the last thing worth reaching (a junction or a house)
+  const looseTrim = () => {
   for (let pass = 0; pass < 3; pass++) for (const q of plan.streets) { if (!q.arc || q.arc === "0" || q.bridge || !q.laid) continue;
     const others = plan.streets.filter(o => o !== q && distLaid(o) && !o.bridge);
     for (const end of [0, 1]) { const P = end ? q.pts : [...q.pts].reverse(), E = P.at(-1);
       if (others.some(o => onSt(E, o, 6)) || plan.plazas.some(c => Math.hypot(c.x - E.x, c.z - E.z) < 20) || crossings.some(c => Math.hypot(c.x - E.x, c.z - E.z) < 20)) continue;
       // walk back from the loose end to the first point worth keeping: another street's end on it, or a house
-      const keep = [...others.flatMap(o => [o.pts[0], o.pts.at(-1)]).filter(p => onSt(p, q, 4)), ...homes.filter(p => onSt(p, q, 3))];
-      let cut = -1, cp = null; for (let j = P.length - 1; j >= 1 && cut < 0; j--) { const A = P[j - 1], B = P[j]; let bt = -1; for (const k of keep) { if (segD(k, A, B) >= 4) continue; const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((k.x - A.x) * dx + (k.z - A.z) * dz) / (dx * dx + dz * dz || 1))); if (t > bt) bt = t; }
+      const keep = [...others.flatMap(o => [o.pts[0], o.pts.at(-1)]).filter(p => onSt(p, q, 4)), ...homes.filter(p => onSt(p, q, 9))];
+      let cut = -1, cp = null; for (let j = P.length - 1; j >= 1 && cut < 0; j--) { const A = P[j - 1], B = P[j]; let bt = -1; for (const k of keep) { if (segD(k, A, B) >= 9) continue; const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((k.x - A.x) * dx + (k.z - A.z) * dz) / (dx * dx + dz * dz || 1))); if (t > bt) bt = t; }
         if (bt >= 0) { cut = j; const dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz) || 1, t = Math.min(1, bt + 9 / L); cp = { x: A.x + dx * t, z: A.z + dz * t }; } }
       if (cut < 0) { q.laid = false; break; }
       const kept = [...P.slice(0, cut), cp]; q.pts = end ? kept : kept.reverse(); } }
+  };
+  // direction C: a ring street is laid only as far as its houses go: from the junction it hangs on to a little past its last house (where it ends in
+  // a turning circle); it carries on from there when new residents come. A street someone lives along all the way stays whole.
+  // (an end it hangs on is one cars can get to: another laid street, or a road bridge; a riverside plaza or a footbridge is not)
+  const carX = plan.bridges.filter(B => !B.walk && (!B.ring || usedArc.has(`${B.ring}:${B.sz < 0 ? 6 : 2}`))).flatMap(B => [B.a, B.b]);
+  const anch = (E, q) => plan.streets.some(o => o !== q && (o.lane || o.zone === "C" || o.arc === "0") && distLaid(o) && !o.bridge && onSt(E, o, 6));   // (hung on a lane or the avenue itself, never on the next ring stretch: a chain of stretches must not be broken)
+  const cum = P => { const c = [0]; for (let j = 1; j < P.length; j++) c.push(c[j - 1] + Math.hypot(P[j].x - P[j - 1].x, P[j].z - P[j - 1].z)); return c; };
+  const param = (p, P, c) => { let best = 1e9, at = 0; for (let j = 1; j < P.length; j++) { const A = P[j - 1], B = P[j], dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz) || 1, t = Math.max(0, Math.min(1, ((p.x - A.x) * dx + (p.z - A.z) * dz) / (L * L))), d = Math.hypot(A.x + dx * t - p.x, A.z + dz * t - p.z); if (d < best) { best = d; at = c[j - 1] + t * L; } } return at; };
+  const sub = (P, c, s0, s1) => { const pt = s => { let j = 1; while (j < P.length - 1 && c[j] < s) j++; const A = P[j - 1], B = P[j], t = Math.max(0, Math.min(1, (s - c[j - 1]) / ((c[j] - c[j - 1]) || 1))); return { x: A.x + (B.x - A.x) * t, z: A.z + (B.z - A.z) * t }; };
+    return [pt(s0), ...P.filter((_, j) => c[j] > s0 + 1 && c[j] < s1 - 1), pt(s1)]; };
+  // can a car get from the market's avenue to every home along what is laid?
+  const allReach = () => {   // (the same test the town is checked with: every laid street sampled every 6 m; two streets meet where they come within 9 m)
+    const L = plan.streets.filter(o => (o.bridge ? o.laid : distLaid(o)) && o.pts.length > 1).map(o => { const S2 = []; for (let j = 1; j < o.pts.length; j++) { const A = o.pts[j - 1], B = o.pts[j], n = Math.max(1, Math.ceil(Math.hypot(B.x - A.x, B.z - A.z) / 6)); for (let k = 0; k <= n; k++) S2.push({ x: A.x + (B.x - A.x) * k / n, z: A.z + (B.z - A.z) * k / n }); } return { o, S2 }; });
+    const near = (a, b) => a.S2.some(p => b.S2.some(q => Math.abs(p.x - q.x) < 9 && Math.abs(p.z - q.z) < 9));
+    const seen = new Set(L.map((e, i) => e.o.zone === "C" || e.o.arc === "0" ? i : -1).filter(i => i >= 0)), st = [...seen];
+    while (st.length) { const i = st.pop(); L.forEach((e, j) => { if (!seen.has(j) && near(L[i], e)) { seen.add(j); st.push(j); } }); }
+    return homes.every(h => [...seen].some(i => L[i].S2.some(p => Math.hypot(p.x - h.x, p.z - h.z) < 22))); };
+  // a ring stretch with no home on it is not laid at all, unless something hangs on it or it is the only way to others
+  for (const q of plan.streets) { if (!q.ring || q.lane || !q.arc || q.arc === "0" || q.bridge || !q.laid || q.pts.length < 2 || homes.some(p => onSt(p, q, 12))) continue;
+    if ([...carX, ...crossings].some(E => onSt(E, q, 20)) || plan.plazas.some(E => onSt(E, q, 20))) continue;
+    q.laid = false; const snap = plan.streets.map(o => [o.pts, o.laid]); looseTrim(); const ok = allReach(); plan.streets.forEach((o, k) => { o.pts = snap[k][0]; o.laid = snap[k][1]; }); if (!ok) q.laid = true; }
+  for (const q of plan.streets) { if (!q.ring || q.lane || !q.arc || q.arc === "0" || q.bridge || !q.laid || q.pts.length < 2) continue;
+    const P = q.pts, c = cum(P), L = c.at(-1), hs = homes.filter(p => onSt(p, q, 9)).map(p => param(p, P, c)); if (!hs.length) continue;
+    const t0 = Math.min(...hs), t1 = Math.max(...hs), a0 = anch(P[0], q), a1 = anch(P.at(-1), q);
+    if (!a0 && !a1) continue; if (t1 - t0 > L * .6 || (t1 + 14 > L - 6 && t0 - 14 < 6)) continue;
+    const keepA = a0 ? t1 + 12 : 1e9, keepB = a1 ? L - (t0 - 12) : 1e9;
+    if (keepA <= keepB && keepA < L - 8) q.pts = sub(P, c, 0, Math.min(L, t1 + 12)); else if (keepB < L - 8) q.pts = sub(P, c, Math.max(0, t0 - 12), L);
+    // nothing else may hang on the part taken away (another street's end, a bridge, a plaza): then it stays whole
+    if (q.pts !== P) { const gone = { pts: q.pts[0] === P[0] || Math.hypot(q.pts[0].x - P[0].x, q.pts[0].z - P[0].z) < 1 ? sub(P, c, Math.min(L, t1 + 12), L) : sub(P, c, 0, Math.max(0, t0 - 12)) };
+      if (plan.streets.some(o => o !== q && !o.bridge && distLaid(o) && [o.pts[0], o.pts.at(-1)].some(E => onSt(E, gone, 8))) || [...carX, ...crossings].some(E => onSt(E, gone, 20)) || plan.plazas.some(E => onSt(E, gone, 20))) q.pts = P; }
+    if (q.pts !== P) { const snap = plan.streets.map(o => [o.pts, o.laid]); looseTrim(); const ok = allReach(); plan.streets.forEach((o, k) => { o.pts = snap[k][0]; o.laid = snap[k][1]; }); if (!ok) q.pts = P; } }   // (never at the cost of a home: a ring that is the only way round to others stays whole)
+  looseTrim();
   // gardens only along what is built (and every home keeps its garden)
   const built = plan.streets.filter(q => q.arc && q.arc !== "0" && !q.bridge && q.laid);
-  for (const l of plan.lots) if (l.laid && l.ring && !mine.some(h => h.lot === l) && !built.some(q => onSt({ x: l.sx, z: l.sz }, q, 3))) l.laid = false;
+  for (const l of plan.lots) if (l.laid && !mine.some(h => h.lot === l || (h.lot?.town && Math.hypot(h.lot.sx - l.sx, h.lot.sz - l.sz) < 1.5))) l.laid = false;   // (and no empty gardens waiting along them: a lot shows when someone lives on it)
+}
+/* ---- the town market (שוק נווה זורם): like Machane Yehuda ----
+   Each square (188 x 80) has two covered aisles along it (9 m wide, steel arches and a light vaulted roof) at z = ±22: shops in two-storey stone
+   buildings on their outer side, stalls on their inner side; between the two aisles the open street with carts and the fountain; three cross alleys
+   on the lots' lines. The aisles carry on over the market bridge (stalls along both its rails). Every stall and shop can be walked up to and bought from. */
+const SHUK_ROOF = new THREE.MeshStandardMaterial({ color: "#e6eff1", roughness: .35, transparent: true, opacity: .42, side: THREE.DoubleSide, depthWrite: false });
+const SHUK_GOODS = ["#e74c3c", "#f39c12", "#27ae60", "#f1c40f", "#8e5a2b", "#d35400", "#c0392b", "#16a085", "#f5e6c8", "#6d4c41"];
+// a part of a stall or shop in its own frame (u along the front, v outwards from its back to its front), set in the world facing ±z (fz) or ±x (fx)
+const shukPut = (x, z, fx, fz) => (w, h, d, col, u, y, v) => fz ? box(w, h, d, col, x + u * fz, y, z + v * fz) : box(d, h, w, col, x + v * fx, y, z - u * fx);
+function shukStall(Q, x, z, fx, fz, kind, y0, n) {
+  const B = shukPut(x, z, fx, fz), K = SHUK[kind], col = K[3];
+  Q.push(B(5, 3, .2, "#efe6d2", 0, y0, -1.9), B(.18, 3, 4, "#efe6d2", -2.41, y0, 0), B(.18, 3, 4, "#efe6d2", 2.41, y0, 0));   // back and side walls
+  Q.push(B(4.4, 1, 1, "#8a6a4a", 0, y0, 1.3), B(4.5, .08, 1.1, "#b08d57", 0, y0 + 1, 1.3));   // the counter
+  for (let i = 0; i < 5; i++) Q.push(B(.76, .3, .8, i % 2 ? col : SHUK_GOODS[(n + i) % SHUK_GOODS.length], -1.8 + i * .9, y0 + 1.08, 1.3));   // goods heaped on it
+  for (let i = 0; i < 4; i++) Q.push(B(.95, .9, .5, "#9a7652", -1.6 + i * 1.07, y0, -1.5), B(.85, .25, .4, i % 2 ? SHUK_GOODS[(n + i * 3) % 10] : col, -1.6 + i * 1.07, y0 + .9, -1.5));   // crates behind
+  Q.push(B(5.3, .12, 2.4, col, 0, y0 + 3, 1.6), B(5.3, .55, .08, col, 0, y0 + 2.5, 2.8), B(3.4, .6, .1, "*#fff6dc", 0, y0 + 2.2, -1.75));   // awning, its valance, the lit sign board at the back
+}
+function shukShop(Q, x, z, fx, fz, kind, y0, W = 11) {
+  const B = shukPut(x, z, fx, fz), col = SHUK[kind][3], tone = ["#e2d3b2", "#ddc9a3", "#e8dbbf", "#d6c29b"][Math.abs(Math.round(x * 7 + z)) % 4];
+  Q.push(B(W, 8.4, 9, tone, 0, y0, -4.5), B(W + .2, .4, 9.2, "#cdb88c", 0, y0 + 8.4, -4.5));   // the stone house (each a little different), its cornice
+  if (fz) Q.push(gable(W + .4, 2.8, 9.6, TILE, x, y0 + 8.8, z - 4.5 * fz));   // its tiled roof, the ridge along the row
+  Q.push(B(W - 2.4, 3.2, .3, "#3a2c20", 0, y0, .02), B(W - 2.4, .5, .4, "#5b6168", 0, y0 + 3.2, .05), B(W - 2.4, .9, .25, col, 0, y0 + 3.75, .15));   // the open shopfront, the shutter rolled up, the shop's colour board
+  for (let i = 0; i < 4; i++) Q.push(B(1.4, .8, .7, i % 2 ? col : SHUK_GOODS[i * 2 % 10], -3 + i * 2, y0, .5));   // goods out on the step
+  for (const wx of [-3.2, 0, 3.2]) Q.push(B(1.5, 1.9, .15, "*#33464f", wx, y0 + 5.3, .02), B(1.9, .12, .3, "#cdb88c", wx, y0 + 5.2, .1), B(.5, 1.9, .1, "#2d6e4a", wx - 1, y0 + 5.3, .08), B(.5, 1.9, .1, "#2d6e4a", wx + 1, y0 + 5.3, .08));
+}
+// one covered aisle from u0 to u1 along x at z = zc (in the square's frame): arches every 6 m and the light roof (its own see-through mesh)
+function shukAisle(Q, R, x0, x1, zc, y0) {
+  for (let x = x0; x <= x1 + .1; x += 6) for (const sd of [-1, 1]) Q.push(box(.3, 6.2, .3, "#4f5b63", x, y0, zc + sd * 4.5));
+  for (let x = x0; x <= x1 + .1; x += 6) { const g = new THREE.TorusGeometry(4.5, .13, 5, 16, Math.PI); g.rotateY(Math.PI / 2); Q.push(part(g, "#4f5b63", x, y0 + 6.2, zc)); }
+  for (const sd of [-1, 1]) Q.push(box(x1 - x0, .25, .3, "#4f5b63", (x0 + x1) / 2, y0 + 6.1, zc + sd * 4.5));
+  const v = new THREE.CylinderGeometry(4.5, 4.5, x1 - x0, 16, 1, true, 0, Math.PI); v.rotateZ(Math.PI / 2); v.translate((x0 + x1) / 2, y0 + 6.2, zc); R.push(v);
+  Q.push(box(x1 - x0, .08, .9, "*#fff8e8", (x0 + x1) / 2, y0 + 10.66, zc));   // the light strip along the ridge
+}
+function shukSquare(T, c, Q, lamps) {
+  const L = c.x1 - c.x0, X0 = -L / 2, R = [], city = T.slot.city, M = T.plan.M, toRiver = c.x < M.x ? 1 : -1, y0 = CURB, list = T.shuk ||= [];
+  // the cross alleys: on the lots' lines, 47 m apart (stalls and shops leave them open)
+  const alley = x => [47, 94, 141].some(a => Math.abs(x - (X0 + a)) < 4.5);
+  let n = c.x < M.x ? 0 : 100;   // (the same stalls in the same places every time the world is built)
+  for (const sd of [-1, 1]) { const zc = sd * 22;
+    shukAisle(Q, R, X0 + 3, -X0 - 3, zc, y0);
+    // stalls along the inner side, facing the aisle
+    for (let x = X0 + 6; x < -X0 - 5; x += 5.4) { if (alley(x)) continue; const kind = SHUK_KINDS[n % SHUK_KINDS.length]; shukStall(Q, x, sd * 15.5, 0, sd, kind, y0, n);
+      shukAdd(list, { x: c.x + x, z: c.z + sd * 17.6, kind, name: SHUK[kind][2][Math.floor(n / SHUK_KINDS.length) % 3], shop: false, city: city.id }); n++; }
+    // shops in stone houses along the outer side, their fronts open onto the aisle
+    // (the row is cut only by the three alleys: between them the houses stand wall to wall, as many as fit)
+    const cuts = [X0 + 3, X0 + 42.5, X0 + 51.5, X0 + 89.5, X0 + 98.5, X0 + 136.5, X0 + 145.5, -X0 - 3];
+    for (let k = 0; k < cuts.length; k += 2) { const a0 = cuts[k], a1 = cuts[k + 1], m = Math.max(1, Math.floor((a1 - a0) / 10.6)), wS = (a1 - a0) / m;
+    for (let j = 0; j < m; j++) { const x = a0 + wS * (j + .5), kind = SHUK_KINDS[(n * 5) % SHUK_KINDS.length]; shukShop(Q, x, sd * 26.6, 0, -sd, kind, y0, wS - .3);
+      shukAdd(list, { x: c.x + x, z: c.z + sd * 25.2, kind, name: SHUK[kind][2][(n + 1) % 3], shop: true, city: city.id }); n++; } }
+    // the gate at the avenue's end of each aisle: two stone posts and the sign beam
+    const gx = -toRiver * (-X0 - 1.2); Q.push(box(1.2, 8.4, 1.2, "#b9a27a", gx, y0, zc - 5.1), box(1.2, 8.4, 1.2, "#b9a27a", gx, y0, zc + 5.1), box(1.4, 2, 11.4, "#1f6f8b", gx, y0 + 8.4, zc), box(.15, 1.2, 9.4, "*#ffb627", gx - toRiver * .75, y0 + 8.8, zc));
+  }
+  // the open street between the aisles: carts and crates under the sky, umbrellas, benches round the fountain
+  for (let x = X0 + 12; x < -X0 - 10; x += 9) { if (alley(x) || Math.abs(x) < 9) continue; for (const zz of [-5, 5]) Q.push(box(3, .9, 1.6, "#8a6a4a", x, y0, zz), box(2.8, .35, 1.4, SHUK_GOODS[Math.abs(Math.round(x + zz)) % 10], x, y0 + .9, zz), cyl(.05, .05, 2.3, 6, "#555b61", x + 2.2, y0, zz), cyl(.05, 1.5, .45, 10, (Math.round(x / 9) + zz) % 2 ? "#ffffff" : "#e05a4f", x + 2.2, y0 + 2.15, zz)); }
+  for (let a = 0; a < 4; a++) { const an = a * Math.PI / 2 + Math.PI / 4; Q.push(box(2.4, .5, .7, "#8a6a4a", Math.cos(an) * 8, y0, Math.sin(an) * 8)); }
+  // its lamps along the open street
+  for (let x = X0 + 16; x < -X0 - 10; x += 26) for (const zz of [-10, 10]) lamps.push([c.x + x, c.z + zz]);
+  const g = mergeGeometries(R), m = new THREE.Mesh(g, SHUK_ROOF); m.position.set(c.x, 0, c.z); m.renderOrder = 2; world.add(m);
+  T.shuk = list;
+}
+// the market bridge's stalls: along both rails, under the aisles' roof, in the bridge's own frame (along its length z, across it x)
+function shukBridge(Q, R, B, top, Lb, ry) {
+  const T = [...TOWNS.values()].find(t => Math.hypot(t.plan.M.x - B.x, t.plan.M.z - B.z) < 80), list = T ? (T.shuk ||= []) : [], WW = B.w / 2;
+  for (const sd of [-1, 1]) { const g = new THREE.CylinderGeometry(4.6, 4.6, Lb, 16, 1, true, 0, Math.PI); g.rotateZ(Math.PI / 2); g.rotateY(Math.PI / 2); g.translate(sd * 5.4, top + 6.2, 0); R.push(g);
+    for (let z = -Lb / 2; z <= Lb / 2 + .1; z += 6) { Q.push(box(.3, 6.2, .3, "#4f5b63", sd * WW - sd * .6, top, z), box(.3, 6.2, .3, "#4f5b63", sd * .8, top, z)); const a = new THREE.TorusGeometry(4.6, .13, 5, 16, Math.PI); Q.push(part(a, "#4f5b63", sd * 5.4, top + 6.2, z)); }
+    let n = 0; for (let z = -Lb / 2 + 4; z < Lb / 2 - 3; z += 5.4, n++) { const kind = SHUK_KINDS[(n * 7 + (sd > 0 ? 3 : 0)) % SHUK_KINDS.length]; shukStall(Q, sd * (WW - 2.6), z, -sd, 0, kind, top, n + 40);
+      const cs = Math.cos(ry), sn = Math.sin(ry), lx = sd * (WW - 4.8), lz = z; shukAdd(list, { x: B.x + lx * cs + lz * sn, z: B.z - lx * sn + lz * cs, kind, name: SHUK[kind][2][(n + 2) % 3], shop: false, city: T?.slot.city.id }); } }
 }
 // the town's own parts: the market squares' paving and fountains, the promenades with their trees and lamps (the streets, lots and bridges are built with the rest)
 function buildTowns() {
   for (const T of TOWNS.values()) { const PL = T.plan, pave = [], trees = [], lamps = [];
-    for (const c of PL.civic) if (c.square) { const Q = [box(c.x1 - c.x0, .12, c.z1 - c.z0, "#d9ccb0", 0, CURB - .1, 0), cyl(7, 7.4, .9, 24, "#cfc6b4", 0, CURB, 0), cyl(6.2, 6.2, .2, 24, "#58b9cf", 0, CURB + .75, 0), cyl(.5, .7, 3, 10, "#cfc6b4", 0, CURB + .9, 0)];
-      for (let i = -3; i <= 3; i++) if (i) Q.push(box(.5, .06, 76, "#cbbd9e", i * 26, CURB + .03, 0));
-      // the market: two rows of stalls under striped awnings, café tables with umbrellas along the businesses' side, benches by the fountain
-      const AW = ["#e05a4f", "#ffb627", "#1f6f8b", "#5fb3a3"]; for (let i = -6; i <= 6; i++) { if (Math.abs(i) < 2) continue; for (const zz of [-14, 14]) { const x = i * 12, col = AW[(i + 6 + (zz > 0 ? 1 : 0)) % 4];
-        Q.push(box(5, 2.3, 4, "#f4efe4", x, CURB, zz), box(5.8, .25, 4.8, col, x, CURB + 2.5, zz), box(5.8, .7, .08, col, x, CURB + 1.9, zz + (zz > 0 ? -2.4 : 2.4)), box(4.4, .9, .9, "#8a6a4a", x, CURB, zz + (zz > 0 ? -2.6 : 2.6))); } }
-      for (let i = -4; i <= 4; i++) { const x = i * 20 + 10; if (Math.abs(x) > 90) continue; Q.push(cyl(.06, .06, 2.4, 6, "#555b61", x, CURB, 30), cyl(.05, 1.7, .5, 10, i % 2 ? "#ffffff" : "#e05a4f", x, CURB + 2.2, 30), cyl(.7, .7, .08, 12, "#f4efe4", x, CURB + .75, 30)); }
-      for (const a of [0, 1, 2, 3]) { const ang = a * Math.PI / 2 + Math.PI / 4; Q.push(box(2.4, .5, .7, "#8a6a4a", Math.cos(ang) * 10, CURB, Math.sin(ang) * 10)); }
-      solid(Q, c.x, c.z, 0, { type: "place", id: "market:" + T.slot.city.id }, 0);
-      for (let i = -3; i <= 3; i++) for (const sz of [-1, 1]) lamps.push([c.x + i * 26, c.z + sz * 34]);
-      for (let x = c.x0 + 8; x <= c.x1 - 8; x += 18) for (const sz of [-1, 1]) trees.push([x, c.z + sz * 37, CURB - .2]); }
-    placeLabel("🧺 כיכר השוק", PL.M.x, 16, PL.M.z - 50);
+    for (const c of PL.civic) if (c.square) { const Q = [box(c.x1 - c.x0, .12, c.z1 - c.z0, "#d9ccb0", 0, CURB - .1, 0), cyl(5.2, 5.5, .8, 24, "#cfc6b4", 0, CURB, 0), cyl(4.6, 4.6, .2, 24, "#58b9cf", 0, CURB + .65, 0), cyl(.4, .6, 2.6, 10, "#cfc6b4", 0, CURB + .8, 0)];
+      shukSquare(T, c, Q, lamps); solid(Q, c.x, c.z, 0, { type: "place", id: "shuk:" + T.slot.city.id }, 0); }
+    placeLabel("🧺 שוק נווה זורם", PL.M.x, 18, PL.M.z - 50);
     const usedA = new Set(PL.streets.filter(q => q.arc && q.laid).map(q => q.arc));
     for (const q of PL.plazas || []) { if (!usedA.has(q.arc)) continue; const Q = [cyl(13, 13, .16, 28, "#d9ccb0", 0, CURB - .1, 0), cyl(13.3, 13.3, .1, 28, "#c4b087", 0, CURB - .14, 0)];
       for (let i = -1; i <= 1; i += 2) Q.push(box(2.4, .45, .6, "#8a6a4a", i * 3.2, CURB, 7.5), box(2.4, .5, .1, "#7a5a3a", i * 3.2, CURB + .45, 7.15));   // benches looking at the river
@@ -5833,7 +5927,7 @@ const doorOne = (x, y, z, w, h, frame, pane = PANE) => [box(w + .3, .15, .22, fr
   box(w - .04, h - .04, .05, pane, x, y, z + .02), box(w * .7, .06, .07, BAR, x, y + 1.05, z + .13)];
 // where you stand to walk in, in the building's own coordinates (in front of the door)
 const WORK_DOOR = { school: [4, 7.4], fuel: [1.6, -1.4], garage: [6.2, 6.6], tech: [0, 8.4] };
-function workDoorAt(w) { const vi = S.workplaces.filter(q => q.kind === w.kind && q.id < w.id).length, d = WORK_DOOR[w.kind] || ([...SHOP_KINDS].includes(w.kind) ? [vi % 2 ? 0 : 2, 6] : [0, 6]), ry = w.ry || 0;
+function workDoorAt(w) { const vi = S.workplaces.filter(q => q.kind === w.kind && q.id < w.id).length, d = w.townTop ? [0, 6.6] : WORK_DOOR[w.kind] || ([...SHOP_KINDS].includes(w.kind) ? [vi % 2 ? 0 : 2, 6] : [0, 6]), ry = w.ry || 0;
   return [w.x + d[0] * Math.cos(ry) + d[1] * Math.sin(ry), w.z - d[0] * Math.sin(ry) + d[1] * Math.cos(ry)]; }
 const SHOP_KINDS = new Set(["bakery", "cafe", "hummus", "restaurant", "shop"]);
 function workBuilding(w, x, z, ry) {
@@ -5903,6 +5997,60 @@ function workBuilding(w, x, z, ry) {
     const light = c => { const q = C(c); return .2126 * q.r + .7152 * q.g + .0722 * q.b > .35; }, bg = w.color && !light(w.color) ? w.color : SG[4];
     mountSign(grp, sign(w.name, RW_, 2.5, { bg, fg: light(bg) ? "#1b2430" : "#ffffff" }), 0, ROOF[0] + 2.25, ROOF[1] + .16); }
 }
+/* ---- נווה זורם's own public buildings: an old town by a river (warm stone, arches, tiled roofs, painted shutters, red brick); the same kinds, services
+   and doors as in the capital, never the same buildings. Front to +z (the door at the middle of the front, ~5 m out), like workBuilding. */
+function townWorkBuilding(w, x, z, ry) {
+  const k = w.kind, Q = [], vi = S.workplaces.filter(q => q.kind === k && q.id < w.id).length, R = rng(w.id * 13 + 5);
+  const STN = ["#e2d3b2", "#dccaa4", "#e8dcc0", "#d9c49a"][vi % 4], ST2 = "#cdb88c", BRK = "#b8664a", SHUT = ["#2d6e4a", "#1f4f8f", "#7a3b2a", "#2f7f8f"][(w.id + vi) % 4], WD = "#6b4a2e";
+  const shut = (xs, y, zf, wW = 1.3, h = 2) => xs.flatMap(xx => [box(wW, h, .12, WIN, xx, y, zf), box(.5, h, .1, SHUT, xx - wW / 2 - .28, y, zf + .05), box(.5, h, .1, SHUT, xx + wW / 2 + .28, y, zf + .05), box(wW + .5, .15, .35, ST2, xx, y - .15, zf + .1)]);
+  const arch = (xx, y, zf, wW, h, col = "#3a2c20") => [box(wW, h - wW / 2, .2, col, xx, y, zf), part(new THREE.CylinderGeometry(wW / 2, wW / 2, .2, 14, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2), col, xx, y + h - wW / 2, zf), box(wW + .5, .3, .35, ST2, xx, y + h + .05, zf + .05)];
+  const front = 5; let SG = [9, 1, 4.2, front + .14, "#1f3a5a", "#f1e6cf"], top = 10;
+  if (k === "tech") {   // סבבה טק in an old brick mill: tall arched windows on two floors, a glass-and-timber loft on top, a water wheel by its side
+    Q.push(box(22, 13, 11, BRK, 0, 0, -.5), box(22.4, .8, 11.4, ST2, 0, 0, -.5), box(22.4, .6, 11.4, ST2, 0, 13, -.5));
+    for (let i = 0; i < 6; i++) { const xx = -9.2 + i * 3.7; Q.push(...arch(xx, 1.2, front + .02, 2, 4.4, "*#6f97b0"), ...arch(xx, 7.2, front + .02, 2, 4.4, "*#6f97b0")); }
+    Q.push(box(18, 5, 8.5, "*#9fc6d8", 0, 13.6, -.5)); for (let xx = -9; xx <= 9; xx += 3) Q.push(box(.35, 5, 8.7, WD, xx, 13.6, -.5)); Q.push(box(19, .6, 9.5, WD, 0, 18.6, -.5));
+    const wh = new THREE.TorusGeometry(4, .45, 6, 18); wh.rotateY(Math.PI / 2); Q.push(part(wh, WD, -11.6, 5, 1)); for (let a = 0; a < 8; a++) Q.push(box(.3, 8, .5, WD, -11.6, 1, 1, { x: a * Math.PI / 8 }));
+    Q.push(...doorDbl(0, 0, front + .04, 2.4, 2.8, "#3a2c20"), box(5, .25, 2, WD, 0, 3.2, front + 1));
+    SG = [10, 1.3, 11.6, front + .14, "#2b2b2b", "#f6e7c8"]; top = 24; }
+  else if (k === "school") {   // a U of stone round a yard with a tree, the gate in a wall under a bell gable
+    Q.push(box(22, 7, 6, STN, 0, 0, -6), box(6, 7, 13, STN, -8, 0, 1.5), box(6, 7, 13, STN, 8, 0, 1.5), gable(22.6, 3, 6.6, TILE, 0, 7, -6));
+    for (const xx of [-8, 8]) { const g = gable(13.6, 3, 6.6, TILE, 0, 0, 0); g.rotateY(Math.PI / 2); g.translate(xx, 7, 1.5); Q.push(g); }
+    Q.push(...shut([-4, 0, 4], 3.6, -2.95), box(10, 3.2, .8, ST2, 0, 0, front + .6), box(3, 2.8, .9, "#3a2c20", 0, 0, front + .6), box(3.4, 2, .9, ST2, 0, 3.2, front + .6), cyl(.35, .35, .6, 10, "#c9a24a", 0, 4, front + .6), cyl(.3, .4, 3.2, 8, WD, 0, 0, 0), sph(2.6, "#5f9a45", 0, 4.6, 0));
+    SG = [7, 1, 2.2, front + 1.06, "#ffffff", "#7a3a22"]; top = 12; }
+  else if (k === "clinic") {   // two floors of pale stone, green shutters, a covered way in with the red star of David
+    Q.push(box(18, 8.4, 10, "#ece2c8", 0, 0, 0), gable(18.6, 3.2, 10.6, TILE, 0, 8.4, 0), ...shut([-6, -3, 3, 6], 1.4, front + .02), ...shut([-6, -3, 0, 3, 6], 5.4, front + .02));
+    Q.push(box(5, .3, 2.6, ST2, 0, 3, front + 1.3), ...[-2.2, 2.2].map(xx => box(.35, 3, .35, ST2, xx, 0, front + 2.4)), box(2.6, 2.6, .1, PANE, 0, 0, front + .05), box(1.8, 1.8, .1, "*#e53935", 0, 6.4, front + .07));
+    SG = [7, 1, 3.4, front + 2.62, "#ffffff", "#c0392b"]; top = 13; }
+  else if (k === "police") {   // a squat stone station with a round tower at the corner, blue shutters, the blue lamp over the door
+    Q.push(box(18, 7.4, 10, ST2, 0, 0, 0), gable(18.6, 3, 10.6, TILE, 0, 7.4, 0), cyl(3, 3, 11, 18, STN, 8.6, 0, 4.4), part(new THREE.ConeGeometry(3.5, 3.4, 18), TILE, 8.6, 12.7, 4.4));
+    Q.push(...shut([-6, -2.5], 2, front + .02).map(g => g), ...doorDbl(1.6, 0, front + .04, 2, 2.6, "#1f4e9e"), box(4, .25, 1.8, "#1f4e9e", 1.6, 3, front + .9), cyl(.22, .22, .45, 12, "*#5fa0ff", 1.6, 3.3, front + .4));
+    SG = [8, 1, 5.3, front + .14, "#1f4e9e", "#ffffff"]; top = 15; }
+  else if (k === "bank") {   // stone with a portico of six columns under a pediment
+    Q.push(box(18, .8, 12, ST2, 0, 0, -.5), box(16, 9, 9, "#ece2c8", 0, .8, -1.5), ...Array.from({ length: 6 }, (_, i) => cyl(.55, .65, 8.2, 12, "#f4f1e8", -6.25 + i * 2.5, .8, front - .6)), box(17, 1.2, 4, "#f4f1e8", 0, 9, 2.4), gable(17, 2.4, 4.4, "#f4f1e8", 0, 10.2, 2.4), gable(16.4, 2.4, 9.4, TILE, 0, 9.8, -1.5), box(3, 3.6, .12, "#3b2a1a", 0, .8, 3.05));
+    SG = [10, 1.1, 9.2, front - .3, "#1f3a5a", "#f1e6cf"]; top = 15; }
+  else if (k === "hotel" || k === "office") {   // four storeys of stone over an arcade, wooden balconies, a tiled roof
+    const f = k === "hotel" ? 4 : 3, H = 4.4 + f * 3.2; Q.push(box(20, H, 11, STN, 0, 0, -.5), gable(20.6, 3.4, 11.6, TILE, 0, H, -.5));
+    for (let i = 0; i < 5; i++) Q.push(...arch(-8 + i * 4, 0, front + .02, 2.8, 3.8, "*#33464f"));
+    for (let y = 0; y < f; y++) { const yy = 4.8 + y * 3.2; Q.push(...shut([-7, -3.5, 0, 3.5, 7], yy, front + .02, 1.2, 1.9)); if (y % 2 === 0) Q.push(box(18, .2, 1.2, WD, 0, yy - .2, front + .6), box(18, .9, .08, WD, 0, yy, front + 1.2)); }
+    SG = [11, 1.4, H - 1.4, front + .14, k === "hotel" ? "#7a2a20" : "#1f3a5a", "#f6e7c8"]; top = H + 6; }
+  else if (k === "factory" || k === "gym" || k === "garage" || k === "market") {   // a brick hall: big arched doors or windows, a tiled roof (and the factory's tall brick chimney)
+    Q.push(box(20, 7, 12, k === "market" ? STN : BRK, 0, 0, -1), gable(20.6, 3.4, 12.6, TILE, 0, 7, -1));
+    for (const xx of [-6.5, 0, 6.5]) Q.push(...arch(xx, 0, front + .02, 4, 5.4, xx === 0 ? "#3a2c20" : "*#6f97b0"));
+    if (k === "factory") Q.push(cyl(1, 1.3, 20, 12, BRK, 7.5, 0, -5), cyl(1.2, 1.2, .6, 12, ST2, 7.5, 19.4, -5));
+    SG = [10, 1, 6.1, front + .14, k === "market" ? "#d9762b" : "#2b2b2b", "#ffffff"]; top = k === "factory" ? 22 : 12; }
+  else if (k === "fuel") {   // a stone kiosk and the pumps under a tiled roof on wooden posts
+    Q.push(box(8, 4, 6, STN, -5, 0, -3), gable(8.6, 2, 6.6, TILE, -5, 4, -3), box(14, .4, 7, WD, 2, 4.6, 2.5), gable(14.6, 1.8, 7.6, TILE, 2, 5, 2.5), ...[[-4, 0], [8, 0], [-4, 5], [8, 5]].map(([a, b]) => box(.4, 4.6, .4, WD, a, 0, b)), ...[0, 4].map(a => box(1, 1.6, .7, "#c0392b", a, 0, 2.5)));
+    SG = [6, .8, 2.9, .04, "#c0392b", "#ffffff"]; top = 9; }
+  else {   // the shops and the places to eat: a two-storey stone house, an arched shopfront with an awning, shuttered windows above, a tiled roof (tables out front)
+    const aw = ["#a8382c", "#2f6e7a", "#c9a24a", "#2d6e4a", "#7a3b2a"][(w.id + vi) % 5];
+    Q.push(box(16, 8, 10, STN, 0, 0, -.5), gable(16.6, 3, 10.6, TILE, 0, 8, -.5), ...arch(-4.5, 0, front + .02, 3, 3.6, "*#33464f"), ...arch(0, 0, front + .02, 2.4, 3.2, "#5a3a26"), ...arch(4.5, 0, front + .02, 3, 3.6, "*#33464f"));
+    Q.push(...shut([-5, 0, 5], 4.9, front + .02, 1.2, 1.9), box(15, .2, 2.2, aw, 0, 3.7, front + 1.1, { x: .25 }));
+    for (const a of [-4.5, 0, 4.5]) Q.push(cyl(.6, .6, .1, 12, "#ffffff", a, .9, front + 3), cyl(.08, .08, .9, 6, "#666666", a, 0, front + 3));
+    SG = [8, .9, 4.3, front + .14, aw, "#fff4dc"]; top = 13; }
+  const grp = solid(Q, x, z, ry, { type: "work", w }, CURB);
+  mountSign(grp, sign(w.name, SG[0], SG[1], { bg: SG[4], fg: SG[5] }), 0, SG[2], SG[3]);
+  w.townTop = top;
+}
 // the polling station: a pseudo-workplace so it can be entered like any business
 const BALLOT = { id: "ballot", kind: "ballot", name: "קלפי מס׳ 1", staff: [], x: null, z: null };
 function ballotBuilding(x, z) {
@@ -5969,7 +6117,7 @@ function buildCivic() {
         const sn = Math.sin(w.ry), cs = Math.cos(w.ry); for (const [a, b] of [[-10.5, -6], [10.5, -6]]) parks.push([w.x + a * cs + b * sn, w.z - a * sn + b * cs]);
         return;
       }
-      if (TW) { const b = TW.plan.biz[i]; if (!b) return; w.x = b.x; w.z = b.z; w.ry = b.ry; w.addr = b.addr; workBuilding(w, w.x, w.z, w.ry); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);   // a town: on the market
+      if (TW) { const b = TW.plan.biz[i]; if (!b) return; w.x = b.x; w.z = b.z; w.ry = b.ry; w.addr = b.addr; if (w.look === "bow") workBuilding(w, w.x, w.z, w.ry); else townWorkBuilding(w, w.x, w.z, w.ry); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);   // a town: on the market
         const sn = Math.sin(w.ry), cs = Math.cos(w.ry); for (const [a, c] of [[-10.5, -6], [10.5, -6]]) parks.push([w.x + a * cs + c * sn, w.z - a * sn + c * cs]); return; }
       if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
@@ -6652,51 +6800,105 @@ function homeSnapshot(h, Bd, px) {
   r.render(R.sc, cm); const u = r.domElement.toDataURL("image/png"); r.renderLists.dispose();
   R.sc.traverse(o => { if (o.isMesh && !o.geometry.userData.shared) o.geometry.dispose(); }); return u;
 }
+// the levels of a home and their rooms, in each level's own frame: the ground floor (as the inside is built), the upper floor (built beside it, at UPX),
+// and the yard behind the house (x across the lot, z away from the house)
+const YARD = { f0: -6.9, x0: -6, x1: 6, z0: -2.2, z1: 2.2 };
+function homeLevels(h) {
+  const Bd = homeBounds(h), two = !!h.lot?.est || +(h.hk || "0")[0] >= 2, mid = (Bd.x0 + Bd.x1) / 2, L = [];
+  L.push({ id: 0, n: "קומת קרקע", B: Bd, rooms: [{ n: "🛋️ סלון", x0: Bd.x0, x1: mid, z0: Bd.z0, z1: Bd.z1 }, { n: "🍳 מטבח ופינת אוכל", x0: mid, x1: Bd.x1, z0: Bd.z0, z1: Bd.z1 }, { n: "🏠 כל הקומה", ...Bd }] });
+  if (two) L.push({ id: 1, n: "קומה עליונה", B: { x0: -9.1, x1: 9.1, z0: -6.6, z1: 6.6 }, rooms: [[-9.1, -3.7, "🛏️ חדר השינה"], [-3.5, 1.5, "🧸 חדר הילדים"], [1.7, 5.3, "🛁 האמבטיה"], [5.5, 9.1, "💻 המשרד הביתי"]].map(([a, b, n]) => ({ n, x0: a, x1: b, z0: -6.6, z1: 1.4 })).concat([{ n: "🚶 המסדרון", x0: -9.1, x1: 9.1, z0: 1.8, z1: 6.6 }]) });
+  L.push({ id: 2, n: "🌳 חצר", B: { x0: YARD.x0, x1: YARD.x1, z0: YARD.z0, z1: YARD.z1 }, rooms: [{ n: "🌳 החצר", x0: YARD.x0, x1: YARD.x1, z0: YARD.z0, z1: YARD.z1 }] });
+  return L;
+}
+// the corners of a piece standing at (x, z) turned by ry, and whether two such footprints overlap (separating axes)
+const furnCorners = (it, pad = 0) => { const [w2, d2] = furnRowDims(it), c = Math.cos(+it.ry || 0), s = Math.sin(+it.ry || 0), hw = w2 / 2 - pad, hd = d2 / 2 - pad;
+  return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([a, b]) => [it.x + a * c + b * s, it.z - a * s + b * c]); };
+function rectsHit(A, B) { for (const P of [A, B]) for (let i = 0; i < 4; i++) { const p = P[i], q = P[(i + 1) % 4], nx = q[1] - p[1], nz = p[0] - q[0];
+  const pa = A.map(v => v[0] * nx + v[1] * nz), pb = B.map(v => v[0] * nx + v[1] * nz); if (Math.max(...pa) <= Math.min(...pb) || Math.max(...pb) <= Math.min(...pa)) return false; } return true; }
+// where a piece looks (its front), in words
+function furnFacing(ry, yard) { const a = ((Math.round((+ry || 0) / (Math.PI / 4)) % 8) + 8) % 8;
+  return (yard ? ["⬇️ מהבית והלאה", "↘️ באלכסון", "➡️ ימינה", "↗️ באלכסון", "⬆️ אל הבית", "↖️ באלכסון", "⬅️ שמאלה", "↙️ באלכסון"] : ["⬇️ אל הדלת", "↘️ באלכסון", "➡️ ימינה", "↗️ באלכסון", "⬆️ אל הקיר האחורי", "↖️ באלכסון", "⬅️ שמאלה", "↙️ באלכסון"])[a]; }
+// ---- arranging the home: a board of the floors (and the yard) and their rooms; the room drawn from above with every piece at its real size,
+// a yellow frame for the room it takes and an arrow to its front; the chosen piece in 3D beside it, turning with it. Drag, turn, back to the storeroom, save.
 function homeMap(u) {
   const h = S.byUser.get(u); if (!h?.lot) return; const mine = S.mine === h && keyOf(h.u); if (!mine && !ADMIN) return toast("רק בעלי הבית מסדרים את הבית");
-  const Bd = homeBounds(h), L = furnOf(h).map(r => ({ ...r })), W = Bd.x1 - Bd.x0, D = Bd.z1 - Bd.z0, bg = new Image(), snap = homeSnapshot(h, Bd, 900); if (snap) bg.src = snap;
-  HOMEMAP.sel = -1;
-  const draw = () => open(`🛋️ הבית של ‎@${nick(h.u)}`, `<div class="hero"><p>${L.length ? "גוררים כל רהיט למקום שלו בבית. לחיצה על רהיט בוחרת אותו: אפשר לסובב או להחזיר למחסן. בסוף לוחצים לשמור." : `עוד אין לך רהיטים. קונים ב${YK.name} 🏡`}</p></div>
-    <canvas id="hmC" style="width:100%;aspect-ratio:${W}/${D};touch-action:none;border-radius:16px;margin-top:10px;display:block;background:#efe9df"></canvas>
-    <div id="hmSel" class="adm" style="background:var(--tint);border-radius:16px;padding:8px 12px;margin-top:8px"></div>
+  const LV = homeLevels(h).filter(q => S.furnLvl || q.id === 0), L = furnOf(h).map(r => ({ ...r, lvl: +r.lvl || 0 })), bg = new Image(), snap = homeSnapshot(h, LV[0].B, 900); if (snap) bg.src = snap;
+  let lv = LV[0], room = lv.rooms[0]; HOMEMAP.sel = -1;
+  const shot = it => furnShotUrl(furnRowParts(it).map(g => g.rotateY(+it.ry || 0)), 300);
+  const bad = it => { if (!it.placed) return false; const C = furnCorners(it, .05), B = LV.find(q => q.id === it.lvl)?.B; if (!B || C.some(([a, b]) => a < B.x0 - .05 || a > B.x1 + .05 || b < B.z0 - .05 || b > B.z1 + .05)) return true;
+    return L.some(o => o !== it && o.placed && o.lvl === it.lvl && rectsHit(C, furnCorners(o, .05))); };
+  open(`🛋️ הבית של ‎@${nick(h.u)}`, `<div class="tabs" id="hmLv" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <div id="hmRooms" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    <canvas id="hmC" style="width:100%;touch-action:none;border-radius:16px;margin-top:10px;display:block;background:#efe9df"></canvas>
+    <div id="hmSel" style="background:var(--tint);border-radius:16px;padding:10px 12px;margin-top:8px"></div>
     <div class="sec">📦 במחסן</div><div class="list" id="hmStore"></div>
     <div class="btns" style="margin-top:10px">${mine ? `<button class="btn" id="hmSave">💾 לשמור</button>` : ""}<button class="btn ghost" data-go="yallkea">🏡 לקנות עוד ב${YK.name}</button></div>`, () => {
     const cv = $("hmC"), x = cv.getContext("2d");
-    const geo = () => { const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); } return { s: r.width / W, dpr, r }; };
-    const toPx = (g, a, b) => [(a - Bd.x0) * g.s, (b - Bd.z0) * g.s];
-    const paint = () => { const g = geo(); x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); x.clearRect(0, 0, g.r.width, g.r.height);
-      if (bg.complete && bg.naturalWidth) { x.globalAlpha = .9; x.drawImage(bg, 0, 0, g.r.width, g.r.height); x.globalAlpha = 1; }
-      x.fillStyle = "rgba(255,255,255,.85)"; x.font = `700 ${Math.max(11, g.s * .55)}px Heebo, Arial`; x.textAlign = "center"; x.textBaseline = "bottom"; x.fillText("🚪 הדלת", g.r.width / 2, g.r.height - 2);
-      L.forEach((it, i) => { if (!it.placed) return; const [w2, d2] = furnRowDims(it), [px, pz] = toPx(g, it.x, it.z);
-        x.save(); x.translate(px, pz); x.rotate(-(+it.ry || 0)); x.fillStyle = i === HOMEMAP.sel ? "rgba(240,138,36,.55)" : "rgba(255,255,255,.6)"; x.strokeStyle = i === HOMEMAP.sel ? "#f08a24" : "rgba(0,0,0,.45)"; x.lineWidth = i === HOMEMAP.sel ? 3 : 1.5;
-        x.fillRect(-w2 / 2 * g.s, -d2 / 2 * g.s, w2 * g.s, d2 * g.s); x.strokeRect(-w2 / 2 * g.s, -d2 / 2 * g.s, w2 * g.s, d2 * g.s);
-        x.fillStyle = "#2b2b2b"; x.fillRect(-w2 / 2 * g.s, d2 / 2 * g.s - 3, w2 * g.s, 3); x.restore();   // the dark edge is its front
-        x.textBaseline = "middle"; x.font = `${Math.max(14, Math.min(24, g.s * .9))}px serif`; x.fillText(furnIc(it.item), px, pz); });
+    const pill = (on, txt, data) => `<button class="mini" ${data} style="${on ? "background:#1f6f8b;color:#fff" : "background:#e3dccd;color:#1d2e3c"}">${txt}</button>`;
+    const tabs = () => { $("hmLv").innerHTML = LV.map(q => pill(q === lv, `${q.n} · ${fmtN(L.filter(it => it.placed && it.lvl === q.id).length)}`, `data-lv="${q.id}"`)).join("") + (S.furnLvl ? "" : `<small class="note" style="align-self:center">הקומה העליונה והחצר ייפתחו בקרוב</small>`);
+      $("hmRooms").innerHTML = lv.rooms.length > 1 ? lv.rooms.map((r, i) => pill(r === room, r.n, `data-rm="${i}"`)).join("") : "";
+      $("hmLv").querySelectorAll("[data-lv]").forEach(b => b.onclick = () => { lv = LV.find(q => q.id === +b.dataset.lv); room = lv.rooms[0]; HOMEMAP.sel = -1; tabs(); store(); selUI(); paint(); });
+      $("hmRooms").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { room = lv.rooms[+b.dataset.rm]; tabs(); paint(); }); };
+    // the view: the chosen room (with a little of what is around it)
+    const view = () => { const m = .6; return { x0: room.x0 - m, x1: room.x1 + m, z0: room.z0 - m, z1: room.z1 + m }; };
+    const geo = () => { const V = view(), W = V.x1 - V.x0, D = V.z1 - V.z0; cv.style.aspectRatio = `${W}/${D}`; const pw = cv.parentElement.getBoundingClientRect().width, mw = Math.min(pw, innerHeight * .46 * W / D); cv.style.width = `${Math.round(mw)}px`; cv.style.marginInline = "auto"; const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+      if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); } return { s: r.width / W, dpr, r, V }; };
+    const toPx = (g, a, b) => [(a - g.V.x0) * g.s, (b - g.V.z0) * g.s];
+    const paint = () => { const g = geo(), V = g.V; x.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); x.clearRect(0, 0, g.r.width, g.r.height);
+      if (lv.id === 0 && bg.complete && bg.naturalWidth) { const B = lv.B, sw = bg.naturalWidth / (B.x1 - B.x0), sh = bg.naturalHeight / (B.z1 - B.z0);
+        x.globalAlpha = .92; x.drawImage(bg, (V.x0 - B.x0) * sw, (V.z0 - B.z0) * sh, (V.x1 - V.x0) * sw, (V.z1 - V.z0) * sh, 0, 0, g.r.width, g.r.height); x.globalAlpha = 1; }
+      else { x.fillStyle = lv.id === 2 ? "#8fbf6a" : "#d8c3a0"; x.fillRect(0, 0, g.r.width, g.r.height);
+        if (lv.id === 1) { x.strokeStyle = "#8a7d63"; x.lineWidth = 3; for (const r of lv.rooms) { const [a, b] = toPx(g, r.x0, r.z0), [c2, d] = toPx(g, r.x1, r.z1); x.strokeRect(a, b, c2 - a, d - b); x.fillStyle = "rgba(60,40,20,.55)"; x.font = `700 ${Math.max(11, g.s * .45)}px Heebo, Arial`; x.textAlign = "center"; x.textBaseline = "top"; x.fillText(r.n, (a + c2) / 2, b + 4); } }
+        else { x.fillStyle = "#c9b28c"; const [a, b] = toPx(g, YARD.x0 - 1, YARD.z0 - .9), [c2] = toPx(g, YARD.x1 + 1, 0); x.fillRect(a, b, c2 - a, .8 * g.s); x.fillStyle = "rgba(255,255,255,.9)"; x.font = `700 ${Math.max(11, g.s * .5)}px Heebo, Arial`; x.textAlign = "center"; x.textBaseline = "top"; x.fillText("🏠 הקיר האחורי של הבית", g.r.width / 2, b + 2); } }
+      if (lv.id === 0) { x.fillStyle = "rgba(255,255,255,.9)"; x.font = `700 ${Math.max(11, g.s * .5)}px Heebo, Arial`; x.textAlign = "center"; x.textBaseline = "bottom"; const [dx, dz] = toPx(g, 0, lv.B.z1 + .5); x.fillText("🚪 הדלת", dx, dz); }
+      L.forEach((it, i) => { if (!it.placed || it.lvl !== lv.id) return; const sel = i === HOMEMAP.sel, red = bad(it), C = furnCorners(it).map(([a, b]) => toPx(g, a, b));
+        x.beginPath(); C.forEach(([a, b], k) => k ? x.lineTo(a, b) : x.moveTo(a, b)); x.closePath();
+        x.fillStyle = red ? "rgba(224,69,58,.45)" : sel ? "rgba(255,182,39,.45)" : "rgba(255,255,255,.55)"; x.fill(); x.strokeStyle = red ? "#e0453a" : sel ? "#ffb627" : "rgba(0,0,0,.45)"; x.lineWidth = sel || red ? 3 : 1.5; x.stroke();
+        // the arrow to its front
+        const [w2, d2] = furnRowDims(it), ry = +it.ry || 0, fx = Math.sin(ry), fz = Math.cos(ry), [px, pz] = toPx(g, it.x, it.z), [ax, az] = toPx(g, it.x + fx * (d2 / 2 + .35), it.z + fz * (d2 / 2 + .35)), hd = Math.max(6, g.s * .3);
+        x.strokeStyle = x.fillStyle = sel ? "#c98700" : "rgba(40,40,40,.75)"; x.lineWidth = 2.5; x.beginPath(); x.moveTo(px + fx * d2 * .1 * g.s, pz + fz * d2 * .1 * g.s); x.lineTo(ax, az); x.stroke();
+        x.beginPath(); x.moveTo(ax + fx * hd, az + fz * hd); x.lineTo(ax - fz * hd * .6, az + fx * hd * .6); x.lineTo(ax + fz * hd * .6, az - fx * hd * .6); x.closePath(); x.fill();
+        x.textAlign = "center"; x.textBaseline = "middle"; x.font = `${Math.max(14, Math.min(26, g.s * .8))}px serif`; x.fillText(furnIc(it.item), px, pz); });
     };
     const store = () => { const el = $("hmStore"), list = L.map((it, i) => [it, i]).filter(([it]) => !it.placed);
-      el.innerHTML = list.length ? list.map(([it, i]) => `<div class="li"><span class="ic">${furnIc(it.item)}</span><span class="tx"><b>${esc(furnRowName(it))}</b></span><button class="mini" data-put="${i}">להכניס לבית</button></div>`).join("") : `<p class="note">המחסן ריק</p>`;
-      el.querySelectorAll("[data-put]").forEach(b => b.onclick = () => { const it = L[+b.dataset.put]; it.placed = true; it.x = (Bd.x0 + Bd.x1) / 2; it.z = (Bd.z0 + Bd.z1) / 2; HOMEMAP.sel = +b.dataset.put; store(); selUI(); paint(); }); };
-    const selUI = () => { const it = L[HOMEMAP.sel], el = $("hmSel"); if (!it || !it.placed) { el.innerHTML = `<p class="note" style="margin:4px 0">${L.some(q => q.placed) ? "לחצו על רהיט כדי לבחור אותו" : "מכניסים רהיטים מהמחסן למטה"}</p>`; return; }
-      el.innerHTML = `<b>${furnIc(it.item)} ${esc(furnRowName(it))}</b><div class="btns" style="margin-top:6px"><button class="mini" data-rot="1">↺ 90°</button><button class="mini" data-rot="-1">↻ 90°</button><button class="mini" data-rot="0.5">↺ 45°</button><button class="mini" id="hmBack">📦 למחסן</button></div>`;
-      el.querySelectorAll("[data-rot]").forEach(b => b.onclick = () => { it.ry = Math.round((((+it.ry || 0) + +b.dataset.rot * Math.PI / 2) % (Math.PI * 2)) * 1000) / 1000; paint(); });
-      $("hmBack").onclick = () => { it.placed = false; HOMEMAP.sel = -1; store(); selUI(); paint(); }; };
-    const at = e => { const g = geo(); return [(e.clientX - g.r.left) / g.s + Bd.x0, (e.clientY - g.r.top) / g.s + Bd.z0]; };
+      el.innerHTML = list.length ? list.map(([it, i]) => `<div class="li"><span class="ic">${furnIc(it.item)}</span><span class="tx"><b>${esc(furnRowName(it))}</b><small>${furnRowDims(it).join("×")} מ׳</small></span><button class="mini" data-put="${i}">להכניס ל${esc(room.n.replace(/^\S+\s/, ""))}</button></div>`).join("") : `<p class="note">המחסן ריק</p>`;
+      el.querySelectorAll("[data-put]").forEach(b => b.onclick = () => { const it = L[+b.dataset.put]; Object.assign(it, { placed: true, lvl: lv.id, x: Math.round((room.x0 + room.x1) * 5) / 10, z: Math.round((room.z0 + room.z1) * 5) / 10 }); HOMEMAP.sel = +b.dataset.put; tabs(); store(); selUI(); paint(); }); };
+    const selUI = () => { const it = L[HOMEMAP.sel], el = $("hmSel"); if (!it || !it.placed || it.lvl !== lv.id) { el.innerHTML = `<p class="note" style="margin:4px 0">${L.some(q => q.placed && q.lvl === lv.id) ? "לחצו על רהיט כדי לבחור אותו, וגררו אותו למקום" : "מכניסים רהיטים מהמחסן למטה"}</p>`; return; }
+      const [w2, d2] = furnRowDims(it), red = bad(it);
+      el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><img id="hmImg" src="${shot(it)}" alt="" style="width:118px;height:118px;border-radius:14px;background:#e7e1d4;flex:none">
+        <div style="flex:1;min-width:0"><b>${furnIc(it.item)} ${esc(furnRowName(it))}</b><div style="font-size:13px;margin-top:4px">📐 ${w2}×${d2} מ׳ · פונה ${furnFacing(it.ry, lv.id === 2)}</div>
+        ${red ? `<div style="font-size:13px;color:#c0392b;margin-top:4px">⚠️ לא נכנס כאן: עולה על קיר או על רהיט אחר</div>` : ""}</div></div>
+        <div class="btns" style="margin-top:8px"><button class="mini" data-rot="${Math.PI / 2}">⟲ 90°</button><button class="mini" data-rot="${-Math.PI / 2}">⟳ 90°</button><button class="mini" data-rot="${Math.PI / 12}">↻ 15°</button><button class="mini" id="hmBack">📦 למחסן</button></div>`;
+      el.querySelectorAll("[data-rot]").forEach(b => b.onclick = () => { it.ry = Math.round((((+it.ry || 0) + +b.dataset.rot) % (Math.PI * 2)) * 1000) / 1000; selUI(); paint(); });
+      $("hmBack").onclick = () => { it.placed = false; HOMEMAP.sel = -1; tabs(); store(); selUI(); paint(); }; };
+    const at = e => { const g = geo(); return [(e.clientX - g.r.left) / g.s + g.V.x0, (e.clientY - g.r.top) / g.s + g.V.z0]; };
     cv.onpointerdown = e => { const [a, b] = at(e); let best = -1, bd = 1e9;
-      L.forEach((it, i) => { if (!it.placed) return; const [w2, d2] = furnRowDims(it), dd = Math.hypot(a - it.x, b - it.z); if (dd < Math.max(.8, Math.min(w2, d2) / 2 + .4) && dd < bd) { bd = dd; best = i; } });
+      L.forEach((it, i) => { if (!it.placed || it.lvl !== lv.id) return; const [w2, d2] = furnRowDims(it), dd = Math.hypot(a - it.x, b - it.z); if (dd < Math.max(.8, Math.min(w2, d2) / 2 + .4) && dd < bd) { bd = dd; best = i; } });
       HOMEMAP.sel = best; selUI(); paint(); if (best >= 0) { HOMEMAP.drag = { id: e.pointerId, dx: a - L[best].x, dz: b - L[best].z }; cv.setPointerCapture(e.pointerId); } };
-    cv.onpointermove = e => { const dr = HOMEMAP.drag; if (!dr || dr.id !== e.pointerId) return; const [a, b] = at(e), it = L[HOMEMAP.sel];
-      it.x = Math.round(Math.max(Bd.x0 + .3, Math.min(Bd.x1 - .3, a - dr.dx)) * 10) / 10; it.z = Math.round(Math.max(Bd.z0 + .3, Math.min(Bd.z1 - .3, b - dr.dz)) * 10) / 10; paint(); };
-    cv.onpointerup = cv.onpointercancel = () => { HOMEMAP.drag = null; };
-    if ($("hmSave")) $("hmSave").onclick = async e => { e.target.disabled = true;
-      try { const r = await rpc("place_furniture", { username: h.u, key: keyOf(h.u), layout: L.map(it => ({ id: it.id, x: it.x, z: it.z, ry: it.ry, placed: !!it.placed })) });
+    cv.onpointermove = e => { const dr = HOMEMAP.drag; if (!dr || dr.id !== e.pointerId) return; const [a, b] = at(e), it = L[HOMEMAP.sel], B = lv.B;
+      let nx = Math.max(B.x0 + .3, Math.min(B.x1 - .3, a - dr.dx)), nz = Math.max(B.z0 + .3, Math.min(B.z1 - .3, b - dr.dz));
+      // it keeps to a wall when brought close to one (its back flush against it)
+      const [w2, d2] = furnRowDims(it), C = furnCorners({ ...it, x: nx, z: nz }), mx = Math.min(...C.map(c => c[0])) - B.x0, Mx = B.x1 - Math.max(...C.map(c => c[0])), mz = Math.min(...C.map(c => c[1])) - B.z0, Mz = B.z1 - Math.max(...C.map(c => c[1]));
+      if (mx < .25) nx -= mx; else if (Mx < .25) nx += Mx; if (mz < .25) nz -= mz; else if (Mz < .25) nz += Mz;
+      it.x = Math.round(nx * 10) / 10; it.z = Math.round(nz * 10) / 10; paint(); };
+    cv.onpointerup = cv.onpointercancel = () => { if (HOMEMAP.drag) selUI(); HOMEMAP.drag = null; };
+    if ($("hmSave")) $("hmSave").onclick = async e => { const wrong = L.find(bad); if (wrong) { lv = LV.find(q => q.id === wrong.lvl); room = lv.rooms[lv.rooms.length - 1]; HOMEMAP.sel = L.indexOf(wrong); tabs(); selUI(); paint(); return toast("⚠️ יש רהיט שלא נכנס במקומו (באדום). מזיזים אותו ואז שומרים"); }
+      e.target.disabled = true;
+      try { const r = await rpc("place_furniture", { username: h.u, key: keyOf(h.u), layout: L.map(it => ({ id: it.id, x: it.x, z: it.z, ry: it.ry, placed: !!it.placed, lvl: it.lvl || 0 })) });
         if (!r.ok) { e.target.disabled = false; return toast(ERR[r.error] || "לא הצליח. נסו שוב"); }
-        S.furn.set(h.id, L.map(it => ({ ...it }))); toast("✅ הבית סודר! היכנסו לראות", 3500); close();
+        S.furn.set(h.id, L.map(it => ({ ...it }))); yardFurn(); toast("✅ הבית סודר! היכנסו לראות", 3500); close();
       } catch { e.target.disabled = false; toast("אין חיבור כרגע. נסו שוב"); } };
-    bg.onload = paint; store(); selUI(); paint(); addEventListener("resize", paint, { once: true });
+    bg.onload = paint; tabs(); store(); selUI(); paint(); addEventListener("resize", paint, { once: true });
   }, true);
-  draw();
 }
-
+// the yard's furniture stands out in the world, behind each house (on the lawn, turned with the house)
+let YARD_G = null;
+function yardFurn() {
+  if (YARD_G) for (const g of YARD_G) { g.removeFromParent(); g.traverse(o => o.geometry?.dispose()); } YARD_G = [];
+  for (const [cid, list] of S.furn || []) { const h = S.houses.find(q => q.id === cid); if (!h?.lot) continue; const f = h.lot.face, c = Math.cos(f), s2 = Math.sin(f);
+    for (const r of list) { if (!r.placed || +r.lvl !== 2) continue; const fw = YARD.f0 - (+r.z || 0), sd = -(+r.x || 0), wx = h.x + fw * s2 + sd * c, wz = h.z + fw * c - sd * s2;
+      YARD_G.push(solid(furnRowParts(r), wx, wz, (+r.ry || 0) + f + Math.PI, null, LAWN)); } }   // (each piece its own small object, bent with the land where it stands)
+}
 // walking in: the door in the front of the entrance house, out the same way
 function yallkeaIndoor(w, door) {
   const R = yallkeaScene(), fig = avatarMesh(avatarOf(WALK.h), 1); holdIn(fig); R.sc.add(fig);
@@ -6714,6 +6916,23 @@ const isMallSite = p => p.kind === "mall" && p.params?.site !== "lot";
 const mallStores = p => (p.params?.stores?.length ? p.params.stores : [{ name: "סבבה פאשן", cat: "fashion" }, { name: "סופר יאללה", cat: "super" }, { name: "גלידה יאללה", cat: "food" }, { name: "גאדג׳טים", cat: "tech" }, { name: "קפה הקניון", cat: "cafe" }, { name: "צעצועי סבבה", cat: "toys" }]);
 const MALL_W = 156, MALL_D = 116;
 // ---- what every kind of mall shop sells (prices must match menu_price() in upgrade-16.sql): bought with sababonim, through buy_food as "mall_<kind>:<item>"
+// the town market's stalls and shops (שוק נווה זורם): each kind with its goods and prices. Must match menu_price() in upgrade-58.sql
+const SHUK = {
+  fruit: ["🍉", "פירות", ["הפירות של אבי", "פרי הגליל", "הבסטה של שמעון"], "#e74c3c", [["melon", "🍉", "אבטיח", 18], ["grapes", "🍇", "ענבים", 14], ["oranges", "🍊", "שקית תפוזים", 12], ["berries", "🍓", "קופסת תותים", 16]]],
+  veg: ["🥬", "ירקות", ["הירקות של מזל", "ירוק בעיניים", "הירקן מהנהר"], "#27ae60", [["tomatoes", "🍅", "עגבניות", 8], ["cucumbers", "🥒", "מלפפונים", 7], ["peppers", "🫑", "פלפלים", 10], ["potatoes", "🥔", "תפוחי אדמה", 9]]],
+  spice: ["🌶️", "תבלינים", ["תבליני הרי", "עולם התבלין", "בית הזעתר"], "#d35400", [["zaatar", "🌿", "זעתר", 15], ["paprika", "🌶️", "פפריקה", 12], ["turmeric", "🟡", "כורכום", 12], ["hel", "🫚", "הל טחון", 20]]],
+  halva: ["🍯", "חלבה ותמרים", ["ממלכת החלבה", "החלבה של מרים", "תמר ושקד"], "#c69c6d", [["halva", "🍯", "חלבה", 22], ["tahini", "🫙", "טחינה גולמית", 18], ["dates", "🌴", "תמרים", 25], ["nuts", "🥜", "אגוזים קלויים", 30]]],
+  cheese: ["🧀", "גבינות וזיתים", ["המעדנייה", "זיתים של סבתא", "גבינות העמק"], "#f1c40f", [["bulgarit", "🧀", "בולגרית", 20], ["yellow", "🧀", "גבינה צהובה", 24], ["olives", "🫒", "זיתים", 14], ["labneh", "🥣", "לבנה", 16]]],
+  fish: ["🐟", "דגים", ["דגי הנהר", "הדייג", "מהים לשוק"], "#2980b9", [["denis", "🐟", "דניס", 45], ["salmon", "🐠", "סלמון", 60], ["musht", "🐟", "מושט", 40], ["shrimp", "🦐", "שרימפס", 55]]],
+  bakery: ["🥐", "מאפים", ["מאפיית השוק", "הרוגלך של רבקה", "הבורקס של ניסים"], "#e67e22", [["rugelach", "🥐", "רוגלך", 12], ["burekas", "🥟", "בורקס", 10], ["challah", "🍞", "חלה", 15], ["pita", "🫓", "שקית פיתות", 8]]],
+  coffee: ["☕", "קפה", ["בית הקלייה", "הפינג׳אן", "קפה של השוק"], "#6d4c41", [["black", "☕", "קפה שחור", 9], ["hel", "☕", "קפה עם הל", 10], ["iced", "🧋", "קפה קר", 14], ["beans", "🫘", "פולי קפה", 35]]],
+  juice: ["🥤", "מיצים", ["מיץ טבעי", "הסחוט", "לימונענע"], "#16a085", [["orange", "🍊", "מיץ תפוזים", 12], ["pomegranate", "🍹", "מיץ רימונים", 16], ["lemonana", "🍋", "לימונענע", 10], ["carrot", "🥕", "מיץ גזר", 12]]],
+  sweets: ["🍬", "ממתקים", ["ממתקי השוק", "בקלאווה של חסן", "הסוכריה"], "#c0392b", [["baklava", "🍮", "בקלאווה", 20], ["candy", "🍬", "שקית סוכריות", 10], ["marzipan", "🍡", "מרציפן", 18], ["lokum", "🍬", "רחת לוקום", 16]]],
+  flowers: ["💐", "פרחים", ["פרחי הנהר", "הזר", "גינת השוק"], "#e84393", [["roses", "🌹", "זר ורדים", 45], ["sunflowers", "🌻", "חמניות", 30], ["pot", "🪴", "עציץ", 35], ["orchid", "🌸", "סחלב", 60]]],
+  home: ["🫖", "כלי בית", ["כלי השוק", "הפינג׳אנים", "סירים ומחבתות"], "#7f8c8d", [["kettle", "🫖", "קומקום", 60], ["finjan", "☕", "פינג׳אן", 35], ["pot", "🍲", "סיר", 80], ["sieve", "🥣", "מסננת", 20]]],
+};
+const SHUK_KINDS = Object.keys(SHUK);
+const shukAdd = (list, it) => { if (!list.some(o => Math.abs(o.x - it.x) < .5 && Math.abs(o.z - it.z) < .5)) list.push(it); };   // (the world may be built again: never the same stall twice)
 const MALL_GOODS = {
   fashion: [["tee", "👕", "חולצת סבבה", 80], ["jeans", "👖", "ג׳ינס", 160], ["dress", "👗", "שמלת ערב", 240], ["cap", "🧢", "כובע", 45]],
   shoes: [["sneakers", "👟", "נעלי ספורט", 220], ["sandals", "🩴", "כפכפים", 40], ["heels", "👠", "נעלי עקב", 260], ["boots", "🥾", "מגפיים", 300]],
@@ -6833,6 +7052,28 @@ function mallBuy(s2) {
   }, true);
 }
 
+// the town market: a stall's (or shop's) goods, bought with the personal link's key (like a shop in the mall)
+function shukBuy(st) {
+  const K = SHUK[st.kind], me = S.mine, key = me && keyOf(me.u), grp = "shuk_" + st.kind;
+  open(`${K[0]} ${esc(st.name)}`, `<div class="hero"><p>${st.shop ? "חנות" : "דוכן"} ${K[1]} בשוק נווה זורם. ${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>.` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
+    <div class="list" style="margin-top:10px">${K[4].map(([k, ic, n, pr]) => `<div class="li"><span class="ic" style="font-size:26px">${ic}</span><span class="tx"><b>${n}</b><small>${fmtN(pr)} ${COIN}</small></span>${key ? `<button class="mini" data-buy="${k}">קנייה</button>` : ""}</div>`).join("")}</div>`, () => {
+    $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = async () => {
+      const [k, ic, n, pr] = K[4].find(q => q[0] === b.dataset.buy); if ((me.coins || 0) < pr) return toast(ERR.funds);
+      b.disabled = true; b.textContent = "…";
+      try { const r = await rpc("buy_food", { username: me.u, key: keyOf(me.u), item: `${grp}:${k}` });
+        if (!r.ok) { b.disabled = false; b.textContent = "קנייה"; if (r.error === "unauthorized") dropKey(me.u); return toast(r.error === "bad_item" ? "הדוכן עוד לא פתוח: צריך להריץ את upgrade-58.sql" : ERR[r.error] || "לא הצליח. נסו שוב"); }
+        patchCitizen(me, { coins: r.coins, food: r.food || me.food }); HOLD.e = ic; HOLD.until = Date.now() + 20 * 60e3; if (WALK.on) holdIn(WALK.fig);
+        toast(`${ic} ${n} · תתחדשו! −${fmtN(pr)} ${COIN}`, 3500); stack.pop(); shukBuy(st);
+      } catch { b.disabled = false; b.textContent = "קנייה"; toast("אין חיבור כרגע. נסו שוב"); } });
+  }, true);
+}
+// tapping the market from above: what it has, kind by kind, each stall a tap away
+function shukDir(cid) {
+  const T = [...TOWNS.values()].find(t => t.slot.city.id === cid), L = T?.shuk || []; if (!L.length) return;
+  open("🧺 שוק נווה זורם", `<div class="hero"><p>שני מעברים מקורים על שתי גדות הנהר וגשר השוק ביניהם: ${fmtN(L.filter(q => !q.shop).length)} דוכנים ו־${fmtN(L.filter(q => q.shop).length)} חנויות. אפשר לקנות מכאן, או ללכת ברגל בין הדוכנים.</p></div>
+    <div class="list" style="margin-top:10px">${SHUK_KINDS.map(k => { const n = L.filter(q => q.kind === k).length, i = L.findIndex(q => q.kind === k); return n ? `<div class="li" data-st="${i}"><span class="ic" style="font-size:26px">${SHUK[k][0]}</span><span class="tx"><b>${SHUK[k][1]}</b><small>${fmtN(n)} דוכנים וחנויות · למשל ${esc(L[i].name)}</small></span><button class="mini">לקנות</button></div>` : ""; }).join("")}</div>`, () => {
+    $("dBody").querySelectorAll("[data-st]").forEach(b => b.onclick = () => shukBuy(L[+b.dataset.st])); });
+}
 // the k-th mall stands beside the highway to the harbor, a little out of the capital, facing the road
 function mallSpot(k) { return mallSpotOn(k, false) || mallSpotOn(k, true) || mallSpotFree(k); }   // never lost: a looser search, then any open land out of town
 function nearHwy(x, z) { let best = null; for (const [a, b, c, d, w, id] of highwaySegs()) { if (id === "palm") continue; const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((x - a) * dx + (z - b) * dz) / (dx * dx + dz * dz || 1))), px = a + dx * t, pz = b + dz * t, q = Math.hypot(x - px, z - pz);
@@ -9438,9 +9679,12 @@ function landBridge(B) {
     Q.push(box(w, .22, L + 1, "#d9ccb0", 0, top - .22, 0), box(w + 1.4, 1.6, L + 1, C, 0, top - 1.8, 0));
     for (let z = -B.hs + 2; z < B.hs - 1; z += 4) Q.push(box(w - 1, .02, .18, "#cbbd9e", 0, top + .005, z));
     for (const sd of [-1, 1]) { Q.push(box(.7, .9, L + 1, D, sd * (WW + .35), top, 0), box(.9, .14, L + 1, C, sd * (WW + .35), top + .9, 0));
-      for (let z = -B.hs + 6; z < B.hs - 4; z += 12) Q.push(cyl(.1, .12, 4.2, 6, "#2f3438", sd * (WW - .6), top, z), box(.5, .6, .5, "*#fff1c2", sd * (WW - .6), top + 4.2, z));
-      for (let z = -B.hs + 12; z < B.hs - 8; z += 12) Q.push(box(.6, .45, 2.4, "#8a6a4a", sd * (WW - 2.2), top, z)); }
+      for (let z = -B.hs + 6; z < B.hs - 4; z += 12) Q.push(cyl(.1, .12, 4.2, 6, "#2f3438", sd * 1.6, top, z), box(.5, .6, .5, "*#fff1c2", sd * 1.6, top + 4.2, z));
+    }
+    // the market goes on over the water: the two aisles' roofs and stalls along both rails (planters down the middle)
+    const RB = []; shukBridge(Q, RB, B, top, L, ry);
     for (let z = -B.hs + 12; z < B.hs - 8; z += 24) Q.push(box(2.6, .8, 2.6, D, 0, top, z), sph(1.5, "#5b8a3f", 0, top + 1.9, z), box(2.2, .25, 2.2, "#6b4b32", 0, top + .8, z));
+    if (RB.length) { const m = new THREE.Mesh(mergeGeometries(RB), SHUK_ROOF); m.position.set(B.x, 0, B.z); m.rotation.y = ry; m.renderOrder = 2; world.add(m); }
     for (let k = 0; k <= n; k++) { const z = -B.hs + L * k / n, g = gAt(z) - 1.5; if (k > 0 && k < n && top - 1.8 - g > .5) Q.push(box(w + 1, top - 1.8 - g, 2.6, D, 0, g, z)); }
     for (let k = 0; k < n; k++) { const zc = -B.hs + L * (k + .5) / n, half = L / n / 2 - 1.3; for (let j = 0; j < 10; j++) { const a = -half + 2 * half * j / 10, b = a + 2 * half / 10, m = (a + b) / 2, y = top - 1.8 - .9 * (1 - (m / half) ** 2); Q.push(box(w + 1.5, top - 1.8 - y + .05, b - a + .05, C, 0, y, zc + m)); } }
   }
@@ -9583,6 +9827,7 @@ function buildWorld() {
   if (S.mine) S.mine = S.byUser.get(S.mine.u) || null;
   if (S.sel) S.sel = S.byUser.get(S.sel.u) || null;
   mark(S.sel || S.mine);
+  if (S.furn) { YARD_G = null; try { yardFurn(); } catch (e) { console.warn(e); } }   // (the world was cleared: the yards' furniture again)
 }
 
 /* ============================ DAY & NIGHT ============================ */
@@ -9901,6 +10146,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "place" && d.id === "yallkea") showYallkea();
   else if (d.type === "place" && String(d.id).startsWith("station:")) GO.station(+String(d.id).slice(8));
   else if (d.type === "place" && String(d.id).startsWith("stop:")) stopCard(+String(d.id).slice(5));
+  else if (d.type === "place" && String(d.id).startsWith("shuk:")) shukDir(+String(d.id).slice(5));
   else if (d.type === "place" && String(d.id).startsWith("palmrail:")) railCard(+String(d.id).slice(9));
   else if (d.type === "place") openPlace(d.id);
   else if (d.type === "slot") showSlot(d.slot);
@@ -9995,6 +10241,7 @@ function walkDoors() {
   if (YK.door && S.ykSpot) add(YK.door.x, YK.door.z, 7, "yallkea", `להיכנס: ${YK.name}`);
   for (const Pi of PIERS) if (Pi) { const v = { x: Pi.vc.x + Pi.u.x * 8, z: Pi.vc.z + Pi.u.z * 8 }; add(v.x, v.z, 4, "proj:" + Pi.p.id, `🏛️ מרכז המבקרים · ${Pi.p.name || "אי הפסל"}`); }
   for (const st of PALM.stations || []) add(st.x, st.z, 4.5, "rail:" + st.i, `🚡 להיכנס ל${st.name}`);
+  for (const T of TOWNS.values()) (T.shuk || []).forEach((st, i) => add(st.x, st.z, 2.4, `shuk:${T.slot.city.id}:${i}`, `${SHUK[st.kind][0]} ${st.name} · לקנות`));   // every stall and shop in the town market
   (S.busStops || []).forEach((st, i) => add(st.x + Math.sin(st.ry) * 1.6, st.z + Math.cos(st.ry) * 1.6, 3.4, "stop:" + i, `🚏 תחנת ${st.name} · לנסוע`));
   // the national buildings: the tower's glass doors under the canopy, the set-square's revolving door, the lighthouse door
   if (natOpen("wishtower")) { const N = NAT.wishtower; add(N.x, N.z + 25, 5, "place:wish", "🚶 לטייל בפנים: מגדל ההגשמה"); }
@@ -10864,6 +11111,7 @@ function indoorStart(id, door) {
   if (id === "yamit") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.yamit(); }
   if (id === "kirya") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.kirya(); }
   if (String(id).startsWith("station:")) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.station(+id.slice(8)); }
+  if (String(id).startsWith("shuk:")) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; const [, cid, i] = id.split(":"), T = [...TOWNS.values()].find(t => t.slot.city.id === +cid), st = T?.shuk?.[+i]; return st && shukBuy(st); }
   if (id === "armour") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.armour(); }
   if (id === "air") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.air(); }
   if (id === "north") { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; return GO.north(); }
@@ -10905,6 +11153,7 @@ function indoorStart(id, door) {
     Q.push(box(18.6, .02, 5.2, lux ? "#d9cdb8" : "#a07a52", ox, .005, (ZF + 6.8) / 2), box(10, .02, 1.6, lux ? "#7a1c2c" : "#2f6e7a", ox - 2, .02, 4.2));   // the hallway floor and its runner
     const RM = [[-9.3, -3.6, "🛏️", "חדר השינה"], [-3.6, 1.6, "🧸", "חדר הילדים"], [1.6, 5.4, "🛁", "האמבטיה"], [5.4, 9.3, "💻", "המשרד הביתי"]];
     upWalls = []; upRooms = RM.map(([a, b, ic, n]) => ({ x0: ox + a, x1: ox + b, name: `${ic} ${n}` }));
+    for (const r of furnOf(w.owner)) if (r.placed && +r.lvl === 1) Q.push(...furnRowParts(r).map(g => { g.rotateY(+r.ry || 0); return g.translate(ox + (+r.x || 0), 0, +r.z || 0); }));   // the furniture bought for the upper floor
     for (const a of [-3.6, 1.6, 5.4]) { Q.push(box(.2, H5, 8.4, wl, ox + a, 0, (-6.8 + ZF) / 2)); upWalls.push([ox + a - .12, -6.8, ox + a + .12, ZF]); }
     // the wall along the hallway, with a door into every room (a gap with a wooden frame, the wall carrying on above it)
     const doors = RM.map(([a, b]) => (a + b) / 2), DW = 1.5; let x = -9.3;
@@ -12414,7 +12663,7 @@ function interiorOf(w) {
     sgn(name, 4.8, .9, 0, 4.1, -6.48, 0, "#c0392b", "#ffffff"); sgn("קפה הפוך + מאפה = 15", 4.4, .9, -8.98, 3.6, 0, Math.PI / 2, "#ffe14d", "#c0392b");
     staff.push([4.5, 3.8, Math.PI], [-2.8, 2.5, Math.PI / 2], [5.4, -3, 0]);
   }
-  if (k === "home" && w.owner && !FURN_SKIP.on) for (const r of furnOf(w.owner)) if (r.placed) Q.push(...furnRowParts(r).map(g => { g.rotateY(+r.ry || 0); return g.translate(+r.x || 0, 0, +r.z || 0); }));   // the furniture bought in סבבהום
+  if (k === "home" && w.owner && !FURN_SKIP.on) for (const r of furnOf(w.owner)) if (r.placed && !+r.lvl) Q.push(...furnRowParts(r).map(g => { g.rotateY(+r.ry || 0); return g.translate(+r.x || 0, 0, +r.z || 0); }));   // the furniture bought in סבבהום
   return { Q, SG, staff, frame };
 }
 // builds the furnished room of a workplace as its own little scene (used inside the site and inside reels)
@@ -13157,6 +13406,8 @@ const NEWS = {
   pier: { v: "2026-11-05", ic: "🌉", t: "גשר עץ לאי הפסל", sub: "מרכז מבקרים, שערי כניסה, גשר של 550 מ׳, והאי גדל עם טיילת וספסלים", ok: () => PIERS.some(Boolean), shot: () => { const Pi = PIERS.find(Boolean); return { a: at(Pi.C, 2.2, -.6, .3), b: at({ x: (Pi.C.x + Pi.sh.x) / 2, z: (Pi.C.z + Pi.sh.z) / 2 }, 2.6, .5, .3) }; } },
   sports: { v: "2026-11-05", ic: "🏟️", t: "קריית הספורט נפתחה", sub: "אצטדיון ל־15,000, אולם ספורט ומגרשי כדורסל · הפנדלים עברו לאצטדיון", ok: () => natOpen("sports"), shot: () => { const [x, z] = spW(0, -40); return { a: { x, z, zoom: 1.6, az: -.6, el: .34 }, b: { x, z, zoom: 3.2, az: .4, el: .3 } }; } },
   sababus: { v: "2026-11-06", ic: "🚌", t: "סבבוס: אוטובוסים חדשים ותחנות מרכזיות", sub: "אוטובוסי אקורדיון בעיר (קווים 1, 2), אוטובוס בין עירוני (קו 405), ותחנה מרכזית בכניסה לכל עיר", ok: () => (S.stations || []).length > 0, shot: () => { const st = S.stations[0]; return { a: { x: st.x, z: st.z, zoom: 4, az: -.6, el: .38 }, b: { x: st.x, z: st.z, zoom: 7, az: .5, el: .3 } }; } },
+  shuk: { v: "2026-11-08", ic: "🧺", t: "שוק נווה זורם נפתח!", sub: "שוק גדול בסגנון מחנה יהודה משתי גדות הנהר: שני מעברים מקורים, רחוב פתוח עם עגלות, 200 דוכנים וחנויות שאפשר לקנות בהם, וגשר השוק מלא דוכנים · בנייני הציבור של העיר בעיצוב משלהם: טחנה ישנה, בית עירייה עם מגדל שעון ועוד · רחובות נסללים רק כשיש בהם בתים", ok: () => true, shot: () => { const T = [...TOWNS.values()][0], M = T?.plan.M || { x: 0, z: 0 }; return { a: { x: M.x, z: M.z, zoom: 2.4, az: -.4, el: .55 }, b: { x: M.x - 120, z: M.z, zoom: 5, az: .3, el: .5 } }; } },
+  homeboard: { v: "2026-11-08", ic: "🛋️", t: "עיצוב הבית החדש", sub: "בוחרים קומה וחדר (וגם את החצר), רואים כל רהיט בגודלו האמיתי עם חץ לכיוון החזית, מסובבים ב־90° או ב־15°, ורהיט שלא נכנס נצבע באדום", ok: () => true, shot: () => { const h = S.mine?.lot ? S.mine : S.houses.find(q => q.lot) || { x: 0, z: 0 }; return { a: { x: h.x, z: h.z, zoom: 4, az: -.3, el: .6 }, b: { x: h.x, z: h.z, zoom: 7, az: .3, el: .5 } }; } },
   drivefix: { v: "2026-11-08", ic: "🛠️", t: "תיקונים בנהיגה, בנהר ובסבבהום", sub: "הנהיגה האוטומטית לא נעצרת יותר בגלל רכב בנתיב הנגדי, ועוצרת גם מאחורי אוטובוסי העיר · כבישים ועצים לא נעלמים בנסיעה בגבעות · פנסים על המדרכה ולא על הכביש · אחרי קנייה בסבבהום כבר לא נהיה מסך שחור · האי של אפי הנמר חזר קרוב לחוף · בלי כתמים חומים בנהר", ok: () => true, shot: () => ({ a: { x: -8591, z: 8208, zoom: 4, az: -.4, el: .5 }, b: { x: 140, z: -305, zoom: 7, az: 0, el: .7 } }) },
   smooth: { v: "2026-11-08", ic: "⚡", t: "האתר נפתח מהר יותר ולא נתקע, ומבט על כל האי", sub: "הכנת התצוגה עברה לרקע ונעשתה קלה פי ארבעה · רק מה שעל המסך נבנה לתצוגה · מתרחקים עד הסוף ורואים את כל האי מעל הים, בלי ערפל ובלי קצה", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: 2.2, az: -.4, el: .5 }, b: { x: 0, z: 0, zoom: .03, az: 0, el: .9 } }) },
   oldtown: { v: "2026-11-08", ic: "🌉", t: "נווה זורם נבנתה מחדש: העיר העתיקה על הנהר", sub: "כיכר השוק משני צידי הנהר ומדרחוב על הגשר · גשרי רחוב לרכבים · רחובות קשת וסמטאות · כיכרות קטנות עם ספסלים מול המים · כל תושב באותה כתובת", ok: () => TOWNS.size > 0, shot: () => { const T = [...TOWNS.values()][0]; return { a: { x: T.plan.M.x, z: T.plan.M.z, zoom: 1.4, az: -.5, el: .45 }, b: { x: T.plan.M.x, z: T.plan.M.z, zoom: 3.2, az: .5, el: .35 } }; } },
@@ -14335,7 +14586,8 @@ function loadExtras() {
     api("home_requests?select=id,username,note,price,status,reply,created_at&order=id.desc&limit=200").then(d => S.homeReq = d),
     api("suggestions?select=id,username,kind,text,status,reply,votes,source,created_at,fulfilled_at&order=id.desc&limit=400").catch(() => api("suggestions?select=id,username,kind,text,status,reply,votes,source,created_at&order=id.desc&limit=400")).then(d => S.sugg = d),
     loadWishes(), loadCandles(),
-    api("furniture?select=id,citizen_id,item,size,style,x,z,ry,placed&order=id&limit=20000").then(d => { S.furn = new Map(); for (const r of d) { if (!S.furn.has(r.citizen_id)) S.furn.set(r.citizen_id, []); S.furn.get(r.citizen_id).push(r); } })].map(p => p.catch(() => {})));
+    // (with the level of each piece if upgrade-58.sql has run: the ground floor, the upper floor or the yard)
+    api("furniture?select=id,citizen_id,item,size,style,x,z,ry,placed,lvl&order=id&limit=20000").then(d => (S.furnLvl = true, d), () => api("furniture?select=id,citizen_id,item,size,style,x,z,ry,placed&order=id&limit=20000")).then(d => { S.furn = new Map(); for (const r of d) { if (!S.furn.has(r.citizen_id)) S.furn.set(r.citizen_id, []); S.furn.get(r.citizen_id).push(r); } try { yardFurn(); } catch (e) { console.warn(e); } })].map(p => p.catch(() => {})));
 }
 const projSig = list => list.map(p => p.id + p.status).join(",");
 async function loadProjects() {
@@ -14388,7 +14640,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DIST, TOWNS, distPlan, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
