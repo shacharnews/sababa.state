@@ -2890,7 +2890,7 @@ const MILESTONES = [0, 100, 500];   // three cities on the island (Nov 2026): th
 // city sites are spread far enough apart that each city has room for everyone who arrives until the next city opens
 // where they stand (approved Nov 2026, direction B): נווה זורם down the western river, past the sports city, its river through the middle as before;
 // the third city east of the main road, beyond the Kirya. Each far enough from the capital that every one of them has room to grow all round
-const SLOTS = [{ at: 0, x: 0, z: 0 }, { at: 100, x: -720, z: 1100 }, { at: 500, x: 840, z: 1250 }];
+const SLOTS = [{ at: 0, x: 0, z: 0 }, { at: 100, x: -720, z: 1100 }, { at: 500, x: 3250, z: 1250 }];   // (the third city moved east, 3.5 km out, as approved Nov 2026: it had not opened yet)
 const CITY_REACH = 600;   // the ground round each other city that the capital's new quarters leave to it
 const BX = 48, BZ = 36, SD = BZ - 6, HZ = SD / 2;   // a block: 48 x 36 with the street, its sidewalk SD deep (deep enough for a back garden behind each house)
 /* the city plan: a wide boulevard every 4 blocks in each direction (an extra gap between two block columns or rows), roundabouts where boulevards meet,
@@ -3356,7 +3356,7 @@ function terrainBase0(x, z) {
 function terrainUpdate() {
   HT_U.uS.value = S.s; navyPlace(); airPlace(); const open = S.slots.filter(sl => sl.city && (sl.blocks?.size || sl.townBox));
   HT_U.uCity.value.forEach((v, i) => { const sl = open[i]; if (!sl) return v.set(1e6, 1e6, 1e6, 1e6); const E = TOWNS.get(sl.at)?.ext; if (E) return v.set(E.x0, E.z0, E.x1, E.z1);
-    if (sl.townBox) { const F = townFrame(); return v.set(sl.x - F.R, sl.z - F.RZ, sl.x + F.R, sl.z + F.RZ); } const B = cityBox(sl);
+    if (sl.townBox) { const F = townF(sl); return v.set(sl.x - F.R, sl.z - F.RZ, sl.x + F.R, sl.z + F.RZ); } const B = cityBox(sl);
     v.set(sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 30, sl.z + BPZ(B.mnZ) - BZ / 2 - 30, sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 30, sl.z + BPZ(B.mxZ) + BZ / 2 + 30); });
   // the big malls out by the highway: where they stand (worked out now, the land under them is kept level)
   S.mallSpots = S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).map((pr, k) => mallSpot(k));
@@ -3942,7 +3942,7 @@ function busStops() {
     let t1 = L - (endR ? endR.Ro + 34 : 30); if (id === "city" && !endR) { t1 = L; while (t1 > 0 && inCityBox(a + ux * t1, b + uz * t1, 16)) t1 -= 4; }
     const sl = id === "city" ? S.slots.filter(s2 => s2.city).slice(1).reduce((m, s2) => !m || Math.hypot(s2.x - c, s2.z - d) < Math.hypot(m.x - c, m.z - d) ? s2 : m, null) : null, co = COAST.find(q => q.id === id);
     list.sort((p, q) => p[2] - q[2]).forEach(([n, ic, tt, rt]) => stop(n, ic, tt, rt));
-    stop(sl ? sl.city.name : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה", sl ? "🏙️" : id === "palm" ? "🌴" : co?.ic || "🚏", (() => { const lo = (meta?.A?.Ro || 0) + 10, hi = L - (endR?.Ro || 0) - 12; return hi < lo ? L / 2 : Math.max(lo, Math.min(hi, Math.max(t0 + 60, t1))); })(), false);   // always on the open road between the two roundabouts
+    stop(sl ? sl.city.name : meta?.B?.junc ? `צומת ${meta.B.junc.city.name}` : id === "palm" ? "אי הדקל" : co ? co.name : "תחנה", sl ? "🏙️" : meta?.B?.junc ? "🔀" : id === "palm" ? "🌴" : co?.ic || "🚏", (() => { const lo = (meta?.A?.Ro || 0) + 10, hi = L - (endR?.Ro || 0) - 12; return hi < lo ? L / 2 : Math.max(lo, Math.min(hi, Math.max(t0 + 60, t1))); })(), false);   // always on the open road between the two roundabouts
   }
   return out;
 }
@@ -4528,7 +4528,7 @@ function layout() {
   for (const k of ["wishtower", "nbia"]) { const N = NAT[k]; N.o ||= { x: N.x, z: N.z, rx: N.R.x, rz: N.R.z }; N.x = N.o.x; N.z = N.o.z; N.R.x = N.o.rx; N.R.z = N.o.rz; }   // the old city is laid out as it always was
   const byCity = new Map();
   for (const c of S.raw) { if (!byCity.has(c.city_id)) byCity.set(c.city_id, []); byCity.get(c.city_id).push(c); }
-  let need = growth(S.total);
+  let need = growth(S.total), needT = 0;   // (needT: the oasis town only needs to be on the island, not the room to spare round it: it lies far out)
   S.slots.forEach((slot, si) => {
     slot.blocks = new Map(); slot.pop = 0;
     if (!slot.city) return;
@@ -4559,7 +4559,7 @@ function layout() {
       slot.townOld = order.filter(([, nm]) => used.has(nm)).map(([k, nm]) => ({ nm, blv: String(k).startsWith("B") })); }   // the town's street names, from the heart out
     slot.townBox = null;
     if (isTown(slot)) { slot.townBox = townBoxOf(slot); slot.reserved = []; slot.extraUsed = []; slot.ballotBlock = null;   // a town has no grid: its streets and buildings are its own
-      const F = townFrame(); for (const [dx, dz] of [[-F.R, -F.RZ], [F.R, -F.RZ], [-F.R, F.RZ], [F.R, F.RZ]]) { const x = slot.x + dx, z = slot.z + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0); need = Math.max(need, d / (GRASS * shoreF(t) - .05) + .02); }
+      const F = townF(slot); for (const [dx, dz] of [[-F.R, -F.RZ], [F.R, -F.RZ], [-F.R, F.RZ], [F.R, F.RZ]]) { const x = slot.x + dx, z = slot.z + dz, t = Math.atan2(z / RZ0, x / RX0), d = Math.hypot(x / RX0, z / RZ0); const n = d / (GRASS * shoreF(t) - .05) + .02; if (TOWN_STYLE[slot.at] === "oasis") needT = Math.max(needT, n); else need = Math.max(need, n); }
       return; }
     if (si === 0) { for (let bx = -1; bx <= 1; bx++) for (let bz = -1; bz <= 1; bz++) slot.blocks.set(`${bx},${bz}`, { bx, bz, civic: "central" }); CENTRAL.on = centralBox(slot); }
     else slot.blocks.set("0,0", { bx: 0, bz: 0, civic: "plaza" });
@@ -4602,6 +4602,7 @@ function layout() {
   S.s = Math.min(MAX_S * 2 + .6, (need * 1.3 + .12) * 2);   // room to spare around the cities: the countryside, the big mall, סבבהום's hill
   S.s = natGrow(S.s);   // and every national project adds the land it takes: the island grows by the project's whole plot
   S.s *= REGION_GROW;   // the regions: the north, the centre's plain and the south are added round the island (3.4 times the land); the cities stay where they are
+  S.s = Math.max(S.s, needT * 1.2);   // (the island always reaches round the oasis town with a margin, but a far town does not by itself blow the island up)
   DIST.rect = S.slots[0]?.city && S.slots[0].blocks?.size ? distRect(S.slots[0]) : null;   // the frame of the capital's new quarters
   PALM.geo = palmGeo(); let pk = 0;
   for (const h of [...S.houses].sort((a, b) => a.id - b.id)) if (homePlace(h.u) === "palm" && PALM.geo.lots[pk]) {
@@ -4756,7 +4757,7 @@ function buildPlan(D) {
     const index = () => { G.clear(); runs.forEach((r, ri) => { if (r.dead) return; for (const p of r.P) for (const [x, z] of [[p[0], p[1]], [p[2], p[3]]]) { const k = gk(x, z); (G.get(k) || G.set(k, []).get(k)).push([ri, p]); } }); };
     const near = (x, z, ri, d) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const [rj, p] of G.get(gk(x + i * 40, z + j * 40)) || []) if (rj !== ri && segD(x, z, p) < d + p[4] / 2) return true; return false; };
     const shownLots = D.lots.filter(l => lotShown(D, l)), LG = new Map(); for (const l of shownLots) { const k = gk(l.x, l.z); (LG.get(k) || LG.set(k, []).get(k)).push(l); }
-    const lotNear = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of LG.get(gk(x + i * 40, z + j * 40)) || []) if (Math.hypot(l.x - x, l.z - z) < 24) return true; return false; };
+    const lotNear = (x, z) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of LG.get(gk(x + i * 40, z + j * 40)) || []) if (Math.hypot(l.x - x, l.z - z) < (l.oasis ? 36 : 24)) return true; return false; };
     const rings = (typeof gateRings === "function" ? gateRings() : []) || [], tied = (x, z) => onHighway(x, z) || nearBr(x, z) || rings.some(R => Math.hypot(R.x - x, R.z - z) < (R.Ro || 14) + 8);
     for (let pass = 0; pass < 3; pass++) { index(); runs.forEach((r, ri) => { if (r.dead) return; for (const end of [0, 1]) { if (!r.P.length) break; const P = end ? r.P : [...r.P].reverse(), last = P.at(-1), E = end ? [last[2], last[3]] : [last[0], last[1]];
         if (near(E[0], E[1], ri, 4) || tied(E[0], E[1])) continue;
@@ -4778,7 +4779,8 @@ function buildPlan(D) {
   const overRoad = (x, z, f, w, d) => { const c = Math.cos(f), sn = Math.sin(f); for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) { const u = (i / 4 - .5) * (w - 1), v = (j / 4 - .5) * (d - 1); if (onAsph(x + u * c + v * sn, z - u * sn + v * c)) return true; } return false; };
   PLAN_ASPH.set(D, overRoad);
   // every lot laid out: its garden (with or without a house yet), a tree behind
-  for (const l of D.lots) { if (!lotShown(D, l)) continue; const w = l.villa ? 24 : 18, d = l.villa ? 20 : 13; if (!overRoad(l.x, l.z, l.face, w, d)) lawns.push([l.x, l.z, l.face, w, d, l.villa ? "#a6cc84" : "#9fcf7c"]); const bx = l.x - Math.sin(l.face) * (d / 2 - 2), bz = l.z - Math.cos(l.face) * (d / 2 - 2); if ((l.num || 0) % 2) trees.push([bx + Math.cos(l.face) * 6, bz - Math.sin(l.face) * 6, l.villa ? 1.1 : .85]); }
+  for (const l of D.lots) { if (!lotShown(D, l)) continue; if (l.oasis) { lawns.push([l.x, l.z, l.face, OASIS.LW - 1, OASIS.LD - 1, (l.num || 0) % 3 ? "#bccf8a" : "#c4d394"]); continue; }   // the oasis town: the whole garden inside its fence (oasisGardens)
+    const w = l.villa ? 24 : 18, d = l.villa ? 20 : 13; if (!overRoad(l.x, l.z, l.face, w, d)) lawns.push([l.x, l.z, l.face, w, d, l.villa ? "#a6cc84" : "#9fcf7c"]); const bx = l.x - Math.sin(l.face) * (d / 2 - 2), bz = l.z - Math.cos(l.face) * (d / 2 - 2); if ((l.num || 0) % 2) trees.push([bx + Math.cos(l.face) * 6, bz - Math.sin(l.face) * 6, l.villa ? 1.1 : .85]); }
   instanced(P.plane, lawns, ([x, z, f, w, d, c], o) => { o.position.set(x, .3, z); o.rotation.y = f; o.scale.set(w, 1, d); return c; }, { shadow: false });
   // the public gardens of the band: lawn, two crossing paths, trees, a bench (a lot kept for a public building later)
   const Q = []; for (const c of D.civic) { if (c.nat) continue; const w = c.x1 - c.x0, d = c.z1 - c.z0; if (overRoad(c.x, c.z, 0, w, d)) continue; Q.push(box(w, .2, d, "#9cc77c", c.x, .3, c.z), box(w * .9, .05, 2.4, "#e3d7bf", c.x, .5, c.z), box(2.4, .05, d * .9, "#e3d7bf", c.x, .5, c.z), box(2.6, .45, .7, "#7a5232", c.x + 4, .5, c.z + 3), box(.7, .45, 2.6, "#7a5232", c.x - 3, .5, c.z - 4));
@@ -4805,18 +4807,19 @@ function buildPlan(D) {
 //  · the river: nothing stands in its valley; a promenade along both banks; a bridge for cars wherever the market avenue, the market's ring road and every second
 //    ring cross it, a footbridge on the rings in between
 // Every citizen keeps the address they had (the same street name and number): each street of the old grid becomes a stretch of a ring, a boulevard half a ring.
-const TOWN_STYLE = { 100: "old" };   // by the milestone the city opened at (the southern city's garden town comes next)
+const TOWN_STYLE = { 100: "old", 500: "oasis" };   // by the milestone the city opened at
 const TOWNS = new Map();             // slot.at -> { slot, style, plan, ext }
 const TOWN_GAP = 56, TOWN_K = 6, TOWN_SQ = 188, TOWN_HZ = 84;   // ring spacing, rings, a market square's length (four plots of 47 m), the market's half depth
-Object.assign(DIST_ZONES, { O: { name: "העיר העתיקה", tints: ["#d8c7a4", "#cdb88f", "#e0cfac", "#d2bf98"] }, OC: { name: "העיר העתיקה", tints: ["#f4efe4", "#efe4cc", "#f7f2e8", "#ece1cc"] } });
+Object.assign(DIST_ZONES, { O: { name: "העיר העתיקה", tints: ["#d8c7a4", "#cdb88f", "#e0cfac", "#d2bf98"] }, OC: { name: "העיר העתיקה", tints: ["#f4efe4", "#efe4cc", "#f7f2e8", "#ece1cc"] }, N: { name: "נווה המדבר", tints: ["#f6f1e6", "#efe3c8", "#faf6ee", "#e8d6b0", "#f3e9d6"] } });
 const isTown = sl => !!(sl && sl.city && TOWN_STYLE[sl.at]);
+const townF = sl => TOWN_STYLE[sl?.at] === "oasis" ? oasisFrame() : townFrame();   // a town's frame, by its style
 // the town's frame from its bank (the river's water and valley, half): the market's half size, the rings' half sizes, how far the gates are
 function townFrame(bank = 64) { const hx = bank + 4 + TOWN_SQ + 14, hz = TOWN_HZ, half = k => k ? [(hx + 40) / .84 + (k - 1) * TOWN_GAP, (hz + 40) / .84 + (k - 1) * TOWN_GAP] : [hx, hz];
   return { hx, hz, half, R: half(TOWN_K)[0] + 50, RZ: half(TOWN_K)[1] + 50 }; }
 // the town in grid units (what the rest of the map asks of a city: its box), and its gates at the two ends of the market avenue
-function townBoxOf(sl) { const F = townFrame(), fit = (pos, w, lo, hi) => { let a = 0, b = 0; while (pos(a) - w(a) / 2 > lo && a > -80) a--; while (pos(b) + w(b) / 2 < hi && b < 80) b++; return [a, b]; };
+function townBoxOf(sl) { const F = townF(sl), fit = (pos, w, lo, hi) => { let a = 0, b = 0; while (pos(a) - w(a) / 2 > lo && a > -80) a--; while (pos(b) + w(b) / 2 < hi && b < 80) b++; return [a, b]; };
   const [mnX, mxX] = fit(BPX, bwX, -F.R, F.R), [mnZ, mxZ] = fit(BPZ, () => BZ, -F.RZ, F.RZ); return { mnX, mxX, mnZ, mxZ }; }
-function townGate(sl, tx, tz) { const F = townFrame(), sd = tx >= sl.x ? 1 : -1; return { x: sl.x + sd * F.R, z: sl.z, ox: sd, oz: 0 }; }
+function townGate(sl, tx, tz) { const F = townF(sl), sd = tx >= sl.x ? 1 : -1; return { x: sl.x + sd * F.R, z: sl.z, ox: sd, oz: 0 }; }
 // the river through the town: its middle at a given z, and its half width with the valley
 function townRiver(sl) { const R = LAND.on && LAND.rivers?.find(R => { const q = landNear(R, sl.x, sl.z); return q && q.d < 120; }); if (!R) return null;
   const at = z => { for (let i = 0; i < R.x.length - 1; i++) if ((R.z[i] - z) * (R.z[i + 1] - z) <= 0) { const k = (z - R.z[i]) / ((R.z[i + 1] - R.z[i]) || 1), x = R.x[i] + (R.x[i + 1] - R.x[i]) * k, q = landNear(R, x, z); return { x, hw: q?.hw || 20, vw: q?.vw || 40, i: q?.i ?? i }; } return null; };
@@ -4913,10 +4916,83 @@ function townNames(sl, plan, oldNames, need) {
   for (const [, L] of byName) { L.sort((a, b) => a.arc.localeCompare(b.arc) || a.seq - b.seq); const G = sl.townNums?.get(L[0].street) || { o: [], e: [] }; let io = 0, ie = 0;
     for (const l of L) { if (l.side > 0) { l.num = io < G.o.length ? G.o[io] : (G.o.at(-1) || -1) + 2 * (io - G.o.length + 1); io++; } else { l.num = ie < G.e.length ? G.e[ie] : (G.e.at(-1) || 0) + 2 * (ie - G.e.length + 1); ie++; } } }
 }
+/* ============================ THE OASIS TOWN (the third city, Nov 2026) ============================ */
+// As approved (direction C, "נווה מדבר", site 1 in the east, open houses): at the heart an oasis, a pond in a palm grove inside a paved square (the square's
+// ring road "כיכר הנווה"); round it the town's public buildings (north and south) and businesses (east and west), then a second ring road ("דרך הנווה").
+// Out of the square four avenues: a water channel down the middle, a timber pergola over the whole width, palms. Along the avenues and the lanes parallel
+// to them, a house in the middle of its own garden (34 x 30), a low white plastered fence round it. Every lane is an L round a quarter of the town, the
+// cross streets every four gardens join it to the avenue. Streets are laid only as far as the houses go (they end in a turning circle and carry on later).
+// Addresses: in a fixed order (block by block from the centre out), the n-th citizen of the town always the n-th address.
+const OASIS = { SQ: 95, OUT: 130, LW: 34, LD: 30, LANE: 9, K: 6, R: 640, X: [130, 275, 420, 565] };   // inner square, outer ring road, a garden, the lanes, the cross streets
+const OASIS_AV = ["שדרת הזריחה", "שדרת החמסין", "שדרת השיירות", "שדרת המעיין"];   // east, south, west (the way in from the capital), north
+const OASIS_ST = ["רח׳ האוהל", "רח׳ הגמל", "רח׳ הנווד", "רח׳ החולות", "רח׳ הדיונה", "רח׳ הדורבן", "רח׳ היעל", "רח׳ הנחליאלי", "רח׳ השיטה", "רח׳ האשל", "רח׳ הרותם", "רח׳ הלוטם", "רח׳ הקקטוס", "רח׳ הלטאה", "רח׳ השועל", "רח׳ הנץ", "רח׳ הדוכיפת", "רח׳ הקמומיל", "רח׳ המרווה", "רח׳ הזוטה", "רח׳ האזוב", "רח׳ התבלינים", "רח׳ הכרכום", "רח׳ הצלף"];   // the desert's own names (none used anywhere else on the island: an address never belongs to two places)
+const OASIS_U = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+const oasisD = k => 15 + OASIS.LD + OASIS.LANE / 2 + (k - 1) * (2 * OASIS.LD + OASIS.LANE);   // the k-th lane's distance from its avenue
+const oasisFrame = () => ({ R: OASIS.R, RZ: OASIS.R, hx: OASIS.SQ, hz: OASIS.SQ });
+function oasisPlan(sl) {
+  const Mx = sl.x, Mz = sl.z, O = OASIS, P2 = (x, z) => ({ x, z }), streets = [], lots = [], pub = [], biz = [], civic = [];
+  const st = (pts, w, name, ring, zone, extra) => { const q = { pts, w, name, ring, zone, ...extra }; streets.push(q); return q; };
+  // an arm: avenue a, side s (towards the next avenue round, or the one before); t along the avenue, p across it
+  const arm = q => { const a = q >> 1, s = q & 1 ? 1 : -1, u = OASIS_U[a], v = OASIS_U[(a + (s > 0 ? 1 : 3)) % 4]; return { a, s, u, v, quad: s > 0 ? a : (a + 3) % 4, at: (t, p) => P2(Mx + u[0] * t + v[0] * p, Mz + u[1] * t + v[1] * p) }; };
+  // the square's ring road round the oasis, and the outer ring road round the public buildings (both always there)
+  const sq = (h, w, name) => { const c = [[-h, -h], [h, -h], [h, h], [-h, h], [-h, -h]]; st(c.map(([x, z]) => P2(Mx + x, Mz + z)), w, name, 0, "C", { arc: "0", sqr: h }); };
+  sq(O.SQ, 10, "כיכר הנווה"); sq(O.OUT, 9, "דרך הנווה");
+  // the avenues: from the square out (the west one to the town's gate, the others as far as the houses go: see oasisSettle)
+  for (let a = 0; a < 4; a++) { const u = OASIS_U[a]; st([P2(Mx + u[0] * (O.SQ + 5), Mz + u[1] * (O.SQ + 5)), P2(Mx + u[0] * (a === 2 ? O.R : O.X.at(-1)), Mz + u[1] * (a === 2 ? O.R : O.X.at(-1)))], 22, OASIS_AV[a], 0, "C", { av: a }); }
+  // the public buildings: four on the north side of the square (their fronts to the oasis), four on the south side (their fronts to the outer ring road);
+  // the businesses: four on each of the east and west sides, their fronts to the oasis, and one at the start of the north and south avenues, on each side
+  for (const [i, x] of [-77, -35, 35, 77].entries()) { pub.push({ x: Mx + x, z: Mz - 114, ry: 0, addr: `כיכר הנווה ${i * 2 + 1}` }); pub.push({ x: Mx + x, z: Mz + 114, ry: 0, addr: `דרך הנווה ${i * 2 + 1}` }); }
+  for (const sd of [1, -1]) for (const [i, z] of [-77, -35, 35, 77].entries()) biz.push({ x: Mx + sd * 112, z: Mz + z, ry: sd > 0 ? -Math.PI / 2 : Math.PI / 2, addr: `כיכר הנווה ${(sd > 0 ? 10 : 20) + i * 2}` });
+  const bizLot = new Set(); for (const a of [1, 3]) for (const s of [-1, 1]) { const q = a * 2 + (s > 0 ? 1 : 0), A = arm(q), t = O.X[0] + O.LANE / 2 + O.LW / 2, P = A.at(t, 30), f = Math.atan2(-A.v[0], -A.v[1]); biz.push({ x: P.x, z: P.z, ry: f, addr: `${OASIS_AV[a]} ${s > 0 ? 1 : 2}` }); bizLot.add(`${q}:${t}`); }
+  civic.push({ id: "oasis", x0: Mx - O.OUT + 4, x1: Mx + O.OUT - 4, z0: Mz - O.OUT + 4, z1: Mz + O.OUT - 4, x: Mx, z: Mz, nat: true });   // (kept clear of the country's trees)
+  // the lanes: an L in each quarter (two arms that meet on the diagonal); the first two start from the outer ring road
+  for (let k = 1; k <= O.K; k++) for (let q = 0; q < 8; q++) { const A = arm(q), d = oasisD(k), t0 = Math.max(O.OUT, d); st([A.at(t0, d), A.at(O.X.at(-1), d)], O.LANE, OASIS_ST[(k - 1) * 4 + A.quad], k, "N", { arc: `${k}:${q}`, t0, d, q }); }
+  // the cross streets, every four gardens: from the avenue out to each lane that has begun there (each piece between two lanes its own street)
+  for (const c of O.X.slice(1)) for (let q = 0; q < 8; q++) { const A = arm(q); for (let k = 1; k <= O.K; k++) { const d = oasisD(k); if (Math.max(O.OUT, d) > c) break; st([A.at(c, k === 1 ? 11 : oasisD(k - 1)), A.at(c, d)], 8, "סמטת הצל", k, "N", { lane: true, sector: q, xc: c }); } }
+  // the gardens: blocks of four between the cross streets; along the avenues (ring 0), and on both sides of every lane (the first lane only on its far side)
+  const rows = [{ ring: 0, p: 30, face: -1 }]; for (let k = 1; k <= O.K; k++) { rows.push({ ring: k, p: oasisD(k) + 19.5, face: -1, sd: 1 }); if (k > 1) rows.push({ ring: k, p: oasisD(k) - 19.5, face: 1, sd: -1 }); }
+  for (let q = 0; q < 8; q++) { const A = arm(q);
+    for (const r of rows) for (let b = 0; b < O.X.length - 1; b++) for (let j = 0; j < 4; j++) { const t = O.X[b] + O.LANE / 2 + O.LW / 2 + j * O.LW;
+      if (t < r.p + 32 || r.ring === 0 && bizLot.has(`${q}:${t}`)) continue;   // (nothing over the diagonal, where the quarter's two arms meet)
+      const L = A.at(t, r.p), S0 = r.ring ? A.at(t, oasisD(r.ring)) : A.at(t, 11); if (distBlocked(L.x, L.z, 8, sl)) continue;
+      lots.push({ x: L.x, z: L.z, face: Math.atan2(S0.x - L.x, S0.z - L.z), dist: true, town: true, oasis: true, zone: "N", ring: r.ring, sx: S0.x, sz: S0.z, arc: r.ring ? `${r.ring}:${q}` : `A${A.a}`, side: r.ring ? r.sd : A.s, q, t, p: r.p, d: Math.hypot(L.x - Mx, L.z - Mz) }); } }
+  // the addresses (fixed, whoever lives where): each avenue its own numbers (odd on one side, even on the other); each lane's L one street, odd on its far side
+  const byName = new Map(); for (const l of lots) { const A = arm(l.q); l.street = l.ring ? OASIS_ST[(l.ring - 1) * 4 + A.quad] : OASIS_AV[A.a]; (byName.get(l.street) || byName.set(l.street, []).get(l.street)).push(l); }
+  const first = l => l.ring && (l.q & 1) ? 0 : 1;   // along a lane's L: the first arm from its far end in to the corner, then the second out again
+  for (const [nm, L] of byName) { L.sort((a, b) => first(a) - first(b) || (first(a) ? a.t - b.t : b.t - a.t) || a.q - b.q); const av = OASIS_AV.indexOf(nm), sk = av === 1 || av === 3 ? 2 : 0; let o = 1 + sk, e = 2 + sk;   // (on the north and south avenues 1 and 2 are the businesses')
+    for (const l of L) if (l.side > 0) { l.num = o; o += 2; } else { l.num = e; e += 2; } }
+  planConnect(streets, lots, [], sl, null);
+  // the order they fill: block by block out from the oasis, in each the avenue's gardens first and then lane by lane
+  const blk = l => O.X.findIndex((c, i) => l.t > c && l.t < (O.X[i + 1] ?? 1e9));   // (block by block from the oasis out, so the town grows as a whole and not only along the avenues)
+  lots.sort((a, b) => blk(a) - blk(b) || a.ring - b.ring || a.t - b.t || a.p - b.p || a.q - b.q); lots.forEach((l, i) => l.seq = i);
+  return { streets, lots, civic, eat: [], biz, pub, bridges: [], foot: [], prom: [], plazas: [], cut: null, own: sl, open: 0, M: { x: Mx, z: Mz }, F: oasisFrame(), style: "oasis" };
+}
+// who lives where, and what is laid: the n-th citizen in the n-th garden; each lane from the nearest way in (the outer ring road or a cross street) to a
+// little past its last house, the cross street to it from the avenue; the north, south and east avenues as far as their last block of gardens
+function oasisSettle(sl, plan, mine) {
+  const O = OASIS; for (const l of plan.lots) l.laid = false; for (const q of plan.streets) { if (q.pts0) q.pts = q.pts0; else q.pts0 = q.pts; q.laid = q.zone === "C"; }
+  mine.forEach((h, i) => { const l = plan.lots[i]; if (!l) return; l.laid = true; h.lot = l; h.x = l.x; h.z = l.z; S.byAddr.set(`${l.street} ${l.num}`.toLowerCase(), h); });
+  const used = plan.lots.filter(l => l.laid), cross = new Set();
+  const span = new Map(); for (const l of used) if (l.ring) { const k = `${l.ring}:${l.q}`, s = span.get(k) || span.set(k, { a: 1e9, b: -1e9 }).get(k); s.a = Math.min(s.a, l.t); s.b = Math.max(s.b, l.t); }
+  for (const q of plan.streets) { if (!q.arc || q.arc === "0" || q.lane) continue; const s = span.get(q.arc); if (!s) { q.laid = false; continue; }
+    const [k] = q.arc.split(":").map(Number), cands = [...(q.t0 === O.OUT ? [O.OUT] : []), ...O.X.slice(1).filter(c => c >= q.t0)];
+    let best = null; for (const c of cands) { const a = Math.max(q.t0, Math.min(c, s.a - 14)), b = Math.min(O.X.at(-1), Math.max(c, s.b + 14)), L = b - a; if (!best || L < best.L - .1) best = { c, a, b, L }; }
+    const P0 = q.pts0[0], P1 = q.pts0[1], T = Math.hypot(P1.x - P0.x, P1.z - P0.z), at = t => { const f = (t - q.t0) / T; return { x: P0.x + (P1.x - P0.x) * f, z: P0.z + (P1.z - P0.z) * f }; };
+    q.laid = true; q.pts = [at(best.a), at(best.b)]; if (best.c !== O.OUT) for (let j = 1; j <= k; j++) cross.add(`${best.c}:${q.q}:${j}`); }
+  for (const q of plan.streets) if (q.lane) q.laid = cross.has(`${q.xc}:${q.sector}:${q.ring}`);
+  // the avenues (but the west one, the way in): to the cross street past their last garden, at least to the first one
+  for (const q of plan.streets) { if (q.av == null || q.av === 2) continue; let far = O.X[1];
+    for (const l of used) if (!l.ring && l.q >> 1 === q.av) far = Math.max(far, O.X.find(c => c >= l.t + 17) || O.X.at(-1));
+    for (const c of cross) { const [cx, cq] = c.split(":").map(Number); if (cq >> 1 === q.av) far = Math.max(far, cx); }
+    const u = OASIS_U[q.av]; q.pts = [q.pts0[0], { x: sl.x + u[0] * far, z: sl.z + u[1] * far }]; }
+  plan.open = used.length ? 1 : 0;
+}
 // the citizens of a town move into their address on the new streets; the bridges join the river's own (built with the land)
 function townAssign() {
   TOWNS.clear(); if (LAND.on) { LAND.xing = (LAND.xing || []).filter(B => !B.town); LAND.foot = (LAND.foot || []).filter(B => !B.town); }
   for (const sl of S.slots) { if (!isTown(sl)) continue;
+    if (TOWN_STYLE[sl.at] === "oasis") { const plan = oasisPlan(sl); for (const q of plan.streets) q.P = plan; oasisSettle(sl, plan, S.houses.filter(h => h.townPending && h.slot === sl).sort((a, b) => a.id - b.id));
+      TOWNS.set(sl.at, { slot: sl, style: "oasis", plan, ext: { x0: sl.x - OASIS.R, x1: sl.x + OASIS.R, z0: sl.z - OASIS.R, z1: sl.z + OASIS.R } }); continue; }
     const plan = townPlan(sl); for (const q of plan.streets) q.P = plan;
     const need = new Map(); for (const h of S.houses) if (h.townPending && h.slot === sl) { const { street: n, num } = h.townAddr, m = need.get(n) || need.set(n, {}).get(n), G = sl.townNums?.get(n), k = num % 2 ? "o" : "e", K = k.toUpperCase(), r = (G?.[k] || []).indexOf(num) + 1; if (!(m[K] >= r)) m[K] = r; }
     townNames(sl, plan, sl.townOld || [], need);
@@ -5073,8 +5149,58 @@ function shukBridge(Q, R, B, top, Lb, ry) {
       const cs = Math.cos(ry), sn = Math.sin(ry), lx = sd * (WW - 4.8), lz = z; shukAdd(list, { x: B.x + lx * cs + lz * sn, z: B.z - lx * sn + lz * cs, kind, name: SHUK[kind][2][(n + 2) % 3], shop: false, city: T?.slot.city.id }); } }
 }
 // the town's own parts: the market squares' paving and fountains, the promenades with their trees and lamps (the streets, lots and bridges are built with the rest)
+// the oasis town's own parts: the desert ground, the oasis (pond, palm grove, paved square), the avenues' channels and pergolas, the gardens' white fences
+P.oasisBush = prefab([part(new THREE.IcosahedronGeometry(.85, 0), "#ffffff", 0, .55, 0)]);
+function buildOasis(T) {
+  const PL = T.plan, { x: Mx, z: Mz } = PL.M, O = OASIS, Q = [], slabs = [], palms = [], olives = [], bush = [], flats = [];
+  // the town turns the ground round it to desert: sand under everything, its edge ragged
+  { const sh = new THREE.Shape(); for (let i = 0; i <= 120; i++) { const a = i / 120 * Math.PI * 2, r = (O.R + 50) * (1 + .05 * Math.sin(5 * a + 1) + .03 * Math.sin(11 * a + 2.3)); sh[i ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r); }
+    const g = new THREE.ShapeGeometry(sh, 2); g.rotateX(-Math.PI / 2); solid([part(g, "#dcc89c", 0, .23, 0)], Mx, Mz, 0, null, 0); }
+  // the oasis: the square paved in pale stone, the palm grove round the pond, four paths in from the avenues, a fountain in the middle
+  const h = O.SQ - 5;
+  Q.push(box(2 * h, .12, 2 * h, "#e9dfc8", 0, CURB - .1, 0), cyl(68, 68, .14, 64, "#a9c97f", 0, CURB - .1, 0), cyl(40, 40, .5, 64, "#d8c9a6", 0, CURB - .1, 0), cyl(38.6, 38.6, .1, 64, "#3fa7c9", 0, CURB + .32, 0));
+  for (let a = 0; a < 4; a++) { const u = OASIS_U[a]; Q.push(box(u[0] ? 50 : 6, .06, u[0] ? 6 : 50, "#e3d5b5", u[0] * 65, CURB + .04, u[1] * 65)); }
+  Q.push(cyl(2.2, 2.6, .9, 20, "#d8c9a6", 0, CURB + .3, 0), cyl(.25, .25, 3.2, 8, "*#e9f7fb", 0, CURB + 1.2, 0), cyl(1.6, .3, .6, 12, "*#e9f7fb", 0, CURB + 4.2, 0));
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; Q.push(box(2.6, .45, .7, "#8a6a4a", Math.cos(a) * 43.5, CURB, Math.sin(a) * 43.5, { y: -a + Math.PI / 2 })); }
+  for (let i = 0; i < 30; i++) { const a = i / 30 * Math.PI * 2 + .05, r = 48 + (i % 3) * 5; if (Math.min(...[0, 1, 2, 3].map(k => Math.abs(Math.sin(a - k * Math.PI / 2)))) < .07) continue; palms.push([Mx + Math.cos(a) * r, Mz + Math.sin(a) * r, CURB, 1 + (i % 4) * .08]); }
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) for (const [a, b] of [[78, 78], [84, 70], [70, 84]]) palms.push([Mx + sx * a, Mz + sz * b, CURB, 1]);
+  // the town's flag on the square, at the head of the path in from the north
+  Q.push(cyl(.2, .25, 14, 8, "#d0d0d0", 6, CURB, -78), cyl(.9, 1.1, .5, 12, "#d8c9a6", 6, CURB, -78)); { const f = flagMesh(5, 3.3); f.position.set(Mx + 8.5, CURB + 12, Mz - 78); world.add(f); FLAGS.push(f); }
+  solid(Q, Mx, Mz, 0, { type: "slot", slot: T.slot }, 0); placeLabel("🌴 המעיין", Mx, 14, Mz);
+  // between the two ring roads: the corners are palm gardens
+  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const c = (O.SQ + 5 + O.OUT - 4.5) / 2, w = O.OUT - 4.5 - O.SQ - 5; flats.push([Mx + sx * c, Mz + sz * c, 0, w, w, "#b9cf86", CURB - .05]); palms.push([Mx + sx * (c - 5), Mz + sz * (c + 4), .3, 1], [Mx + sx * (c + 5), Mz + sz * (c - 4), .3, .9]); }
+  // the avenues: a channel of water down the middle between low stone kerbs, a timber pergola over the whole width (posts every 12 m, beams across, slats along)
+  for (const q of PL.streets) { if (q.av == null || !q.laid) continue; const [A, B] = q.pts, u = OASIS_U[q.av], L0 = O.SQ + 5, L1 = Math.hypot(B.x - Mx, B.z - Mz), L = L1 - L0, ry = Math.atan2(u[0], u[1]), at = (t, p) => [Mx + u[0] * t - u[1] * p, Mz + u[1] * t + u[0] * p];
+    if (L < 20) continue;
+    // the channel is open between the junctions; at every junction (the two ring roads, each cross street) it runs under the road in a culvert, a grate
+    // flush with the asphalt over it, so the road goes on across the avenue and cars can cross and turn there
+    const J = [O.OUT, ...O.X.slice(1)].filter(c => c > L0 && c < L1 + 6), cuts = [L0 + 4, ...J.flatMap(c => [c - 9, c + 9]), L1].sort((m, n) => m - n);
+    for (let i = 0; i + 1 < cuts.length; i += 2) { const a0 = cuts[i], a1 = Math.min(L1, cuts[i + 1]); if (a1 - a0 < 3) continue; const [mx, mz] = at((a0 + a1) / 2, 0);
+      for (const p of [-1.7, 1.7]) slabs.push([...at((a0 + a1) / 2, p), ry, 1, .45, a1 - a0, .27, "#d8c9a6"]); slabs.push([mx, mz, ry, 2.4, .3, a1 - a0, .27, "#3fa7c9"]); }
+    for (const c of J) slabs.push([...at(c, 0), ry, 2.6, .02, 18, .28, "#2f3439"]);   // the culvert's grate across the junction
+    for (let t = L0 + 6; t < L1 - 2; t += 12) { if (J.some(c => Math.abs(t - c) < 10)) continue; for (const p of [-11.4, -1.7, 1.7, 11.4]) slabs.push([...at(t, p), ry, .3, 5.4, .3, Math.abs(p) > 5 ? CURB : .72, "#7a5636"]); slabs.push([...at(t, 0), ry, 24, .35, .35, 5.9, "#7a5636"]); }
+    for (let p = -11.5; p <= 11.6; p += 1.6) slabs.push([...at((L0 + L1) / 2, p), ry, .16, .14, L, 6.25, "#a07e55"]); }
+  // the gardens with a house: a low white plastered fence round each (a gap for the gate and one for the drive, posts every 4 m), the path, the drive,
+  // bougainvillea along the fence, an olive at the back, every third a palm by the gate
+  const BG = ["#c2408a", "#d9568f", "#5f9a45", "#e0679b"], GATE = ["#2a9d8f", "#1f6f8b", "#3f8fb5", "#b5653f"];
+  for (const l of PL.lots) { if (!l.laid) continue; const f = l.face, cs = Math.cos(f), sn = Math.sin(f), W2 = O.LW / 2, D2 = O.LD / 2, w = (lx, lz) => [l.x + lx * cs + lz * sn, l.z - lx * sn + lz * cs];
+    const fence = (x0, x1, lz) => slabs.push([...w((x0 + x1) / 2, lz), f, x1 - x0, .9, .3, .3, "#f7f5ef"]);
+    for (const sx of [-1, 1]) slabs.push([...w(sx * (W2 - .15), 0), f, .3, .9, O.LD, .3, "#f7f5ef"]);
+    fence(-W2, W2, -D2 + .15); fence(-W2, -4.2, D2 - .15); fence(-1.8, 1.4, D2 - .15); fence(6.6, W2, D2 - .15);
+    for (let x = -W2 + .2; x <= W2; x += 4) for (const lz of [-D2 + .15, D2 - .15]) if (lz < 0 || x < -4.2 || (x > -1.8 && x < 1.4) || x > 6.6) slabs.push([...w(x, lz), f, .45, 1.15, .45, .3, "#ffffff"]);
+    for (const x of [-4.2, -1.8, 1.4, 6.6]) slabs.push([...w(x, D2 - .15), f, .5, 1.25, .5, .3, "#ffffff"]);
+    slabs.push([...w(-3, D2 - .15), f, 2.3, .8, .08, .35, GATE[(l.num || 0) % 4]]);
+    flats.push([...w(-3, D2 - 5), f, 1.6, 10, "#e8dcc0", .33], [...w(4, D2 - 7.5), f, 3.4, 15, "#cbbd9e", .33]);
+    for (let i = 0; i < 4; i++) bush.push([...w(-W2 + 2 + i * 2.2, D2 - 1.3), BG[(i + (l.num || 0)) % 4]]); for (let i = 0; i < 3; i++) bush.push([...w(W2 - 2 - i * 2.2, D2 - 1.3), BG[(i + 1) % 4]]);
+    olives.push([...w(W2 - 4, -D2 + 4), .9]); if ((l.num || 0) % 3 === 0) palms.push([...w(-W2 + 3, D2 - 4.5), .3, .85]); }
+  if (slabs.length) instanced(P.slab1, slabs, ([x, z, ry, sw, sh2, sd, y, c], o) => { o.position.set(x, y, z); o.rotation.y = ry; o.scale.set(sw, sh2, sd); return c; });
+  if (flats.length) instanced(P.plane1, flats, ([x, z, ry, sw, sd, c, y], o) => { o.position.set(x, y ?? .33, z); o.rotation.y = ry; o.scale.set(sw, 1, sd); return c; }, { shadow: false });
+  if (palms.length) instanced(P.palm, palms, ([x, z, y, k], o) => { o.position.set(x, y, z); o.rotation.y = x + z; o.scale.setScalar(k); });
+  if (olives.length) instanced(P.olive, olives, ([x, z, k], o) => { o.position.set(x, LAWN, z); o.scale.setScalar(k); o.rotation.y = x; });
+  if (bush.length) instanced(P.oasisBush, bush, ([x, z, c], o) => { o.position.set(x, LAWN - .1, z); o.rotation.y = x * 3; return c; });
+}
 function buildTowns() {
-  for (const T of TOWNS.values()) { const PL = T.plan, pave = [], trees = [], lamps = [];
+  for (const T of TOWNS.values()) { if (T.style === "oasis") { buildOasis(T); continue; } const PL = T.plan, pave = [], trees = [], lamps = [];
     for (const c of PL.civic) if (c.square) { const Q = [box(c.x1 - c.x0, .12, c.z1 - c.z0, "#d9ccb0", 0, CURB - .1, 0), cyl(5.2, 5.5, .8, 24, "#cfc6b4", 0, CURB, 0), cyl(4.6, 4.6, .2, 24, "#58b9cf", 0, CURB + .65, 0), cyl(.4, .6, 2.6, 10, "#cfc6b4", 0, CURB + .8, 0)];
       shukSquare(T, c, Q, lamps); solid(Q, c.x, c.z, 0, { type: "place", id: "shuk:" + T.slot.city.id }, 0); }
     placeLabel("🧺 שוק נווה זורם", PL.M.x, 18, PL.M.z - 50);
@@ -5307,7 +5433,8 @@ function buildCities() {
     return { list, mesh: instanced(P["car_" + k], list, (t, o) => { placeCar(t, o); return t.c; }, { tile: false }) }; });
   walkerMesh = instanced(P.walker, walkers, (w, o) => { placeWalker(w, o, 0); return w.c; }, { receive: false, tile: false });
 
-  open.forEach((slot, si) => { if (slot === S.slots[0] && CENTRAL.on) buildCentral(slot); else plaza(slot, false); label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
+  open.forEach((slot, si) => { if (slot === S.slots[0] && CENTRAL.on) buildCentral(slot); else if (TOWNS.get(slot.at)?.style !== "oasis") plaza(slot, false);   // (the oasis town: the oasis is its square, built with the town)
+ label(`${esc(slot.city.name)}<small>${fmtN(slot.pop)} תושבים</small>`, "city", slot.x, si === 0 ? 46 : 32, slot.z, .12); });
   // future city sites that are already on the island
   S.slots.filter(s => !s.city && onGrass(s.x, s.z, S.s, .02)).forEach(slot => {
     const ring = new THREE.Mesh(new THREE.RingGeometry(24, 26, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: .55 }));
@@ -6001,7 +6128,9 @@ function workBuilding(w, x, z, ry) {
    and doors as in the capital, never the same buildings. Front to +z (the door at the middle of the front, ~5 m out), like workBuilding. */
 function townWorkBuilding(w, x, z, ry) {
   const k = w.kind, Q = [], vi = S.workplaces.filter(q => q.kind === k && q.id < w.id).length, R = rng(w.id * 13 + 5);
-  const STN = ["#e2d3b2", "#dccaa4", "#e8dcc0", "#d9c49a"][vi % 4], ST2 = "#cdb88c", BRK = "#b8664a", SHUT = ["#2d6e4a", "#1f4f8f", "#7a3b2a", "#2f7f8f"][(w.id + vi) % 4], WD = "#6b4a2e";
+  // the oasis town: the same buildings in whitewashed plaster and sand, flat roofs behind a parapet (a dome for the police tower), turquoise shutters
+  const OA = !!w.oasis, gb = OA ? (gw, gh, gd, col, gx = 0, gy = 0, gz = 0) => col === TILE ? box(gw + .3, .7, gd + .3, "#e6d8b8", gx, gy, gz) : box(gw, .45, gd, col, gx, gy, gz) : gable;
+  const STN = OA ? ["#f6f1e6", "#efe3c8", "#f8f4ec", "#ead9b6"][vi % 4] : ["#e2d3b2", "#dccaa4", "#e8dcc0", "#d9c49a"][vi % 4], ST2 = OA ? "#e6d8b8" : "#cdb88c", BRK = OA ? "#efe4cf" : "#b8664a", SHUT = OA ? ["#2a9d8f", "#1f6f8b", "#3f8fb5", "#21867a"][(w.id + vi) % 4] : ["#2d6e4a", "#1f4f8f", "#7a3b2a", "#2f7f8f"][(w.id + vi) % 4], WD = "#6b4a2e";
   const shut = (xs, y, zf, wW = 1.3, h = 2) => xs.flatMap(xx => [box(wW, h, .12, WIN, xx, y, zf), box(.5, h, .1, SHUT, xx - wW / 2 - .28, y, zf + .05), box(.5, h, .1, SHUT, xx + wW / 2 + .28, y, zf + .05), box(wW + .5, .15, .35, ST2, xx, y - .15, zf + .1)]);
   const arch = (xx, y, zf, wW, h, col = "#3a2c20") => [box(wW, h - wW / 2, .2, col, xx, y, zf), part(new THREE.CylinderGeometry(wW / 2, wW / 2, .2, 14, 1, false, 0, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2), col, xx, y + h - wW / 2, zf), box(wW + .5, .3, .35, ST2, xx, y + h + .05, zf + .05)];
   const front = 5; let SG = [9, 1, 4.2, front + .14, "#1f3a5a", "#f1e6cf"], top = 10;
@@ -6013,37 +6142,37 @@ function townWorkBuilding(w, x, z, ry) {
     Q.push(...doorDbl(0, 0, front + .04, 2.4, 2.8, "#3a2c20"), box(5, .25, 2, WD, 0, 3.2, front + 1));
     SG = [10, 1.3, 11.6, front + .14, "#2b2b2b", "#f6e7c8"]; top = 24; }
   else if (k === "school") {   // a U of stone round a yard with a tree, the gate in a wall under a bell gable
-    Q.push(box(22, 7, 6, STN, 0, 0, -6), box(6, 7, 13, STN, -8, 0, 1.5), box(6, 7, 13, STN, 8, 0, 1.5), gable(22.6, 3, 6.6, TILE, 0, 7, -6));
-    for (const xx of [-8, 8]) { const g = gable(13.6, 3, 6.6, TILE, 0, 0, 0); g.rotateY(Math.PI / 2); g.translate(xx, 7, 1.5); Q.push(g); }
+    Q.push(box(22, 7, 6, STN, 0, 0, -6), box(6, 7, 13, STN, -8, 0, 1.5), box(6, 7, 13, STN, 8, 0, 1.5), gb(22.6, 3, 6.6, TILE, 0, 7, -6));
+    for (const xx of [-8, 8]) { const g = gb(13.6, 3, 6.6, TILE, 0, 0, 0); g.rotateY(Math.PI / 2); g.translate(xx, 7, 1.5); Q.push(g); }
     Q.push(...shut([-4, 0, 4], 3.6, -2.95), box(10, 3.2, .8, ST2, 0, 0, front + .6), box(3, 2.8, .9, "#3a2c20", 0, 0, front + .6), box(3.4, 2, .9, ST2, 0, 3.2, front + .6), cyl(.35, .35, .6, 10, "#c9a24a", 0, 4, front + .6), cyl(.3, .4, 3.2, 8, WD, 0, 0, 0), sph(2.6, "#5f9a45", 0, 4.6, 0));
     SG = [7, 1, 2.2, front + 1.06, "#ffffff", "#7a3a22"]; top = 12; }
   else if (k === "clinic") {   // two floors of pale stone, green shutters, a covered way in with the red star of David
-    Q.push(box(18, 8.4, 10, "#ece2c8", 0, 0, 0), gable(18.6, 3.2, 10.6, TILE, 0, 8.4, 0), ...shut([-6, -3, 3, 6], 1.4, front + .02), ...shut([-6, -3, 0, 3, 6], 5.4, front + .02));
+    Q.push(box(18, 8.4, 10, "#ece2c8", 0, 0, 0), gb(18.6, 3.2, 10.6, TILE, 0, 8.4, 0), ...shut([-6, -3, 3, 6], 1.4, front + .02), ...shut([-6, -3, 0, 3, 6], 5.4, front + .02));
     Q.push(box(5, .3, 2.6, ST2, 0, 3, front + 1.3), ...[-2.2, 2.2].map(xx => box(.35, 3, .35, ST2, xx, 0, front + 2.4)), box(2.6, 2.6, .1, PANE, 0, 0, front + .05), box(1.8, 1.8, .1, "*#e53935", 0, 6.4, front + .07));
     SG = [7, 1, 3.4, front + 2.62, "#ffffff", "#c0392b"]; top = 13; }
   else if (k === "police") {   // a squat stone station with a round tower at the corner, blue shutters, the blue lamp over the door
-    Q.push(box(18, 7.4, 10, ST2, 0, 0, 0), gable(18.6, 3, 10.6, TILE, 0, 7.4, 0), cyl(3, 3, 11, 18, STN, 8.6, 0, 4.4), part(new THREE.ConeGeometry(3.5, 3.4, 18), TILE, 8.6, 12.7, 4.4));
+    Q.push(box(18, 7.4, 10, ST2, 0, 0, 0), gb(18.6, 3, 10.6, TILE, 0, 7.4, 0), cyl(3, 3, 11, 18, STN, 8.6, 0, 4.4), (OA ? part(new THREE.SphereGeometry(3.05, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), "#f6f1e6", 8.6, 11, 4.4) : part(new THREE.ConeGeometry(3.5, 3.4, 18), TILE, 8.6, 12.7, 4.4)));
     Q.push(...shut([-6, -2.5], 2, front + .02).map(g => g), ...doorDbl(1.6, 0, front + .04, 2, 2.6, "#1f4e9e"), box(4, .25, 1.8, "#1f4e9e", 1.6, 3, front + .9), cyl(.22, .22, .45, 12, "*#5fa0ff", 1.6, 3.3, front + .4));
     SG = [8, 1, 5.3, front + .14, "#1f4e9e", "#ffffff"]; top = 15; }
   else if (k === "bank") {   // stone with a portico of six columns under a pediment
-    Q.push(box(18, .8, 12, ST2, 0, 0, -.5), box(16, 9, 9, "#ece2c8", 0, .8, -1.5), ...Array.from({ length: 6 }, (_, i) => cyl(.55, .65, 8.2, 12, "#f4f1e8", -6.25 + i * 2.5, .8, front - .6)), box(17, 1.2, 4, "#f4f1e8", 0, 9, 2.4), gable(17, 2.4, 4.4, "#f4f1e8", 0, 10.2, 2.4), gable(16.4, 2.4, 9.4, TILE, 0, 9.8, -1.5), box(3, 3.6, .12, "#3b2a1a", 0, .8, 3.05));
+    Q.push(box(18, .8, 12, ST2, 0, 0, -.5), box(16, 9, 9, "#ece2c8", 0, .8, -1.5), ...Array.from({ length: 6 }, (_, i) => cyl(.55, .65, 8.2, 12, "#f4f1e8", -6.25 + i * 2.5, .8, front - .6)), box(17, 1.2, 4, "#f4f1e8", 0, 9, 2.4), gb(17, 2.4, 4.4, "#f4f1e8", 0, 10.2, 2.4), gb(16.4, 2.4, 9.4, TILE, 0, 9.8, -1.5), box(3, 3.6, .12, "#3b2a1a", 0, .8, 3.05));
     SG = [10, 1.1, 9.2, front - .3, "#1f3a5a", "#f1e6cf"]; top = 15; }
   else if (k === "hotel" || k === "office") {   // four storeys of stone over an arcade, wooden balconies, a tiled roof
-    const f = k === "hotel" ? 4 : 3, H = 4.4 + f * 3.2; Q.push(box(20, H, 11, STN, 0, 0, -.5), gable(20.6, 3.4, 11.6, TILE, 0, H, -.5));
+    const f = k === "hotel" ? 4 : 3, H = 4.4 + f * 3.2; Q.push(box(20, H, 11, STN, 0, 0, -.5), gb(20.6, 3.4, 11.6, TILE, 0, H, -.5));
     for (let i = 0; i < 5; i++) Q.push(...arch(-8 + i * 4, 0, front + .02, 2.8, 3.8, "*#33464f"));
     for (let y = 0; y < f; y++) { const yy = 4.8 + y * 3.2; Q.push(...shut([-7, -3.5, 0, 3.5, 7], yy, front + .02, 1.2, 1.9)); if (y % 2 === 0) Q.push(box(18, .2, 1.2, WD, 0, yy - .2, front + .6), box(18, .9, .08, WD, 0, yy, front + 1.2)); }
     SG = [11, 1.4, H - 1.4, front + .14, k === "hotel" ? "#7a2a20" : "#1f3a5a", "#f6e7c8"]; top = H + 6; }
   else if (k === "factory" || k === "gym" || k === "garage" || k === "market") {   // a brick hall: big arched doors or windows, a tiled roof (and the factory's tall brick chimney)
-    Q.push(box(20, 7, 12, k === "market" ? STN : BRK, 0, 0, -1), gable(20.6, 3.4, 12.6, TILE, 0, 7, -1));
+    Q.push(box(20, 7, 12, k === "market" ? STN : BRK, 0, 0, -1), gb(20.6, 3.4, 12.6, TILE, 0, 7, -1));
     for (const xx of [-6.5, 0, 6.5]) Q.push(...arch(xx, 0, front + .02, 4, 5.4, xx === 0 ? "#3a2c20" : "*#6f97b0"));
     if (k === "factory") Q.push(cyl(1, 1.3, 20, 12, BRK, 7.5, 0, -5), cyl(1.2, 1.2, .6, 12, ST2, 7.5, 19.4, -5));
     SG = [10, 1, 6.1, front + .14, k === "market" ? "#d9762b" : "#2b2b2b", "#ffffff"]; top = k === "factory" ? 22 : 12; }
   else if (k === "fuel") {   // a stone kiosk and the pumps under a tiled roof on wooden posts
-    Q.push(box(8, 4, 6, STN, -5, 0, -3), gable(8.6, 2, 6.6, TILE, -5, 4, -3), box(14, .4, 7, WD, 2, 4.6, 2.5), gable(14.6, 1.8, 7.6, TILE, 2, 5, 2.5), ...[[-4, 0], [8, 0], [-4, 5], [8, 5]].map(([a, b]) => box(.4, 4.6, .4, WD, a, 0, b)), ...[0, 4].map(a => box(1, 1.6, .7, "#c0392b", a, 0, 2.5)));
+    Q.push(box(8, 4, 6, STN, -5, 0, -3), gb(8.6, 2, 6.6, TILE, -5, 4, -3), box(14, .4, 7, WD, 2, 4.6, 2.5), gb(14.6, 1.8, 7.6, TILE, 2, 5, 2.5), ...[[-4, 0], [8, 0], [-4, 5], [8, 5]].map(([a, b]) => box(.4, 4.6, .4, WD, a, 0, b)), ...[0, 4].map(a => box(1, 1.6, .7, "#c0392b", a, 0, 2.5)));
     SG = [6, .8, 2.9, .04, "#c0392b", "#ffffff"]; top = 9; }
   else {   // the shops and the places to eat: a two-storey stone house, an arched shopfront with an awning, shuttered windows above, a tiled roof (tables out front)
     const aw = ["#a8382c", "#2f6e7a", "#c9a24a", "#2d6e4a", "#7a3b2a"][(w.id + vi) % 5];
-    Q.push(box(16, 8, 10, STN, 0, 0, -.5), gable(16.6, 3, 10.6, TILE, 0, 8, -.5), ...arch(-4.5, 0, front + .02, 3, 3.6, "*#33464f"), ...arch(0, 0, front + .02, 2.4, 3.2, "#5a3a26"), ...arch(4.5, 0, front + .02, 3, 3.6, "*#33464f"));
+    Q.push(box(16, 8, 10, STN, 0, 0, -.5), gb(16.6, 3, 10.6, TILE, 0, 8, -.5), ...arch(-4.5, 0, front + .02, 3, 3.6, "*#33464f"), ...arch(0, 0, front + .02, 2.4, 3.2, "#5a3a26"), ...arch(4.5, 0, front + .02, 3, 3.6, "*#33464f"));
     Q.push(...shut([-5, 0, 5], 4.9, front + .02, 1.2, 1.9), box(15, .2, 2.2, aw, 0, 3.7, front + 1.1, { x: .25 }));
     for (const a of [-4.5, 0, 4.5]) Q.push(cyl(.6, .6, .1, 12, "#ffffff", a, .9, front + 3), cyl(.08, .08, .9, 6, "#666666", a, 0, front + 3));
     SG = [8, .9, 4.3, front + .14, aw, "#fff4dc"]; top = 13; }
@@ -6117,7 +6246,7 @@ function buildCivic() {
         const sn = Math.sin(w.ry), cs = Math.cos(w.ry); for (const [a, b] of [[-10.5, -6], [10.5, -6]]) parks.push([w.x + a * cs + b * sn, w.z - a * sn + b * cs]);
         return;
       }
-      if (TW) { const b = TW.plan.biz[i]; if (!b) return; w.x = b.x; w.z = b.z; w.ry = b.ry; w.addr = b.addr; if (w.look === "bow") workBuilding(w, w.x, w.z, w.ry); else townWorkBuilding(w, w.x, w.z, w.ry); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);   // a town: on the market
+      if (TW) { const b = TW.plan.biz[i]; if (!b) return; w.oasis = TW.style === "oasis"; w.x = b.x; w.z = b.z; w.ry = b.ry; w.addr = b.addr; if (w.look === "bow") workBuilding(w, w.x, w.z, w.ry); else townWorkBuilding(w, w.x, w.z, w.ry); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);   // a town: on the market
         const sn = Math.sin(w.ry), cs = Math.cos(w.ry); for (const [a, c] of [[-10.5, -6], [10.5, -6]]) parks.push([w.x + a * cs + c * sn, w.z - a * sn + c * cs]); return; }
       if (!sp) return; w.x = sp[0] - 6; w.z = sp[1]; w.addr = blockAddr(slot, si, sp[2], sp[3]); workBuilding(w, w.x, w.z, 0); placeLabel(`${KIND_IC[w.kind] || "💼"} ${w.name}`, w.x, workTop(w), w.z);
       lots.push([sp[0] + 13, sp[1]]); parks.push([sp[0] - 18, sp[1] - 7], [sp[0] - 18, sp[1] + 7]);
@@ -9388,7 +9517,7 @@ float landBr(vec2 p, float h) {
 const lowAt = (x, z) => { if (!LAND.low?.length) return false; for (const L of LAND.low) { const R = LAND.rivers.find(r => r.id === L.id); if (!R) continue;
     if (!L.bb) { L.bb = [1e9, 1e9, -1e9, -1e9]; for (let i = Math.max(0, L.i0 - 3); i < Math.min(R.x.length, (L.i1 ?? 1e9) + 4); i++) { const o = R.hw[i] + R.vw[i] + 30; L.bb = [Math.min(L.bb[0], R.x[i] - o), Math.min(L.bb[1], R.z[i] - o), Math.max(L.bb[2], R.x[i] + o), Math.max(L.bb[3], R.z[i] + o)]; } }
     if (x < L.bb[0] || x > L.bb[2] || z < L.bb[1] || z > L.bb[3]) continue; const q = landNear(R, x, z); if (q && q.i >= L.i0 - 3 && q.i <= (L.i1 ?? 1e9) + 3 && q.d < q.hw + q.vw + 20) return true; } return false; };
-const townAt = (x, z) => lowAt(x, z) || S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });   // inside a town (its river keeps its bed under the level streets)
+const townAt = (x, z) => lowAt(x, z) || S.slots.some(sl => { if (!sl.townBox) return false; const F = townF(sl); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });   // inside a town (its river keeps its bed under the level streets)
 function terrainBase(x, z) { const b = terrainBase0(x, z); if (!LAND.on) return b; if (b === 0) return LAND.grid && townAt(x, z) ? landDelta(x, z) : 0; if (LAND.grid) return b + landDelta(x, z); return landFill(x, z, landCarve(x, z, b)); }
 // the shared map of changes: bilinear, exactly as the GPU reads it
 function landDelta(x, z) { const G = LAND.grid, u = (x - G.x0) / G.cx, v = (z - G.z0) / G.cz; if (u < 0 || v < 0 || u > LAND_N - 1 || v > LAND_N - 1) return 0;
@@ -9506,7 +9635,7 @@ function landPrep() {
       for (const q of P) { const k = ks(q), w = smooth01(.74, .86, k); if (w <= 0) continue; const a = shorePt(tM, s, k); q.x += (a.x - q.x) * w; q.z += (a.z - q.z) * w; } }
     const n = P.length, R = { id: D.id, x: new Float64Array(n), z: new Float64Array(n), wl: new Float64Array(n), hw: new Float64Array(n), vw: new Float64Array(n), k: new Float64Array(n), pts: P };
     const h0 = P.map(p => H0(p.x, p.z)), hs = h0.map((_, i) => { let a = 0, c = 0; for (let j = Math.max(0, i - 4); j <= Math.min(n - 1, i + 4); j++) { a += h0[j]; c++; } return a / c; });
-    let wl = h0[0] - 3.2 - .3 * Math.max(0, h0[0] - 30), floor = .38; const inTown = (x, z) => S.slots.some(sl => { if (!sl.townBox) return false; const F = townFrame(); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });
+    let wl = h0[0] - 3.2 - .3 * Math.max(0, h0[0] - 30), floor = .38; const inTown = (x, z) => S.slots.some(sl => { if (!sl.townBox) return false; const F = townF(sl); return Math.abs(x - sl.x) < F.R && Math.abs(z - sl.z) < F.RZ; });
     P.forEach((p, i) => { const f = i / (n - 1), pr = polar(p.x, p.z, s), ks = pr.d / shoreF(pr.t);   // ks: 1 = the waterline
       // the river is low only through the town; out of it, it is as it always was
       R.x[i] = p.x; R.z[i] = p.z; R.k[i] = ks; if (inTown(p.x, p.z)) { if (floor > -1) { floor = -1.4; (LAND.low ||= []).push({ id: D.id, i0: i, i1: i }); } LAND.low.at(-1).i1 = i; } else if (floor < -1 && i > LAND.low.at(-1).i1 + 2) floor = .38; wl = Math.min(wl, (inTown(p.x, p.z) ? 0 : h0[i]) - 3.2 - .3 * Math.max(0, h0[i] - 30)); wl = Math.max(wl, floor); R.wl[i] = ks > .86 ? Math.max(-2.78, wl - smooth01(.86, 1.005, ks) * (wl + 2.78)) : wl;   // the river comes down to the sea's level through its mouth
@@ -10056,12 +10185,19 @@ function hwPlan() {
   const terms = COAST.filter(c => TERM_SPEC[c.id]).map(c => { const T = TERM_SPEC[c.id], p = shorePt(c.t, S.s, .97), out = Math.atan2(Math.cos(c.t) * RZ0, Math.sin(c.t) * RX0), ox = Math.sin(out), oz = Math.cos(out);
     const F = { x: p.x - ox * T.back, z: p.z - oz * T.back }, J = { x: F.x - ox * (T.Ro + 2), z: F.z - oz * (T.Ro + 2) };
     return { id: c.id, ...T, J, F, ox, oz, rf: (T.Ri + T.Ro) / 2 }; });
-  const segs = open.slice(1).map(sl => { const A = ring(cap, sl.x, sl.z), B = ring(sl, cap.x, cap.z); return [A.x, A.z, B.x, B.z, 12, "city", { A, B }]; });
+  const OAS = sl => TOWN_STYLE[sl.at] === "oasis";
+  const segs = open.slice(1).filter(sl => !OAS(sl)).map(sl => { const A = ring(cap, sl.x, sl.z), B = ring(sl, cap.x, cap.z); return [A.x, A.z, B.x, B.z, 12, "city", { A, B }]; });
   for (const T of terms) { const A = ring(cap, T.J.x, T.J.z, T.id === "harbor"); segs.push([A.x, A.z, T.J.x, T.J.z, T.id === "harbor" ? 32 : 12, T.id, { A, T }]); }
+  // the oasis town: its road leaves the lighthouse road 1.6 km out of the capital, at a roundabout past the capital's quarters (so nothing new crosses
+  // the capital's streets when the town opens, and no one's address there moves)
+  for (const sl of open.slice(1).filter(OAS)) { const B = ring(sl, cap.x, cap.z), i = segs.findIndex(g => g[5] === "light");
+    if (i < 0) { const A = ring(cap, sl.x, sl.z); segs.push([A.x, A.z, B.x, B.z, 12, "city", { A, B }]); continue; }
+    const [a, b, c, d, w, id, M] = segs[i], k = Math.min(.6, 1600 / Math.hypot(c - a, d - b)), sp = GATE_SPEC.std, W = { ...sp, x: a + (c - a) * k, z: b + (d - b) * k, rf: (sp.Ri + sp.Ro) / 2, gate: null, bypass: true, junc: sl }; rings.push(W);
+    segs.splice(i, 1, [a, b, W.x, W.z, w, id, { ...M, B: W, T: undefined }], [W.x, W.z, c, d, w, id, { ...M, A: W }]); segs.push([W.x, W.z, B.x, B.z, 12, "city", { A: W, B }]); }
   if (PALM.geo) { const A = ring(cap, PALM.geo.approach.x, PALM.geo.approach.z), sp = GATE_SPEC.std, B = { ...sp, x: PALM.geo.approach.x, z: PALM.geo.approach.z, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B);   // a roundabout where the road meets the bridge
     segs.push([A.x, A.z, B.x, B.z, 8, "palm", { A, B }], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm", {}]); }
   if (natP("navy") && NAT.navy.gx != null) { const N = NAT.navy, A = ring(cap, N.gx, N.gz), sp = GATE_SPEC.std, B = { ...sp, x: N.gx, z: N.gz, rf: (sp.Ri + sp.Ro) / 2, gate: null }; rings.push(B); segs.push([A.x, A.z, B.x, B.z, 12, "navy", { A, B }]); }   // the road to the navy base
-  for (const T of S.slots.filter(isTown)) { const F = townFrame(), E = { x0: T.x - F.R - 230, x1: T.x + F.R + 230, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };   // at the two ends of the avenue, room for the town's bus station
+  for (const T of S.slots.filter(isTown)) { const F = townF(T), E = { x0: T.x - F.R - 230, x1: T.x + F.R + 230, z0: T.z - F.RZ - 70, z1: T.z + F.RZ + 70 };   // at the two ends of the avenue, room for the town's bus station
     const hits = (a, b, c, d) => { for (let k = 0; k <= 60; k++) { const t = k / 60, x = a + (c - a) * t, z = b + (d - b) * t; if (x > E.x0 + 30 && x < E.x1 - 30 && z > E.z0 + 30 && z < E.z1 - 30) return true; } return false; };
     for (let i = segs.length - 1; i >= 0; i--) { const sg = segs[i], [a, b, c, d, w, id, M] = sg; if (id === "palm" || !hits(a, b, c, d)) continue; if ([M?.A, M?.B].some(r => r?.gate && Math.hypot(r.x - T.x, r.z - T.z) < F.R + 120)) continue;
       let best = null; for (const [wx, wz] of [[E.x0, E.z0], [E.x1, E.z0], [E.x0, E.z1], [E.x1, E.z1]]) { if (hits(a, b, wx, wz) || hits(wx, wz, c, d) || !onGrass(wx, wz, S.s, .03)) continue; const L = Math.hypot(wx - a, wz - b) + Math.hypot(c - wx, d - wz); if (!best || L < best.L) best = { wx, wz, L }; }
@@ -10074,7 +10210,7 @@ function highwaySegs(full = false) {   // full: as the highways were drawn befor
   const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return [];
   if (!full) return hwPlan().segs;
   const from = (x, z, wide) => { const g = cityGate(cap, x, z, wide); return [g.x, g.z]; };
-  const out = open.slice(1).map(t => [...from(t.x, t.z), ...(([gx, gz]) => [gx, gz])(Object.values(cityGate(t, cap.x, cap.z))), 12, "city"]);
+  const out = open.slice(1).filter(t => TOWN_STYLE[t.at] !== "oasis").map(t => [...from(t.x, t.z), ...(([gx, gz]) => [gx, gz])(Object.values(cityGate(t, cap.x, cap.z))), 12, "city"]);   // (the oasis town's road branches off the lighthouse road: the malls were placed before it)
   for (const c of COAST) if (c.id !== "beach") { const q = shorePt(c.t, S.s, .9); out.push([...from(q.x, q.z, c.id === "harbor"), q.x, q.z, c.id === "harbor" ? 32 : 12, c.id]); }
   if (PALM.geo) out.push([...from(PALM.geo.approach.x, PALM.geo.approach.z), PALM.geo.approach.x, PALM.geo.approach.z, 8, "palm"], [PALM.geo.approach.x, PALM.geo.approach.z, PALM.geo.gate.x, PALM.geo.gate.z, 8, "palm"]);
   return out;
@@ -13406,6 +13542,7 @@ const NEWS = {
   pier: { v: "2026-11-05", ic: "🌉", t: "גשר עץ לאי הפסל", sub: "מרכז מבקרים, שערי כניסה, גשר של 550 מ׳, והאי גדל עם טיילת וספסלים", ok: () => PIERS.some(Boolean), shot: () => { const Pi = PIERS.find(Boolean); return { a: at(Pi.C, 2.2, -.6, .3), b: at({ x: (Pi.C.x + Pi.sh.x) / 2, z: (Pi.C.z + Pi.sh.z) / 2 }, 2.6, .5, .3) }; } },
   sports: { v: "2026-11-05", ic: "🏟️", t: "קריית הספורט נפתחה", sub: "אצטדיון ל־15,000, אולם ספורט ומגרשי כדורסל · הפנדלים עברו לאצטדיון", ok: () => natOpen("sports"), shot: () => { const [x, z] = spW(0, -40); return { a: { x, z, zoom: 1.6, az: -.6, el: .34 }, b: { x, z, zoom: 3.2, az: .4, el: .3 } }; } },
   sababus: { v: "2026-11-06", ic: "🚌", t: "סבבוס: אוטובוסים חדשים ותחנות מרכזיות", sub: "אוטובוסי אקורדיון בעיר (קווים 1, 2), אוטובוס בין עירוני (קו 405), ותחנה מרכזית בכניסה לכל עיר", ok: () => (S.stations || []).length > 0, shot: () => { const st = S.stations[0]; return { a: { x: st.x, z: st.z, zoom: 4, az: -.6, el: .38 }, b: { x: st.x, z: st.z, zoom: 7, az: .5, el: .3 } }; } },
+  oasis: { v: "2026-11-09", ic: "🌴", t: "העיר השלישית: נווה המדבר", sub: "במרכז העיר אגם עם חורשת דקלים ומזרקה · 4 שדרות עם תעלת מים ופרגולת עץ, ובכל צומת המים עוברים מתחת לכביש · כל בית בתוך גינה עם גדר לבנה נמוכה · בנייני ציבור ועסקים בטיח לבן עם גגות שטוחים · כביש חדש מכביש המגדלור עם גשר קשת מעל הנהר · העיר נבנית כשמגיעים תושבים", ok: () => [...TOWNS.values()].some(t => t.style === "oasis"), shot: () => { const T = [...TOWNS.values()].find(t => t.style === "oasis"), M = T?.plan.M || { x: 0, z: 0 }; return { a: { x: M.x, z: M.z, zoom: 2.2, az: -.6, el: .55 }, b: { x: M.x + 230, z: M.z, zoom: 9, az: .4, el: .4 } }; } },
   shuk: { v: "2026-11-08", ic: "🧺", t: "שוק נווה זורם נפתח!", sub: "שוק גדול בסגנון מחנה יהודה משתי גדות הנהר: שני מעברים מקורים, רחוב פתוח עם עגלות, 200 דוכנים וחנויות שאפשר לקנות בהם, וגשר השוק מלא דוכנים · בנייני הציבור של העיר בעיצוב משלהם: טחנה ישנה, בית עירייה עם מגדל שעון ועוד · רחובות נסללים רק כשיש בהם בתים", ok: () => true, shot: () => { const T = [...TOWNS.values()][0], M = T?.plan.M || { x: 0, z: 0 }; return { a: { x: M.x, z: M.z, zoom: 2.4, az: -.4, el: .55 }, b: { x: M.x - 120, z: M.z, zoom: 5, az: .3, el: .5 } }; } },
   homeboard: { v: "2026-11-08", ic: "🛋️", t: "עיצוב הבית החדש", sub: "בוחרים קומה וחדר (וגם את החצר), רואים כל רהיט בגודלו האמיתי עם חץ לכיוון החזית, מסובבים ב־90° או ב־15°, ורהיט שלא נכנס נצבע באדום", ok: () => true, shot: () => { const h = S.mine?.lot ? S.mine : S.houses.find(q => q.lot) || { x: 0, z: 0 }; return { a: { x: h.x, z: h.z, zoom: 4, az: -.3, el: .6 }, b: { x: h.x, z: h.z, zoom: 7, az: .3, el: .5 } }; } },
   drivefix: { v: "2026-11-08", ic: "🛠️", t: "תיקונים בנהיגה, בנהר ובסבבהום", sub: "הנהיגה האוטומטית לא נעצרת יותר בגלל רכב בנתיב הנגדי, ועוצרת גם מאחורי אוטובוסי העיר · כבישים ועצים לא נעלמים בנסיעה בגבעות · פנסים על המדרכה ולא על הכביש · אחרי קנייה בסבבהום כבר לא נהיה מסך שחור · האי של אפי הנמר חזר קרוב לחוף · בלי כתמים חומים בנהר", ok: () => true, shot: () => ({ a: { x: -8591, z: 8208, zoom: 4, az: -.4, el: .5 }, b: { x: 140, z: -305, zoom: 7, az: 0, el: .7 } }) },
