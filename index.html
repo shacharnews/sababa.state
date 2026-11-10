@@ -3340,7 +3340,7 @@ const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uK: { value: 24 }, uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlat: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uK: { value: 24 }, uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uMoundL: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlat: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b0 = terrainBase(x, z), w = moundW(x, z); let b = w > 0 ? b0 + (HT_U.uMound.value.z - b0) * w : b0;
   for (const P of HT_U.uPlat.value) if (P.z > 0) { const d = Math.hypot(x - P.x, z - P.y); if (d < P.z + PLAT_RAMP) b += (P.w - b) * (1 - smooth01(P.z, P.z + PLAT_RAMP, d)); }   // the terraces of the fuel stations
   return b; }
@@ -3378,16 +3378,16 @@ function terrainUpdate() {
     HT_U.uCity.value[i++].set(Math.min(...P.map(p => p[0])), Math.min(...P.map(p => p[1])), Math.max(...P.map(p => p[0])), Math.max(...P.map(p => p[1]))); } } catch (e) { }
   { const L = (() => { try { return fuelSites(); } catch (e) { return []; } })(); HT_U.uPlat.value.forEach((v, k) => { const F = L[k]; if (!F) return v.set(1e6, 1e6, 0, 0); const [x, z] = fuelW(F, 5, 0); v.set(x, z, FUEL.PR, F.hm); }); }   // the fuel stations between the cities: each on a level terrace at the height of its own ground
   try { const C = canalGeo(); if (C && i < 16) HT_U.uCity.value[i++].set(C.x - 12, C.zf, C.x + 12, C.zp + CANAL.PR + 8); } catch (e) { }   // the canal to the oasis town: its ground graded level
-  S.ykSpot = landPinYk(); HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
+  S.ykSpot = landPinYk(); { const Y = LAND.yk; HT_U.uMoundL.value.set(Y?.hx || 0, Y?.hz || 0, Y?.hx != null ? Y.ux : 0, Y?.hx != null ? Y.uz : 0); } HT_U.uMound.value.set(S.ykSpot?.x || 0, S.ykSpot?.z || 0, S.ykSpot ? Math.max(YK.H, terrainBase(S.ykSpot.x, S.ykSpot.z) + 4) : 0, S.ykSpot ? 1 : 0);   // סבבהום's hilltop
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uPlat[4]; uniform vec4 uNav; uniform vec4 uAir;
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uMoundL; uniform vec4 uPlat[4]; uniform vec4 uNav; uniform vec4 uAir;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
 ${landLiftGLSL}
 float terrainBase(vec2 p);
-float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float w = 1. - wsm0(${YK.R0}., ${YK.R1}., length(p - uMound.xy)); b += (uMound.z - b) * w; } for (int i = 0; i < 4; i++) { vec4 P = uPlat[i]; if (P.z > 0.) b += (P.w - b) * (1. - wsm0(P.z, P.z + ${PLAT_RAMP}., length(p - P.xy))); } return b; }
+float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float dm = length(p - uMound.xy); if (uMoundL.z != 0. || uMoundL.w != 0.) { vec2 q = p - uMoundL.xy, u = uMoundL.zw; float al = dot(q, u), of = abs(q.x * u.y - q.y * u.x); dm = mix(dm, length(uMoundL.xy + u * al - uMound.xy), 1. - wsm0(14., 30., of)); } float w = 1. - wsm0(${YK.R0}., ${YK.R1}., dm); b += (uMound.z - b) * w; } for (int i = 0; i < 4; i++) { vec4 P = uPlat[i]; if (P.z > 0.) b += (P.w - b) * (1. - wsm0(P.z, P.z + ${PLAT_RAMP}., length(p - P.xy))); } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
   float dm = 1e9; for (int i = 0; i < uK; i++) { if (i >= 16) break; vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
@@ -3430,7 +3430,7 @@ const WARP_WPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined (
 function warpMat(m) {
   if (!m || m.userData.warpOk || m.isShaderMaterial || m.isSpriteMaterial || m.isRawShaderMaterial) return; m.userData.warpOk = true;
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
-  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uK = HT_U.uK; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uPlat = HT_U.uPlat; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
+  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uK = HT_U.uK; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uMoundL = HT_U.uMoundL; sh.uniforms.uPlat = HT_U.uPlat; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + warpGLSL()).replace("#include <project_vertex>", WARP_PROJ).replace("#include <worldpos_vertex>", WARP_WPOS); };
   m.customProgramCacheKey = () => key.call(m) + "|warp"; m.needsUpdate = true;
 }
@@ -6888,7 +6888,9 @@ function ykSpotHwy(R1) {
   }
   return null;
 }
-const moundW = (x, z) => { const m = HT_U.uMound.value; if (m.w < .5) return 0; const d = Math.hypot(x - m.x, z - m.y); return d >= YK.R1 ? 0 : 1 - smooth01(YK.R0, YK.R1, d); };
+const moundW = (x, z) => { const m = HT_U.uMound.value; if (m.w < .5) return 0; let d = Math.hypot(x - m.x, z - m.y); const L = HT_U.uMoundL.value;
+  if (L.z || L.w) { const qx = x - L.x, qz = z - L.y, al = qx * L.z + qz * L.w, of = Math.abs(qx * L.w - qz * L.z); d = d + (Math.hypot(L.x + L.z * al - m.x, L.y + L.w * al - m.y) - d) * (1 - smooth01(14, 30, of)); }   // (Nov 2026: across the highway the hill stands level, as at the road's middle: its slope used to bury the road's edges)
+  return d >= YK.R1 ? 0 : 1 - smooth01(YK.R0, YK.R1, d); };
 // roads that aren't highways but must stay clear of the hills and the trees: the mall's and the store's access roads
 const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : [])];
 // ---- סבבהום: a street of ten houses under a glass roof (five on each side, one for every kind of room) and a tall entrance house at the front.
@@ -8260,8 +8262,12 @@ function buildSports() {
   const pm = POOL_MAT.clone(); pm.color.set("#fff4d8"); const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), pm, LP.length); pools.frustumCulled = false; pools.onBeforeRender = () => { pm.opacity = Math.min(1, POOL_MAT.opacity * 1.2); };
   LP.forEach(([lx, lz, s, y], i) => { const [x, z] = spW(lx, lz); o3.position.set(x, base + y, z); o3.rotation.set(0, 0, 0); o3.scale.set(s, 1, s); o3.updateMatrix(); pools.setMatrixAt(i, o3.matrix); }); world.add(pools);
   // the approach road from the gate to the highway, and the junction there (stop line, give-way sign)
-  const sg = highwaySegs().find(q => Math.abs(q[0] + 221) < 2 && Math.abs(q[1] - 148) < 2) || highwaySegs().sort((a, b) => 0)[0];
-  if (sg) { const [a, b, c, d] = sg, [px, pz] = spW(0, 160), L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, t = (px - a) * ux + (pz - b) * uz, jx = a + ux * t, jz = b + uz * t, dl = Math.hypot(jx - px, jz - pz), pts = [];
+  // (the nearest highway to the gate, whatever the island has grown into: before Nov 2026 it looked for one road by where it began, and when the capital grew
+  //  and that road began elsewhere it took the first road on the list, and the approach cut straight across the sports city to it)
+  const [gx0, gz0] = spW(0, 160), near = q => { const [a, b, c, d] = q, L = Math.hypot(c - a, d - b) || 1, t = Math.max(.05 * L, Math.min(.95 * L, ((gx0 - a) * (c - a) + (gz0 - b) * (d - b)) / L)); return Math.hypot(a + (c - a) / L * t - gx0, b + (d - b) / L * t - gz0); };
+  const front = q => { const [a, b, c, d] = q, L = Math.hypot(c - a, d - b) || 1, t = Math.max(.05 * L, Math.min(.95 * L, ((gx0 - a) * (c - a) + (gz0 - b) * (d - b)) / L)), x = a + (c - a) / L * t - NAT.sports.x, z = b + (d - b) / L * t - NAT.sports.z, co = Math.cos(NAT.sports.ry), si = Math.sin(NAT.sports.ry); return x * si + z * co > NAT.sports.R.d / 2 - 20; };   // (out of the gate, away from the grounds)
+  const sg = highwaySegs().filter(q => q[5] !== "palm").sort((p, q) => (front(q) - front(p)) || near(p) - near(q))[0];
+  if (sg) { const [a, b, c, d] = sg, [px, pz] = spW(0, 160), L = Math.hypot(c - a, d - b), ux = (c - a) / L, uz = (d - b) / L, t = Math.max(.05 * L, Math.min(.95 * L, (px - a) * ux + (pz - b) * uz)), jx = a + ux * t, jz = b + uz * t, dl = Math.hypot(jx - px, jz - pz), pts = [];
     for (let i = 0; i <= 16; i++) { const k = i / 16 * (1 - 9 / dl), x = px + (jx - px) * k, z = pz + (jz - pz) * k; pts.push({ x, z, y: terrainH(x, z) + .32 }); }
     try { landDrawRoad(landRoad(pts, 5, { fill: false }), { dash: true, barrier: "none" }); LAND.roads.pop(); } catch {}
     const ex = px + (jx - px) * (1 - 11 / dl), ez = pz + (jz - pz) * (1 - 11 / dl), ry2 = Math.atan2(jx - px, jz - pz);
@@ -8440,7 +8446,7 @@ function armyGo(from) {
     body = `<div class="hero"><p>${tab(s.branch, k)}<b>${list[k]}</b> · ${b.ic} ${b.name}</p><p class="note">${s.shifts} משמרות${nextAt ? ` · עוד ${nextAt - s.shifts} עד ${list[k + 1]}` : " · הדרגה הגבוהה ביותר. הבאה רק בהצבעה של השרים"}</p>
       <div class="btns"><button class="btn" id="armShift" ${done ? "disabled" : ""}>${done ? "✅ עשית משמרת היום" : `🕘 למשמרת · +${pay} ${COIN}`}</button></div><p class="note">${b.task}</p>${kiryaAllowed(me.u) ? `<p class="note">🔑 מותר לך להיכנס לקריה</p>` : `<p class="note">🔒 לקריה נכנסים מדרגת ${s.branch === "sec" ? "סוכן" : "רס״ן"} ומעלה</p>`}</div>`; }
   open(`🎖️ כל״ס · ${from || "השירות"}`, `<div style="text-align:center;margin-bottom:8px"><img alt="סמל כל״ס" src="${klsUrl()}" style="height:120px"></div>${body}
-    ${me && Object.keys(drvCerts(me.u)).length ? `<div class="sec">🎖️ רישיונות נהיגה</div><div class="list">${DRV_ORDER.filter(q => drvCerts(me.u)[q]).map(q => info(DRV.K[q].ic, `נהג מוסמך · ${DRV.K[q].name}`, `שלב ${DRV.K[q].lvl} · ${drvFmt(drvCerts(me.u)[q].ms)}${drvCerts(me.u)[q].peri ? " · ⭐ פריסקופ" : ""}`)).join("")}</div>` : ""}
+    ${me && Object.keys(drvCerts(me.u)).length ? `<div class="sec">🎖️ רישיונות נהיגה ושיט</div><div class="list">${DRV_ALL.filter(q => drvCerts(me.u)[q]).map(q => info(DRV.K[q].ic, `${DRV.K[q].br === "sea" ? "משיט" : "נהג"} מוסמך · ${DRV.K[q].name}`, `שלב ${DRV.K[q].lvl} · ${drvFmt(drvCerts(me.u)[q].ms)}${drvCerts(me.u)[q].peri ? " · ⭐ פריסקופ" : ""}`)).join("")}</div>` : ""}
     <div class="sec">⭐ המשרתים</div><div class="list">${top.map(q => li("id", BRANCH[q.branch]?.ic || "🎖️", `${rankName(q)} ${esc(nick(q.username))}`, `${BRANCH[q.branch]?.name} · ${q.shifts} משמרות`, q.username)).join("") || `<p class="note">עוד אין משרתים. אולי אתה הראשון?</p>`}</div>`, () => {
     $("dBody").querySelectorAll("[data-enl]").forEach(bt => bt.onclick = async () => { bt.disabled = true; try { const r = await rpc("army_enlist", { username: me.u, key: keyOf(me.u), branch: bt.dataset.enl }); if (!r.ok) { bt.disabled = false; return toast("לא הצליח"); } toast(`🎖️ התגייסת! ${BRANCH[bt.dataset.enl].ic} ${BRANCH[bt.dataset.enl].name}`, 3500); await loadSoldiers(); stack.pop(); armyGo(from); } catch { bt.disabled = false; toast("אין חיבור כרגע"); } });
     const sb = $("armShift"); if (sb) sb.onclick = async () => { sb.disabled = true; sb.textContent = "במשמרת…"; try { const r = await rpc("army_shift", { username: me.u, key: keyOf(me.u) }); if (!r.ok) { sb.disabled = false; return toast(r.error === "already" ? "כבר עשית משמרת היום 🌙" : "לא הצליח"); }
@@ -8753,7 +8759,7 @@ function buildNavy() {
   // the submarine pens: two covered bays, a submarine in each
   for (const x of [385, 428]) { for (const s of [-1, 1]) Q.push(box(4, 21, 110, "#8f8a7e", x + s * 14, SL - 3, -55)); Q.push(box(32, 3, 112, "#7f7a6e", x, 15, -55), box(30, 1, 6, "#5f5a50", x, 13, -109)); navyPut(Q, T, "sub", x, -50, 0, SL + .6); }
   // at sea: a submarine running on the surface, a destroyer on patrol, the patrol boat and the tug inside the harbour
-  navyPut(Q, T, "sub", 300, -760, .3, SL + .6); navyPut(Q, T, "destroyer", -650, -900, 1.9); navyPut(Q, T, "patrol", 250, -560, 2.4); navyPut(Q, T, "tug", -60, -330, 1.2);
+  navyPut(Q, T, "sub", 300, -760, .3, SL + .6); navyPut(Q, T, "destroyer", -650, -900, 1.9); navyPut(Q, T, "patrol", 250, -560, 2.4); navyPut(Q, T, "tug", -8, -205, 1.2);
   // the portal cranes on their rails along the quay, the container stacks behind them
   for (const s of [5, 23]) Q.push(box(2 * HW - 40, .12, .5, "#6b6f6a", 0, .03, s));
   for (const x of [-250, -100, 40]) { for (const s of [-1, 1]) for (const t of [-1, 1]) Q.push(box(1.2, 26, 1.2, "#f2b134", x + s * 7, 0, 14 + t * 9)); Q.push(box(16, 3, 20, "#f2b134", x, 26, 14), box(3, 2.4, 56, "#f2b134", x, 29, -4), box(4, 3, 4, "#e8e8e8", x, 26, 22), cyl(.05, .05, 18, 4, "#333", x, 11, -18)); }
@@ -8808,6 +8814,7 @@ function buildNavy() {
   // the guards at the gate, the sentries in the towers, the duty watch on the quay
   for (const [x, z, ry] of [[-3, G0 + 7, 0], [3, G0 + 7, 0], [6, G0 - 1, Math.PI / 2], [-6.5, G0 - 3, 0], [1.5, G0 - 8, Math.PI], [-1.5, G0 - 8, Math.PI], [-330, 6, Math.PI], [-170, 6, Math.PI], [-30, 6, Math.PI]]) { const s = soldierFig(); s.position.set(x, 0, z); s.rotation.y = ry; g.add(s); }
   for (const [x, z] of [[-HW + 6, LD - 8], [HW - 6, LD - 8], [-HW + 6, 12], [HW - 6, 12]]) { const s = soldierFig(); s.position.set(x, 10.3, z); s.rotation.y = Math.atan2(x, z - LD / 2); g.add(s); }
+  try { buildSea(M); } catch (e) { console.error("sea", e); }
 }
 // the panel: the base, and the way in for those who serve at sea
 const navyGo = () => { const p = natP("navy"); if (!p || p.status !== "done") return toast("בסיס חיל הים עוד לא נפתח");
@@ -9293,7 +9300,7 @@ const drvFmt = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) %
 const drvLocal = u => { try { return JSON.parse(localStorage.getItem("sababa_drv_" + u) || "{}"); } catch { return {}; } };
 function drvLocalSave(u, d) { try { localStorage.setItem("sababa_drv_" + u, JSON.stringify(d)); } catch { } }
 function drvCerts(u) { const L = drvLocal(u), C = { ...(L.certs || {}) }; for (const r of (DRV.mine?.u === u ? DRV.mine.certs : []) || []) C[r.v] = C[r.v] && C[r.v].ms <= r.ms ? C[r.v] : { ms: r.ms, peri: r.peri }; return C; }
-function drvUnlocked(u, kd) { const lv = DRV.K[kd].lvl; if (lv === 1) return true; const C = drvCerts(u); return DRV_ORDER.some(q => DRV.K[q].lvl === lv - 1 && C[q]); }
+function drvUnlocked(u, kd) { const k = DRV.K[kd], lv = k.lvl; if (lv === 1) return true; const C = drvCerts(u); return DRV_ALL.some(q => DRV.K[q].br === k.br && DRV.K[q].lvl === lv - 1 && C[q]); }
 async function drvLoad() {
   try { const r = await rpc("drive_board", { username: S.mine?.u || null }); const B = {}; for (const q of (Array.isArray(r) ? r : r?.rows || [])) (B[q.v] ||= []).push(q); for (const k in B) B[k].sort((a, b) => a.ms - b.ms); DRV.board = B; DRV.sql = true;
     const me = S.mine; if (me) DRV.mine = { u: me.u, certs: Object.entries(B).flatMap(([v, L]) => L.filter(q => q.u === me.u && q.cert).map(q => ({ v, ms: q.ms, peri: q.peri }))) }; }
@@ -9301,34 +9308,40 @@ async function drvLoad() {
   drvBoardPaint();
 }
 // ---------- the school: the ladder, your licences, the records ----------
-function drvSchool(fresh) {
+function drvSchool(fresh, br) {
+  if (br) DRV.schoolBr = br; br = DRV.schoolBr || "land"; const sea = br === "sea", LIST = sea ? SEA_ORDER : DRV_ORDER;
   const me = WALK.h || S.mine, C = me ? drvCerts(me.u) : {};
-  const lad = [1, 2, 3, 4, 5].map(lv => { const ks = DRV_ORDER.filter(q => DRV.K[q].lvl === lv);
-    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); return `<div class="li"><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${k.course === "yard" ? "מגרש המכשולים" : "מסלול הכבדים"} · זמן יעד ${mss(k.target)}${c ? ` · ✅ נהג מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span></div>`; }).join(""); }).join("");
-  const B = DRV.board || {}, rec = DRV_ORDER.map(kd => { const L = (B[kd] || []).slice(0, 10); return `<div class="sec">${DRV.K[kd].ic} ${DRV.K[kd].name}</div>${L.length ? `<div class="list">${L.map((r, i) => info(i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}.`, `<span dir="ltr">@${esc(nick(r.u))}</span> · ${drvFmt(r.ms)}${r.peri ? " ⭐" : ""}`, r.pen ? `${r.pen} קנסות` : "בלי קנסות")).join("")}</div>` : `<p class="note">עוד אין שיא</p>`}`; }).join("");
-  open("🎖️ בית הספר לנהיגה · שריון", `<div class="hero"><p><b>סולם הרישיונות.</b> כל תעודה פותחת את הרכב הבא. ניגשים לרכב בחניון, נוסעים לקו הזינוק, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי.</p>
+  const lad = [1, 2, 3, 4, 5].map(lv => { const ks = LIST.filter(q => DRV.K[q].lvl === lv);
+    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); return `<div class="li"><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${({ yard: "מגרש המכשולים", heavy: "מסלול הכבדים", harbour: "מסלול הנמל", sea: "מסלול הים" })[k.course]} · זמן יעד ${mss(k.target)}${c ? ` · ✅ ${sea ? "משיט" : "נהג"} מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span></div>`; }).join(""); }).join("");
+  const B = DRV.board || {}, rec = LIST.map(kd => { const L = (B[kd] || []).slice(0, 10); return `<div class="sec">${DRV.K[kd].ic} ${DRV.K[kd].name}</div>${L.length ? `<div class="list">${L.map((r, i) => info(i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}.`, `<span dir="ltr">@${esc(nick(r.u))}</span> · ${drvFmt(r.ms)}${r.peri ? " ⭐" : ""}`, r.pen ? `${r.pen} קנסות` : "בלי קנסות")).join("")}</div>` : `<p class="note">עוד אין שיא</p>`}`; }).join("");
+  open(sea ? "⚓ בית הספר לשיט · חיל הים" : "🎖️ בית הספר לנהיגה · שריון", sea ? `<div class="hero"><p><b>סולם רישיונות השיט.</b> כל תעודה פותחת את הכלי הבא. עולים מהמזח שליד בית הספר, שטים לשער הזינוק, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי. כל הפלגה נגמרת בעגינה ליד רציף האימון.</p>
+    <p class="note">⏱️ מצוף: 5 שניות · מגע בדופן: 10 שניות · דילוג על שער: פסילה · "משיט מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ לצוללת שעברה את כל אזור הצלילה בעומק</p></div>
+    <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
+    <div class="sec">🏆 טבלאות השיאים</div>${DRV.sql === false ? `<p class="note">טבלאות השיאים ייפתחו אחרי הרצת upgrade-62.sql ו־63. עד אז התעודות נשמרות במכשיר הזה.</p>` : ""}${rec}` : `<div class="hero"><p><b>סולם הרישיונות.</b> כל תעודה פותחת את הרכב הבא. ניגשים לרכב בחניון, נוסעים לקו הזינוק, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי.</p>
     <p class="note">⏱️ קונוס, צמיג או עמוד: 5 שניות · קיר הרציף: 10 שניות · דילוג על שער: פסילה · "נהג מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ למי שנסע כל המסלול בפריסקופ</p></div>
     <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
     <div class="sec">🏆 טבלאות השיאים</div>${DRV.sql === false ? `<p class="note">טבלאות השיאים ייפתחו אחרי הרצת upgrade-62.sql. עד אז התעודות נשמרות במכשיר הזה.</p>` : ""}${rec}`, () => { const b = $("drvCert"); if (b) b.onclick = () => drvCertShow(me); });
-  if (!fresh) drvLoad().then(() => { const t = stack[stack.length - 1]; if (t && t.title.includes("בית הספר לנהיגה") && document.body.classList.contains("open")) drvSchool(true); });
+  if (!fresh) drvLoad().then(() => { const t = stack[stack.length - 1]; if (t && t.title.includes("בית הספר ל") && document.body.classList.contains("open")) drvSchool(true); });
 }
 // the certificate: the emblem, your name, every licence you hold, the date
 function drvCertImg(u) {
   const C = drvCerts(u), cv = document.createElement("canvas"); cv.width = 900; cv.height = 640; const x = cv.getContext("2d");
   x.fillStyle = "#f4ecd8"; x.fillRect(0, 0, 900, 640); x.strokeStyle = "#5d6340"; x.lineWidth = 14; x.strokeRect(14, 14, 872, 612); x.strokeStyle = "#b8963f"; x.lineWidth = 3; x.strokeRect(34, 34, 832, 572);
   const k = document.createElement("canvas"); k.width = 256; k.height = 294; klsDraw(k.getContext("2d"), 256, 294); x.drawImage(k, 380, 50, 140, 161);
-  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#2b2a24"; x.font = "900 54px 'Frank Ruhl Libre', Heebo, serif"; x.fillText("תעודת נהג מוסמך", 450, 268); x.font = "500 26px Heebo, Arial"; x.fillText("כל״ס · בסיס השריון · בית הספר לנהיגה", 450, 306);
+  const hasL = DRV_ORDER.some(q => C[q]), hasS = SEA_ORDER.some(q => C[q]);
+  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#2b2a24"; x.font = "900 50px 'Frank Ruhl Libre', Heebo, serif"; x.fillText(hasL && hasS ? "תעודת נהג ומשיט מוסמך" : hasS ? "תעודת משיט מוסמך" : "תעודת נהג מוסמך", 450, 268); x.font = "500 25px Heebo, Arial"; x.fillText(hasL && hasS ? "כל״ס · בית הספר לנהיגה ובית הספר לשיט" : hasS ? "כל״ס · בסיס חיל הים · בית הספר לשיט" : "כל״ס · בסיס השריון · בית הספר לנהיגה", 450, 306);
   x.font = "800 40px Heebo, Arial"; x.fillText(`@${nick(u)}`, 450, 366);
-  let y = 420; x.font = "600 27px Heebo, Arial"; for (const kd of DRV_ORDER) if (C[kd]) { const q = DRV.K[kd]; x.fillText(`${q.ic} שלב ${q.lvl} · ${q.name} · ${drvFmt(C[kd].ms)}${C[kd].peri ? " · ⭐ פריסקופ" : ""}`, 450, y); y += 38; }
+  const n = DRV_ALL.filter(q => C[q]).length; let y = n > 5 ? 404 : 420; x.font = `600 ${n > 5 ? 22 : 27}px Heebo, Arial`; for (const kd of DRV_ALL) if (C[kd]) { const q = DRV.K[kd]; x.fillText(`${q.ic} שלב ${q.lvl} · ${q.name} · ${drvFmt(C[kd].ms)}${C[kd].peri ? (q.br === "sea" ? " · ⭐ צלילה" : " · ⭐ פריסקופ") : ""}`, 450, y); y += n > 5 ? 29 : 38; }
   x.font = "400 22px Heebo, Arial"; x.fillStyle = "#5d5a4c"; x.fillText(israelDate().split("-").reverse().join("."), 450, 600); return cv.toDataURL("image/png");
 }
-function drvCertShow(h) { if (!h) return; open("📜 תעודת נהג מוסמך", `<div style="text-align:center"><img alt="תעודת נהג מוסמך" src="${drvCertImg(h.u)}" style="width:100%;max-width:520px;border-radius:10px;box-shadow:0 4px 18px #0003"></div><p class="note" style="text-align:center">לחיצה ארוכה על התעודה כדי לשמור אותה</p>`, null, true); }
+function drvCertShow(h) { if (!h) return; open("📜 התעודה", `<div style="text-align:center"><img alt="תעודת נהג מוסמך" src="${drvCertImg(h.u)}" style="width:100%;max-width:520px;border-radius:10px;box-shadow:0 4px 18px #0003"></div><p class="note" style="text-align:center">לחיצה ארוכה על התעודה כדי לשמור אותה</p>`, null, true); }
 // ---------- getting in and out ----------
 function drvNearParked() { if (!natOpen("armour") || !DRV.g || WALK.mode !== "foot") return null;
   { const m = WALK.mil; if (m && Math.hypot(m.x - WALK.x, m.z - WALK.z) < m.k.L / 2 + 3) return m.kind; }   // the one you got out of, where you left it
   const [lx, lz] = dL(WALK.x, WALK.z); if (lz > -270 || lz < -340) return null;
   let best = null, bd = 5.5; for (const kd of DRV_ORDER) { if (WALK.mil?.kind === kd) continue; const k = DRV.K[kd], dz = DRV.POOLZ + (kd === "trans" ? 2 : 0); for (const off of kd === "trans" ? [-4, 4, 12] : [0]) { const d = Math.hypot(lx - k.x, lz - dz - off); if (d < bd) { bd = d; best = kd; } } } return best; }
 function drvEnter(kd) {
+  if (DRV.K[kd]?.br === "sea") return seaEnter(kd);
   const h = WALK.h, k = DRV.K[kd]; if (!h) return;
   if (!(northAllowed(h.u) || ADMIN)) return toast("🔒 רק משרתי יבשה נוהגים ברכבי האימון");
   if (!drvUnlocked(h.u, kd)) { const lv = k.lvl - 1, need = DRV_ORDER.filter(q => DRV.K[q].lvl === lv).map(q => DRV.K[q].name).join(" / "); return toast(`🔒 ה${k.name} נפתח אחרי תעודת נהג מוסמך על ${need}`, 3500); }
@@ -9342,12 +9355,13 @@ function drvEnter(kd) {
   toast(`${k.ic} ${k.name} · נוסעים ל${k.course === "yard" ? "קו הזינוק של מגרש המכשולים (רמזור בפינה הדרומית־מזרחית)" : "שער הזינוק של מסלול הכבדים, על לולאת החול"}`, 4200);
 }
 function drvExit() {
-  const m = WALK.mil; if (!m) return; if (DRV.run) drvAbort("🚶 ירדת מהרכב · הנסיעה בוטלה");
+  const m = WALK.mil; if (!m) return; if (DRV.run) drvAbort(m.sea ? "⚓ חזרת למזח · ההפלגה בוטלה" : "🚶 ירדת מהרכב · הנסיעה בוטלה");
+  if (m.sea) { drvPark(); WALK.mode = "foot"; const [x, z] = nW(SAIL.PX, 5); WALK.x = x; WALK.z = z; WALK.head = NAT.navy.ry; WALK.fig.visible = true; WALK.pitch = .3; DRV.view = "chase"; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); } toast("⚓ סירת המזח החזירה אותך למזח האימון", 2200); walkButtons(); return; }   // (a launch brings you back; the craft to its mooring)
   WALK.mode = "foot"; WALK.x = m.x + Math.cos(m.head) * (m.k.W / 2 + 1.2); WALK.z = m.z - Math.sin(m.head) * (m.k.W / 2 + 1.2); WALK.head = m.head; WALK.fig.visible = true; WALK.pitch = .3; DRV.view = "chase"; drvPeri(false);
   if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); } walkButtons();
 }
 // put the vehicle back in the pool (another one taken, the walk over)
-function drvPark() { const m = WALK.mil; if (!m) return; m.v.g.removeFromParent(); if (m.v.trl) m.v.trl.removeFromParent(); const P = DRV.parked[m.kind]; if (P) { P.g.visible = true; if (P.trl) P.trl.visible = true; } WALK.mil = null; if (WALK.mode === "mil") WALK.mode = "foot"; drvPeri(false); }
+function drvPark() { const m = WALK.mil; if (!m) return; m.v.g.removeFromParent(); if (m.v.trl) m.v.trl.removeFromParent(); m.wkMesh?.removeFromParent(); seaOverlay(null); if (m.sea && WALK.on) { scene.fog.near = 90; scene.fog.far = 520; } const P = (m.sea ? SAIL.parked : DRV.parked)[m.kind]; if (P) { P.g.visible = true; if (P.trl) P.trl.visible = true; } WALK.mil = null; if (WALK.mode === "mil") WALK.mode = "foot"; drvPeri(false); }
 const drvHitch = m => [m.x - Math.sin(m.head) * m.k.trailer.hb, m.z - Math.cos(m.head) * m.k.trailer.hb];
 // ---------- driving ----------
 const drvGround = (x, z) => { const [lx, lz] = dL(x, z); return drvH(lx, lz); };
@@ -9426,28 +9440,31 @@ function drvPlace(m, dt) {
 // spray from the water and the mud
 function drvSplash(m, kind, dt) {
   if (!DRV.fx) { const n = 90, g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3).fill(-999), 3)); const p = new THREE.Points(g, new THREE.PointsMaterial({ size: .35, color: "#d8e8f0", transparent: true, opacity: .85, depthWrite: false })); p.frustumCulled = false; DRV.fx = { p, v: new Float32Array(n * 3), i: 0, n }; }
-  const F = DRV.fx; if (!F.p.parent) world.add(F.p); F.p.material.color.set(kind === "water" ? "#d8e8f0" : "#6b5235");
+  const F = DRV.fx; if (!F.p.parent) world.add(F.p); F.p.material.color.set(kind === "water" ? "#d8e8f0" : "#6b5235"); F.floor = m.y - 1.2;
   const P = F.p.geometry.attributes.position.array, sp = Math.min(1, Math.abs(m.v0) / 5);
   for (let j = 0; j < 3; j++) { const i = F.i++ % F.n, s = Math.random() < .5 ? -1 : 1, sn = Math.sin(m.head), cs = Math.cos(m.head), a = (Math.random() - .3) * m.k.L * .5;
     P[i * 3] = m.x + sn * a + cs * s * m.k.W * .55; P[i * 3 + 1] = m.y + .2; P[i * 3 + 2] = m.z + cs * a - sn * s * m.k.W * .55; F.v[i * 3] = cs * s * (1 + Math.random() * 2) * sp; F.v[i * 3 + 1] = (2 + Math.random() * 3) * sp; F.v[i * 3 + 2] = -sn * s * (1 + Math.random() * 2) * sp; }
 }
-function drvFxStep(dt) { const F = DRV.fx; if (!F?.p.parent) return; const P = F.p.geometry.attributes.position.array; for (let i = 0; i < F.n; i++) { if (P[i * 3 + 1] < -50) continue; F.v[i * 3 + 1] -= 9.8 * dt; P[i * 3] += F.v[i * 3] * dt; P[i * 3 + 1] += F.v[i * 3 + 1] * dt; P[i * 3 + 2] += F.v[i * 3 + 2] * dt; if (P[i * 3 + 1] < -1.2) P[i * 3 + 1] = -999; } F.p.geometry.attributes.position.needsUpdate = true; }
+function drvFxStep(dt) { const F = DRV.fx; if (!F?.p.parent) return; const P = F.p.geometry.attributes.position.array; for (let i = 0; i < F.n; i++) { if (P[i * 3 + 1] < -50) continue; F.v[i * 3 + 1] -= 9.8 * dt; P[i * 3] += F.v[i * 3] * dt; P[i * 3 + 1] += F.v[i * 3 + 1] * dt; P[i * 3 + 2] += F.v[i * 3 + 2] * dt; if (P[i * 3 + 1] < (F.floor ?? -1.2)) P[i * 3 + 1] = -999; } F.p.geometry.attributes.position.needsUpdate = true; }
 // ---------- the run: the start, the clock, the gates, the penalties, the finish ----------
 function drvAtStart(m) { const s = m.k.course === "yard" ? DRV.YS : DRV.HS, [x, z] = dW(s.x, s.z); return Math.hypot(m.x - x, m.z - z) < (m.k.course === "yard" ? 8 : 10); }
 function drvStartMenu() {
   const m = WALK.mil; if (!m) return; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  if (m.sea) return open(`${m.k.ic} ${m.k.name} · שער הזינוק`, `<div class="hero"><p>${m.k.course === "harbour" ? "מסלול הנמל: סלאלום בין 9 המצופים הכתומים (פעם מימין, פעם משמאל), סיבוב סביב המצוף הצהוב הגדול במערב, וחזרה מזרחה בתעלה הצרה שבין המצופים הירוקים לאדומים." : "מסלול הים: יוצאים בין המגדלורים ועוברים בששת השערים הצהובים שעם הדגלים, לפי הסדר, וחוזרים פנימה." + (m.k.dive ? " בין שער 3 לשער 5 נמצא <b>אזור הצלילה</b>: צוללים (🫧) לפני שנכנסים ונשארים בעומק פריסקופ עד שיוצאים." : "")} בסוף <b>עוגנים</b> ליד רציף האימון שעל שובר הגלים המזרחי: מקבילים לרציף, עד 3 מ׳ ממנו, בין הסימונים הצהובים, כמעט בלי תנועה.</p>
+    <p class="note">אין בלמים: עוצרים בהילוך אחורי${m.k.thr ? " · דוחפי צד: מסתובבים גם בלי לנוע" : ""} · זמן יעד ${mss(m.k.target)} · מצוף: 5 שניות · מגע בדופן: 10 שניות${m.k.dive ? " · לא צללת לאורך כל האזור: 20 שניות · כל האזור בעומק = ⭐" : ""} · דילוג על שער: פסילה</p></div>
+    <div class="btns"><button class="btn ghost" id="drvP">🎓 סיבוב אימון (בלי שעון)</button><button class="btn" id="drvR">⏱️ ניסיון אמיתי</button></div>`, () => { $("drvP").onclick = () => { close(); drvBegin(false); }; $("drvR").onclick = () => { close(); drvBegin(true); }; });
   open(`${m.k.ic} ${m.k.name} · קו הזינוק`, `<div class="hero"><p>${m.k.course === "yard" ? "מגרש המכשולים: חמש שורות, עשרה מכשולים, שתי שלוליות בוץ. בסוף נכנסים <b>ברוורס</b> לריבוע שמדרום לשורה האחרונה ועוצרים בתוכו." : "מסלול הכבדים: סיבוב על לולאת החול. שערי פנייה רחבה בעיקול המזרחי, <b>עוצרים</b> בקו העצירה בצפון, עוברים בשער הצר במערב, ובסוף נכנסים <b>ברוורס</b> לרציף הטעינה עד הקיר."}</p>
     <p class="note">זמן יעד ${mss(m.k.target)} · קונוס, צמיג או עמוד: 5 שניות${m.k.course === "heavy" ? " · קיר הרציף: 10 שניות · לא עצרת בקו: 5 שניות" : ""} · דילוג על שער: פסילה${m.k.tracked ? " · 🔭 כל המסלול בפריסקופ = ⭐" : ""}</p></div>
     <div class="btns"><button class="btn ghost" id="drvP">🎓 סיבוב אימון (בלי שעון)</button><button class="btn" id="drvR">⏱️ ניסיון אמיתי</button></div>`, () => { $("drvP").onclick = () => { close(); drvBegin(false); }; $("drvR").onclick = () => { close(); drvBegin(true); }; });
 }
 function drvBegin(real) {
-  const m = WALK.mil; for (const c of DRV.cones) if (c.hit) { c.hit = false; c.m.rotation.set(0, 0, 0); c.m.position.set(c.lx, c.y, c.lz); }
-  DRV.run = { real, kind: m.kind, course: m.k.course, P: drvPath(m.k.course).map(p => { const [x, z] = dW(p.x, p.z); return { x, z }; }), next: 0, t: 0, cd: 3, pen: 0, extra: 0, peri: DRV.view === "peri", stopped: false, stopDone: false, wallT: 0, gate: false };
+  const m = WALK.mil; for (const c of (m.sea ? SAIL.buoys : DRV.cones)) if (c.hit) { c.hit = false; c.m.rotation.set(0, 0, 0); c.m.position.set(c.lx, c.y, c.lz); }
+  DRV.run = { real, kind: m.kind, course: m.k.course, P: (m.sea ? seaPath(m.k.course).map(p => nW(p.x, p.z)) : drvPath(m.k.course).map(p => dW(p.x, p.z))).map(([x, z]) => ({ x, z })), next: 0, t: 0, cd: 3, pen: 0, extra: 0, peri: DRV.view === "peri", star: false, stopped: false, stopDone: false, wallT: 0, gate: false };
   let el = $("drvHud"); if (!el) { el = document.createElement("div"); el.id = "drvHud"; el.className = "glass"; el.style.cssText = "position:fixed;top:74px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:14px;font:700 18px Heebo,Arial;direction:rtl;z-index:40;text-align:center;pointer-events:none;white-space:nowrap"; $("walkUI").appendChild(el); }
   if (!DRV.mark) { const g = new THREE.Group(), mm = new THREE.MeshBasicMaterial({ color: "#ffb627", transparent: true, opacity: .85, depthTest: false }); const a = new THREE.Mesh(new THREE.ConeGeometry(.9, 1.6, 4).rotateX(Math.PI), mm); a.position.y = 4.6; g.add(a); const r = new THREE.Mesh(new THREE.TorusGeometry(3.2, .12, 6, 32).rotateX(Math.PI / 2), mm); r.position.y = .25; g.add(r); g.renderOrder = 5; DRV.mark = g; }
-  world.add(DRV.mark); toast(real ? "🚦 3… 2… 1…" : "🎓 סיבוב אימון · בלי שעון", 2400);
+  if (!m.sea) DRV.mark.scale.setScalar(1); world.add(DRV.mark); toast(real ? "🚦 3… 2… 1…" : "🎓 סיבוב אימון · בלי שעון", 2400);
 }
-function drvPenalty(s, why) { const R = DRV.run; if (!R || R.cd > 0) return; if (s === 10) { if (performance.now() - R.wallT < 1500) return; R.wallT = performance.now(); } R.pen++; R.extra += s; toast(`${why} · +${s} שניות`, 1800); }
+function drvPenalty(s, why) { const R = DRV.run; if (!R || R.cd > 0) return; (R.log ||= []).push([why, Math.round(WALK.x), Math.round(WALK.z)]); if (s === 10) { if (performance.now() - R.wallT < 1500) return; R.wallT = performance.now(); } R.pen++; R.extra += s; toast(`${why} · +${s} שניות`, 1800); }
 function drvRunStep(m, dt) {
   const R = DRV.run, k = m.k; if (R.cd > 0) { R.cd -= dt; if (R.cd <= 0) toast(R.real ? "🟢 סע!" : "🟢 יוצאים לדרך", 1200); }
   else R.t += dt;
@@ -9476,21 +9493,22 @@ function drvRunStep(m, dt) {
 function drvEnd() { DRV.run = null; $("drvHud")?.remove(); DRV.mark?.removeFromParent(); }
 function drvAbort(why) { drvEnd(); toast(why, 3500); }
 async function drvFinish() {
-  const R = DRV.run, m = WALK.mil, k = m.k, ms = Math.round((R.t + R.extra) * 1000), real = R.real, peri = R.peri && k.tracked, ok = real && ms <= k.target * 1000 && R.pen < 3; drvEnd(); m.v0 = 0;
+  const R = DRV.run, m = WALK.mil, k = m.k, ms = Math.round((R.t + R.extra) * 1000), real = R.real, peri = m.sea ? !!R.star : R.peri && k.tracked, ok = real && ms <= k.target * 1000 && R.pen < 3; drvEnd(); m.v0 = 0;
   const h = WALK.h; if (!real) return open(`🎓 ${k.name} · סיבוב האימון הסתיים`, `<div class="hero"><p>${R.pen ? `${R.pen} קנסות בדרך (+${R.extra} שניות).` : "בלי קנסות. מצוין!"} עכשיו אפשר לנסות באמת: חוזרים לקו הזינוק.</p></div>`);
   let best = null, saved = false;
   if (ok && h) { const L = drvLocal(h.u); L.certs ||= {}; if (!L.certs[m.kind] || L.certs[m.kind].ms > ms) L.certs[m.kind] = { ms, peri }; drvLocalSave(h.u, L); }
   const key = h && keyOf(h.u);
   if (h && key) try { const r = await rpc("drive_finish", { username: h.u, key, vehicle: m.kind, ms, pen: R.pen, peri }); if (r?.ok) { saved = true; best = r.best; } else if (r?.error === "unauthorized") dropKey(h.u); } catch { }
   await drvLoad();
-  const next = DRV_ORDER.filter(q => DRV.K[q].lvl === k.lvl + 1);
-  open(ok ? "🎖️ נהג מוסמך!" : `${k.ic} ${k.name} · הסיום`, `<div class="hero"><p style="font-size:1.3em"><b>${drvFmt(ms)}</b>${R.extra ? ` <small>(כולל ${R.extra} שניות קנס)</small>` : ""}</p>
-    <p>${ok ? `עברת את המבחן על ה${k.name}${peri ? " · ⭐ כל הדרך בפריסקופ" : ""}. ${next.length ? `נפתח לך: ${next.map(q => DRV.K[q].ic + " " + DRV.K[q].name).join(", ")}` : "זה השלב האחרון בסולם. כל הכבוד!"}` : R.pen >= 3 ? `${R.pen} קנסות: לתעודה צריך פחות מ־3. עוד ניסיון?` : `זמן היעד הוא ${mss(k.target)}. עוד קצת ותגיע.`}</p>
+  const next = DRV_ALL.filter(q => DRV.K[q].br === k.br && DRV.K[q].lvl === k.lvl + 1);
+  open(ok ? (m.sea ? "⚓ משיט מוסמך!" : "🎖️ נהג מוסמך!") : `${k.ic} ${k.name} · הסיום`, `<div class="hero"><p style="font-size:1.3em"><b>${drvFmt(ms)}</b>${R.extra ? ` <small>(כולל ${R.extra} שניות קנס)</small>` : ""}</p>
+    <p>${ok ? `עברת את המבחן על ה${k.name}${peri ? (m.sea ? " · ⭐ כל אזור הצלילה בעומק" : " · ⭐ כל הדרך בפריסקופ") : ""}. ${next.length ? `נפתח לך: ${next.map(q => DRV.K[q].ic + " " + DRV.K[q].name).join(", ")}` : "זה השלב האחרון בסולם. כל הכבוד!"}` : R.pen >= 3 ? `${R.pen} קנסות: לתעודה צריך פחות מ־3. עוד ניסיון?` : `זמן היעד הוא ${mss(k.target)}. עוד קצת ותגיע.`}</p>
     ${best && best < ms ? `<p class="note">השיא שלך: ${drvFmt(best)}</p>` : ""}${!saved && DRV.sql === false ? `<p class="note">טבלת השיאים תיפתח אחרי הרצת upgrade-62.sql${ok ? " · התעודה נשמרה במכשיר הזה" : ""}</p>` : ""}</div>
-    <div class="btns">${ok ? `<button class="btn" id="drvC">📜 התעודה</button>` : ""}<button class="btn ghost" id="drvS">🏆 טבלאות השיאים</button></div>`, () => { const c = $("drvC"); if (c) c.onclick = () => drvCertShow(h); $("drvS").onclick = () => drvSchool(); });
+    <div class="btns">${ok ? `<button class="btn" id="drvC">📜 התעודה</button>` : ""}<button class="btn ghost" id="drvS">🏆 טבלאות השיאים</button></div>`, () => { const c = $("drvC"); if (c) c.onclick = () => drvCertShow(h); $("drvS").onclick = () => drvSchool(false, k.br === "sea" ? "sea" : "land"); });
 }
 // ---------- the view from inside: the seat (with the wheel and the side mirrors), the hatch, the periscope ----------
-function drvCycleView() { const m = WALK.mil; if (!m) return; const L = m.k.tracked ? ["chase", "seat", "peri"] : ["chase", "seat"]; DRV.view = L[(L.indexOf(DRV.view) + 1) % L.length]; drvPeri(DRV.view === "peri"); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; walkButtons(); }
+function drvCycleView() { const m = WALK.mil; if (!m) return; if (m.sea) { if (DRV.view === "peri") return toast("🔭 מתחת למים רואים רק בפריסקופ · לעלות כדי לצאת", 1800); DRV.view = DRV.view === "chase" ? "seat" : "chase"; seaOverlay(m); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; return walkButtons(); }
+  const L = m.k.tracked ? ["chase", "seat", "peri"] : ["chase", "seat"]; DRV.view = L[(L.indexOf(DRV.view) + 1) % L.length]; drvPeri(DRV.view === "peri"); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; walkButtons(); }
 function drvPeri(on) {
   let el = $("drvPeri"); if (!on) { el?.remove(); return; } if (el) return;
   el = document.createElement("div"); el.id = "drvPeri"; el.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:5";
@@ -9529,6 +9547,209 @@ function drvCockRender(m) {
     renderer.setRenderTarget(DCOCK.rt); renderer.render(scene, c); renderer.setRenderTarget(null); }
   DCOCK.cam.fov = walkCam.fov; DCOCK.cam.aspect = walkCam.aspect; DCOCK.cam.updateProjectionMatrix();
   renderer.autoClear = false; renderer.clearDepth(); renderer.render(DCOCK.sc, DCOCK.cam); renderer.autoClear = true;
+}
+
+// ============ בית הספר לשיט · בסיס חיל הים ============
+// As approved (Nov 2026): a ladder of licences at sea (RHIB → patrol boat → missile boat → submarine → destroyer), each certificate opening the next;
+// the harbour course (a slalom of buoys, round the mark, back through a narrow channel) and the open-sea course (out between the lights, six gates of flags,
+// the submarine's dive zone, back in); every run ends alongside the training berth on the east breakwater's inside. No brakes: astern to stop; big ships drift on,
+// the destroyer and the submarine have bow thrusters. From the console, the bridge (wheel, compass, radar), the submarine's tower, or its periscope.
+const SAIL = {
+  W: -3, PX: 180, PL: 120, FACE: 452.6, BZ0: -330, BZ1: -150, HS: { x: 180, z: -150 }, SS: { x: 0, z: -370 }, DIVE: { x0: -300, x1: 300, z0: -1330, z1: -1180 },
+  SCHOOL: { x: 205, z: 62 }, buoys: [], parked: {}
+};
+Object.assign(DRV.K, {
+  zodiac: { br: "sea", ic: "🚤", name: "סירת גומי", lvl: 1, course: "harbour", target: 150, L: 7.5, W: 2.8, top: 20, acc: 4.2, turn: .95, rv: 2.5, thr: 0, eye: [0, 2.35, 2.2], moor: [185.6, -108, Math.PI], view: "console" },
+  patrol: { br: "sea", ic: "🛥️", name: "סירת סיור", lvl: 2, course: "harbour", target: 200, L: 26, W: 5.6, top: 17, acc: 2.2, turn: .45, rv: 4, thr: 0, eye: [0, 3.95, -4.8], moor: [171, -62, Math.PI], view: "bridge" },
+  missile: { br: "sea", ic: "🚀", name: "ספינת טילים", lvl: 3, course: "sea", target: 330, L: 62, W: 9, top: 17, acc: 1.2, turn: .21, rv: 5, thr: 0, eye: [0, 9.0, -11], moor: [192, -55, Math.PI], view: "bridge" },
+  sub: { br: "sea", ic: "🐋", name: "צוללת", lvl: 4, course: "sea", target: 600, L: 68, W: 8, top: 9, acc: .6, turn: .12, rv: 4, thr: .06, eye: [0, 9.9, -15.5], moor: [-430, -150, Math.PI], view: "tower", dive: true },
+  destroyer: { br: "sea", ic: "🚢", name: "משחתת", lvl: 5, course: "sea", target: 720, L: 135, W: 16, top: 15, acc: .38, turn: .075, rv: 5, thr: .04, eye: [0, 18.2, -24.5], moor: [-400, -168, Math.PI], view: "bridge" }
+});
+const SEA_ORDER = ["zodiac", "patrol", "missile", "sub", "destroyer"], DRV_ALL = DRV_ORDER.concat(SEA_ORDER);
+const nL = (x, z) => { const M = NAT.navy, c = Math.cos(M.ry), s = Math.sin(M.ry), dx = x - M.x, dz = z - M.z; return [dx * c - dz * s, dx * s + dz * c]; };
+// the routes, as checkpoints to pass in order (navy local coordinates)
+const SEA_SLALOM = Array.from({ length: 9 }, (_, k) => 340 - 60 * k), SEA_GATES = [[0, -600], [460, -930], [380, -1250], [0, -1420], [-380, -1250], [-420, -850]];
+function seaPath(course) {
+  const P = [];
+  if (course === "harbour") { P.push({ x: 200, z: -240 }, { x: 370, z: -290 }); SEA_SLALOM.forEach((x, k) => P.push({ x, z: -300 + (k % 2 ? 14 : -14) }));
+    P.push({ x: -205, z: -306 }, { x: -216, z: -332 }, { x: -200, z: -356 }); for (let x = -160; x <= 240; x += 40) P.push({ x, z: -362 }); P.push({ x: 330, z: -352 }, { x: 420, z: -310 }); }
+  else { P.push({ x: 0, z: -440 }); const G = SEA_GATES; P.push({ x: G[0][0], z: G[0][1] }, { x: G[1][0], z: G[1][1] }, { x: G[2][0], z: G[2][1] }, { x: 190, z: -1335 }, { x: G[3][0], z: G[3][1] }, { x: -190, z: -1335 }, { x: G[4][0], z: G[4][1] }, { x: G[5][0], z: G[5][1] }, { x: -150, z: -560 }, { x: 0, z: -440 }, { x: 0, z: -380 }, { x: 200, z: -352 }, { x: 400, z: -335 }); }
+  return P;
+}
+// the fixed things a hull can hit (local rectangles) and the moored ships lying at angles (circles)
+const SEA_RECTS = [[-502, -417, -453, 15], [-502, -417, -65, -383], [453, -417, 502, 15], [65, -417, 502, -383], [-480, -1, 480, 300],
+  [-347, -340, -313, 0], [-183, -270, -157, 0], [-43, -240, -17, 0], [87, -220, 113, 0], [-300, -325, -260, -25], [-207, -223, -187, -57], [-151, -198, -135, -62], [-65, -193, -49, -57], [-9, -140, 3, -50], [64, -165, 82, -55], [121, -135, 133, -45],
+  [216, -200, 284, -14], [292, -210, 318, -182], [369, -112, 444, 0], [177, -121, 183, 0]];
+const SEA_CIRC = [[300, -760, 36], [-8, -205, 16], [-650, -900, 70], [250, -560, 14]];
+function seaHit(lx, lz, r) { for (const b of SEA_RECTS) if (lx > b[0] - r && lx < b[2] + r && lz > b[1] - r && lz < b[3] + r) return b; for (const c of SEA_CIRC) if (Math.hypot(lx - c[0], lz - c[1]) < c[2] + r) return c;
+  for (const kd of SEA_ORDER) { const P = SAIL.parked[kd], k = DRV.K[kd]; if (P?.g.visible && Math.abs(lx - k.moor[0]) < k.W / 2 + r && Math.abs(lz - k.moor[1]) < k.L / 2 + r) return kd; }   // (the training fleet moored)
+  return null; }
+// the RHIB (front toward -z, the waterline at y 0)
+function seaRhib() { const Q = [], sh = new THREE.Shape(); sh.moveTo(-1.4, 3.75); sh.lineTo(1.4, 3.75); sh.lineTo(1.4, -1.2); sh.quadraticCurveTo(1.4, -3.2, 0, -3.75); sh.quadraticCurveTo(-1.4, -3.2, -1.4, -1.2); sh.closePath();
+  Q.push(part(new THREE.ExtrudeGeometry(sh, { depth: .7, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, .7, 0), "#2b2b2b", 0, -.25, 0));
+  for (const s of [-1, 1]) Q.push(cyl(.34, .34, 5.4, 12, "#3a3a3a", s * 1.25, .55 - 2.7, .7, { x: Math.PI / 2 })); Q.push(part(new THREE.SphereGeometry(.42, 12, 8), "#3a3a3a", 0, .55, -2.6));
+  Q.push(box(.9, 1.0, .75, "#555b60", 0, .45, .6), box(.8, .4, .05, "%#9fb4c4", 0, 1.45, .25), part(new THREE.TorusGeometry(.17, .025, 6, 18), "#1f1f1f", 0, 1.6, .5, { x: -.7 }), box(.65, .95, .75, "#1f1f1f", 0, .25, 3.35), box(.45, .45, .45, "#1f1f1f", 0, 1.2, 3.45), box(1.6, .5, .5, "#3a3f44", 0, .45, 1.8));
+  for (let j = 0; j < 4; j++) Q.push(box(.18, .06, .3, "#e8e8e8", (j % 2 ? .6 : -.6), .9, -1.4 + j * .5)); return Q; }
+const SEA_PF = new Map();
+function seaMesh(kind) {
+  if (!SEA_PF.has(kind)) { if (kind === "zodiac") SEA_PF.set(kind, { pf: prefab(seaRhib()), tex: [] }); else { const sh = navyShip(kind); SEA_PF.set(kind, { pf: prefab(sh.parts.map(p => { const q = p.clone(); q.userData.kind = p.userData.kind; return q; })), tex: sh.tex }); } }
+  const { pf, tex } = SEA_PF.get(kind), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = true; body.add(m); }
+  for (const t of tex) { const m = new THREE.Mesh(t.geo, t.mat); m.matrixAutoUpdate = false; m.matrix.copy(t.mx); body.add(m); }
+  if (kind === "sub") body.position.y = .6;
+  return { g, body };
+}
+// the school, the training pontoon, the berth, the buoys and the gates, the moored fleet (built with the base)
+function buildSea(M) {
+  const Q = [], { W } = SEA, SL = NV.SL, AS = "#4a5057"; SAIL.buoys = []; SAIL.parked = {};
+  // the training pontoon off the quay (a floating deck with cleats), the gangway down to it
+  Q.push(box(6, .8, SAIL.PL, "#b9b4a8", SAIL.PX, SL - .3, -SAIL.PL / 2), box(3, .2, 8, "#8f8a7e", SAIL.PX, SL + .3, -2, { x: .3 })); for (let z = -8; z > -SAIL.PL; z -= 12) for (const s of [-1, 1]) Q.push(box(.5, .3, .3, "#3b3b3b", SAIL.PX + s * 2.7, SL + .5, z));
+  // the school on the apron, its door to the quay
+  { const { x, z } = SAIL.SCHOOL; Q.push(box(36, 5, 16, "#e3dcc8", x, 0, z), box(37, .4, 17, "#18284a", x, 5, z), box(2.2, 2.6, .12, "#6b4a2f", x - 6, 0, z - 8.05)); for (let j = 0; j < 6; j++) if (j !== 2) Q.push(box(2.4, 1.4, .1, "%#4f6f88", x - 15 + j * 6, 1.7, z - 8.05)); }
+  // the berth along the east breakwater's inside: its yellow edge, the bollards, the fenders, a mark every 30 m
+  Q.push(box(2.6, .25, SAIL.BZ1 - SAIL.BZ0, "#d4a017", 454.4, 0, (SAIL.BZ0 + SAIL.BZ1) / 2)); for (let z = SAIL.BZ1; z >= SAIL.BZ0; z -= 15) Q.push(cyl(.45, .55, .9, 10, "#2b2b2b", 456.5, 0, z), box(.5, 2.4, 1.6, "#1b1b1b", 452.8, SL + .4, z - 7));
+  for (let z = SAIL.BZ1; z >= SAIL.BZ0; z -= 30) Q.push(box(.4, .3, 2.2, "#ffeb3b", 453.4, .02, z));
+  // a buoy: its float, its mast and its top mark
+  let crs = "harbour"; const buoy = (x, z, c, s = 1, pen = true, flag) => { const B = { lx: x, lz: z, c, s, r: .9 * s, flag, course: crs }; if (pen) SAIL.buoys.push(B); else Q.push(cyl(.7 * s, .9 * s, 1.4 * s, 10, c, x, SL - .5, z), cyl(.05, .05, 1.8 * s, 4, "#333333", x, SL + .9 * s, z)); return B; };
+  SEA_SLALOM.forEach(x => buoy(x, -300, "#ff7a1a")); for (let x = -150; x <= 200; x += 25) { buoy(x, -352, "#2e7d32", .8); buoy(x, -372, "#c62828", .8); } buoy(-190, -330, "#ffd54f", 1.6);
+  for (const s of [-1, 1]) buoy(SAIL.HS.x + s * 11, SAIL.HS.z, "#43a047", 1.1, true, true).start = true;
+  crs = "sea"; for (const s of [-1, 1]) buoy(SAIL.SS.x + s * 26, SAIL.SS.z, "#43a047", 1.4, true, true).start = true;
+  const SP = seaPath("sea"); SEA_GATES.forEach(([x, z]) => { const j = SP.findIndex(p => p.x === x && p.z === z), nx = SP[j + 1], pv = SP[j - 1], dx = nx.x - pv.x, dz = nx.z - pv.z, L = Math.hypot(dx, dz);   /* (each gate square to the way through it) */ for (const s of [-1, 1]) buoy(x + dz / L * 40 * s, z - dx / L * 40 * s, "#ffd54f", 1.5, true, true); });   // (gates 80 m wide: a destroyer turns through them too)
+  { const D = SAIL.DIVE; for (const [x, z] of [[D.x0, D.z0], [D.x1, D.z0], [D.x0, D.z1], [D.x1, D.z1]]) buoy(x, z, "#1b1b1b", 1.4, false); }
+  const g = solid(Q, M.x, M.z, M.ry, null, .3);
+  mountSign(g, sign("⚓ בית הספר לשיט · חיל הים", 14, 1.4, { bg: "#18284a", fg: "#ffffff" }), SAIL.SCHOOL.x, 6.3, SAIL.SCHOOL.z - 8.6, Math.PI);
+  mountSign(g, sign("⚓ רציף העגינה · אימון", 9, 1.3, { bg: "#18284a", fg: "#ffffff" }), 459, 4, (SAIL.BZ0 + SAIL.BZ1) / 2, -Math.PI / 2);
+  mountSign(g, sign("🚤 מזח האימון", 6, 1, { bg: "#18284a", fg: "#ffffff" }), SAIL.PX, 3.2, 4, Math.PI);
+  { const D = SAIL.DIVE; mountSign(g, sign("🫧 אזור צלילה", 8, 1.4, { bg: "#ffd54f", fg: "#1d1d1d" }), D.x1, 4.5, D.z1, 0); }
+  // the buoys that count: each its own piece (one touched drifts off, leaning)
+  const BP = {}, bp = (c, s, flag) => BP[c + s + flag] ||= prefab([cyl(.7 * s, .9 * s, 1.4 * s, 12, c, 0, -.5, 0), cyl(.05, .05, (flag ? 6 : 1.8) * s, 4, "#333333", 0, .9 * s, 0), part(new THREE.SphereGeometry(.25 * s, 8, 6), c, 0, (flag ? 6.6 : 2.9) * s, 0)].concat(flag ? [box(.06, 1.6 * s, 2.6 * s, "#d32f2f", 0, 4.6 * s, 1.3 * s)] : []));
+  const bg = new THREE.Group(); g.add(bg); for (const B of SAIL.buoys) { const m = new THREE.Group(), pf = bp(B.c, B.s, !!B.flag); for (const k of BUCKETS) if (pf[k]) m.add(new THREE.Mesh(pf[k], BMAT[k])); B.y = SL; m.position.set(B.lx, SL, B.lz); bg.add(m); B.m = m; B.hit = false; B.cy = SL; }
+  // the moored training fleet
+  for (const kd of SEA_ORDER) { const k = DRV.K[kd], v = seaMesh(kd); v.g.position.set(k.moor[0], SL, k.moor[1]); v.g.rotation.y = k.moor[2] + Math.PI; g.add(v.g); SAIL.parked[kd] = { g: v.g }; }
+  for (const kd of ["sub", "destroyer"]) { const k = DRV.K[kd]; for (const s of [-1, 1]) { const m = new THREE.Group(), pf = bp("#c62828", 1.3, false); for (const q of BUCKETS) if (pf[q]) m.add(new THREE.Mesh(pf[q], BMAT[q])); m.position.set(k.moor[0], SL, k.moor[1] + s * (k.L / 2 + 8)); g.add(m); } }
+  SAIL.g = g;
+}
+// ---------- getting aboard: from the quay at the pontoon's root (a launch takes you out to the big ones) ----------
+function seaNearBoard() { if (!natOpen("navy") || !SAIL.g || WALK.mode !== "foot") return false; const [lx, lz] = nL(WALK.x, WALK.z); return Math.abs(lx - SAIL.PX) < 9 && lz > -2 && lz < 9; }
+function seaBoardMenu() {
+  const h = WALK.h; if (!h) return; const C = drvCerts(h.u);
+  open("⚓ מזח האימון · לעלות לכלי שיט", `<div class="hero"><p>סולם רישיונות השיט: כל תעודה פותחת את הכלי הבא. סירת הגומי וסירת הסיור שטות במסלול הנמל, ספינת הטילים, הצוללת והמשחתת במסלול הים. כל נסיעה נגמרת בעגינה ליד רציף האימון שעל שובר הגלים המזרחי.</p></div>
+    <div class="list">${SEA_ORDER.map(kd => { const k = DRV.K[kd], open2 = drvUnlocked(h.u, kd), c = C[kd]; return `<button class="li" data-k="${kd}" ${open2 ? "" : "disabled style=\"opacity:.55\""}><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${k.lvl} · ${k.name}</b><small>${k.course === "harbour" ? "מסלול הנמל" : "מסלול הים"} · יעד ${mss(k.target)}${c ? ` · ✅ ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open2 ? "" : " · 🔒"}</small></span><span class="go">›</span></button>`; }).join("")}</div>`,
+    () => document.querySelectorAll("#dBody [data-k]").forEach(b => b.onclick = () => { close(); drvEnter(b.dataset.k); }));
+}
+function seaEnter(kd) {
+  const h = WALK.h, k = DRV.K[kd]; if (!h) return;
+  if (!(navyAllowed(h.u) || ADMIN)) return toast("🔒 רק משרתי ים שטים בכלי האימון");
+  if (!drvUnlocked(h.u, kd)) { const need = SEA_ORDER.filter(q => DRV.K[q].lvl === k.lvl - 1).map(q => DRV.K[q].name).join(" / "); return toast(`🔒 ה${k.name} נפתח אחרי תעודת משיט מוסמך על ${need}`, 3500); }
+  if (WALK.mil) drvPark();
+  const P = SAIL.parked[kd]; if (P) P.g.visible = false; seaShow(k.course);   // (the marks of one course are laid at a time: the other's are taken up)
+  const v = seaMesh(kd), [x, z] = nW(k.moor[0], k.moor[1]), head = k.moor[2] + NAT.navy.ry; world.add(v.g);
+  const m = { sea: true, kind: kd, k, v, x, z, head, u: 0, w: 0, r: 0, v0: 0, y: SAIL.W, pitch: 0, roll: 0, steer: 0, depth: 0, want: 0, wk: [], t: 0 };
+  WALK.mil = m; WALK.mode = "mil"; WALK.fig.visible = false; DRV.view = "chase"; WALK.cy = head + Math.PI; WALK.pitch = .28; seaPlace(m, 0); walkButtons();
+  scene.fog.near = 350; scene.fog.far = 2600;   // (out on the water you see far: the gates, the lights)
+  toast(`${k.ic} ${k.name} · ${k.course === "harbour" ? "שטים לשער הזינוק הירוק מדרום למזח האימון" : "שטים לשער הזינוק הירוק בפתח הנמל, בין המגדלורים"}${k.thr ? " · דוחפי צד: מסתובבים גם בלי לנוע" : ""}`, 4500);
+}
+// ---------- sailing ----------
+function seaStep(dt) {
+  const m = WALK.mil, k = m.k, K = WALK.keys; let steer = 0, gas = 0; m.t += dt;
+  if (K.ArrowUp || K.KeyW) gas += 1; if (K.ArrowDown || K.KeyS) gas -= 1; if (K.ArrowLeft || K.KeyA) steer -= 1; if (K.ArrowRight || K.KeyD) steer += 1;
+  if (Math.hypot(WALK.joy.x, WALK.joy.y) > .15) { gas = WALK.joy.y; steer = WALK.joy.x; }   // (at sea the stick is the throttle and the wheel, whatever the view)
+  if (DRV.run?.cd > 0) gas = Math.min(gas, 0);
+  gas = Math.max(-1, Math.min(1, gas)); steer = Math.max(-1, Math.min(1, steer)); m.steer += (steer - m.steer) * Math.min(1, dt * (k.L < 30 ? 6 : 2));
+  const sub = m.depth > 3, top = sub ? 10 : k.top, dragK = k.acc / (top * top);
+  m.u += ((gas > 0 ? k.acc * gas : gas < 0 ? k.acc * .6 * gas : 0) - dragK * m.u * Math.abs(m.u) * (gas < 0 && m.u < 0 ? 2.5 : 1) - (gas === 0 ? m.u * .03 : 0)) * dt;
+  // the rudder bites only with water flowing past it; the thrusters turn her on the spot
+  const flow = Math.min(1, Math.abs(m.u) / k.rv), rT = -m.steer * (k.turn * flow * Math.sign(m.u || 1) + k.thr * (1 - Math.min(1, Math.abs(m.u) / 2.5)));
+  m.r += (rT - m.r) * Math.min(1, dt * (k.L < 30 ? 3 : k.L < 70 ? 1.2 : .5)); m.head += m.r * dt;
+  m.w += (-m.r * m.u * (k.L < 30 ? .35 : .12) - m.w * (k.L < 30 ? 1.6 : .7)) * dt;   // (a slide outward in the turns)
+  const sn = Math.sin(m.head), cs = Math.cos(m.head), nx = m.x + (sn * m.u + cs * m.w) * dt, nz = m.z + (cs * m.u - sn * m.w) * dt;
+  // the hull against the quays, the breakwaters, the piers, the moored ships, the shore
+  const pts = (x, z) => { const o = []; for (const f of [-.45, -.22, 0, .22, .45]) o.push([x + sn * k.L * f, z + cs * k.L * f]); return o; };
+  let hit = null; for (const [px, pz] of pts(nx, nz)) { const [lx, lz] = nL(px, pz); hit = seaHit(lx, lz, k.W / 2) || (onGrass(px, pz, S.s, .01) && !(Math.abs(lx) < 520 && lz > -440 && lz < 0) ? "shore" : null) || (Math.abs(lx) > 2200 || lz < -2400 ? "far" : null); if (hit) break; }
+  const spd = Math.hypot(m.u, m.w);
+  if (hit) { if (DRV.run && spd > 1) drvPenalty(10, "💥 מגע בדופן"); else if (spd > 1.5 && WALK.frame % 20 === 0) toast(hit === "far" ? "🚧 כלי האימון נשארים קרוב לבסיס" : "💥 זהירות · מגע בדופן", 1400); m.u *= -.25; m.w = 0; m.r *= .5; }
+  else { m.x = nx; m.z = nz; }
+  if (k.dive) { m.depth += Math.max(-1.2 * dt, Math.min(1.2 * dt, m.want - m.depth)); if (m.depth > 3 && DRV.view !== "peri") { DRV.view = "peri"; seaOverlay(m); walkButtons(); } if (m.depth < 2 && DRV.view === "peri") { DRV.view = "chase"; seaOverlay(m); walkButtons(); } }
+  if (spd > 5 && !sub && k.L < 70) drvSplash({ ...m, y: SAIL.W + .3, k: { ...k, L: k.L * .4 }, x: m.x + sn * k.L * .35, z: m.z + cs * k.L * .35 }, "water", dt);
+  seaWake(m, dt); seaPlace(m, dt);
+  m.v0 = m.u; if (DRV.run) seaRunStep(m, dt);
+  // the camera
+  WALK.x = m.x; WALK.z = m.z; const view = DRV.view;
+  if (view !== "chase") {
+    const e = view === "peri" ? [0, 0, k.eye[2]] : k.eye, s2 = Math.sin(m.head + Math.PI), c2 = Math.cos(m.head + Math.PI), ex = m.x + e[0] * c2 + e[2] * s2, ez = m.z - e[0] * s2 + e[2] * c2;
+    const ey = view === "peri" ? SAIL.W + 1.4 + Math.sin(m.t * 1.1) * .15 : m.y + e[1] + (k.dive ? .6 : 0);
+    walkCam.near = .05; walkCam.position.set(ex, ey, ez); walkCam.lookAt(ex + sn * 30, ey - (view === "peri" ? 0 : k.L < 10 ? 1.1 : 1.6) + Math.tan(m.pitch) * 30, ez + cs * 30); walkCam.updateProjectionMatrix(); WALK.cy = m.head + Math.PI;
+  } else {
+    if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
+    if (performance.now() - WALK.lastDrag > 900) WALK.cy += angDiff(m.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);
+    const bx = WALK.boxes; WALK.boxes = []; placeWalkCam(m.x, SAIL.W + 2 + k.L * .1, m.z, k.L * 1.05 + 12 + Math.abs(m.u) * .3); WALK.boxes = bx;
+  }
+  if (WALK.frame % 6 === 0) { const sp = $("wSpd"); if (sp) { sp.textContent = `${k.ic} ${Math.round(Math.abs(m.u) * 1.944)} קשר${k.dive && m.depth > .5 ? ` · עומק ${Math.round(m.depth)} מ׳` : ""}`; sp.classList.remove("low"); } seaOverlayTick(m); }
+}
+// the waves: a gentle swell inside the breakwaters, bigger outside; the small ones ride it, the big ones barely notice
+function seaPlace(m, dt) {
+  const k = m.k, [lx, lz] = nL(m.x, m.z), out = lz < -405 || Math.abs(lx) > 470 ? 1 : .3, A = out * 1.1 / Math.sqrt(Math.max(1, k.L / 7)), t = m.t;
+  m.y = SAIL.W - (k.dive ? m.depth : 0) + A * .4 * Math.sin(t * 1.3 + m.x * .02);
+  const p = A * .05 * Math.sin(t * .9 + 1) + (k.L < 30 ? -Math.min(.12, Math.max(0, m.u) * .006) : 0), rl = A * .06 * Math.sin(t * .7) + Math.max(-.2, Math.min(.2, m.r * m.u * (k.L < 30 ? .06 : .03)));
+  m.pitch = p; m.roll = rl; m.v.g.position.set(m.x, m.y, m.z); m.v.g.rotation.order = "YXZ"; m.v.g.rotation.set(-p, m.head + Math.PI, rl);
+}
+// the wake: a white trail spreading behind the stern
+function seaWake(m, dt) {
+  const k = m.k; if (!m.wkMesh) { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(60 * 2 * 3), 3)); const idx = []; for (let i = 0; i < 59; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } g.setIndex(idx);
+    m.wkMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: "#f4f9fb", transparent: true, opacity: .55, side: THREE.DoubleSide, depthWrite: false })); m.wkMesh.frustumCulled = false; world.add(m.wkMesh); }
+  const sn = Math.sin(m.head), cs = Math.cos(m.head), sx = m.x - sn * k.L * .48, sz = m.z - cs * k.L * .48;
+  if (Math.abs(m.u) > 1 && m.depth < 3 && (!m.wk.length || Math.hypot(m.wk[0].x - sx, m.wk[0].z - sz) > Math.max(2, k.L * .12))) { m.wk.unshift({ x: sx, z: sz, h: m.head, w: k.W * .45 }); if (m.wk.length > 60) m.wk.pop(); }
+  for (const p of m.wk) p.w += dt * (1.2 + k.W * .08);
+  if (WALK.frame % 2) return; const P = m.wkMesh.geometry.attributes.position.array; P.fill(0); const L = [{ x: sx, z: sz, h: m.head, w: k.W * .45 }].concat(m.wk).slice(0, 60);
+  L.forEach((p, i) => { const c = Math.cos(p.h), s = Math.sin(p.h), y = SAIL.W + .14; P.set([p.x + c * p.w, y, p.z - s * p.w, p.x - c * p.w, y, p.z + s * p.w], i * 6); });
+  m.wkMesh.geometry.attributes.position.needsUpdate = true; m.wkMesh.material.opacity = .55 * Math.min(1, Math.abs(m.u) / 3 + .2); m.wkMesh.geometry.setDrawRange(0, Math.max(0, L.length - 1) * 6);
+}
+function seaShow(course) { for (const B of SAIL.buoys) B.m.visible = B.course === course; }
+function seaDive() { const m = WALK.mil; if (!m?.k.dive) return; m.want = m.want > 0 ? 0 : 14; toast(m.want ? "🫧 צוללים לעומק פריסקופ · 14 מ׳" : "⬆️ עולים לפני המים", 1800); walkButtons(); }
+// ---------- the run at sea: the gates, the buoys, the dive zone, the berth ----------
+function seaAtStart(m) { const s = m.k.course === "harbour" ? SAIL.HS : SAIL.SS, [x, z] = nW(s.x, s.z); return Math.hypot(m.x - x, m.z - z) < (m.k.course === "harbour" ? 16 : 40); }
+function seaRunStep(m, dt) {
+  const R = DRV.run, k = m.k; if (R.cd > 0) { R.cd -= dt; if (R.cd <= 0) toast(R.real ? "🟢 הפלגה!" : "🟢 יוצאים לדרך", 1200); } else R.t += dt;
+  const sn = Math.sin(m.head), cs = Math.cos(m.head);
+  for (const B of SAIL.buoys) { if (B.hit || B.start || !B.m.visible) continue; const [bx, bz] = nW(B.lx, B.lz), dx = bx - m.x, dz = bz - m.z, a = dx * sn + dz * cs, b = dx * cs - dz * sn;
+    if (Math.abs(a) < k.L / 2 + B.r && Math.abs(b) < k.W / 2 + B.r) { B.hit = true; B.m.rotation.set(.5, 0, .35); B.m.position.set(B.lx + 2.5, B.y - .3, B.lz + 2); drvPenalty(5, "🟠 נגעת במצוף"); } }
+  const P = R.P; if (R.next < P.length) { const rad = R.course === "harbour" ? Math.max(9, k.W * 1.6) : 34, p = P[R.next];
+    if (Math.hypot(m.x - p.x, m.z - p.z) < rad) R.next++; else for (let j = R.next + 2; j < Math.min(P.length, R.next + 6); j++) if (Math.hypot(m.x - P[j].x, m.z - P[j].z) < rad) return drvAbort("❌ דילגת על שער · ההפלגה נפסלה"); }
+  // the submarine's dive zone: all of it at periscope depth
+  if (k.dive) { const [lx, lz] = nL(m.x, m.z), D = SAIL.DIVE, inside = lx > D.x0 && lx < D.x1 && lz > D.z0 && lz < D.z1;
+    if (inside) { R.zoneIn = true; if (m.depth < 6) R.zoneSurf = true; } else if (R.zoneIn && !R.zoneDone) { R.zoneDone = true; if (R.zoneSurf) drvPenalty(20, "🫧 לא צללת לאורך כל אזור הצלילה"); else { R.star = true; toast("✅ קטע הצלילה · ⭐", 1600); } } }
+  // the finish: alongside the berth, parallel, within 3 m, between the marks, all but still
+  if (R.next >= P.length) { const [lx, lz] = nL(m.x, m.z), hl = m.head - NAT.navy.ry, par = Math.min(Math.abs(angDiff(hl, 0)), Math.abs(angDiff(hl, Math.PI))), gap = SAIL.FACE - (lx + k.W / 2);
+    if (par < .14 && gap > -.6 && gap < 3 && lz - k.L / 2 > SAIL.BZ0 - 3 && lz + k.L / 2 < SAIL.BZ1 + 3 && Math.hypot(m.u, m.w) < .35 && m.depth < 1) return drvFinish(); }
+  const nx = R.next < P.length ? P[R.next] : (() => { const [x, z] = nW(SAIL.FACE - k.W / 2 - 1.5, (SAIL.BZ0 + SAIL.BZ1) / 2); return { x, z }; })();
+  if (DRV.mark) { DRV.mark.position.set(nx.x, SAIL.W, nx.z); DRV.mark.scale.setScalar(R.course === "harbour" ? 1.4 : 4); DRV.mark.children[0].position.y = 4.6 + Math.sin(performance.now() / 250) * .3; }
+  const el = $("drvHud"); if (el && WALK.frame % 5 === 0) el.innerHTML = R.cd > 0 ? `🚦 ${Math.ceil(R.cd)}` : `${R.real ? `⏱ ${drvFmt(R.t * 1000)}` : "🎓 אימון"}${R.pen ? ` · ⚠️ ${R.pen} קנסות (+${R.extra}ש׳)` : ""} · ${R.next >= P.length ? "⚓ לעגון ליד רציף האימון" : `שער ${R.next + 1}/${P.length}`}${R.star ? " · ⭐" : ""}`;
+}
+// ---------- the view from inside: the console, the bridge (window frames, the wheel, the radar, the compass), the periscope ----------
+function seaOverlay(m) {
+  $("seaOv")?.remove(); const v = m && DRV.view !== "chase" ? (DRV.view === "peri" ? "peri" : m.k.view) : null; if (!v) return;
+  const el = document.createElement("div"); el.id = "seaOv"; el.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:5"; const W = innerWidth, H = innerHeight, s = Math.min(W, H);
+  const ins = (x, y) => `<div style="position:absolute;left:${x}px;top:${y}px;background:#0b0e0a;border:2px solid #4b5540;border-radius:10px;padding:6px 12px;font:700 ${Math.round(s * .032)}px Heebo,Arial;color:#8fe36a;direction:rtl;line-height:1.35" id="seaIns"></div>`;
+  if (v === "peri") { const r = s * .42; el.innerHTML = `<svg width="100%" height="100%" style="position:absolute;inset:0"><defs><mask id="seaM"><rect width="100%" height="100%" fill="#fff"/><circle cx="${W / 2}" cy="${H / 2}" r="${r}" fill="#000"/></mask></defs><rect width="100%" height="100%" fill="#0c0f10" mask="url(#seaM)"/><circle cx="${W / 2}" cy="${H / 2}" r="${r}" fill="none" stroke="#222" stroke-width="14"/>
+      <line x1="${W / 2 - r}" y1="${H / 2}" x2="${W / 2 + r}" y2="${H / 2}" stroke="#111" stroke-width="2"/><line x1="${W / 2}" y1="${H / 2 - r}" x2="${W / 2}" y2="${H / 2 + r}" stroke="#111" stroke-width="2"/>${[-3, -2, -1, 1, 2, 3].map(i => `<line x1="${W / 2 + i * r / 4}" y1="${H / 2 - 9}" x2="${W / 2 + i * r / 4}" y2="${H / 2 + 9}" stroke="#111" stroke-width="2"/>`).join("")}</svg>${ins(W * .04, H * .8)}`; }
+  else if (v === "bridge") { const win = [0, 1, 2, 3].map(i => `<rect x="${(.035 + i * .235) * W}" y="${.1 * H}" width="${.2 * W}" height="${.4 * H}" rx="6" fill="#000"/>`).join("");
+    el.innerHTML = `<svg width="100%" height="100%" style="position:absolute;inset:0"><defs><mask id="seaM"><rect width="100%" height="100%" fill="#fff"/>${win}</mask></defs><rect width="100%" height="${.56 * H}" fill="#3c4247" mask="url(#seaM)"/><rect y="${.56 * H}" width="100%" height="${.44 * H}" fill="#2a2f33"/><rect y="${.55 * H}" width="100%" height="10" fill="#1d2124"/>
+      <g id="seaWheel" transform="translate(${W * .5} ${H * .9})"><circle r="${H * .12}" fill="none" stroke="#6b4a2f" stroke-width="${s * .018}"/>${[0, 1, 2, 3, 4, 5].map(i => `<line x1="0" y1="0" x2="${Math.cos(i * 1.047) * H * .15}" y2="${Math.sin(i * 1.047) * H * .15}" stroke="#6b4a2f" stroke-width="${s * .012}"/>`).join("")}<circle r="${s * .02}" fill="#4a3320"/></g></svg>
+      <canvas id="seaRad" width="220" height="220" style="position:absolute;left:${W * .06}px;top:${H * .62}px;width:${s * .3}px;height:${s * .3}px;border-radius:12px;border:3px solid #3a4a3a"></canvas>${ins(W * .7, H * .64)}`; }
+  else el.innerHTML = ins(W * .06, H * .72);
+  document.body.appendChild(el); seaOverlayTick(m);
+}
+function seaOverlayTick(m) {
+  const ins = $("seaIns"); if (!ins) return; const R = DRV.run, hd = Math.round(((((m.head - NAT.navy.ry) * 180 / Math.PI) % 360) + 360 + 180) % 360);
+  ins.innerHTML = `🧭 ${String(hd).padStart(3, "0")}° · ${Math.round(Math.abs(m.u) * 1.944)} קשר${m.k.dive ? `<br>עומק ${Math.round(m.depth)} מ׳` : ""}${R && R.cd <= 0 && R.real ? `<br>⏱ ${drvFmt(R.t * 1000)}` : ""}`;
+  const wh = $("seaWheel"); if (wh) wh.setAttribute("transform", wh.getAttribute("transform").replace(/ rotate\([^)]*\)/, "") + ` rotate(${m.steer * 120})`);
+  const cv = $("seaRad"); if (!cv) return; const x = cv.getContext("2d"), c = 110, sc = m.k.course === "harbour" || !R ? .2 : .07;
+  x.fillStyle = "#08130c"; x.fillRect(0, 0, 220, 220); x.strokeStyle = "#2f8f4f"; x.lineWidth = 1; for (const r of [35, 70, 105]) { x.beginPath(); x.arc(c, c, r, 0, 7); x.stroke(); }
+  const rel = (wx, wz) => { const dx = wx - m.x, dz = wz - m.z, a = -(m.head), sx = dx * Math.cos(a) - dz * Math.sin(a), sz = dx * Math.sin(a) + dz * Math.cos(a); return [c - sx * sc, c - sz * sc]; };
+  x.fillStyle = "#4fa86a"; for (const b of SEA_RECTS) { const [x0, z0] = nW(b[0], b[1]), [x1, z1] = nW(b[2], b[3]), [cx, cz] = nW((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), [u, v] = rel(cx, cz); if (u > -20 && u < 240 && v > -20 && v < 240) { x.fillRect(u - 2, v - 2, 4, 4); } }
+  x.fillStyle = "#ff9a3a"; for (const B of SAIL.buoys) { const [bx, bz] = nW(B.lx, B.lz), [u, v] = rel(bx, bz); if (u > 0 && u < 220 && v > 0 && v < 220) x.fillRect(u - 1.5, v - 1.5, 3, 3); }
+  if (R && R.next < R.P.length) { const p = R.P[R.next], [u, v] = rel(p.x, p.z); x.fillStyle = "#ffd54f"; x.beginPath(); x.arc(Math.max(6, Math.min(214, u)), Math.max(6, Math.min(214, v)), 6, 0, 7); x.fill(); }
+  x.fillStyle = "#7ff09f"; x.beginPath(); x.moveTo(c, c - 8); x.lineTo(c - 5, c + 6); x.lineTo(c + 5, c + 6); x.fill(); const sw = (performance.now() / 600) % (Math.PI * 2); x.strokeStyle = "#7ff09f"; x.beginPath(); x.moveTo(c, c); x.lineTo(c + Math.cos(sw) * 105, c + Math.sin(sw) * 105); x.stroke();
 }
 
 // ============ ימית סבבה ============
@@ -10266,7 +10487,7 @@ function landCarve(x, z, h) {
   return h;
 }
 // embankments: under every new road, ramp and roundabout the land is built up to just below the road, with 1:2 side slopes
-function landFill(x, z, h) {
+function landFill(x, z, h) { const h0 = h;
   for (const B of LAND.br) { const dx = x - B.x, dz = z - B.z, uu = Math.abs(dx * B.ux + dz * B.uz), vv = Math.abs(dx * B.uz - dz * B.ux); if (uu < B.hs || uu > B.hs + B.ramp || vv > 60) continue;
     const g = B.deck - .55 + (h - B.deck + .55) * smooth01(B.hs, B.hs + B.ramp, uu); if (g <= h) continue; const reach = B.w / 2 + 2 + (g - h) * 2.8, k = vv < B.w / 2 + 2 ? 1 : Math.max(0, 1 - (vv - B.w / 2 - 2) / (reach - B.w / 2 - 2)); h = Math.max(h, h + (g - h) * k); }
   // each road (and roundabout) counts once, by its nearest point; the nearest of them is laid last, so it is the one exactly under you
@@ -10277,8 +10498,12 @@ function landFill(x, z, h) {
     if (best && !best.skip) cand.push(best); }
   for (const D of LAND.discs) { const v = Math.max(0, Math.hypot(x - D.x, z - D.z) - D.r); if (v < 90) cand.push({ v, y: D.y - .32, hw: 0, disc: true }); }
   cand.sort((p, q) => q.v - p.v);
+  // (Nov 2026) on סבבהום's hill the hill is laid over the land afterwards (pulled toward its top by its weight): each road's level is set so that what is left after that is the road's own level (it used to bury the ramps on the slope)
+  const mw = Math.min(.85, typeof moundW === "function" ? moundW(x, z) : 0), mt = HT_U.uMound.value.z; if (mw > .001) for (const c of cand) c.y = (c.y - mt * mw) / (1 - mw);
   for (const c of cand) { const dh = Math.abs(c.y - h); if (dh < .02) continue; const core = c.hw + (c.y < h ? (c.disc ? 8 : 9) : (c.disc ? 0 : 1)), reach = core + dh * 2.6; if (c.v >= reach) continue;   // built up where the land is low, cut where it is high (a cutting a little wider than the road, so the slopes never lean over it)
     const t = c.v <= core ? 1 : 1 - (c.v - core) / (reach - core); h = h + (c.y - h) * t; }
+  // (Nov 2026) the highway through סבבהום's interchange keeps its own ground: the ramps' embankments rise beside it, never over its edges (they used to bury it in jagged pieces)
+  const Y = LAND.yk; if (Y && Y.Fp) { const dx = x - Y.hx, dz = z - Y.hz, al = dx * Y.ux + dz * Y.uz, of = Math.abs(dx * Y.nx + dz * Y.nz); if (al > -40 && al < 500 && of < 10 && h > h0) h = h0 + (h - h0) * smooth01(7.5, 10, of); }
   return h;
 }
 // for the colors of the land: how far from the water's edge, and how much of the height here is mountain
@@ -10388,17 +10613,28 @@ function landPrep() {
       landChunk2(R); } }
   // ---- interchange 115 for סבבהום: two roundabouts on embankments, an overpass, four ramps, and the store's own boulevard
   if (LAND.yk) { const Y = LAND.yk, Fp = (al, of) => ({ x: Y.hx + Y.ux * al + Y.nx * of, z: Y.hz + Y.uz * al + Y.nz * of });
-    const J = 230, grade = al => terrainBase0(Fp(al, 0).x, Fp(al, 0).z) + (moundW(Fp(al, 0).x, Fp(al, 0).z) > 0 ? (HT_U.uMound.value.z - terrainBase0(Fp(al, 0).x, Fp(al, 0).z)) * moundW(Fp(al, 0).x, Fp(al, 0).z) : 0);
+    const J = 230, grade0 = al => terrainBase0(Fp(al, 0).x, Fp(al, 0).z) + (moundW(Fp(al, 0).x, Fp(al, 0).z) > 0 ? (HT_U.uMound.value.z - terrainBase0(Fp(al, 0).x, Fp(al, 0).z)) * moundW(Fp(al, 0).x, Fp(al, 0).z) : 0);
+    // (Nov 2026) the highway's own surface: where it climbs to a bridge, the ramps meet it up on its embankment, not down on the ground beside it
+    const grade = al => { const P = Fp(al, 0); let h = grade0(al); for (const B of LAND.br) { const dx = P.x - B.x, dz = P.z - B.z, uu = Math.abs(dx * B.ux + dz * B.uz), vv = Math.abs(dx * B.uz - dz * B.ux); if (uu > B.hs + B.ramp + 1 || vv > B.w / 2 + 8) continue; const top = B.deck - .26, g = top + (h - top) * smooth01(B.hs, B.hs + B.ramp, uu); h = Math.max(h, g); } return h; };
+    // and the far ramps join it before a river it bridges (their lanes never hang out over the water beside the deck)
+    let F = 390; for (const B of LAND.br) { const al = (B.x - Y.hx) * Y.ux + (B.z - Y.hz) * Y.uz; if (al > J && al - B.hs < 470) F = Math.min(F, Math.max(J + 62, al - B.hs - 64)); } Y.F = F;
     const yR = grade(J) + 7.8, Ro = 19, R1 = Fp(J, 52), R2 = Fp(J, -52); Y.J = J; Y.yR = yR; Y.R1 = R1; Y.R2 = R2; Y.Ro = Ro; Y.Fp = Fp; Y.grade = grade;
     LAND.discs.push({ x: R1.x, z: R1.z, r: Ro + 1, y: yR }, { x: R2.x, z: R2.z, r: Ro + 1, y: yR });
-    const ramp = (pts, y0, y1) => { pts.forEach((p, i) => { const t = i / (pts.length - 1); p.y = y0 + (y1 - y0) * smooth01(0, 1, t) + .3; }); return pts; };
+    // a ramp keeps the highway's own level while it runs alongside it, and climbs to the roundabout only once it has pulled away (its embankment never spills onto the carriageway)
+    const ramp = pts => { const q = pts.map(p => { const dx = p.x - Y.hx, dz = p.z - Y.hz; return { al: dx * Y.ux + dz * Y.uz, of: Math.abs(dx * Y.nx + dz * Y.nz) }; });
+      let k = q.findIndex(o => o.of >= 15), k2 = q.length - 1 - [...q].reverse().findIndex(o => o.of >= 15); const near0 = q[0].of < q[q.length - 1].of, dep = grade(q[near0 ? Math.max(0, k) : Math.min(q.length - 1, k2)].al);
+      pts.forEach((p, i) => { const o = q[i]; p.y = (o.of < 15 ? grade(o.al) : dep + (yR - dep) * smooth01(15, 46, o.of)) + .3; if (o.of > 12) p.y = Math.max(p.y, terrainH(p.x, p.z) + .35); });
+      // (on סבבהום's hill the ramp rides over the slope, never into it), then eased so it climbs in one even grade
+      for (let it = 0; it < 6; it++) { const y = pts.map(p => p.y); for (let i = 2; i < pts.length - 2; i++) { if (q[i].of < 15) continue; pts[i].y = Math.max((y[i - 2] + y[i - 1] + y[i] + y[i + 1] + y[i + 2]) / 5, terrainH(pts[i].x, pts[i].z) + .35); } }
+      return pts; };
     const rA = ramp(landBez(Fp(70, 9.8), Fp(140, 11.5), Fp(J - 48, 52), Fp(J - Ro, 52), 40), grade(70), yR);
-    const rB = ramp(landBez(Fp(J + Ro, 52), Fp(J + 48, 52), Fp(320, 11.5), Fp(390, 9.8), 40), yR, grade(390));
-    const rC = ramp(landBez(Fp(390, -9.8), Fp(320, -11.5), Fp(J + 48, -52), Fp(J + Ro, -52), 40), grade(390), yR);
+    const Fm = Math.max(J + 52, F - 70);
+    const rB = ramp(landBez(Fp(J + Ro, 52), Fp(J + 48, 52), Fp(Fm, 11.5), Fp(F, 9.8), 40), yR, grade(F));
+    const rC = ramp(landBez(Fp(F, -9.8), Fp(Fm, -11.5), Fp(J + 48, -52), Fp(J + Ro, -52), 40), grade(F), yR);
     const rD = ramp(landBez(Fp(J - Ro, -52), Fp(J - 48, -52), Fp(140, -11.5), Fp(70, -9.8), 40), yR, grade(70));
     // a taper: the ramp lane opens out of the highway's edge (or closes into it) over 60 m, as on a real highway
     const taper = (al0, al1, sd) => Array.from({ length: 13 }, (_, i) => { const t = i / 12, al = al0 + (al1 - al0) * t, w = 3.6 * t, p = Fp(al, sd * (6 + w)); return { ...p, y: grade(al) + .3, w: Math.max(.05, w) }; });
-    rA.unshift(...taper(10, 66, 1)); rB.push(...taper(450, 394, 1).reverse()); rC.unshift(...taper(450, 394, -1)); rD.push(...taper(10, 66, -1).reverse());
+    rA.unshift(...taper(10, 66, 1)); rB.push(...taper(F + 60, F + 4, 1).reverse()); rC.unshift(...taper(F + 60, F + 4, -1)); rD.push(...taper(10, 66, -1).reverse());
     for (const r of [rA, rB, rC, rD]) landChunk2(landRoad(r, 3.6, { kind: "ramp" })); Y.rmp = { A: rA, B: rB, C: rC, D: rD };
     const ov = Array.from({ length: 21 }, (_, i) => ({ ...Fp(J, -52 + Ro + (104 - 2 * Ro) * i / 20), y: yR + .3 })); const RO = landRoad(ov, 5.5, { kind: "over" }); RO.skip = [[(104 - 2 * Ro) / 2 - 15, (104 - 2 * Ro) / 2 + 15]]; landChunk2(RO);
     const e0 = Y.W(-58, 46), yTop = HT_U.uMound.value.z, fr = landBez(e0, { x: e0.x + Y.ux * 70, z: e0.z + Y.uz * 70 }, Fp(J, 52 + Ro + 46), Fp(J, 52 + Ro), 50);
@@ -10900,7 +11136,7 @@ const GATE_SPEC = { wide: { Ri: 16, Ro: 31 }, blv: { Ri: 10, Ro: 22 }, std: { Ri
 let HW_MEMO = null;
 function hwPlan() {
   const open = S.slots.filter(s => s.city), cap = open[0]; if (!cap) return { segs: [], rings: [], terms: [] };
-  const key = `${S.s}|${open.map(s => s.x + ":" + s.z + ":" + (s.blocks?.size || 0)).join("|")}|${PALM.geo ? PALM.geo.approach.x : "-"}|${natP("navy") ? NAT.navy.gx : "-"}`; if (HW_MEMO?.key === key) return HW_MEMO;
+  const key = `${S.s}|${open.map(s => s.x + ":" + s.z + ":" + (s.blocks?.size || 0)).join("|")}|${PALM.geo ? PALM.geo.approach.x : "-"}|${natP("navy") ? NAT.navy.gx : "-"}|${natP("sports") ? "sp" : "-"}`; if (HW_MEMO?.key === key) return HW_MEMO;
   const rings = [], ring = (sl, tx, tz, wide) => { const g = cityGate(sl, tx, tz, wide), sp = wide ? GATE_SPEC.wide : g.blv ? GATE_SPEC.blv : GATE_SPEC.std, R = { ...sp, x: g.x + g.ox * (sp.Ro + 3), z: g.z + g.oz * (sp.Ro + 3), gate: g, wide, blv: !wide && g.blv, sl, rf: (sp.Ri + sp.Ro) / 2 };
     const same = rings.find(q => Math.hypot(q.x - R.x, q.z - R.z) < 1); if (same) return same; rings.push(R); return R; };
   const terms = COAST.filter(c => TERM_SPEC[c.id]).map(c => { const T = TERM_SPEC[c.id], p = shorePt(c.t, S.s, .97), out = Math.atan2(Math.cos(c.t) * RZ0, Math.sin(c.t) * RX0), ox = Math.sin(out), oz = Math.cos(out);
@@ -10924,6 +11160,19 @@ function hwPlan() {
       let best = null; for (const [wx, wz] of [[E.x0, E.z0], [E.x1, E.z0], [E.x0, E.z1], [E.x1, E.z1]]) { if (hits(a, b, wx, wz) || hits(wx, wz, c, d) || !onGrass(wx, wz, S.s, .03)) continue; const L = Math.hypot(wx - a, wz - b) + Math.hypot(c - wx, d - wz); if (!best || L < best.L) best = { wx, wz, L }; }
       if (!best) continue; const sp = GATE_SPEC.std, W = { ...sp, x: best.wx, z: best.wz, rf: (sp.Ri + sp.Ro) / 2, gate: null, bypass: true }; rings.push(W);
       segs.splice(i, 1, [a, b, W.x, W.z, w, id, { ...M, B: W }], [W.x, W.z, c, d, w, id, { ...M, A: W }]); } }
+  // the sports city (Nov 2026): a highway that would run across its grounds goes round them, by a roundabout off a corner (or two, when it would cut right through)
+  if (natP("sports")) { const P = NAT.sports, co = Math.cos(P.ry), si = Math.sin(P.ry), hw = P.R.w / 2, hd = P.R.d / 2;
+    const inS = (x, z) => { const dx = x - P.x, dz = z - P.z, u = dx * co - dz * si, v = dx * si + dz * co; return Math.abs(u) < hw + 14 && Math.abs(v) < hd + 14; };
+    const hits = (a, b, c, d) => { const n = Math.ceil(Math.hypot(c - a, d - b) / 8); for (let k = 0; k <= n; k++) { const t = k / n; if (inS(a + (c - a) * t, b + (d - b) * t)) return true; } return false; };
+    const C = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => spW(u * (hw + 40), v * (hd + 40)));
+    for (let i = segs.length - 1; i >= 0; i--) { const [a, b, c, d, w, id, M] = segs[i]; if (id === "palm" || !hits(a, b, c, d)) continue;
+      let best = null; const ok = (x, z) => onGrass(x, z, S.s, .03);
+      for (const [wx, wz] of C) { if (!ok(wx, wz) || hits(a, b, wx, wz) || hits(wx, wz, c, d)) continue; const L = Math.hypot(wx - a, wz - b) + Math.hypot(c - wx, d - wz); if (!best || L < best.L) best = { L, W: [[wx, wz]] }; }
+      if (!best) for (let k = 0; k < 4; k++) for (const j of [(k + 1) % 4, (k + 3) % 4]) { const [x1, z1] = C[k], [x2, z2] = C[j]; if (!ok(x1, z1) || !ok(x2, z2) || hits(a, b, x1, z1) || hits(x2, z2, c, d)) continue; const L = Math.hypot(x1 - a, z1 - b) + Math.hypot(x2 - x1, z2 - z1) + Math.hypot(c - x2, d - z2); if (!best || L < best.L) best = { L, W: [[x1, z1], [x2, z2]] }; }
+      if (!best) continue; const sp = GATE_SPEC.std, Ws = best.W.map(([x, z]) => { const W = { ...sp, x, z, rf: (sp.Ri + sp.Ro) / 2, gate: null, bypass: true }; rings.push(W); return W; });
+      const pts = [{ x: a, z: b, r: M?.A }, ...Ws.map(W => ({ x: W.x, z: W.z, r: W })), { x: c, z: d, r: M?.B }], parts = [];
+      for (let k = 0; k < pts.length - 1; k++) parts.push([pts[k].x, pts[k].z, pts[k + 1].x, pts[k + 1].z, w, id, { ...M, A: k ? pts[k].r : M?.A, B: k < pts.length - 2 ? pts[k + 1].r : M?.B, T: k < pts.length - 2 ? undefined : M?.T }]);
+      segs.splice(i, 1, ...parts); } }
   return HW_MEMO = { key, segs, rings, terms };
 }
 const coastTerms = () => hwPlan().terms, termOf = id => coastTerms().find(t => t.id === id), gateRings = () => hwPlan().rings;
@@ -11112,7 +11361,7 @@ function walkDoors() {
   if (natOpen("armour")) { add(...rW(DRV.SCHOOL.x + 6, DRV.SCHOOL.z - 7.6), 3.4, "drvschool", "🎖️ להיכנס: בית הספר לנהיגה"); add(...rW(AR.HX + 12, 0), 6, "armour", "🚧 שער בסיס השריון"); if (WALK.h && northAllowed(WALK.h.u)) add(...rW(AR.HQX + 17, AR.HQZ), 5, "place:armour", "🚶 להיכנס לחדר המבצעים"); }
   if (natOpen("air")) { add(...aW(0, -AB.HZ - 12), 6, "air", "🚧 שער בסיס חיל האוויר"); if (WALK.h && airAllowed(WALK.h.u)) add(...aW(AB.HQX, AB.HQZ - 17), 5, "place:air", "🚶 להיכנס לחדר התדריכים"); }
   if (natOpen("north")) { add(...bW(0, NB.HZ + 12), 6, "north", "🚧 שער בסיס הצפון"); if (WALK.h && northAllowed(WALK.h.u)) add(...bW(NB.HQX, NB.HQZ + 17), 5, "place:north", "🚶 להיכנס לחדר המבצעים"); }
-  if (natOpen("navy")) { add(...nW(0, NV.GZ + 12), 6, "navy", "🚧 שער בסיס חיל הים"); if (WALK.h && navyAllowed(WALK.h.u)) add(...nW(NV.HQX, NV.HQZ + 17), 5, "place:navy", "🚶 להיכנס לחדר המבצעים הימי"); }
+  if (natOpen("navy")) { add(...nW(0, NV.GZ + 12), 6, "navy", "🚧 שער בסיס חיל הים"); if (WALK.h && navyAllowed(WALK.h.u)) { add(...nW(NV.HQX, NV.HQZ + 17), 5, "place:navy", "🚶 להיכנס לחדר המבצעים הימי"); add(...nW(SAIL.SCHOOL.x - 6, SAIL.SCHOOL.z - 9.6), 3.4, "seaschool", "⚓ להיכנס: בית הספר לשיט"); } }
   if (natOpen("sechq")) { add(...sW(0, SQ.SZ + 12), 6, "sechq", "🚧 שער מטה שירות הביטחון"); if (WALK.h && secAllowed(WALK.h.u)) add(...sW(SQ.MX, SQ.MZ + 25), 5, "place:sechq", "🚶 להיכנס לחדר הבקרה"); }
   if (natOpen("kirya")) { add(...kW(0, KY.WZ + 14), 6, "kirya", "🚧 שער הקריה · מטה כל״ס"); if (WALK.h && kiryaAllowed(WALK.h.u)) add(...kW(KY.TX, KY.TZ + 27), 5, "place:kirya", "🚶 להיכנס למגדל המטה"); }
   if (natOpen("yamit")) { add(...ymW(YM.plaza[0], YM.plaza[1] + 2), 6, "place:yamit", "🗼 להיכנס למגדל המגלשות"); add(...ymW(60, 153), 7, "yamit", "🎢 ימית סבבה · מה יש בפארק"); }
@@ -11151,7 +11400,7 @@ function walkBlockers() {
     rect(...bW(HQX, HQZ), 48, 20, ry); }
   if (natOpen("navy")) { const ry = NAT.navy.ry, { HW, LD, GZ, HQX, HQZ } = NV; rect(...nW(-HW, LD / 2), 1, LD, ry); rect(...nW(HW, LD / 2), 1, LD, ry); rect(...nW(-(HW + 9) / 2, LD), HW - 9, 1, ry); rect(...nW((HW + 9) / 2, LD), HW - 9, 1, ry);
     if (!(WALK.h && navyAllowed(WALK.h.u))) rect(...nW(0, GZ), 18, 2, ry);   // the closed barrier: only those who serve at sea walk in
-    rect(...nW(HQX, HQZ), 48, 20, ry); rect(...nW(0, -1), 2 * HW, 1, ry); }   // and the quay edge: no walking off into the harbour
+    rect(...nW(HQX, HQZ), 48, 20, ry); rect(...nW(0, -1), 2 * HW, 1, ry); rect(...nW(SAIL.SCHOOL.x, SAIL.SCHOOL.z), 36, 16, ry); }   // and the quay edge: no walking off into the harbour
   if (natOpen("sechq")) { const ry = NAT.sechq.ry, { SX, SZ, MX, MZ, TX, TZ, DX, DZ } = SQ; rect(...sW(0, -SZ), 2 * SX, 1, ry); rect(...sW(-SX, 0), 1, 2 * SZ, ry); rect(...sW(SX, 0), 1, 2 * SZ, ry); rect(...sW(-(SX + 8) / 2, SZ), SX - 8, 1, ry); rect(...sW((SX + 8) / 2, SZ), SX - 8, 1, ry);
     if (!(WALK.h && secAllowed(WALK.h.u))) rect(...sW(0, SZ), 16, 2, ry);   // the closed barrier: only the service's people walk in
     rect(...sW(MX, MZ), 120, 44, ry); rect(...sW(TX, TZ), 30, 24, ry); rect(...sW(DX, DZ), 50, 28, ry); }
@@ -11180,6 +11429,7 @@ function streetHere(x, z) {
   for (const Pi of PIERS) { if (!Pi) continue; const dx = x - Pi.sh.x, dz = z - Pi.sh.z, al = dx * Pi.u.x + dz * Pi.u.z, ac = Math.abs(dx * Pi.n.x + dz * Pi.n.z), nm = Pi.p.name || "אי הפסל";
     if (Math.hypot(x - Pi.C.x, z - Pi.C.z) < 80) return `🗽 אי הפסל · ${nm}`; if (al > Pi.A0 - 1 && al < Pi.A1 + 6 && ac < 8) return `🌉 הגשר לאי הפסל`; if (al > -60 && al <= Pi.A0 && ac < 20) return "🏛️ מרכז המבקרים · אי הפסל"; }
   { const F = fuelAt(x, z); if (F) return `⛽ חאן סבבה · ${F.name}`; }
+  if (natOpen("navy") && WALK.mil?.sea) { const [lx, lz] = nL(x, z); if (lz < 0) return lz > -405 && Math.abs(lx) < 470 ? "⚓ נמל חיל הים" : "🌊 הים הפתוח · מול בסיס חיל הים"; }
   if (natOpen("armour")) { const [lx, lz] = dL(x, z); if (Math.abs(lx) < 352 && lz < -AR.HZ - 2 && lz > -762) return inYard(lx, lz, 9) ? "🎖️ מגרש המכשולים · בסיס השריון" : lz > -340 && lx > -100 && lx < 100 ? "🎖️ בית הספר לנהיגה · בסיס השריון" : "🎖️ שטח האימונים · בסיס השריון"; }
   if (canalAt(x, z) && CANAL.g && z < CANAL.g.zp + CANAL.PR + 6) return z > CANAL.g.zp - CANAL.PR - 7 ? "🌴 בריכת המעיין" : "💧 תעלת המעיין";
   // the streets of the towns and of the capital's new quarters: their own names
@@ -11218,10 +11468,10 @@ function walkStart(u) {
   $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(nick(h.u))}</small></span><button id="wX" aria-label="סיום">✕</button></div>
     <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div><button class="wcam glass" id="wCam" hidden>🎥 מהמושב</button>
     <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
-  $("wAct").onclick = () => WALK.mode === "mil" ? drvExit() : WALK.mode === "car" ? exitCar() : WALK.milNear ? drvEnter(WALK.milNear) : enterCar();
+  $("wAct").onclick = () => WALK.mode === "mil" ? drvExit() : WALK.mode === "car" ? exitCar() : WALK.milNear === "seamenu" ? seaBoardMenu() : WALK.milNear ? drvEnter(WALK.milNear) : enterCar();
   $("wCam").onclick = () => { if (WALK.mode === "mil") return drvCycleView(); if (WALK.rail?.on) WALK.cabin = !WALK.cabin; else WALK.cockpit = !WALK.cockpit; walkButtons(); };
   $("wMapBtn").onclick = () => cmapOpen(); $("wNavX").onclick = () => { WALK.target = null; $("wNav").hidden = true; };
-  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (d.id === "drvschool") return drvSchool(); if (d.id === "drvstart") return drvStartMenu(); if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (d.id === "fuel") return WALK.fueling || fuelBuy(); if (d.id === "auto") return WALK.auto ? autoStop("🛑 עצרת. ההגה אצלך") : S.mine?.auto ? cmapOpen() : autoShop(); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
+  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (d.id === "drvschool") return drvSchool(false, "land"); if (d.id === "seaschool") return drvSchool(false, "sea"); if (d.id === "seadive") return seaDive(); if (d.id === "drvstart") return drvStartMenu(); if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (d.id === "fuel") return WALK.fueling || fuelBuy(); if (d.id === "auto") return WALK.auto ? autoStop("🛑 עצרת. ההגה אצלך") : S.mine?.auto ? cmapOpen() : autoShop(); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
   $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
   setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
   // the joystick
@@ -11268,7 +11518,7 @@ function walkStep(dt) {
   if (WALK.rail) railWait();
   if (WALK.bus) return busStep(dt);
   if (WALK.wait) waitStep();
-  if (WALK.mode === "mil") return drvStep(dt);
+  if (WALK.mode === "mil") return WALK.mil?.sea ? seaStep(dt) : drvStep(dt);
   if (WALK.mode === "car") return driveStep(dt);
   const k = WALK.keys; let fx = WALK.joy.x, fy = WALK.joy.y;
   if (k.ArrowUp || k.KeyW) fy += 1; if (k.ArrowDown || k.KeyS) fy -= 1; if (k.ArrowLeft || k.KeyA) fx -= 1; if (k.ArrowRight || k.KeyD) fx += 1;
@@ -11406,7 +11656,7 @@ function autoGraph() {
     const near = (ids, p) => ids.reduce((m, q) => Math.hypot(N[q].x - p.x, N[q].z - p.z) < Math.hypot(N[m].x - p.x, N[m].z - p.z) ? q : m);
     const split = p => { let best = null; for (const [i, l] of E) for (const [j] of l) { if (j < i) continue; const A = N[i], B = N[j], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz || 1, k = ((p.x - A.x) * dx + (p.z - A.z) * dz) / L2; if (k <= 0 || k >= 1) continue; const d = Math.hypot(A.x + dx * k - p.x, A.z + dz * k - p.z); if (d < 10 && (!best || d < best.d)) best = { i, j, d, q: { x: A.x + dx * k, z: A.z + dz * k } }; }
       if (!best) return null; const q = id(best.q), drop = (a, b) => { const l = E.get(a), k = l ? l.findIndex(e => e[0] === b) : -1; if (k >= 0) l.splice(k, 1); }; drop(best.i, best.j); drop(best.j, best.i); link(best.i, q); link(q, best.j); return q; };
-    const r1 = ring(Y.R1), r2 = ring(Y.R2), h10 = split(Y.Fp(10, 0)), h450 = split(Y.Fp(450, 0));
+    const r1 = ring(Y.R1), r2 = ring(Y.R2), h10 = split(Y.Fp(10, 0)), h450 = split(Y.Fp((Y.F ?? 390) + 60, 0));
     if (h10 != null && h450 != null) {
       let [a, b] = path(M.A); one(h10, a); one(b, near(r1, N[b]));
       [a, b] = path(M.B); one(near(r1, N[a]), a); one(b, h450);
@@ -11531,7 +11781,7 @@ function walkButtons() {
   // the nearest door you're standing at
   let best = null, bd = Infinity;
   if (WALK.mode === "mil") return drvButtons(b, dr);
-  WALK.milNear = WALK.mode === "foot" ? drvNearParked() : null;
+  WALK.milNear = WALK.mode === "foot" ? drvNearParked() || (seaNearBoard() ? "seamenu" : null) : null;
   if (WALK.plat) { const i = WALK.plat.i, w = railWaitSec(i); best = w === 0 ? { id: "railride:" + i, label: "🚡 לעלות לרכבל" } : { id: "raildown:" + i, label: `⬇️ לרדת לרחוב${w != null ? " · הרכבל בעוד " + mss(w) : ""}` }; }
   else if (WALK.rail?.on) best = null;
   else if (WALK.mode === "car" && WALK.car && Math.abs(WALK.car.v) < 1.5 && (WALK.fuel ?? 1) < .97 && atPump(WALK.car.x, WALK.car.z)) best = { id: "fuel", label: WALK.fueling ? "⛽ מתדלקים…" : `⛽ תדלוק · ${Math.max(1, Math.ceil((1 - WALK.fuel) * FUEL.PRICE))} ${COIN}${S.mine && WALK.h === S.mine ? "" : " (חינם לאורחים)"}` };   // stopped under a canopy
@@ -11542,13 +11792,15 @@ function walkButtons() {
   if (WALK.plat || WALK.rail?.on) { b.hidden = true; $("wSpd").hidden = true; return; }
   if (WALK.mode === "car") { b.hidden = false; b.textContent = CARS[WALK.h.cm].bike ? "🚶 לרדת מהקטנוע" : "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
   $("wSpd").hidden = true;
+  if (WALK.milNear === "seamenu") { b.hidden = false; b.textContent = "⚓ לעלות לכלי שיט"; return; }
   if (WALK.milNear) { const k = DRV.K[WALK.milNear]; b.hidden = false; b.textContent = `${k.ic} לנהוג ב${k.name}${drvUnlocked(WALK.h.u, WALK.milNear) ? "" : " 🔒"}`; return; }
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
 }
 function drvButtons(b, dr) {
-  const m = WALK.mil, best = !DRV.run && Math.abs(m.v0) < 1 && drvAtStart(m) ? { id: "drvstart", label: "🏁 קו הזינוק · להתחיל" } : null; WALK.door = best; dr.hidden = !best; if (best) dr.textContent = best.label;
-  const cb = $("wCam"); if (cb) { cb.hidden = false; cb.textContent = DRV.view === "chase" ? (m.k.tracked ? "🎥 מהצוהר" : "🎥 מהמושב") : DRV.view === "seat" && m.k.tracked ? "🔭 פריסקופ" : "🎥 מבט מאחור"; }
-  b.hidden = false; b.textContent = `🚶 לרדת מה${m.k.name}`; $("wSpd").hidden = false;
+  const m = WALK.mil; let best = !DRV.run && Math.abs(m.v0) < 1 && (m.sea ? seaAtStart(m) : drvAtStart(m)) ? { id: "drvstart", label: m.sea ? "🏁 שער הזינוק · להתחיל" : "🏁 קו הזינוק · להתחיל" } : null;
+  if (!best && m.sea && m.k.dive) best = { id: "seadive", label: m.want > 0 ? "⬆️ לעלות לפני המים" : "🫧 לצלול" }; WALK.door = best; dr.hidden = !best; if (best) dr.textContent = best.label;
+  const cb = $("wCam"); if (cb) { cb.hidden = false; cb.textContent = m.sea ? (DRV.view === "peri" ? "🔭 בפריסקופ" : DRV.view === "chase" ? (m.k.view === "console" ? "🎥 מהעמדה" : m.k.view === "tower" ? "🎥 מהמגדל" : "🎥 מהגשר") : "🎥 מבט מאחור") : DRV.view === "chase" ? (m.k.tracked ? "🎥 מהצוהר" : "🎥 מהמושב") : DRV.view === "seat" && m.k.tracked ? "🔭 פריסקופ" : "🎥 מבט מאחור"; }
+  b.hidden = false; b.textContent = m.sea ? "⚓ לחזור למזח" : `🚶 לרדת מה${m.k.name}`; $("wSpd").hidden = false;
 }
 /* ---------- a living city: real citizens of the state walk the sidewalks around their homes and workplaces, each as their own figure ---------- */
 const NPC = new Map();   // username -> { h, fig, cx, cz, p, v, dir, ph }
@@ -12536,7 +12788,7 @@ function walkFrame(dt, now) {
   drvFxStep(dt);
   renderWorld(walkCam, WALK.mode === "car" && WALK.car ? WALK.car : WALK.mode === "mil" && WALK.mil ? WALK.mil : { x: WALK.x, z: WALK.z }, true);
   if (WALK.mode === "car" && WALK.cockpit && WALK.car) cockpitRender(WALK.car, WALK.steer || 0);
-  if (WALK.mode === "mil" && WALK.mil && DRV.view === "seat" && !WALK.mil.k.tracked) drvCockRender(WALK.mil);
+  if (WALK.mode === "mil" && WALK.mil && !WALK.mil.sea && DRV.view === "seat" && !WALK.mil.k.tracked) drvCockRender(WALK.mil);
 }
 /* ============================ DRAWER ============================ */
 const stack = [];
@@ -14707,6 +14959,8 @@ const NEWS = {
   kirya: { v: "2026-11-06", ic: "🏛️", t: "הקריה נפתחה · מתגייסים לכל״ס", sub: "מגדל המטה עם גשר הפיקוד, ולשכת גיוס בכל עיר · יבשה, אוויר, ים או שירות הביטחון · משמרת ביום ועולים בדרגות", ok: () => natOpen("kirya"), shot: () => { const N = NAT.kirya; return { a: { x: N.x, z: N.z, zoom: 1.5, az: -.6, el: .38 }, b: { x: N.x, z: N.z, zoom: 3, az: .4, el: .3 } }; } },
   regions: { v: "2026-11-06", ic: "🗺️", t: "האי גדל פי 3: צפון, מרכז ודרום", sub: "בצפון הרים מיוערים, במרכז שדות וחורשות סביב הערים, ובדרום מדבר עם רכסים ועצי שיטה · כל הבתים והכתובות נשארו במקום", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: .35, az: -.4, el: .55 }, b: { x: 300, z: 2900, zoom: 1.2, az: .3, el: .4 } }) },
   grow: { v: "2026-11-06", ic: "🏝️", t: "האי גדל עם כל פרויקט לאומי", sub: "כל פרויקט גדול מוסיף לאי את כל השטח שהוא תופס · החוף מתרחב מסביב", ok: () => NAT_GROW.some(k => natP(k)), shot: () => ({ a: { x: 0, z: 0, zoom: .5, az: -.4, el: .55 }, b: { x: 0, z: 0, zoom: .62, az: .3, el: .5 } }) },
+  roadfix: { v: "2026-11-10", ic: "🛣️", t: "תיקוני כבישים", sub: "הכביש הראשי עוקף עכשיו את קריית הספורט בכיכר · במחלף סבבהום הרמפות יוצאות מהכביש המהיר ועולות לכיכרות בשיפוע אחיד, בלי שברי כביש", ok: () => !!LAND.yk?.Fp, shot: () => { const Y = LAND.yk, p = Y.Fp(200, 0); return { a: { x: p.x, z: p.z, zoom: 3.2, az: .6, el: .55 }, b: { x: p.x, z: p.z, zoom: 5, az: -.5, el: .4 } }; } },
+  sail: { v: "2026-11-10", ic: "⚓", t: "בית הספר לשיט בבסיס חיל הים", sub: "סירת גומי, סירת סיור, ספינת טילים, צוללת ומשחתת · מסלול הנמל ומסלול הים, עגינה ליד רציף האימון, תעודת משיט מוסמך · מהגשר, מהעמדה או בפריסקופ", ok: () => natOpen("navy"), shot: () => { const [x, z] = nW(200, -260); return { a: { x, z: z, zoom: 1.6, az: -.6, el: .45 }, b: { x, z, zoom: 3, az: .5, el: .3 } }; } },
   drive: { v: "2026-11-10", ic: "🎖️", t: "מגרש הנהיגה בבסיס השריון", sub: "ג׳יפ, משאית, אמבולנס, מכלית, נגמ״ש, טנק ומוביל טנקים · מגרש מכשולים ומסלול כבדים, שעון, תעודת נהג מוסמך וטבלת שיאים · נהיגה מהמושב, מהצוהר או בפריסקופ", ok: () => natOpen("armour"), shot: () => { const [x, z] = rW(0, DRV.YZ); return { a: { x, z: z + 150, zoom: 2.2, az: -.5, el: .4 }, b: { x, z, zoom: 4, az: .4, el: .32 } }; } },
   yamit: { v: "2026-11-06", ic: "🎢", t: "ימית סבבה נפתח", sub: "לגונת גלים, נהר עצל, ומגדל מגלשות של 40 מ׳ על אי באמצע בריכה ענקית · בכל קומה מגלשה אחרת", ok: () => natOpen("yamit"), shot: () => { const [x, z] = ymW(YM.HX, YM.HZ); return { a: { x, z, zoom: 1.4, az: -.6, el: .38 }, b: { x, z, zoom: 3, az: .5, el: .3 } }; } }
 };
@@ -15928,7 +16182,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
