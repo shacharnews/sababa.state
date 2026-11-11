@@ -88,6 +88,118 @@ body.night .lbl.st{background:rgba(20,26,36,.85);color:#f1ece0}
 .tabs button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0 2px;font-size:21px;border-radius:12px}
 .tabs button span{font-size:11.5px;font-weight:600;color:var(--fg2)}
 .tabs button:active{background:var(--tint)}
+
+/* ---------- the seal (Nov 2026): one round seal of the State instead of the bottom dock; it opens an arc of five ---------- */
+:root{ --navy:#0f3a4d; --sand:#fbf3e4; --sun:#ffb627; --sea:#1f6f8b; --stampR:#c8372d }
+.dock{display:none}
+body.srch .dock{display:block;bottom:calc(112px + env(safe-area-inset-bottom));z-index:3}
+body.srch .dock .tabs{display:none}
+.seal{position:fixed;z-index:3;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:76px;height:76px;border-radius:50%;background:var(--navy);border:4px solid var(--sun);box-shadow:0 0 0 4px var(--navy),0 8px 18px rgba(0,0,0,.35);display:grid;place-items:center;transition:transform .25s}
+.seal i{width:54px;height:54px;border-radius:50%;background:center/170% no-repeat;border:2px dashed rgba(255,182,39,.85);display:block}
+.seal em{position:absolute;top:-6px;right:-4px;background:var(--stampR);color:#fff;font-style:normal;font-weight:800;font-size:13px;min-width:24px;height:24px;padding:0 5px;border-radius:12px;display:grid;place-items:center;border:2px solid #fff}
+.seal em:empty{display:none}
+.seal:active{transform:translateX(-50%) scale(.94)}
+body.arc .seal{transform:translateX(-50%) rotate(-20deg)}
+.sealDim{position:fixed;inset:0;z-index:3;background:rgba(15,58,77,.55);opacity:0;pointer-events:none;transition:opacity .25s}
+body.arc .sealDim{opacity:1;pointer-events:auto}
+.arcB{position:fixed;z-index:3;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));width:76px;margin-left:-38px;text-align:center;opacity:0;pointer-events:none;transition:transform .32s cubic-bezier(.2,1.3,.4,1),opacity .2s}
+.arcB .c{width:60px;height:60px;margin:0 auto;border-radius:50%;background:var(--sand);border:3px solid var(--navy);display:grid;place-items:center;font-size:26px;position:relative;box-shadow:0 4px 0 var(--navy)}
+.arcB span{display:block;margin-top:6px;font-weight:800;font-size:14px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.arcB em{position:absolute;top:-5px;right:-5px;background:var(--stampR);color:#fff;font-style:normal;font-weight:800;font-size:12px;min-width:22px;height:22px;padding:0 4px;border-radius:11px;display:grid;place-items:center;border:2px solid #fff}
+.arcB em:empty{display:none}
+.arcB .nw{position:absolute;top:-8px;left:-12px;background:var(--sun);color:var(--navy);font-weight:900;font-size:10px;padding:1px 6px;border-radius:8px;border:2px solid var(--navy);transform:rotate(-12deg)}
+.arcB .nw:empty{display:none}
+body.arc .arcB{opacity:1;pointer-events:auto}
+.shiftChip{position:fixed;z-index:3;right:10px;top:calc(76px + env(safe-area-inset-top));background:var(--sand);border:2px solid var(--navy);border-radius:10px;padding:4px 10px 4px 8px;font-size:13px;font-weight:800;color:var(--navy);display:flex;gap:6px;align-items:center;box-shadow:0 2px 0 var(--navy)}
+.shiftChip i{font-style:normal;background:var(--navy);color:var(--sun);border-radius:6px;padding:0 6px}
+.shiftChip.go i{background:var(--stampR);color:#fff;animation:chipP 1.6s infinite}
+@keyframes chipP{50%{opacity:.55}}
+.shiftChip[hidden]{display:none}
+body.rec .seal,body.inside .seal,body.walking .seal,body.spying .seal,body.photoing .seal,body.rec .arcB,body.inside .arcB,body.walking .arcB,body.spying .arcB,body.photoing .arcB,
+body.rec .shiftChip,body.inside .shiftChip,body.walking .shiftChip,body.spying .shiftChip,body.photoing .shiftChip,body.rec .sealDim,body.inside .sealDim,body.walking .sealDim{display:none}
+body.open .seal,body.open .arcB,body.open .shiftChip{visibility:hidden}
+
+/* the official sheets: the bureau, the mailbox and the storeroom are forms of the State (navy frame, sand paper, numbered rows, stamps) */
+.drawer.official{background:var(--navy);-webkit-backdrop-filter:none;backdrop-filter:none}
+.drawer.official .grab{background:var(--sun);opacity:.9}
+.drawer.official .dhead{color:#fff}
+.drawer.official .dhead button{color:#fff}
+.drawer.official .dbody{background:var(--sand);color:#1c2b33;margin:0 10px 10px;border-radius:14px;border:2px solid var(--navy);outline:1px solid var(--navy);outline-offset:-7px;padding:12px 14px calc(18px + env(safe-area-inset-bottom))}
+.ofBand{background:var(--navy);color:#fff;display:flex;align-items:center;gap:10px;padding:9px 11px;margin:-2px -4px 8px}
+.ofBand .fl{width:38px;height:25px;border-radius:3px;background:center/cover;flex:none}
+.ofBand b{font-size:18px;display:block;line-height:1.1;font-weight:900}
+.ofBand small{color:var(--sun);font-size:12px;font-weight:700}
+.ofBand .no{margin-right:auto;background:#fff;color:var(--navy);font-size:10.5px;font-weight:800;padding:3px 7px;text-align:center;line-height:1.25}
+.ofT{text-align:center;font-weight:900;font-size:20px;color:var(--navy)}
+.ofS{text-align:center;font-size:12.5px;color:#6b6250;margin-bottom:4px}
+.frow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1.5px dashed #cdbd99;width:100%;text-align:right}
+.frow .n{width:28px;height:28px;border:2px solid var(--navy);display:grid;place-items:center;font-weight:900;color:var(--navy);font-size:15px;flex:none}
+.frow .tx b{font-size:15.5px;display:block;line-height:1.2}
+.frow .tx small{font-size:12px;color:#6b6250;display:block;line-height:1.35}
+.frow .ar{margin-right:auto;color:var(--sea);font-weight:900;font-size:18px}
+.frow .tg{margin-right:auto;font-size:10.5px;font-weight:800;color:#fff;background:var(--stampR);padding:2px 7px;border-radius:4px;white-space:nowrap}
+.frow .tg.y{background:var(--sun);color:var(--navy)}.frow .tg.g{background:#2e9a52}
+.ofStamp{width:76px;height:76px;border-radius:50%;border:3px solid var(--sea);color:var(--sea);display:grid;place-items:center;text-align:center;font-weight:900;font-size:11px;line-height:1.15;transform:rotate(10deg);opacity:.8;position:relative;margin:12px 6px 0 auto}
+.ofStamp:before{content:"";position:absolute;inset:5px;border-radius:50%;border:1.5px solid var(--sea)}
+.tabs2{display:flex;gap:6px;margin:2px 0 10px}
+.tabs2 button{flex:1;text-align:center;font-weight:900;font-size:14px;padding:6px 0;border:2px solid var(--navy);color:var(--navy)}
+.tabs2 button.on{background:var(--navy);color:var(--sun)}
+.env{position:relative;margin:0 0 10px;background:#fffaf0;border:1.5px solid #d6c4a0;padding:11px 12px 10px 72px;border-radius:4px;box-shadow:0 2px 0 #d6c4a0;overflow:hidden}
+.env:before{content:"";position:absolute;top:0;left:0;right:0;height:6px;background:repeating-linear-gradient(-45deg,var(--stampR) 0 10px,#fffaf0 10px 16px,var(--sea) 16px 26px,#fffaf0 26px 32px)}
+.env .h{font-size:11px;font-weight:800;color:#8a7a58;margin-top:2px}
+.env b{display:block;font-size:15px;line-height:1.25;margin:2px 0}
+.env small{font-size:12.5px;color:#5d5444;display:block;line-height:1.35}
+.env .act{display:inline-block;margin-top:6px;background:var(--navy);color:#fff;font-size:12.5px;font-weight:800;padding:4px 11px;border-radius:5px}
+.env .st{position:absolute;left:9px;top:22px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:10.5px;line-height:1.1;text-align:center;transform:rotate(-12deg)}
+.env .st.r{border:2.5px solid var(--stampR);color:var(--stampR)}
+.env .st.b{border:2.5px solid var(--sea);color:var(--sea)}
+.env.done{opacity:.62}
+.shelf{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.crate{background:#fffaf0;border:2px solid var(--navy);border-radius:6px;padding:9px 4px 7px;text-align:center;position:relative;color:#1c2b33}
+.crate .e{font-size:30px;line-height:1.15;height:40px;display:grid;place-items:center}
+.crate .e img{height:46px}
+.crate b{display:block;font-size:12.5px;line-height:1.2;margin-top:3px}
+.crate small{font-size:10.5px;color:#7a6c50;display:block}
+.crate .q{position:absolute;top:-9px;left:-6px;background:var(--sun);border:2px solid var(--navy);font-weight:900;font-size:11px;border-radius:10px;padding:0 6px;color:var(--navy)}
+.crate.empty{border-style:dashed;border-color:#c8b88f;background:transparent;color:#b3a27a}
+.ofNote{font-size:12px;color:#6b6250;border-top:1.5px dashed #cdbd99;padding-top:8px;margin-top:12px;line-height:1.45}
+.ofBtns{display:flex;gap:8px;margin-top:10px}
+.ofBtns button{flex:1;padding:9px 0;font-weight:900;font-size:13.5px;border:2px solid var(--navy);color:var(--navy);border-radius:6px}
+.ofBtns button.pri{background:var(--navy);color:var(--sun)}
+.ofBtns button:disabled{opacity:.35}
+
+/* the paper: "סבבה היום", a morning newspaper (cream paper, a serif masthead, columns and rules) */
+.drawer.paperD{background:#f7f1e3;-webkit-backdrop-filter:none;backdrop-filter:none;max-height:92vh}
+.drawer.paperD .dhead{padding-bottom:0}
+.drawer.paperD #dTitle{visibility:hidden}
+.drawer.paperD .dbody{color:#1a1a1a;padding:0 14px calc(18px + env(safe-area-inset-bottom))}
+.np{font-family:"Frank Ruhl Libre",Heebo,serif}
+.np .mast{text-align:center;border-bottom:3px double #1a1a1a;padding-bottom:4px}
+.np .mast .nm{font-weight:900;font-size:40px;letter-spacing:-.5px;line-height:1.05;display:flex;align-items:center;justify-content:center;gap:9px}
+.np .mast .fl{width:36px;height:24px;border-radius:2px;background:center/cover}
+.np .meta{display:flex;justify-content:space-between;font-family:Heebo;font-size:10.5px;font-weight:700;border-bottom:1px solid #1a1a1a;padding:3px 0;margin-bottom:7px;gap:6px}
+.np h2{font-weight:900;font-size:25px;line-height:1.08;margin:2px 0 5px}
+.np .kick{font-family:Heebo;font-weight:800;font-size:11px;color:var(--stampR);margin-top:2px}
+.np .ph{width:100%;aspect-ratio:3/2;border:1px solid #1a1a1a;background:#cfe0e6 center/cover;display:block;object-fit:cover}
+.np .pc{font-family:Heebo;font-size:10.5px;color:#555;margin:2px 0 5px}
+.np p{font-size:14px;line-height:1.38;margin:0 0 4px}
+.np .cols{display:flex;gap:10px;border-top:1px solid #1a1a1a;margin-top:7px;padding-top:6px}
+.np .cols>div{flex:1;min-width:0}
+.np .cols>div+div{border-right:1px solid #1a1a1a;padding-right:10px}
+.np h3{font-weight:900;font-size:16.5px;line-height:1.12;margin:1px 0 3px}
+.np .port{width:66px;height:76px;float:left;margin:2px 0 2px 8px;border:1px solid #1a1a1a;background:#dfe9ef center/cover}
+.np .win{display:flex;align-items:center;gap:6px;font-family:Heebo;font-size:12px;margin:4px 0;line-height:1.2;width:100%;text-align:right;color:inherit}
+.np .win i{width:28px;height:32px;border:1px solid #1a1a1a;background:#dfe9ef center/cover;flex:none}
+.np .win b{font-weight:800}
+.np .box{border:1.5px solid #1a1a1a;padding:6px;margin-top:4px;text-align:center}
+.np .box .big{font-weight:900;font-size:28px;line-height:1}
+.np .box small{font-family:Heebo;font-size:11px;display:block}
+.np .tick{background:var(--navy);color:var(--sun);font-family:Heebo;font-weight:700;font-size:12px;padding:7px 10px;margin-top:9px;line-height:1.5}
+.np .empty{font-family:Heebo;font-size:12px;color:#6b6250}
+.np .nav{display:flex;gap:8px;margin-top:10px;font-family:Heebo}
+.np .nav button{flex:1;text-align:center;border:1.5px solid #1a1a1a;padding:7px 0;font-weight:800;font-size:13px;color:#1a1a1a}
+.np .nav button.pri{background:var(--navy);color:var(--sun);border-color:var(--navy)}
+.np .nav button:disabled{opacity:.35}
 .toast{position:fixed;z-index:6;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translate(-50%,-10px);opacity:0;pointer-events:none;transition:.3s;border-radius:16px;padding:10px 16px;font-weight:600;font-size:14px;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -297,6 +409,14 @@ body.inside #intUI{display:block}
     <button data-tab="state">🏛️<span>המדינה</span></button>
   </div>
 </nav>
+<div class="sealDim" id="sealDim"></div>
+<button class="arcB" data-arc="bureau" aria-label="לשכת התושב"><span class="c">🏛️</span><span>הלשכה</span></button>
+<button class="arcB" data-arc="paper" aria-label="העיתון"><span class="c">📰<b class="nw" id="arcPaper"></b></span><span>העיתון</span></button>
+<button class="arcB" data-arc="mail" aria-label="תיבת הדואר"><span class="c">✉️<em id="arcMail"></em></span><span>הדואר</span></button>
+<button class="arcB" data-arc="store" aria-label="המחסן"><span class="c">📦</span><span>המחסן</span></button>
+<button class="arcB" data-arc="search" aria-label="חיפוש"><span class="c">🔍</span><span>חיפוש</span></button>
+<button class="seal" id="seal" aria-label="החותם · התפריט"><i></i><em id="sealN"></em></button>
+<button class="shiftChip" id="shiftChip" hidden></button>
 <div class="toast glass" id="toast"></div>
 <div id="intUI"></div>
 <div id="walkUI"></div>
@@ -7777,10 +7897,10 @@ function planScaffold(parts, top) {
   return Q;
 }
 // a picture of the place from the reel's camera, taken right now
-function planSnap(x, z, zoom = 4.2, w = 960, h = 640) {
+function planSnap(x, z, zoom = 4.2, w = 960, h = 640, az = -.55, el = .48) {
   const fog = [scene.fog.near, scene.fog.far], asp = reelCam.aspect, W = renderer.domElement.width, Hh = renderer.domElement.height;
   const tm = timeMode; timeMode = { live: false, h: 11.5 }; applyTime();   // the file's picture is always taken in daylight
-  reelCam.aspect = W / Hh; poseCam({ x, z, zoom, az: -.55, el: .48 }); renderWorld(reelCam, reelCam.userData.pivot);
+  reelCam.aspect = W / Hh; poseCam({ x, z, zoom, az, el }); renderWorld(reelCam, reelCam.userData.pivot);
   const c = document.createElement("canvas"); c.width = w; c.height = h; const s = Math.min(W / w, Hh / h); c.getContext("2d").drawImage(renderer.domElement, (W - w * s) / 2, (Hh - h * s) / 2, w * s, h * s, 0, 0, w, h);
   [scene.fog.near, scene.fog.far] = fog; reelCam.aspect = asp; reelCam.updateProjectionMatrix(); timeMode = tm; applyTime(); return c;
 }
@@ -12792,10 +12912,11 @@ function walkFrame(dt, now) {
 }
 /* ============================ DRAWER ============================ */
 const stack = [];
-function open(title, html, after, push = false) { if (!push) stack.length = 0; stack.push({ title, html, after }); render(); }
+function open(title, html, after, push = false, cls = "") { if (!push) stack.length = 0; stack.push({ title, html, after, cls }); render(); }
 let openedAt = 0;
 function render() {
   const top = stack[stack.length - 1]; openedAt = performance.now();
+  $("drawer").className = "drawer" + (top.cls ? " " + top.cls : "");   // the official forms and the paper have their own look
   $("dTitle").textContent = top.title; $("dBody").innerHTML = top.html; $("dBody").scrollTop = 0; $("dBack").hidden = stack.length < 2;
   document.body.classList.add("open");
   $("dBody").querySelectorAll("[data-go]").forEach(b => b.onclick = () => GO[b.dataset.go](b.dataset.arg));
@@ -12837,7 +12958,7 @@ const GO = {
     <div class="sec">מקומות</div><div class="list">${S.projects.filter(p => p.kind === "monument" && p.x != null).map(p => li("project", "🗽", esc(p.name || "פסל"), p.status === "done" ? (p.requested_by ? `לבקשת ‎@${esc(nick(p.requested_by))}` : "פסל") : "🏗️ בבנייה", p.id)).join("")}${COAST.map(c => li("place", c.ic, c.name, "", c.id)).join("")}
       ${S.projects.filter(p => p.kind !== "monument" && p.status === "done" && p.x != null).map(p => li("project", PROJECT_KINDS[p.kind]?.[0] || "🏗️", esc(p.name || PROJECT_KINDS[p.kind]?.[1]), esc(cityName(p.city_id)), p.id)).join("")}</div>
     <div class="btns"><a class="btn" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">📸 ‎@${INSTAGRAM}</a></div>`),
-  mine: () => { if (S.mine) { S.sel = null; mark(S.mine); goTo(S.mine.x, S.mine.z, 7, () => showHouse(S.mine)); } else { $("q").focus(); toast("הקלידו את שם המשתמש שלכם באינסטגרם"); } },
+  mine: () => { if (S.mine) { S.sel = null; mark(S.mine); goTo(S.mine.x, S.mine.z, 7, () => showHouse(S.mine)); } else { close(); sealSearch(); toast("הקלידו את שם המשתמש שלכם באינסטגרם"); } },
   how: () => open("איך מתאזרחים?", `
     <div class="list">${info("1️⃣", `עוקבים אחרי ‎@${INSTAGRAM}`, "באינסטגרם")}${info("2️⃣", "שולחים את המילה ״אזרחות״", "בהודעה פרטית או בתגובה לריל")}${info("3️⃣", "מקבלים בית, רכב ועבודה", "עם כתובת קבועה באחת הערים")}</div>
     <div class="hero" style="margin-top:12px"><p><b>מתחילים צנוע, משדרגים בדרך.</b> כל יום עבודה מכניס משכורת בסבבונים ${COIN}, ואיתם קונים רכב חדש בצבע שבוחרים או משדרגים את הבית. וכל יום מוגרלים וילה, רכב יוקרה, קידום, מענק כספי ומינוי לשר.</p></div>
@@ -12946,6 +13067,281 @@ function showProject(p) {
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
+
+// ============ החותם · לשכת התושב · תיבת הדואר · העיתון "סבבה היום" · המחסן ============
+// As approved (Nov 2026): the dock gives way to one round seal of the State. It opens an arc of five: the bureau (a numbered form of everything the
+// dock had), the mailbox (what waits for the citizen, as numbered letters from the offices, stamped "ממתין" and then "בוצע"), the paper (a new issue
+// every morning at 06:00 Israel time, written by itself from the day before), the storeroom (what the citizen owns) and the search.
+const SEAL = { open: false };
+const ilOf = d => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem" }).format(new Date(d));
+const dayAdd = (s, n) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+const heDay = (s, o = { weekday: "long", day: "numeric", month: "long", year: "numeric" }) => new Date(s + "T12:00:00Z").toLocaleDateString("he-IL", { timeZone: "UTC", ...o });
+const ofBand = (name, no) => `<div class="ofBand"><span class="fl" style="background-image:url('${FLAG_URI}')"></span><div><b>${name}</b><small>רפובליקת סבבה</small></div><div class="no">${no}</div></div>`;
+const meKey = () => S.mine && keyOf(S.mine.u) ? S.mine : null;
+function sealArc(on) {
+  SEAL.open = on ?? !SEAL.open; document.body.classList.toggle("arc", SEAL.open);
+  const B = [...document.querySelectorAll(".arcB")], R = Math.min(150, innerWidth / 2 - 44);
+  B.forEach((b, i) => { const a = Math.PI * (i / (B.length - 1)), dx = Math.cos(a) * R, dy = Math.sin(a) * R * .78 + 56;   // the first one on the right (Hebrew reads from the right)
+    b.style.transform = SEAL.open ? `translate(${dx.toFixed(0)}px, ${(-dy).toFixed(0)}px)` : "translate(0,0) scale(.4)"; b.style.transitionDelay = SEAL.open ? i * 30 + "ms" : "0ms"; });
+  if (SEAL.open) document.body.classList.remove("srch");
+}
+function sealSearch() { sealArc(false); document.body.classList.add("srch"); setTimeout(() => $("q").focus(), 60); }
+$("seal").querySelector("i").style.backgroundImage = `url("${FLAG_URI}")`;
+$("seal").onclick = () => sealArc();
+$("sealDim").onclick = () => sealArc(false);
+document.querySelectorAll(".arcB").forEach(b => b.onclick = () => { sealArc(false); ({ bureau: () => GO.bureau(), mail: () => GO.mail(), paper: () => GO.paper(), store: () => GO.store(), search: sealSearch })[b.dataset.arc](); });
+document.addEventListener("pointerdown", e => { if (document.body.classList.contains("srch") && !e.target.closest(".dock")) document.body.classList.remove("srch"); }, true);
+$("findForm").addEventListener("submit", () => setTimeout(() => document.body.classList.remove("srch"), 50));
+
+/* ---------- the mailbox ---------- */
+// every letter has an id; the first time this phone sees it, it gets the next number. It stays in the archive with its stamp after it is done.
+const mailStore = u => { try { return JSON.parse(pref("sababa_mail_" + u, "null")) || { seq: 0, L: {} }; } catch { return { seq: 0, L: {} }; } };
+function mailLetters(h) {
+  const out = [], today = israelDate(), add = (id, from, t, s, act, kind = "act", done = false, at = Date.now()) => out.push({ id, from, t, s, act, kind, done, at });
+  if (!h || !keyOf(h.u)) return out;
+  add("welcome", "משרד הפנים", "ברוכים הבאים לתיבת הדואר", "כל מה שמחכה לך במדינה יגיע לכאן כמכתב רשמי. מכתב שממתין לך מקבל חותמת אדומה, ואחרי שמטפלים בו — חותמת כחולה.", null, "info");
+  // the salary of the day
+  if (h.coins != null) add("pay:" + today, "אוצר המדינה", `המשכורת היומית מחכה: +${fmtN(salaryOf(h))} ${COIN}`, h.wp ? `${esc(h.wp.name)} · דרג ${h.level}` : "דמי אבטלה עד שתמצא/י עבודה", { label: "לאסוף בבית", go: "mine" }, "act", collectedToday(h));
+  // the shift in the service, or the call-up
+  const sv = S.soldiers?.get(h.u), army = natOpen("kirya") || S.projects.some(p => p.kind === "recruit");
+  if (sv) add("shift:" + today, "מטה כל״ס", "המשמרת שלך מוכנה", `${BRANCH[sv.branch]?.ic || "🎖️"} ${rankName(sv)} · ${sv.shifts} משמרות`, { label: "להתחיל משמרת", go: "army" }, "act", sv.last_shift === today);
+  else if (army) add("callup", "מטה כל״ס", "אפשר להתגייס לכל״ס", "יבשה, אוויר, ים או שירות הביטחון · משמרת אחת ביום ועולים בדרגות", { label: "ללשכת הגיוס", go: "army" }, "info");
+  // the next test at the driving yard or the sailing school
+  if (sv && (sv.branch === "land" || sv.branch === "sea")) { const br = sv.branch, base = br === "land" ? natOpen("armour") : natOpen("navy"), C = drvCerts(h.u);
+    const next = base && DRV_ALL.filter(k => DRV.K[k].br === br && !C[k] && drvUnlocked(h.u, k)).sort((a, b) => DRV.K[a].lvl - DRV.K[b].lvl)[0];
+    if (next) add("drv:" + next, br === "sea" ? "בית הספר לשיט" : "בית הספר לנהיגה", `אפשר לגשת למבחן: ${DRV.K[next].ic} ${DRV.K[next].name}`, `זמן היעד ${drvFmt(DRV.K[next].target * 1000).slice(0, -2)} · פחות מ־3 עונשים`, { label: br === "sea" ? "לבסיס חיל הים" : "לבסיס השריון", go: "school", arg: br }, "act");
+    for (const k of DRV_ALL) if (DRV.K[k].br === br && C[k]) add("drv:" + k, br === "sea" ? "בית הספר לשיט" : "בית הספר לנהיגה", `עברת את המבחן: ${DRV.K[k].ic} ${DRV.K[k].name}`, `${br === "sea" ? "משיט" : "נהג"} מוסמך · ${drvFmt(C[k].ms)}`, null, "act", true); }
+  // the ballot
+  for (const e of S.ballot || []) { const voted = e.options?.some(o => S.myVotes.includes(o.id));
+    if (e.status === "open" || voted) add("vote:" + e.id, "ועדת הבחירות", `${e.status === "open" ? "נפתחה הצבעה" : "ההצבעה נסגרה"}: ${esc(e.title)}`, e.status === "open" ? `${fmtN(e.options?.length || 0)} אפשרויות · ${timeLeft(e.ends_at)}` : "הקול שלך נספר", { label: "להצביע", go: "ballot" }, "act", voted || e.status !== "open"); }
+  // what came out well for them: the draw, a ministry, a game prize
+  for (const d of S.draws || []) if (d.citizens?.ig_username === h.u) { const [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; add("draw:" + d.id, "לשכת ראש הממשלה", `זכית בהגרלה: ${ic} ${t}`, `${fmtDate(d.draw_date)}${d.details ? " · " + esc(d.details) : ""}`, { label: "לבית שלי", go: "mine" }, "info", false, new Date(d.draw_date).getTime()); }
+  for (const m of S.gov || []) if (m.citizens?.ig_username === h.u) add("min:" + m.ministry + ":" + ilOf(m.appointed_at), "מזכירות הממשלה", `מונית לתפקיד: ${esc(m.ministry)}`, `מ־${fmtDate(m.appointed_at)} · מזל טוב!`, { label: "הממשלה", go: "govlist" }, "info", false, new Date(m.appointed_at).getTime());
+  for (const g of S.gamePrizes || []) if (g.citizen_id === h.id && Date.now() - new Date(g.day).getTime() < 8 * 864e5) { const G = GAMES.find(q => q.id === g.game);
+    add(`gp:${g.game}:${g.day}`, "רשות המשחקים", `זכית במקום ${g.rank} ${G ? "ב" + G.name : ""}`, `${fmtDate(g.day)} · +${fmtN(g.amount)} ${COIN}`, G ? { label: "למשחק", go: "game", arg: G.id } : null, "info", false, new Date(g.day).getTime()); }
+  // answers from the offices
+  for (const r of S.homeReq || []) if (clean(r.username || "") === h.u && r.reply) add("hr:" + r.id + ":" + r.status, "מנהלת הבינוי הלאומית", "תשובה לבקשת הבית שלך", esc(r.reply), null, "info", false, new Date(r.created_at).getTime());
+  for (const q of S.sugg || []) if (clean(q.username || "") === h.u && (q.reply || q.fulfilled_at)) add("sg:" + q.id + ":" + q.status, "משרד ההגשמה", q.fulfilled_at ? "המשאלה שלך הוגשמה! 🎖️" : "תשובה להצעה שלך", esc(q.reply || q.text), { label: "הצעות התושבים", go: "suggest" }, "info", false, new Date(q.fulfilled_at || q.created_at).getTime());
+  return out;
+}
+// the letters with their numbers and stamps; `seen` marks the information letters as read (they stay red until the mailbox was opened once)
+function mailState(seen = false) {
+  const h = meKey(); if (!h) return { list: [], wait: 0, h: null };
+  const M = mailStore(h.u), now = Date.now(), list = [];
+  for (const L of mailLetters(h)) { let e = M.L[L.id]; if (!e) { e = M.L[L.id] = { n: ++M.seq, at: now }; }
+    const pending = L.kind === "act" ? !L.done : !e.read;
+    if (L.kind === "act" && L.done && !e.done) e.done = now;
+    list.push({ ...L, n: e.n, first: e.at, pending, stamp: L.kind === "act" ? (L.done ? "בוצע" : "ממתין") : (e.read ? "נקרא" : "חדש") });
+    if (seen && L.kind === "info") e.read = e.read || now; }
+  // keep the store small: the newest 120 letters
+  const keys = Object.keys(M.L); if (keys.length > 160) keys.sort((a, b) => M.L[a].n - M.L[b].n).slice(0, keys.length - 120).forEach(k => delete M.L[k]);
+  setPref("sababa_mail_" + h.u, JSON.stringify(M));
+  list.sort((a, b) => (b.pending - a.pending) || b.n - a.n);
+  return { list, wait: list.filter(l => l.pending).length, h };
+}
+GO.army = () => armyGo();
+GO.school = br => { if (br === "sea") { const [x, z] = nW(SAIL.SCHOOL.x, SAIL.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "sea")); } else { const [x, z] = dW(DRV.SCHOOL.x, DRV.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "land")); } };
+GO.mail = (tab = "wait") => {
+  const st = mailState(false), h = st.h;
+  if (!h) return open("✉️ תיבת הדואר", `${ofBand("תיבת הדואר", "דואר<br>אישי")}<div class="env"><div class="st r">ממתין<br>★</div><div class="h">הודעה מס' 1 · משרד הפנים</div><b>כדי לקבל דואר, פותחים את האתר מהקישור האישי</b><small>את הקישור שולחים לך באינסטגרם אחרי ההתאזרחות. אין לך? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</small><span class="act" data-go="how">איך מתאזרחים?</span></div>`, null, false, "official");
+  const L = tab === "wait" ? st.list.filter(l => l.pending) : st.list.filter(l => !l.pending);
+  const env = l => `<div class="env${l.pending ? "" : " done"}"><div class="st ${l.pending ? "r" : "b"}">${l.stamp}<br>★</div><div class="h">הודעה מס' ${l.n} · ${l.from}</div><b>${l.t}</b><small>${l.s}</small>${l.act && l.pending ? `<span class="act" data-go="${l.act.go}" data-arg="${esc(l.act.arg || "")}">${l.act.label}</span>` : ""}</div>`;
+  open("✉️ תיבת הדואר", `${ofBand("תיבת הדואר", `${fmtN(st.wait)} מכתבים<br>ממתינים`)}
+    <div class="tabs2"><button class="${tab === "wait" ? "on" : ""}" data-mt="wait">ממתינים (${fmtN(st.wait)})</button><button class="${tab !== "wait" ? "on" : ""}" data-mt="old">ארכיון</button></div>
+    ${L.map(env).join("") || `<p class="ofS" style="margin:22px 0">${tab === "wait" ? "אין מכתבים שממתינים לך ✓" : "הארכיון עוד ריק"}</p>`}`, () => {
+    $("dBody").querySelectorAll("[data-mt]").forEach(b => b.onclick = () => GO.mail(b.dataset.mt));
+    mailState(true); sealBadges();
+  }, false, "official");
+};
+
+/* ---------- the bureau ---------- */
+GO.bureau = () => {
+  const h = S.mine, k = h && keyOf(h.u), sv = h && S.soldiers?.get(h.u), today = israelDate(), openE = (S.ballot || []).filter(e => e.status === "open"), notVoted = openE.filter(e => !e.options?.some(o => S.myVotes.includes(o.id))).length;
+  const row = (n, go, t, s, tag = "", arg = "") => `<button class="frow" data-go="${go}" data-arg="${esc(arg)}"><span class="n">${n}</span><span class="tx"><b>${t}</b><small>${s}</small></span>${tag || `<span class="ar">‹</span>`}</button>`;
+  const no = h ? `טופס 1<br>אזרח ${pad(h.id)}` : "טופס 1<br>אורח";
+  const army = natOpen("kirya") || S.projects.some(p => p.kind === "recruit");
+  const rows = [
+    row(1, "mine", "הבית שלי", h ? esc(addressOf(h)) + " · הבית, הרכב, החצר" : "מחפשים את הבית לפי שם המשתמש"),
+    army ? row(2, "army", "השירות שלי", sv ? `${rankName(sv)} · ${BRANCH[sv.branch]?.name} · ${sv.shifts} משמרות` : "עוד לא התגייסת · יבשה, אוויר, ים או שירות הביטחון", sv ? (sv.last_shift === today ? `<span class="tg g">✓ היום</span>` : k ? `<span class="tg y">משמרת מחכה</span>` : "") : "") : "",
+    row(army ? 3 : 2, "ballot", "הקלפי", openE.length ? `${fmtN(openE.length)} הצבעות פתוחות · ${timeLeft(openE[0].ends_at)}` : "אין כרגע הצבעה פתוחה · תוצאות אחרונות", notVoted && k ? `<span class="tg">פתוח</span>` : ""),
+    row(army ? 4 : 3, "draws", "ההגרלה", `היום: ${esc(HOUSE_NAMES[drawPrize(0).house])} ו${esc(CARS[drawPrize(0).car].name)} · עוד 4 פרסים`),
+    row(army ? 5 : 4, h?.wp ? "work" : "jobs", "העבודה", h ? (h.wp ? `${esc(h.wp.name)} · דרג ${h.level} · ${fmtN(salaryOf(h))} ${COIN} ביום` : "עוד בלי עבודה · כל העסקים במדינה") : "כל העסקים במדינה", h && k && h.coins != null && !collectedToday(h) ? `<span class="tg y">משכורת מחכה</span>` : "", h?.wp?.id || ""),
+    row(army ? 6 : 5, "games", "בילוי ופנאי", `${fmtN(GAMES.length)} משחקים במבני המדינה · זוכים בסבבונים`),
+    row(army ? 7 : 6, "state", "המדינה", "הממשלה, החוקים, הערים, מה נבנה, השירותים"),
+    h ? row(army ? 8 : 7, "id", "תעודת הזהות שלי", "התמונה, הכתובת, ההישגים · לשתף באינסטגרם", "", h.u) : row(army ? 8 : 7, "how", "איך מתאזרחים?", "ולמה הבית שלי עוד לא מופיע")];
+  open("🏛️ לשכת התושב", `${ofBand("לשכת התושב", no)}<div class="ofT">${h ? `שלום, <span dir="ltr">@${esc(nick(h.u))}</span>` : "שלום, אורח/ת"}</div><div class="ofS">${h ? "מה תרצה לסדר היום?" : "מצאו את הבית שלכם כדי לראות את הטופס האישי"}</div>
+    ${rows.join("")}<div class="ofStamp">לשכת<br>התושב<br>★</div>`, null, false, "official");
+};
+
+/* ---------- the storeroom ---------- */
+GO.store = (tab = "all") => {
+  const h = S.mine;
+  if (!h) return open("📦 המחסן שלי", `${ofBand("המחסן שלי", "רכוש<br>פרטי")}<p class="ofS" style="margin:18px 0">מצאו את הבית שלכם קודם, והמחסן ייפתח</p><div class="ofBtns"><button class="pri" data-go="mine">🏠 הבית שלי</button></div>`, null, false, "official");
+  const items = [], av = avatarOf(h);
+  // the clothes: everything bought, and what is worn now
+  for (const key of h.owned || []) { const [cat, v] = key.split(":"), o = AV_ITEMS[cat]?.o[v]; if (!o) continue;
+    items.push({ g: "wear", e: `<img alt="" src="${avatarThumb({ ...av, [cat]: v }, 90, 110, cat !== "tp")}">`, t: o[0], s: av[cat] === v ? "לבוש עכשיו" : AV_ITEMS[cat].t, go: "avatar", arg: h.u }); }
+  // the furniture: grouped, with how many are in the house and how many in storage
+  const F = new Map(); for (const r of S.furn?.get(h.id) || []) { const k = r.item; if (!F.has(k)) F.set(k, { n: 0, placed: 0 }); const f = F.get(k); f.n++; if (r.placed !== false) f.placed++; }
+  for (const [k, f] of F) { const U = k.startsWith("u:") ? FUNIQ[k.slice(2)] : null, nm = U ? U.n || U.name || "פריט מיוחד" : FURN[k]?.n || k;
+    items.push({ g: "furn", e: furnIc(k), t: nm, s: f.placed === f.n ? "בבית" : `${fmtN(f.n - f.placed)} במחסן`, q: f.n, go: "homeMap", arg: h.u }); }
+  // the medals and licences
+  for (const a of ACH) { try { if (a.test(h)) items.push({ g: "medal", e: a.ic, t: a.t, s: "הישג", go: "id", arg: h.u }); } catch {} }
+  const C = drvCerts(h.u); for (const k of DRV_ALL) if (C[k]) items.push({ g: "medal", e: DRV.K[k].ic, t: `${DRV.K[k].br === "sea" ? "משיט" : "נהג"} מוסמך`, s: DRV.K[k].name, go: "army" });
+  // what they own outside: the car, and the dog
+  items.unshift({ g: "own", e: "🚗", t: CARS[h.cm]?.name || "רכב", s: "הרכב שלי", go: "mine" });
+  const dog = S.dogs?.get(h.id); if (dog) items.push({ g: "own", e: "🐕", t: esc(dog.name || "הכלב"), s: "הכלב שלי", go: "mine" });
+  const TABS = [["all", "הכול"], ["wear", "בגדים"], ["furn", "רהיטים"], ["medal", "מדליות"]];
+  const L = tab === "all" ? items : items.filter(i => i.g === tab), empty = Math.max(0, (3 - L.length % 3) % 3 + (L.length < 6 ? 3 : 0));
+  open("📦 המחסן שלי", `${ofBand("המחסן שלי", `${fmtN(items.length)} פריטים`)}
+    <div class="tabs2">${TABS.map(([k, t]) => `<button class="${tab === k ? "on" : ""}" data-st="${k}">${t}</button>`).join("")}</div>
+    <div class="shelf">${L.map(i => `<button class="crate" data-go="${i.go}" data-arg="${esc(i.arg || "")}">${i.q > 1 ? `<span class="q">×${i.q}</span>` : ""}<span class="e">${i.e}</span><b>${i.t}</b><small>${i.s}</small></button>`).join("")}
+      ${Array.from({ length: empty }, () => `<div class="crate empty"><span class="e">＋</span><b>מקום פנוי</b></div>`).join("")}</div>
+    <div class="ofNote">בגדים קונים בעיצוב הדמות, רהיטים ביאלקה. לחיצה על פריט: ללבוש, להציב בבית או לראות את ההישג.</div>`, () => {
+    $("dBody").querySelectorAll("[data-st]").forEach(b => b.onclick = () => GO.store(b.dataset.st));
+  }, false, "official");
+};
+
+/* ---------- the paper: "סבבה היום" ---------- */
+// The issue of day D comes out at 06:00 Israel time and tells what happened on the day before (D-1, Israel's calendar day).
+const PAPER = { cache: new Map(), photo: new Map() };
+const paperDay = () => { const t = israelDate(); return israelHour() >= 6 ? t : dayAdd(t, -1); };
+const PAPER_FIRST = dayAdd(INDEPENDENCE_DAY, 1);
+// the version of the site this browser runs: the first time anyone sees it is when it reached the island (the paper tells it the next morning)
+setTimeout(() => rpc("release_seen", { ver: SITE_VERSION }).catch(() => {}), 9000);
+async function paperData(D) {
+  if (PAPER.cache.has(D)) return PAPER.cache.get(D);
+  const C = dayAdd(D, -1), at = d => d && ilOf(d) === C;
+  let X = null; try { X = await rpc("paper_day", { d: C }); if (!X?.ok) X = null; } catch {}
+  const rel = X ? X.releases || [] : [], vers = rel.length ? rel : [C];
+  const news = Object.keys(NEWS).filter(k => vers.includes(newsVer(k)) && NEWS[k].ok?.());
+  const P = {
+    D, C, no: dayNo(new Date(D + "T12:00:00+03:00")), news,
+    ministers: (S.gov || []).filter(m => at(m.appointed_at)),
+    draws: (S.draws || []).filter(d => d.draw_date === C),
+    games: (S.gamePrizes || []).filter(g => g.day === C && g.rank === 1),
+    laws: (S.laws || []).filter(l => at(l.enacted_at)),
+    wishes: (S.sugg || []).filter(q => at(q.fulfilled_at)),
+    joined: (S.raw || []).filter(c => at(c.created_at)).sort((a, b) => a.id - b.id),
+    opened: S.projects.filter(p => { const t = planStart(p); return t != null ? at(new Date(t + 4 * PLAN.H * 3600e3)) && p.status === "done" : p.status === "done" && at(p.created_at); }),
+    started: S.projects.filter(p => p.status !== "done" && at(planStart(p) ?? p.created_at)),
+    candles: X?.candles ?? null, certs: X?.certs || [], records: X?.records || [] };
+  PAPER.cache.set(D, P); return P;
+}
+const hOfId = id => S.houses.find(h => h.id === id);
+const face = h => h ? avatarThumb(avatarOf(h), 120, 140, true) : "";
+// the front picture: the newest release's own shot, else the place of the story
+function paperPhoto(P) {
+  if (PAPER.photo.has(P.D)) return PAPER.photo.get(P.D);
+  let v = null, cap = "";
+  try { for (const k of P.news) { const props = [], sh = NEWS[k].shot(0, 3.4, props); props.forEach(p => p.dispose?.()); const a = sh?.a || sh?.b; if (a && a.x != null) { v = a; cap = NEWS[k].t; break; } } } catch {}
+  if (!v && P.opened[0]?.x != null) { v = { x: P.opened[0].x, z: P.opened[0].z, zoom: 3.4 }; cap = P.opened[0].name || ""; }
+  if (!v) { const m = P.ministers[0] && S.byUser.get(P.ministers[0].citizens?.ig_username); if (m) { v = { x: m.x, z: m.z, zoom: 6 }; cap = "ביתו/ה של השר/ה החדש/ה"; } }
+  if (!v) { const c = S.slots[0]; v = { x: c.x, z: c.z, zoom: 2.4 }; cap = `${c.city?.name || "הבירה"} בבוקר`; }
+  let url = ""; try { url = planSnap(v.x, v.z, v.zoom || 2.4, 900, 600, v.az ?? -.55, v.el ?? .48).toDataURL("image/jpeg", .82); } catch {}
+  const r = { url, cap }; PAPER.photo.set(P.D, r); return r;
+}
+function paperStory(P) {
+  // the headline: an upgrade, else a new minister, else a building that opened, else a law, else the draw, else the newcomers
+  const N0 = P.news[0] && NEWS[P.news[0]], m0 = P.ministers[0], o0 = P.opened[0], l0 = P.laws[0], w0 = P.draws.find(d => d.prize === "luxury_house") || P.draws[0];
+  if (N0) return { kick: "שדרוג חדש באי", h: N0.t, p: N0.sub + (P.news.length > 1 ? ` · ועוד ${fmtN(P.news.length - 1)} חידושים: ${P.news.slice(1, 4).map(k => NEWS[k].t).join(", ")}` : "") };
+  if (m0) return { kick: "הממשלה", h: `${m0.ministry}: ‎@${nick(m0.citizens?.ig_username || "")} נכנס/ה לתפקיד`, p: "המינוי נכנס לתוקף מיד. בהצלחה!" };
+  if (o0) return { kick: "נחנך", h: `${o0.name || PROJECT_KINDS[o0.kind]?.[1]} נפתח לקהל`, p: `${PROJECT_KINDS[o0.kind]?.[1] || ""} ב${cityName(o0.city_id) || "רפובליקת סבבה"}${o0.requested_by ? ` · בהצעת ‎@${nick(o0.requested_by)}` : ""}` };
+  if (l0) return { kick: "ספר החוקים", h: `חוק חדש: ${l0.title}`, p: l0.description || "החוק נכנס לתוקף." };
+  if (w0) { const [ic, t] = PRIZES[w0.prize] || ["🎁", w0.prize]; return { kick: "ההגרלה", h: `‎@${nick(w0.citizens?.ig_username || "")} זכה/תה ב${t}`, p: `${ic} ועוד ${fmtN(P.draws.length - 1)} זוכים בהגרלה היומית` }; }
+  return { kick: "חיים במדינה", h: P.joined.length ? `${fmtN(P.joined.length)} אזרחים חדשים הגיעו לאי` : "יום שקט באי", p: "האי ממשיך לגדול עם כל עוקב חדש." };
+}
+GO.paper = async (D = paperDay()) => {
+  D = D < PAPER_FIRST ? PAPER_FIRST : D > paperDay() ? paperDay() : D;
+  open("📰 סבבה היום", `<div class="np"><p class="empty" style="text-align:center;margin:30px 0">מדפיסים את הגיליון…</p></div>`, null, false, "paperD");
+  const P = await paperData(D); await new Promise(r => setTimeout(r, 40));
+  const ph = paperPhoto(P), st = paperStory(P), win = (h, txt, u) => `<button class="win" data-go="house" data-arg="${esc(u)}"><i style="background-image:url('${face(h)}')"></i><span>${txt}</span></button>`;
+  const m0 = P.ministers[0], mh = m0 && S.byUser.get(m0.citizens?.ig_username);
+  const drawsH = P.draws.map(d => { const u = d.citizens?.ig_username || "", [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; return win(S.byUser.get(u), `<b dir="ltr">@${esc(nick(u))}</b> · ${t} ${ic}`, u); }).join("");
+  const gamesH = P.games.slice(0, 5).map(g => { const h = hOfId(g.citizen_id), G = GAMES.find(q => q.id === g.game); return h ? win(h, `<b dir="ltr">@${esc(nick(h.u))}</b> · ${G ? G.ic + " " + G.name : g.game}`, h.u) : ""; }).join("")
+    + P.records.slice(0, 3).map(r => { const h = S.byUser.get(r.u), K = DRV.K[r.v]; return h && K ? win(h, `<b dir="ltr">@${esc(nick(r.u))}</b> · שיא חדש ב${K.name} ${drvFmt(r.ms)}`, r.u) : ""; }).join("");
+  const certsH = P.certs.slice(0, 4).map(r => { const h = S.byUser.get(r.u), K = DRV.K[r.v]; return h && K ? win(h, `<b dir="ltr">@${esc(nick(r.u))}</b> · ${K.br === "sea" ? "משיט" : "נהג"} מוסמך ב${K.name}`, r.u) : ""; }).join("");
+  const tick = [P.joined.length ? `⭐ ${fmtN(P.joined.length)} אזרחים חדשים הצטרפו${P.joined.length ? ` (ברוכים הבאים ${P.joined.slice(0, 3).map(c => "@" + nick(c.ig_username)).join(", ")})` : ""}` : "",
+    ...P.started.map(p => `🏗️ התחילו לבנות: ${p.name || PROJECT_KINDS[p.kind]?.[1]}`), ...P.opened.slice(st.kick === "נחנך" ? 1 : 0).map(p => `🎉 נחנך: ${p.name || PROJECT_KINDS[p.kind]?.[1]}`),
+    ...P.laws.slice(st.kick === "ספר החוקים" ? 1 : 0).map(l => `📜 חוק חדש: ${l.title}`), ...P.wishes.map(q => `🎖️ משאלה הוגשמה: ${q.text.slice(0, 40)}`)].filter(Boolean);
+  const tmr = dayAdd(D, 1), tp = drawPrize(Math.round((Date.parse(tmr) - Date.parse(israelDate())) / 864e5)), closing = (S.ballot || []).filter(e => e.status === "open" && ilOf(e.ends_at) <= dayAdd(D, 1));
+  const isToday = D === paperDay(), prev = dayAdd(D, -1), next = dayAdd(D, 1);
+  open("📰 סבבה היום", `<div class="np">
+    <div class="mast"><div class="nm"><span class="fl" style="background-image:url('${FLAG_URI}')"></span>סבבה היום</div></div>
+    <div class="meta"><span>גיליון ${fmtN(P.no)}</span><span>${heDay(D)}</span><span>יום ${fmtN(P.no)} לעצמאות</span></div>
+    <div class="kick">${esc(st.kick)}</div><h2>${esc(st.h)}</h2>
+    ${ph.url ? `<img class="ph" alt="" src="${ph.url}"><div class="pc">${esc(ph.cap)} · צילום: מנהלת הבינוי הלאומית</div>` : ""}<p>${esc(st.p)}</p>
+    <div class="cols"><div><div class="kick">הממשלה</div>${m0 ? `<h3>${esc(m0.ministry)}</h3>${mh ? `<span class="port" style="background-image:url('${face(mh)}')"></span>` : ""}<p><span dir="ltr">@${esc(nick(m0.citizens?.ig_username || ""))}</span> מונה/תה ב${heDay(P.C, { weekday: "long" })} לתפקיד.${P.ministers.length > 1 ? ` ועוד ${fmtN(P.ministers.length - 1)} מינויים.` : ""}</p>` : `<h3>אין מינויים חדשים</h3><p class="empty">${fmtN((S.gov || []).length)} שרים מכהנים בממשלה</p>`}</div>
+      <div><div class="kick">זוכי ההגרלה</div>${drawsH || `<p class="empty">ההגרלה של ${heDay(P.C, { weekday: "long" })} עוד לא נערכה</p>`}</div></div>
+    <div class="cols"><div><div class="kick">ספורט ומשחקים</div>${gamesH || `<p class="empty">אין עדיין זוכים מאתמול</p>`}${certsH ? `<div class="kick" style="margin-top:6px">הוסמכו</div>${certsH}` : ""}</div>
+      <div>${P.candles != null ? `<div class="box"><div class="big">${fmtN(P.candles)}</div><small>🕯️ נרות הודלקו ב${heDay(P.C, { weekday: "long" })} בגן יזכור</small></div>` : ""}
+        <div class="box"><div class="big">${fmtN(P.joined.length)}</div><small>⭐ אזרחים חדשים</small></div></div></div>
+    <div class="cols"><div><div class="kick">מחר בהגרלה</div><p>🏡 ${esc(HOUSE_NAMES[tp.house])} · 🏎️ ${esc(CARS[tp.car].name)}</p></div>
+      <div><div class="kick">בקלפי</div><p>${closing.length ? closing.map(e => `🗳️ ${esc(e.title)} · ${timeLeft(e.ends_at)}`).join("<br>") : (S.ballot || []).some(e => e.status === "open") ? "🗳️ יש הצבעה פתוחה בקלפי" : "אין הצבעה פתוחה"}</p></div></div>
+    ${tick.length ? `<div class="tick">${tick.map(esc).join(" · ")}</div>` : ""}
+    <div class="nav"><button data-pd="${prev}" ${prev < PAPER_FIRST ? "disabled" : ""}>‹ גיליון קודם</button>${!isToday ? `<button data-pd="${next}">גיליון הבא ›</button>` : ""}<button class="pri" id="npShare">📤 לשתף כסטורי</button></div>
+    <p class="empty" style="text-align:center;margin-top:8px">גיליון חדש יוצא כל בוקר ב־06:00 · ${isToday ? "זה הגיליון של היום" : `הגיליון של ${heDay(D, { day: "numeric", month: "long" })}`}</p></div>`, () => {
+    $("dBody").querySelectorAll("[data-pd]").forEach(b => b.onclick = () => GO.paper(b.dataset.pd));
+    $("npShare").onclick = async () => { const b = $("npShare"); b.disabled = true; try { const url = (await paperCanvas(P, st, ph)).toDataURL("image/jpeg", .9), f = new File([await (await fetch(url)).blob()], `sababa-today-${P.no}.jpg`, { type: "image/jpeg" });
+      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: `סבבה היום · גיליון ${P.no}` }); else { const a = document.createElement("a"); a.href = url; a.download = f.name; a.click(); toast("התמונה נשמרה · מעלים לסטורי"); } } catch {} b.disabled = false; };
+    if (isToday) { setPref("sababa_paper_seen", D); sealBadges(); }
+  }, false, "paperD");
+};
+// the front page as a story (1080 x 1920)
+const imgOf = src => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = src; });
+async function paperCanvas(P, st, ph) {
+  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1920; const x = cv.getContext("2d"), SER = '"Frank Ruhl Libre", Heebo, serif', SAN = "Heebo, Arial, sans-serif", INK = "#1a1a1a", RED = "#c8372d";
+  const txt = (t, X, Y, size, col = INK, w = 800, al = "right", f = SAN, dir = "rtl") => { x.font = `${w} ${size}px ${f}`; x.fillStyle = col; x.textAlign = al; x.direction = dir; x.fillText(t, X, Y); };
+  const line = (y, w = 2) => { x.fillStyle = INK; x.fillRect(60, y, 960, w); };
+  const [fl, photo] = await Promise.all([imgOf(FLAG_URI), ph.url ? imgOf(ph.url) : null]);
+  x.fillStyle = "#f7f1e3"; x.fillRect(0, 0, 1080, 1920);
+  // the masthead
+  txt("סבבה היום", 540, 190, 150, INK, 900, "center", SER); line(222, 4); line(232, 2);
+  if (fl) { x.drawImage(fl, 60, 84, 114, 76); x.drawImage(fl, 906, 84, 114, 76); }
+  txt(`גיליון ${fmtN(P.no)}`, 1020, 272, 28, INK, 800); txt(heDay(P.D), 540, 272, 28, INK, 800, "center"); txt(`יום ${fmtN(P.no)} לעצמאות`, 60, 272, 28, INK, 800, "left"); line(292, 2);
+  txt(st.kick, 1020, 348, 30, RED, 800);
+  x.font = `900 72px ${SER}`; x.direction = "rtl"; const hl = wrapText(x, st.h, 960).slice(0, 2); hl.forEach((l, i) => txt(l, 1020, 426 + i * 80, 72, INK, 900, "right", SER));
+  let y = 426 + hl.length * 80 - 34;
+  if (photo) { x.drawImage(photo, 0, 30, photo.width, photo.height - 60, 60, y, 960, 540); x.strokeStyle = INK; x.lineWidth = 2; x.strokeRect(60, y, 960, 540); y += 570; txt(`${ph.cap} · צילום: מנהלת הבינוי הלאומית`, 1020, y - 4, 22, "#555", 600); y += 12; }
+  x.font = `600 32px ${SER}`; x.direction = "rtl"; const pl = wrapText(x, st.p, 960).slice(0, 2); pl.forEach((l, i) => txt(l, 1020, y + 40 + i * 42, 32, INK, 600, "right", SER)); y += 40 + pl.length * 42;
+  line(y, 2); y += 22;
+  // three facts across
+  const facts = [[P.draws.length ? fmtN(P.draws.length) : "—", "זוכים בהגרלה"], [fmtN(P.joined.length), "אזרחים חדשים"], [P.candles != null ? fmtN(P.candles) : "—", "נרות בגן יזכור"]];
+  facts.forEach(([n, t], i) => { const X = 1020 - i * 320 - 160; txt(n, X, y + 76, 80, INK, 900, "center", SER); txt(t, X, y + 118, 27, INK, 700, "center"); if (i) { x.fillStyle = INK; x.fillRect(X + 160, y + 6, 2, 118); } });
+  y += 146; line(y, 2); y += 16;
+  // two columns: the people of the day (with their faces) and what is coming
+  const faceAt = async (h, X, Y) => { if (!h) return; const im = await imgOf(face(h)); if (im) { x.fillStyle = "#dfe9ef"; x.fillRect(X, Y, 56, 64); x.drawImage(im, X, Y, 56, 64); x.strokeStyle = INK; x.lineWidth = 1.5; x.strokeRect(X, Y, 56, 64); } };
+  const people = [];
+  for (const m of P.ministers.slice(0, 1)) people.push([S.byUser.get(m.citizens?.ig_username), `${m.ministry}: \u2066@${nick(m.citizens?.ig_username || "")}\u2069`]);
+  for (const d of P.draws.slice(0, 3)) { const u = d.citizens?.ig_username || "", [ic, t] = PRIZES[d.prize] || ["🎁", d.prize]; people.push([S.byUser.get(u), `\u2066@${nick(u)}\u2069 · ${t}`]); }
+  for (const g of P.games.slice(0, 2)) { const h = hOfId(g.citizen_id), G = GAMES.find(q => q.id === g.game); if (h) people.push([h, `\u2066@${nick(h.u)}\u2069 · ${G ? G.name : g.game}`]); }
+  const yEnd = 1760, yCol = y;
+  txt("אנשי היום", 1020, y + 30, 26, RED, 800); y += 46;
+  if (!people.length) { txt("עוד אין זוכים מאתמול", 1020, y + 30, 26, "#6b6250", 600); y += 50; }
+  for (const [h, t] of people) { if (y + 70 > yEnd) break; await faceAt(h, 964, y); x.font = `800 27px ${SAN}`; txt(t.length > 34 ? t.slice(0, 33) + "…" : t, 948, y + 42, 27, INK, 800); y += 76; }
+  // the left column: tomorrow
+  const tmr = dayAdd(P.D, 1), tp = drawPrize(Math.round((Date.parse(tmr) - Date.parse(israelDate())) / 864e5));
+  let y2 = yCol; x.fillStyle = INK; x.fillRect(420, yCol, 2, Math.min(yEnd, Math.max(y, yCol + 200)) - yCol);
+  txt("מחר בהגרלה", 400, y2 + 30, 26, RED, 800); y2 += 46;
+  for (const t of [`🏡 ${HOUSE_NAMES[tp.house]}`, `🏎️ ${CARS[tp.car].name}`]) { x.font = `700 27px ${SAN}`; x.direction = "rtl"; for (const l of wrapText(x, t, 330).slice(0, 2)) { txt(l, 400, y2 + 30, 27, INK, 700); y2 += 38; } y2 += 6; }
+  // the foot
+  x.fillStyle = "#0f3a4d"; x.fillRect(0, 1790, 1080, 130); txt("@sababa.state · sababastate.com", 540, 1868, 36, "#ffb627", 800, "center", SAN, "ltr");
+  return cv;
+}
+/* ---------- the badges, the shift chip ---------- */
+function sealBadges() {
+  const st = mailState(false), n = st.wait, newPaper = pref("sababa_paper_seen", "") !== paperDay();
+  $("sealN").textContent = n ? String(n) : ""; $("arcMail").textContent = n ? String(n) : ""; $("arcPaper").textContent = newPaper ? "חדש" : "";
+  // the chip under the clock: what waits today (the shift, the salary), or how long until the next day of the service
+  const h = st.h, chip = $("shiftChip");
+  if (!h) { chip.hidden = true; return; }
+  const sv = S.soldiers?.get(h.u), today = israelDate(), shiftWait = sv && sv.last_shift !== today, payWait = h.coins != null && !collectedToday(h);
+  if (shiftWait || payWait) { chip.className = "shiftChip go"; chip.innerHTML = `${shiftWait ? "🪖 משמרת" : "💼 משכורת"} <i>מחכה</i>`; chip.dataset.go = shiftWait ? "army" : "mine"; }
+  else { const ms = (24 - israelHour()) * 36e5, hh = Math.floor(ms / 36e5), mm = Math.floor(ms % 36e5 / 6e4); chip.className = "shiftChip"; chip.innerHTML = `${sv ? "🪖 המשמרת הבאה" : "💼 המשכורת הבאה"} <i>${hh}:${String(mm).padStart(2, "0")}</i>`; chip.dataset.go = sv ? "army" : "mine"; }
+  chip.hidden = false;
+}
+$("shiftChip").onclick = () => GO[$("shiftChip").dataset.go]?.();
+setInterval(() => { try { sealBadges(); } catch {} }, 30000);
 
 function openGov(id) {
   const g = GOV.find(q => q.id === id);
@@ -14355,6 +14751,7 @@ async function loadBallot() {
   try { S.myVotes = k ? await rpc("my_votes", { username: me.u, key: k }) : []; } catch { S.myVotes = []; }
   const n = S.ballot.filter(e => e.status === "open").length, t = document.querySelector('[data-tab="ballot"]');
   if (t) t.dataset.badge = n ? String(n) : "";
+  try { sealBadges(); } catch {}
 }
 function timeLeft(d) {
   const ms = new Date(d).getTime() - Date.now(); if (ms <= 0) return "נסגרת עכשיו";
@@ -14959,9 +15356,11 @@ const NEWS = {
   kirya: { v: "2026-11-06", ic: "🏛️", t: "הקריה נפתחה · מתגייסים לכל״ס", sub: "מגדל המטה עם גשר הפיקוד, ולשכת גיוס בכל עיר · יבשה, אוויר, ים או שירות הביטחון · משמרת ביום ועולים בדרגות", ok: () => natOpen("kirya"), shot: () => { const N = NAT.kirya; return { a: { x: N.x, z: N.z, zoom: 1.5, az: -.6, el: .38 }, b: { x: N.x, z: N.z, zoom: 3, az: .4, el: .3 } }; } },
   regions: { v: "2026-11-06", ic: "🗺️", t: "האי גדל פי 3: צפון, מרכז ודרום", sub: "בצפון הרים מיוערים, במרכז שדות וחורשות סביב הערים, ובדרום מדבר עם רכסים ועצי שיטה · כל הבתים והכתובות נשארו במקום", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: .35, az: -.4, el: .55 }, b: { x: 300, z: 2900, zoom: 1.2, az: .3, el: .4 } }) },
   grow: { v: "2026-11-06", ic: "🏝️", t: "האי גדל עם כל פרויקט לאומי", sub: "כל פרויקט גדול מוסיף לאי את כל השטח שהוא תופס · החוף מתרחב מסביב", ok: () => NAT_GROW.some(k => natP(k)), shot: () => ({ a: { x: 0, z: 0, zoom: .5, az: -.4, el: .55 }, b: { x: 0, z: 0, zoom: .62, az: .3, el: .5 } }) },
+  seal: { v: "2026-11-10", ic: "🏛️", t: "החותם: לשכת התושב, הדואר והמחסן", sub: "כפתור אחד של המדינה במקום הסרגל · מכתבים רשמיים עם חותמות לכל מה שמחכה לך · כל מה שיש לך במקום אחד", ok: () => true, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[0], 3, .3, .45) }) },
+  paper: { v: "2026-11-10", ic: "📰", t: "סבבה היום: עיתון חדש כל בוקר", sub: "ב־06:00 יוצא גיליון עם כל מה שקרה אתמול: שדרוגים, השרים החדשים, זוכי ההגרלה, המשחקים, הנרות והאזרחים החדשים · לשתף כסטורי", ok: () => true, shot: () => ({ a: at(S.slots[0], 1.8, .4, .55), b: at(S.slots[0], 2.6, -.2, .5) }) },
   roadfix: { v: "2026-11-10", ic: "🛣️", t: "תיקוני כבישים", sub: "הכביש הראשי עוקף עכשיו את קריית הספורט בכיכר · במחלף סבבהום הרמפות יוצאות מהכביש המהיר ועולות לכיכרות בשיפוע אחיד, בלי שברי כביש", ok: () => !!LAND.yk?.Fp, shot: () => { const Y = LAND.yk, p = Y.Fp(200, 0); return { a: { x: p.x, z: p.z, zoom: 3.2, az: .6, el: .55 }, b: { x: p.x, z: p.z, zoom: 5, az: -.5, el: .4 } }; } },
   sail: { v: "2026-11-10", ic: "⚓", t: "בית הספר לשיט בבסיס חיל הים", sub: "סירת גומי, סירת סיור, ספינת טילים, צוללת ומשחתת · מסלול הנמל ומסלול הים, עגינה ליד רציף האימון, תעודת משיט מוסמך · מהגשר, מהעמדה או בפריסקופ", ok: () => natOpen("navy"), shot: () => { const [x, z] = nW(200, -260); return { a: { x, z: z, zoom: 1.6, az: -.6, el: .45 }, b: { x, z, zoom: 3, az: .5, el: .3 } }; } },
-  drive: { v: "2026-11-10", ic: "🎖️", t: "מגרש הנהיגה בבסיס השריון", sub: "ג׳יפ, משאית, אמבולנס, מכלית, נגמ״ש, טנק ומוביל טנקים · מגרש מכשולים ומסלול כבדים, שעון, תעודת נהג מוסמך וטבלת שיאים · נהיגה מהמושב, מהצוהר או בפריסקופ", ok: () => natOpen("armour"), shot: () => { const [x, z] = rW(0, DRV.YZ); return { a: { x, z: z + 150, zoom: 2.2, az: -.5, el: .4 }, b: { x, z, zoom: 4, az: .4, el: .32 } }; } },
+  drvyard: { v: "2026-11-10", ic: "🎖️", t: "מגרש הנהיגה בבסיס השריון", sub: "ג׳יפ, משאית, אמבולנס, מכלית, נגמ״ש, טנק ומוביל טנקים · מגרש מכשולים ומסלול כבדים, שעון, תעודת נהג מוסמך וטבלת שיאים · נהיגה מהמושב, מהצוהר או בפריסקופ", ok: () => natOpen("armour"), shot: () => { const [x, z] = rW(0, DRV.YZ); return { a: { x, z: z + 150, zoom: 2.2, az: -.5, el: .4 }, b: { x, z, zoom: 4, az: .4, el: .32 } }; } },
   yamit: { v: "2026-11-06", ic: "🎢", t: "ימית סבבה נפתח", sub: "לגונת גלים, נהר עצל, ומגדל מגלשות של 40 מ׳ על אי באמצע בריכה ענקית · בכל קומה מגלשה אחרת", ok: () => natOpen("yamit"), shot: () => { const [x, z] = ymW(YM.HX, YM.HZ); return { a: { x, z, zoom: 1.4, az: -.6, el: .38 }, b: { x, z, zoom: 3, az: .5, el: .3 } }; } }
 };
 // the newest release is what "what's new" shows by itself (the date of the newest item)
@@ -16182,7 +16581,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { avatarThumb, avatarOf, FLAG_URI, paperData, paperCanvas, paperStory, paperPhoto, paperDay, mailState, SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
