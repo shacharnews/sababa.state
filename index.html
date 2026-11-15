@@ -2,6 +2,13 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-5FH4LW9L');</script>
+<!-- End Google Tag Manager -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>רפובליקת סבבה</title>
 <meta name="description" content="כל עוקב הוא אזרח עם בית, רכב, עבודה וכתובת. מצאו את הבית שלכם ברפובליקת סבבה.">
@@ -388,6 +395,10 @@ body.inside #intUI{display:block}
 </script>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5FH4LW9L"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 
 <div id="loader"><div class="in"><div id="loadFlag"></div><h1>רפובליקת <b>סבבה</b></h1><p id="loadMsg">השמש עולה על האי…</p></div></div>
 <div id="gl" aria-label="מפת רפובליקת סבבה. גררו כדי לזוז, צבטו כדי להגדיל, שתי אצבעות כדי לסובב"></div>
@@ -3001,6 +3012,7 @@ const addressOf = h => h.lot ? `${h.lot.street} ${h.lot.num}, ${h.city.name}` : 
 // The island grows with the population. Lot positions never depend on the current size,
 // so every address stays the same forever; the island just has to cover the houses.
 const RX0 = 820, RZ0 = 700, GRASS = .9, MAX_S = 6, REGION_GROW = 1.65;
+const AREA_MAX = 100, S_MAX = Math.sqrt(AREA_MAX * 1e6 / (Math.PI * RX0 * RZ0 * GRASS * GRASS));   // קמ״ר: the island is never bigger than this
 const shoreF = t => 1 + .07 * Math.sin(3 * t + .6) + .05 * Math.sin(5 * t + 2.1) + .03 * Math.sin(8 * t + .3);
 const growth = n => Math.min(MAX_S, .55 + .45 * Math.sqrt(Math.max(0, n) / 1000));
 const polar = (x, z, s) => ({ t: Math.atan2(z / (RZ0 * s), x / (RX0 * s)), d: Math.hypot(x / (RX0 * s), z / (RZ0 * s)) });
@@ -3456,28 +3468,30 @@ function unwarpXZ(x, z) { if (!WRP.on) return [x, z]; let u = x, v = z; for (let
 /* ---------- hills, mountains and valleys: the land rises between the cities and falls back to the beach.
    The cities themselves (and a margin around them) stay level, so streets and houses stand straight. ---------- */
 // the regions, by how far north or south of today's island: the north = high wooded hills, the south = a desert plateau with bare ridges; the centre keeps today's land
-const regN = qz => smooth01(-.5, -.66, qz), regS = qz => smooth01(.44, .6, qz);
+const regN = qz => smooth01(-.38, -.52, qz), regS = qz => smooth01(.335, .46, qz);
 function regionH(x, z, qz, n, r) { const N = regN(qz), So = regS(qz); if (N + So <= 0) return 0;
   const rg = Math.pow(Math.max(0, 1 - Math.abs(Math.sin(.0016 * x + .0009 * z + .4))), 3), dn = .5 + .5 * Math.sin(.011 * x + .004 * z) * Math.cos(.006 * x - .009 * z);
   return N * (30 + 170 * Math.pow(n, 1.3) * (.45 + .55 * r)) + So * (22 + 22 * n + 8 * dn + 200 * rg * (.55 + .45 * n)); }
-const HT_U = { uK: { value: 24 }, uS: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uMoundL: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlat: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
+const HT_U = { uK: { value: 24 }, uS: { value: 1 }, uSL: { value: 1 }, uCity: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e6, 1e6, 1e6, 1e6)) }, uMound: { value: new THREE.Vector4(0, 0, 0, 0) }, uMoundL: { value: new THREE.Vector4(0, 0, 0, 0) }, uPlat: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e6, 1e6, 0, 0)) }, uNav: { value: new THREE.Vector4(1e6, 1e6, 1, 0) }, uAir: { value: new THREE.Vector4(1e6, 1e6, 1, 0) } }, HT_PEAK = 95;
 function terrainH(x, z) { const b0 = terrainBase(x, z), w = moundW(x, z); let b = w > 0 ? b0 + (HT_U.uMound.value.z - b0) * w : b0;
   for (const P of HT_U.uPlat.value) if (P.z > 0) { const d = Math.hypot(x - P.x, z - P.y); if (d < P.z + PLAT_RAMP) b += (P.w - b) * (1 - smooth01(P.z, P.z + PLAT_RAMP, d)); }   // the terraces of the fuel stations
   return b; }
 const PLAT_RAMP = 160;   // סבבהום's flat hilltop blends into the land around it
 function terrainBase0(x, z) {
   const s = HT_U.uS.value, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), c = smooth01(0, .22, GRASS * shoreF(t) - d); if (c <= 0) return 0;
+  // the coast is cut at the island's size (uS), but the hills, the ridge and the regions keep the frame they were drawn in (uSL), so the land already built on never moves
+  const sL = HT_U.uSL.value || s, qzL = z / (RZ0 * sL), dL = Math.hypot(x / (RX0 * sL), qzL);
   let dm = 1e9; for (const b of HT_U.uCity.value) dm = Math.min(dm, Math.hypot(Math.max(b.x - x, x - b.z, 0), Math.max(b.y - z, z - b.w, 0)));
   { const N = HT_U.uNav.value, dx = x - N.x, dz = z - N.y, lx = dx * N.z - dz * N.w, lz = dx * N.w + dz * N.z; dm = Math.min(dm, Math.hypot(Math.max(Math.abs(lx) - 490, 0), Math.max(Math.abs(lz) - 175, 0))); }   // the navy base, along the coast
   { const N = HT_U.uAir.value, dx = x - N.x, dz = z - N.y, lx = dx * N.z - dz * N.w, lz = dx * N.w + dz * N.z; dm = Math.min(dm, Math.hypot(Math.max(Math.abs(lx) - 1720, 0), Math.max(Math.abs(lz) - 340, 0))); }   // the air base and its runway
   const f = smooth01(20, 200, dm); if (f <= 0) return 0;
   const n = .5 + .5 * (.55 * Math.sin(.0042 * x + .3) * Math.cos(.0037 * z + 1.2) + .3 * Math.sin(.0091 * x - .0063 * z + 2) + .15 * Math.sin(.019 * x + .014 * z + .7));
   const r = 1 - Math.abs(Math.sin(.0064 * x - .0049 * z + .9));   // a ridge line that climbs into peaks
-  return c * f * (HT_PEAK * (.55 * Math.pow(n, 2.2) + .45 * Math.pow(n, 1.6) * r * r) + landLift(x, z, t, d) + regionH(x, z, qz, n, r));
+  return c * f * (HT_PEAK * (.55 * Math.pow(n, 2.2) + .45 * Math.pow(n, 1.6) * r * r) + landLift(x, z, t, dL, d) + regionH(x, z, qzL, n, r));
 }
 // after every layout: how big the island is and where the cities stand (they are kept level)
 function terrainUpdate() {
-  HT_U.uS.value = S.s; navyPlace(); airPlace(); const open = S.slots.filter(sl => sl.city && (sl.blocks?.size || sl.townBox));
+  HT_U.uS.value = S.s; HT_U.uSL.value = S.sL || S.s; pplApply(); navyPlace(); airPlace(); const open = S.slots.filter(sl => sl.city && (sl.blocks?.size || sl.townBox));
   HT_U.uCity.value.forEach((v, i) => { const sl = open[i]; if (!sl) return v.set(1e6, 1e6, 1e6, 1e6); const E = TOWNS.get(sl.at)?.ext; if (E) return v.set(E.x0, E.z0, E.x1, E.z1);
     if (sl.townBox) { const F = townF(sl); return v.set(sl.x - F.R, sl.z - F.RZ, sl.x + F.R, sl.z + F.RZ); } const B = cityBox(sl);
     v.set(sl.x + BPX(B.mnX) - bwX(B.mnX) / 2 - 30, sl.z + BPZ(B.mnZ) - BZ / 2 - 30, sl.x + BPX(B.mxX) + bwX(B.mxX) / 2 + 30, sl.z + BPZ(B.mxZ) + BZ / 2 + 30); });
@@ -3502,7 +3516,7 @@ function terrainUpdate() {
 }
 const WARP_U = { value: 0 };   // 1 only while the island itself is being drawn (never inside a house or in the shop pictures)
 const f6 = v => (+v).toFixed(6);
-const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uMoundL; uniform vec4 uPlat[4]; uniform vec4 uNav; uniform vec4 uAir;
+const warpGLSL = () => `uniform float uWarp; attribute float warpv; uniform float uS; uniform float uSL; uniform vec4 uCity[16]; uniform vec4 uMound; uniform vec4 uMoundL; uniform vec4 uPlat[4]; uniform vec4 uNav; uniform vec4 uAir;
 float wshore(float t) { return 1. + .07 * sin(3. * t + .6) + .05 * sin(5. * t + 2.1) + .03 * sin(8. * t + .3); }
 float wsm0(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0., 1.); return t * t * (3. - 2. * t); }
 ${landLiftGLSL}
@@ -3510,15 +3524,16 @@ float terrainBase(vec2 p);
 float terrainH(vec2 p) { float b = terrainBase(p); if (uMound.w > .5) { float dm = length(p - uMound.xy); if (uMoundL.z != 0. || uMoundL.w != 0.) { vec2 q = p - uMoundL.xy, u = uMoundL.zw; float al = dot(q, u), of = abs(q.x * u.y - q.y * u.x); dm = mix(dm, length(uMoundL.xy + u * al - uMound.xy), 1. - wsm0(14., 30., of)); } float w = 1. - wsm0(${YK.R0}., ${YK.R1}., dm); b += (uMound.z - b) * w; } for (int i = 0; i < 4; i++) { vec4 P = uPlat[i]; if (P.z > 0.) b += (P.w - b) * (1. - wsm0(P.z, P.z + ${PLAT_RAMP}., length(p - P.xy))); } return b; }
 float terrainBase(vec2 p) {
   vec2 q = vec2(p.x / (${RX0}. * uS), p.y / (${RZ0}. * uS)); float c = wsm0(0., .22, ${GRASS} * wshore(atan(q.y, q.x)) - length(q)); if (c <= 0.) return 0.;
+  vec2 qL = vec2(p.x / (${RX0}. * uSL), p.y / (${RZ0}. * uSL));
   float dm = 1e9; for (int i = 0; i < uK; i++) { if (i >= 16) break; vec4 b = uCity[i]; vec2 e = max(max(b.xy - p, p - b.zw), vec2(0.)); dm = min(dm, length(e)); }
   { vec2 d = p - uNav.xy; vec2 l = vec2(d.x * uNav.z - d.y * uNav.w, d.x * uNav.w + d.y * uNav.z); dm = min(dm, length(max(abs(l) - vec2(490., 175.), vec2(0.)))); }
   { vec2 d = p - uAir.xy; vec2 l = vec2(d.x * uAir.z - d.y * uAir.w, d.x * uAir.w + d.y * uAir.z); dm = min(dm, length(max(abs(l) - vec2(1720., 340.), vec2(0.)))); }
   float f = wsm0(20., 200., dm), hb = landD(p); if (f > 0.) {
   float n = .5 + .5 * (.55 * sin(.0042 * p.x + .3) * cos(.0037 * p.y + 1.2) + .3 * sin(.0091 * p.x - .0063 * p.y + 2.) + .15 * sin(.019 * p.x + .014 * p.y + .7));
   float r = 1. - abs(sin(.0064 * p.x - .0049 * p.y + .9));
-  float RN = wsm0(-.5, -.66, q.y), RS = wsm0(.44, .6, q.y), rg = pow(max(0., 1. - abs(sin(.0016 * p.x + .0009 * p.y + .4))), 3.), dn = .5 + .5 * sin(.011 * p.x + .004 * p.y) * cos(.006 * p.x - .009 * p.y);
+  float RN = wsm0(-.38, -.52, qL.y), RS = wsm0(.335, .46, qL.y), rg = pow(max(0., 1. - abs(sin(.0016 * p.x + .0009 * p.y + .4))), 3.), dn = .5 + .5 * sin(.011 * p.x + .004 * p.y) * cos(.006 * p.x - .009 * p.y);
   float reg = RN * (30. + 170. * pow(n, 1.3) * (.45 + .55 * r)) + RS * (22. + 22. * n + 8. * dn + 200. * rg * (.55 + .45 * n));
-  hb += c * f * (${HT_PEAK}. * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r) + landLift(p, atan(q.y, q.x), length(q)) + reg); }
+  hb += c * f * (${HT_PEAK}. * (.55 * pow(n, 2.2) + .45 * pow(n, 1.6) * r * r) + landLift(p, atan(q.y, q.x), length(qL), length(q)) + reg); }
   return landBr(p, hb);
 }
 const int WNS = ${SLOTS.length}; const vec2 WSL[WNS] = vec2[](${SLOTS.map(q => `vec2(${f6(q.x)}, ${f6(q.z)})`).join(", ")});
@@ -3550,7 +3565,7 @@ const WARP_WPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined (
 function warpMat(m) {
   if (!m || m.userData.warpOk || m.isShaderMaterial || m.isSpriteMaterial || m.isRawShaderMaterial) return; m.userData.warpOk = true;
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey;
-  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uK = HT_U.uK; sh.uniforms.uS = HT_U.uS; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uMoundL = HT_U.uMoundL; sh.uniforms.uPlat = HT_U.uPlat; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
+  m.onBeforeCompile = (sh, r) => { prev.call(m, sh, r); sh.uniforms.uWarp = WARP_U; sh.uniforms.uK = HT_U.uK; sh.uniforms.uS = HT_U.uS; sh.uniforms.uSL = HT_U.uSL; sh.uniforms.uCity = HT_U.uCity; sh.uniforms.uMound = HT_U.uMound; sh.uniforms.uMoundL = HT_U.uMoundL; sh.uniforms.uPlat = HT_U.uPlat; sh.uniforms.uNav = HT_U.uNav; sh.uniforms.uAir = HT_U.uAir; sh.uniforms.uBr = HT_U.uBr; sh.uniforms.uBr2 = HT_U.uBr2; sh.uniforms.uBr3 = HT_U.uBr3; sh.uniforms.uLand = HT_U.uLand; sh.uniforms.uLandB = HT_U.uLandB;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + warpGLSL()).replace("#include <project_vertex>", WARP_PROJ).replace("#include <worldpos_vertex>", WARP_WPOS); };
   m.customProgramCacheKey = () => key.call(m) + "|warp"; m.needsUpdate = true;
 }
@@ -4640,7 +4655,7 @@ function busGo(i, j) {
 }
 function stopCard(i) {
   const A = S.busStops?.[i]; if (!A) return;
-  open(`🚏 תחנת ${esc(A.name)}`, `<div class="hero"><p><b>סבבוס 🚌</b> קו ${SB.LINE} הבין עירוני של המדינה. נסיעה בחינם לכל תושב.</p><div id="busNext" data-i="${i}" style="margin-top:8px">${lineBoard(i)}</div></div>
+  open(`🚏 תחנת ${A.name}`, `<div class="hero"><p><b>סבבוס 🚌</b> קו ${SB.LINE} הבין עירוני של המדינה. נסיעה בחינם לכל תושב.</p><div id="busNext" data-i="${i}" style="margin-top:8px">${lineBoard(i)}</div></div>
     <div class="list" style="margin-top:10px">${S.busStops.map((B, j) => j === i ? "" : info(B.ic, B.name, `${fmtN(Math.round(Math.hypot(B.x - A.x, B.z - A.z) / 100) / 10)} ק״מ`)).join("")}</div>
     ${S.mine?.lot ? `<div class="btns" style="margin-top:10px"><button class="btn" id="stGo">🚶 ללכת לתחנה ולנסוע</button></div>` : ""}`, () => { const b = $("stGo"); if (b) b.onclick = () => { walkStart(S.mine.u); if (!WALK.on) return; WALK.x = A.x + Math.sin(A.ry) * 2.6; WALK.z = A.z + Math.cos(A.ry) * 2.6; WALK.head = A.ry + Math.PI / 2; WALK.cy = A.ry - Math.PI / 2; WALK.doors = walkDoors(); setTimeout(() => busPick(i), 400); }; });
 }
@@ -4689,7 +4704,7 @@ function railWaitSec(i) { for (let s2 = 0; s2 < 200; s2 += .5) { const p = palmP
 function railShort(i) { const w = railWaitSec(i); return w == null ? "" : w === 0 ? "🚡 הרכבל בתחנה!" : `🚡 בעוד ${mss(w)}`; }
 function railCard(i) {
   const A = PALM.stations?.[i], B = PALM.stations?.[1 - i]; if (!A) return;
-  open(`🚡 ${esc(A.name)}`, `<div class="hero"><p><b>הרכבל של אי הדקל</b> בכחול וזהב של דגל המדינה, מעל המים, מהחוף עד מלון הדקל. נסיעה בחינם לכל תושב.</p>
+  open(`🚡 ${A.name}`, `<div class="hero"><p><b>הרכבל של אי הדקל</b> בכחול וזהב של דגל המדינה, מעל המים, מהחוף עד מלון הדקל. נסיעה בחינם לכל תושב.</p>
     <p style="margin-top:6px">${railShort(i) || ""} · היעד: <b>${esc(B.name)}</b></p></div>
     ${S.mine?.lot ? `<div class="btns" style="margin-top:10px"><button class="btn" id="rlGo">🚶 ללכת לתחנה ולנסוע</button></div>` : ""}`, () => { const b = $("rlGo"); if (b) b.onclick = () => { walkStart(S.mine.u); if (!WALK.on) return;
       WALK.x = A.x; WALK.z = A.z; WALK.doors = walkDoors(); setTimeout(() => railEnter(i), 300); }; });
@@ -4726,7 +4741,7 @@ function railStep(dt) {
 }
 function busPick(i) {
   const A = S.busStops[i]; if (!A) return;
-  open(`🚏 תחנת ${esc(A.name)}`, `<div class="hero"><p><b>סבבוס 🚌 · קו ${SB.LINE}</b> נסיעה בחינם, מתנה של המדינה. לאן נוסעים?</p><div id="busNext" data-i="${i}" style="margin-top:8px">${lineBoard(i)}</div></div>
+  open(`🚏 תחנת ${A.name}`, `<div class="hero"><p><b>סבבוס 🚌 · קו ${SB.LINE}</b> נסיעה בחינם, מתנה של המדינה. לאן נוסעים?</p><div id="busNext" data-i="${i}" style="margin-top:8px">${lineBoard(i)}</div></div>
     <div class="list" style="margin-top:10px">${S.busStops.map((B, j) => j === i ? "" : `<div class="li"><span class="ic">${B.ic}</span><span class="tx"><b>${esc(B.name)}</b><small>${fmtN(Math.round(Math.hypot(B.x - A.x, B.z - A.z) / 100) / 10)} ק״מ</small></span><button class="mini" data-bus="${j}">🚌 לנסוע</button></div>`).join("")}</div>`,
     () => $("dBody").querySelectorAll("[data-bus]").forEach(b => b.onclick = () => busGo(i, +b.dataset.bus)), true);
 }
@@ -4765,6 +4780,17 @@ function solid(parts, x, z, ry = 0, data, y = 0) {
   const pf = prefab(parts, false), grp = new THREE.Group();
   for (const k of BUCKETS) { const geo = pf[k], mat = BMAT[k]; if (!geo) continue; const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; if (data) { m.userData = data; S.picks.push(m); } grp.add(m); }
   grp.position.set(x, y, z); grp.rotation.y = ry; world.add(grp); return grp;
+}
+// a ground pad with rectangular holes cut out of it: paving laid straight on top of a pad fights it on screen from far away,
+// so the pad is laid round the paving instead of under it. holes are [x0, x1, z0, z1] in the same local frame.
+function padCut(W, D, holes, col, y = 0, h = .1) {
+  const Z = [...new Set([-D / 2, D / 2, ...holes.flatMap(q => [Math.max(-D / 2, q[2]), Math.min(D / 2, q[3])])])].sort((a, b) => a - b), out = [];
+  for (let i = 0; i < Z.length - 1; i++) { const za = Z[i], zb = Z[i + 1], zm = (za + zb) / 2; if (zb - za < .01) continue;
+    const cuts = holes.filter(q => q[2] < zm && q[3] > zm).map(q => [Math.max(-W / 2, q[0]), Math.min(W / 2, q[1])]).sort((a, b) => a[0] - b[0]);
+    let x = -W / 2;
+    for (const [a, b] of cuts) { if (a - x > .01) out.push(box(a - x, h, zb - za, col, (x + a) / 2, y, (za + zb) / 2)); x = Math.max(x, b); }
+    if (W / 2 - x > .01) out.push(box(W / 2 - x, h, zb - za, col, (x + W / 2) / 2, y, (za + zb) / 2)); }
+  return out;
 }
 // a sign painted on a building: a canvas texture on a flat board, lit like a real shop sign
 function sign(text, w, h, { bg = "#ffffff", fg = "#1b2430", font = "800", res = 1100 } = {}) {
@@ -4873,7 +4899,7 @@ function buildHills() {
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     const a = H[j * (nx + 1) + i], b = H[j * (nx + 1) + i + 1], d = H[(j + 1) * (nx + 1) + i], e = H[(j + 1) * (nx + 1) + i + 1];
     // in the south the desert runs right down to the beach (no green rim)
-    if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * S.s)) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;
+    if (Math.max(a, b, d, e) < .25 && !CORR[j * (nx + 1) + i] && !CORR[(j + 1) * (nx + 1) + i + 1] && !(regS((-Z + j * C) / (RZ0 * (S.sL || S.s))) > .3 && onGrass(-X + i * C, -Z + j * C, S.s, 0))) continue;
     inc[j * nx + i] = 1; if (NEAR[j * (nx + 1) + i] || NEAR[j * (nx + 1) + i + 1] || NEAR[(j + 1) * (nx + 1) + i] || NEAR[(j + 1) * (nx + 1) + i + 1]) sub[j * nx + i] = 1; }
   // a point of the fine grid (fi, fj in thirds of a cell): on the coarse grid its own height; inside a cut cell the land's; on the edge with an uncut cell, the edge's straight line (no crack)
   const subC = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && sub[j * nx + i];
@@ -4979,6 +5005,9 @@ function layout() {
   S.s = natGrow(S.s);   // and every national project adds the land it takes: the island grows by the project's whole plot
   S.s *= REGION_GROW;   // the regions: the north, the centre's plain and the south are added round the island (3.4 times the land); the cities stay where they are
   S.s = Math.max(S.s, needT * 1.2);   // (the island always reaches round the oasis town with a margin, but a far town does not by itself blow the island up)
+  // the state's own limit on its island: the coast never goes past AREA_MAX, however many citizens arrive. the land itself keeps the frame it was drawn in (S.sL),
+  // so every hill, every river and every street stays exactly where it is — only the empty country and the sea beyond it are trimmed away
+  S.sL = S.s; S.s = Math.min(S_MAX, S.s);
   DIST.rect = S.slots[0]?.city && S.slots[0].blocks?.size ? distRect(S.slots[0]) : null;   // the frame of the capital's new quarters
   PALM.geo = palmGeo(); let pk = 0;
   for (const h of [...S.houses].sort((a, b) => a.id - b.id)) if (homePlace(h.u) === "palm" && PALM.geo.lots[pk]) {
@@ -5140,7 +5169,8 @@ function buildPlan(D) {
         let keep = -1; for (let i = P.length - 1; i >= 0 && keep < 0; i--) { const p = P[i], m = [(p[0] + p[2]) / 2, (p[1] + p[3]) / 2]; if (near(p[0], p[1], ri, 3) || near(p[2], p[3], ri, 3) || lotNear(m[0], m[1]) || tied(m[0], m[1])) keep = i; }
         const kept = keep < 0 ? [] : P.slice(0, keep + 1); r.P = end ? kept : kept.reverse(); if (!r.P.length) r.dead = true; } }); }
     // what still ends on its own (a street with gardens up to a fence) ends in a turning circle
-    index(); runs.forEach((r, ri) => { if (r.dead || !r.P.length) return; for (const [x, z] of [[r.P[0][0], r.P[0][1]], [r.P.at(-1)[2], r.P.at(-1)[3]]]) if (!near(x, z, ri, 4) && !tied(x, z)) ends.push([x, z, r.P[0][4] * .95]); }); }
+    // (Nov 2026) a proper cul-de-sac bulb, wide enough to turn a car round, instead of a disc barely wider than the road — a street used to look as if it simply stopped in the field
+    index(); runs.forEach((r, ri) => { if (r.dead || !r.P.length) return; for (const [x, z] of [[r.P[0][0], r.P[0][1]], [r.P.at(-1)[2], r.P.at(-1)[3]]]) if (!near(x, z, ri, 4) && !tied(x, z)) ends.push([x, z, Math.max(8.4, r.P[0][4] * 1.5)]); }); }
   for (const r of runs) if (!r.dead) pieces.push(...r.P);
   instanced(P.plane, pieces, ([a, b, c, d, w, y], o) => { o.position.set((a + c) / 2, y, (b + d) / 2); o.rotation.y = Math.atan2(c - a, d - b); o.scale.set(w, 1, Math.hypot(c - a, d - b) + .6); return "#4a5057"; }, { shadow: false });
   const brEnd = (x, z) => LAND.on && LAND.xing.some(B => B.town && Math.abs(Math.abs((x - B.x) * B.ux + (z - B.z) * B.uz) - B.hs) < 4 && Math.abs((x - B.x) * B.uz - (z - B.z) * B.ux) < B.w);
@@ -5577,7 +5607,10 @@ function buildOasis(T) {
 }
 function buildTowns() {
   for (const T of TOWNS.values()) { if (T.style === "oasis") { buildOasis(T); continue; } const PL = T.plan, pave = [], trees = [], lamps = [];
-    for (const c of PL.civic) if (c.square) { const Q = [box(c.x1 - c.x0, .12, c.z1 - c.z0, "#d9ccb0", 0, CURB - .1, 0), cyl(5.2, 5.5, .8, 24, "#cfc6b4", 0, CURB, 0), cyl(4.6, 4.6, .2, 24, "#58b9cf", 0, CURB + .65, 0), cyl(.4, .6, 2.6, 10, "#cfc6b4", 0, CURB + .8, 0)];
+    // (Nov 2026) the market's forecourt: paving from the ring road to the ring road, so the market buildings stand on it and there is a way
+    // in from the road. A strip of grass used to lie between the road and the square, with no path across it
+    const ringZ = PL.streets.filter(q => q.arc === "0").flatMap(q => q.pts.map(p => p.z)), zN = Math.min(...ringZ), zS = Math.max(...ringZ);
+    for (const c of PL.civic) if (c.square) { const Q = [box(c.x1 - c.x0, .12, Math.max(c.z1 - c.z0, zS - zN - 11), "#d2c5a6", 0, CURB - .16, 0), box(c.x1 - c.x0, .12, c.z1 - c.z0, "#d9ccb0", 0, CURB - .1, 0), cyl(5.2, 5.5, .8, 24, "#cfc6b4", 0, CURB, 0), cyl(4.6, 4.6, .2, 24, "#58b9cf", 0, CURB + .65, 0), cyl(.4, .6, 2.6, 10, "#cfc6b4", 0, CURB + .8, 0)];
       shukSquare(T, c, Q, lamps); solid(Q, c.x, c.z, 0, { type: "place", id: "shuk:" + T.slot.city.id }, 0); }
     placeLabel("🧺 שוק נווה זורם", PL.M.x, 18, PL.M.z - 50);
     // cars parked along the market's ring road, on its market side (north and south of each square), now and then a gap
@@ -5586,7 +5619,10 @@ function buildTowns() {
           for (let t = 14; t < L - 14; t += 6.2) { if (R2() < .45) continue; const m = TRAFFIC_MIX[Math.floor(R2() * 9)]; parked.push([A.x + ux * t, A.z + sd * (q.w / 2 - 1.3), Math.atan2(ux, uz), m, COLORS[COLOR_KEYS[Math.floor(R2() * 10)]][0]]); } } }
       for (const m of new Set(parked.map(c => c[3]))) instanced(P["car_" + m], parked.filter(c => c[3] === m), ([x, z, ry, , c], o) => { o.position.set(x, .3, z); o.rotation.y = ry; return c; }); }
     const usedA = new Set(PL.streets.filter(q => q.arc && q.laid).map(q => q.arc));
-    for (const q of PL.plazas || []) { if (!usedA.has(q.arc)) continue; const Q = [cyl(13, 13, .16, 28, "#d9ccb0", 0, CURB - .1, 0), cyl(13.3, 13.3, .1, 28, "#c4b087", 0, CURB - .14, 0)];
+    // (Nov 2026) a riverside plaza is paved only once a laid street actually reaches it. Its street may have been cut back to its last
+    // house while the arc stayed in use, and the plaza was then left standing on its own out in the field, with no road to it
+    const plazaFed = q => PL.streets.some(o => o.laid && !o.bridge && o.pts?.length > 1 && [o.pts[0], o.pts.at(-1)].some(E => Math.hypot(E.x - q.x, E.z - q.z) < 26));
+    for (const q of PL.plazas || []) { if (!usedA.has(q.arc) || !plazaFed(q)) continue; const Q = [cyl(13, 13, .16, 28, "#d9ccb0", 0, CURB - .1, 0), cyl(13.3, 13.3, .1, 28, "#c4b087", 0, CURB - .14, 0)];
       for (let i = -1; i <= 1; i += 2) Q.push(box(2.4, .45, .6, "#8a6a4a", i * 3.2, CURB, 7.5), box(2.4, .5, .1, "#7a5a3a", i * 3.2, CURB + .45, 7.15));   // benches looking at the river
       for (let a = -2; a <= 2; a++) { const an = a * .45; Q.push(cyl(.15, .18, .7, 6, "#4a4f55", Math.sin(an) * 12, CURB, Math.cos(an) * 12)); }   // bollards along the edge on the river's side
       Q.push(box(3.2, .55, 3.2, "#c4b087", -7.5, CURB, -3), box(3.2, .55, 3.2, "#c4b087", 7.5, CURB, -3));
@@ -5869,10 +5905,24 @@ function ringRoad(x, z, Ri, Ro, { lanes = 1, island = "green", palms = 1, data =
     instanced(P.palm, pl, ([px, pz, s], o) => { o.position.set(x + px, .32, z + pz); o.rotation.y = px + pz; o.scale.setScalar(s); }); }
 }
 // where a highway meets a city: its roundabout, and the street from the city's edge running straight into it
+// is a laid street of any town or quarter paved here? (the plans are laid out before anything is built, so this works wherever it is called from)
+function planStreetAt(x, z, m = 0) {
+  for (const D of PLANS()) for (const q of D.streets) { if (q.bridge || !(D.own ? q.laid : distLaid(q)) || !q.pts || q.pts.length < 2) continue;
+    for (let i = 1; i < q.pts.length; i++) { const a = q.pts[i - 1], b = q.pts[i], dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+      if (Math.hypot(x - a.x - dx * t, z - a.z - dz * t) < (q.w || 6) / 2 + m) return true; } }
+  return false;
+}
 function buildGateRing(R) {
   const g = R.gate; if (!g) return ringRoad(R.x, R.z, R.Ri, R.Ro, { palms: 1 });
-  const ox = g.ox, oz = g.oz, ry = Math.atan2(ox, oz), w = R.wide ? (g.oz ? bwX(0) : BZ) + 7.2 : R.blv ? GAP + 7 : 7.2, len = R.Ro + 4.6;   // as wide as the street (or the boulevard) it carries on
-  instanced(P.plane, [[g.x + ox * len / 2 - ox * 1.6, g.z + oz * len / 2 - oz * 1.6, w, len]], ([x, z, ww, d], o) => { o.position.set(x, .264, z); o.rotation.y = ry; o.scale.set(ww, 1, d); return "#4a5057"; }, { shadow: false });
+  const ox = g.ox, oz = g.oz, ry = Math.atan2(ox, oz), w = R.wide ? (g.oz ? bwX(0) : BZ) + 7.2 : R.blv ? GAP + 7 : 7.2;   // as wide as the street (or the boulevard) it carries on
+  // (Nov 2026) the way in carries on from the gate until it meets the first street of the city, however far that is. It used to stop 18 m
+  // past the roundabout, so in a quarter whose streets are laid only as people arrive the main road ended at the roundabout and the
+  // city's own street began again a field's width further on
+  let ext = 0, out = 0;
+  for (let u = 2; u < 170; u += 2) if (planStreetAt(g.x - ox * u, g.z - oz * u, 1)) { ext = Math.max(0, u - 3); break; }          // the city behind the gate
+  for (let d = R.Ro + 6; d < 190; d += 2) if (planStreetAt(g.x + ox * (d - R.Ro), g.z + oz * (d - R.Ro), 1)) { out = d; break; }   // or beyond the roundabout
+  const len = Math.max(R.Ro + 4.6, out) + ext;
+  instanced(P.plane, [[g.x + ox * (len / 2 - 1.6 - ext), g.z + oz * (len / 2 - 1.6 - ext), w, len]], ([x, z, ww, d], o) => { o.position.set(x, .264, z); o.rotation.y = ry; o.scale.set(ww, 1, d); return "#4a5057"; }, { shadow: false });
   ringRoad(R.x, R.z, R.Ri, R.Ro, { lanes: R.wide || R.blv ? 2 : 1, palms: R.wide ? 6 : R.blv ? 4 : 1, avoid: [{ x: g.x, z: g.z, w }] });   // no lamp out in the street from the city
 }
 // the end of a highway at the coast: the roundabout right in front of the building, a car park on its island, a paved drop-off to the door
@@ -7012,7 +7062,10 @@ const moundW = (x, z) => { const m = HT_U.uMound.value; if (m.w < .5) return 0; 
   if (L.z || L.w) { const qx = x - L.x, qz = z - L.y, al = qx * L.z + qz * L.w, of = Math.abs(qx * L.w - qz * L.z); d = d + (Math.hypot(L.x + L.z * al - m.x, L.y + L.w * al - m.y) - d) * (1 - smooth01(14, 30, of)); }   // (Nov 2026: across the highway the hill stands level, as at the road's middle: its slope used to bury the road's edges)
   return d >= YK.R1 ? 0 : 1 - smooth01(YK.R0, YK.R1, d); };
 // roads that aren't highways but must stay clear of the hills and the trees: the mall's and the store's access roads
-const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : [])];
+// (Nov 2026) a "road" of less than 8 m is only a marker of where a place meets the road (סבבהום's is 60 cm long): it is kept for the
+// routing graph, but never drawn — it used to appear as a stray scrap of asphalt lying in the grass beside the store
+const extraRoads = () => [...(S.mallSpots || []).filter(Boolean).map(m => [...m.road, 10]), ...(S.ykSpot ? [[...S.ykSpot.road, 10]] : [])]
+  .filter(([a, b, c, d]) => Math.hypot(c - a, d - b) >= 8);
 // ---- סבבהום: a street of ten houses under a glass roof (five on each side, one for every kind of room) and a tall entrance house at the front.
 //      Outside and inside are built from the same plan: each house you see from the road is a showroom you walk into.
 //      Inside coords: x along the street (the door at XB), z across it (north houses z < 0). Outside: the street runs toward the road (local +z)
@@ -7552,7 +7605,7 @@ function mallIndoor(w, door) {
 // paying at a shop's counter: its goods and prices, bought with the personal link's key
 function mallBuy(s2) {
   const cat = s2.cat || "home", list = MALL_GOODS[cat] || [], me = S.mine, key = me && keyOf(me.u), grp = "mall_" + cat;
-  open(`${MALL_CATS[cat]?.[0] || "🛍️"} ${esc(s2.name)}`, `<div class="hero"><p>${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>. קנייה נעימה!` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
+  open(`${MALL_CATS[cat]?.[0] || "🛍️"} ${s2.name}`, `<div class="hero"><p>${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>. קנייה נעימה!` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
     <div class="list" style="margin-top:10px">${list.map(([k, ic, n, pr]) => `<div class="li"><span class="ic" style="font-size:26px">${ic}</span><span class="tx"><b>${n}</b><small>${fmtN(pr)} ${COIN}</small></span>${key ? `<button class="mini" data-buy="${k}">קנייה</button>` : ""}</div>`).join("")}</div>`, () => {
     $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = async () => {
       const [k, ic, n, pr] = list.find(q => q[0] === b.dataset.buy); if ((me.coins || 0) < pr) return toast(ERR.funds);
@@ -7568,7 +7621,7 @@ function mallBuy(s2) {
 // the town market: a stall's (or shop's) goods, bought with the personal link's key (like a shop in the mall)
 function shukBuy(st) {
   const K = SHUK[st.kind], me = S.mine, key = me && keyOf(me.u), grp = "shuk_" + st.kind;
-  open(`${K[0]} ${esc(st.name)}`, `<div class="hero"><p>${st.shop ? "חנות" : "דוכן"} ${K[1]} בשוק נווה זורם. ${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>.` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
+  open(`${K[0]} ${st.name}`, `<div class="hero"><p>${st.shop ? "חנות" : "דוכן"} ${K[1]} בשוק נווה זורם. ${key ? `בארנק: <b>${COIN} ${fmtN(me.coins || 0)}</b>.` : "כדי לקנות, היכנסו מהקישור האישי ששלחנו לכם באינסטגרם."}</p></div>
     <div class="list" style="margin-top:10px">${K[4].map(([k, ic, n, pr]) => `<div class="li"><span class="ic" style="font-size:26px">${ic}</span><span class="tx"><b>${n}</b><small>${fmtN(pr)} ${COIN}</small></span>${key ? `<button class="mini" data-buy="${k}">קנייה</button>` : ""}</div>`).join("")}</div>`, () => {
     $("dBody").querySelectorAll("[data-buy]").forEach(b => b.onclick = async () => {
       const [k, ic, n, pr] = K[4].find(q => q[0] === b.dataset.buy); if ((me.coins || 0) < pr) return toast(ERR.funds);
@@ -7844,8 +7897,14 @@ function siteFence(grp, W, D, name, h = 2.4) {
     }
   }
 }
+// (Nov 2026) a site is fenced over the whole plot the finished thing covers, so a big plot gets a site to match: more cranes, more skeletons
+// going up, more machines and more material, spread over it, instead of one little huddle in the middle of an empty field
 function siteParts(W, D, { crane = true, craneH = 30, jib = 26, skeleton = true } = {}) {
-  const Q = [box(W, .12, D, "#a58a62")];
+  const Q = [box(W, .12, D, "#a58a62")], A = W * D, rep = Math.max(1, Math.min(6, Math.round(Math.sqrt(A / 26000))));
+  if (rep > 1) { const sub = { crane, craneH: craneH * .62, jib: jib * .6, skeleton }, r = rng(Math.round(A));
+    for (let i = 1; i < rep; i++) { const ux = ((i % 2) ? .52 : -.5) * (1 - .18 * (i % 3)), uz = (i % 3 === 0 ? .46 : i % 3 === 1 ? -.44 : .04) * (1 - .1 * (i % 2));
+      const w = Math.min(W * .42, 150), d = Math.min(D * .42, 120);
+      Q.push(...siteParts(w, d, { ...sub, craneH: craneH * (.5 + .12 * (i % 3)), skeleton: skeleton && i % 2 === 0 }).slice(1).map(g => g.translate(ux * (W - w) / 2 + (r() - .5) * 12, 0, uz * (D - d) / 2 + (r() - .5) * 12))); } }
   // fence frame (the printed panels are mounted on it), posts, a gate
   for (const [w, d, x, z] of [[W, .15, 0, D / 2], [W, .15, 0, -D / 2], [.15, D, W / 2, 0], [.15, D, -W / 2, 0]]) Q.push(box(w, 2.5, d, "#e8e8e8", x, 0, z));
   // a concrete skeleton going up inside scaffolding
@@ -7857,8 +7916,8 @@ function siteParts(W, D, { crane = true, craneH = 30, jib = 26, skeleton = true 
     for (let i = 0; i <= 4; i++) for (const z of [sz - bd / 2 - 1.3, sz + bd / 2 + 1.3]) Q.push(box(.1, 12.6, .1, "#9aa1a6", sx - bw / 2 - 1 + i * (bw + 2) / 4, 0, z));
     Q.push(box(bw + 2.4, 3, .05, "#2f8f6a", sx, 9.6, sz + bd / 2 + 1.5));    // safety net
   }
-  // machines and materials
-  const ex = W * .28, ez = D * .22;
+  // machines and materials (on a large plot they spread out over it, so the site never looks like a small kit dropped in the middle)
+  const ex = Math.min(W * .28, W / 2 - 10), ez = Math.min(D * .22, D / 2 - 10);
   Q.push(box(2.4, 1, 3.4, "#f2b630", ex, .4, ez), box(2.6, .6, 3.8, "#2a2a2a", ex, 0, ez), box(1.4, 1.3, 1.4, "#f2b630", ex + .4, 1.4, ez - .6), box(1.2, 1, .05, "#22303a", ex + .4, 1.7, ez + .11),
     box(.4, .4, 4, "#f2b630", ex - .5, 2.2, ez + 2.2, { x: -.5 }), box(.4, .4, 2.6, "#f2b630", ex - .5, 1.2, ez + 4.6, { x: .9 }), box(1, .6, .9, "#3a3a3a", ex - .5, .1, ez + 5.4));   // excavator
   Q.push(box(2.2, 1.6, 2.2, "#f4f4f4", ex - 6, .6, -ez - 1.5), box(2.3, .5, 6.5, "#3a3f46", ex - 6, .4, -ez), cyl(1.1, .8, 3.6, 12, "#e8692b", ex - 6, 0, 0, { x: Math.PI / 2 - .25 }).translate(0, 2.2, -ez + 1),
@@ -7867,7 +7926,13 @@ function siteParts(W, D, { crane = true, craneH = 30, jib = 26, skeleton = true 
   for (let i = 0; i < 3; i++) Q.push(box(3, .25, 1, "#8a6a48", W / 2 - 3, .1 + i * .26, -D / 2 + 2.5 + (i % 2) * .2));                                          // planks
   for (let i = 0; i < 4; i++) Q.push(cyl(.35, .35, 2.4, 10, "#7a7f84", W / 2 - 5.5, .35 + Math.floor(i / 2) * .7, -D / 2 + 1.8 + (i % 2) * .72, { x: Math.PI / 2 }));   // pipes
   Q.push(part(new THREE.ConeGeometry(2.2, 1.6, 8), "#c9b48c", W / 2 - 4, 0, D / 2 - 3.5), box(.4, .7, .4, "#e8692b", 2, 0, D / 2 - 1), box(.4, .7, .4, "#e8692b", 4, 0, D / 2 - 1));    // sand, cones
-  if (crane) Q.push(...craneParts(craneH, jib, Math.round(jib * .35)).map(g => g.translate(W * .3, 0, -D * .28)));
+  if (crane) { Q.push(...craneParts(craneH, jib, Math.round(jib * .35)).map(g => g.translate(Math.min(W * .3, W / 2 - 12), 0, -Math.min(D * .28, D / 2 - 12))));
+    // a plot this big takes more than one crane, and piles of materials along it, so the whole fenced area is a working site
+    const n = Math.min(3, Math.floor(Math.max(W, D) / 220));
+    for (let i = 1; i <= n; i++) { const t = i / (n + 1) - .5, cx2 = W > D ? W * t : -W * .3, cz2 = W > D ? D * .3 : D * t;
+      Q.push(...craneParts(craneH * .8, jib * .85, Math.round(jib * .3)).map(g => g.translate(cx2, 0, cz2)));
+      Q.push(box(7, 2.4, 2.6, "#f4f4f4", cx2 + 12, 0, cz2 + 8), part(new THREE.ConeGeometry(2.6, 1.8, 8), "#c9b48c", cx2 - 12, 0, cz2 + 9), part(new THREE.ConeGeometry(2.4, 1.6, 8), "#a58a62", cx2 - 18, 0, cz2 + 6));
+      for (let k = 0; k < 4; k++) Q.push(box(3.2, .26, 1.1, "#8a6a48", cx2 + 20, .1 + k * .27, cz2 - 6 + (k % 2) * .25)); } }
   return Q;
 }
 /* ---------- תיק בנייה · מנהלת הבינוי הלאומית: every project is built in five stages, one every 6 hours, and each has a building file to share ---------- */
@@ -7904,8 +7969,155 @@ function planSnap(x, z, zoom = 4.2, w = 960, h = 640, az = -.55, el = .48) {
   const c = document.createElement("canvas"); c.width = w; c.height = h; const s = Math.min(W / w, Hh / h); c.getContext("2d").drawImage(renderer.domElement, (W - w * s) / 2, (Hh - h * s) / 2, w * s, h * s, 0, 0, w, h);
   [scene.fog.near, scene.fog.far] = fog; reelCam.aspect = asp; reelCam.updateProjectionMatrix(); timeMode = tm; applyTime(); return c;
 }
+// ---------- how the place will look when it is finished: built in the dark behind the panel, photographed from two sides, and taken down again ----------
+const NAT_BUILDERS = { wishtower: buildNational, nbia: buildNational, memorial: buildMemorial, sports: buildSports, kirya: buildKirya, sechq: buildSecHQ, navy: buildNavy, north: buildNorth, air: buildAir, armour: buildArmour, yamit: buildYamit };
+const PREV = new Map();   // project id -> { a, b, at } — kept for the session, and in the device between visits
+const prevKey = id => "sababa_prev_" + id;
+function prevGet(p) { const m = PREV.get(p.id); if (m) return m; try { const v = JSON.parse(localStorage.getItem(prevKey(p.id)) || "null"); if (v?.a && v.v === SITE_VERSION) { PREV.set(p.id, v); return v; } } catch {} return null; }   // a kept picture of an older release is made again
+function prevSet(p, v) {
+  PREV.set(p.id, v);
+  const put = () => localStorage.setItem(prevKey(p.id), JSON.stringify(v));
+  try { put(); } catch { try { for (const k of Object.keys(localStorage)) if (k.startsWith("sababa_prev_") && k !== prevKey(p.id)) localStorage.removeItem(k); put(); } catch {} }   // the device is full: keep only the newest
+}
+const prevDrop = p => { PREV.delete(p.id); try { localStorage.removeItem(prevKey(p.id)); } catch {} };
+// the nearest point of a real road: that is where people come in from, and where the picture from the gate is taken
+function nearRoadPt(cx, cz) {
+  let best = null;
+  for (const [a, b, c, d] of [...highwaySegs(), ...extraRoads()]) { const dx = c - a, dz = d - b, t = Math.max(0, Math.min(1, ((cx - a) * dx + (cz - b) * dz) / (dx * dx + dz * dz || 1))), x = a + dx * t, z = b + dz * t, q = Math.hypot(cx - x, cz - z);
+    if (!best || q < best.q) best = { x, z, q }; }
+  return best;
+}
+// a picture of (cx,cz) taken from the point (ex,ez), at the given height angle
+const snapFrom = (cx, cz, ex, ez, el, w = 960, h = 640) => { const dist = Math.max(24, Math.hypot(ex - cx, ez - cz)), zoom = F / (2 * dist * Math.tan(THREE.MathUtils.degToRad(reelCam.fov / 2))); return planSnap(cx, cz, zoom, w, h, Math.atan2(ex - cx, ez - cz) - BASE_AZ, el); };
+function previewShots(p) {
+  const k = p.kind, N = NAT[k], R = N?.R, cx = p.x ?? N?.x ?? 0, cz = p.z ?? N?.z ?? 0;
+  if (!NAT_BUILDERS[k] && !(PROJECT_KINDS[k] && p.x != null)) return null;
+  const half = Math.max(R ? Math.max(R.w, R.d) / 2 : 26, 26) * 1.08 + 14;   // room round the edges, so a small lot is not cropped
+  const keep = { n: world.children.length, picks: S.picks.length, lab: LABELS.length, map: MAP_LABELS.length, fl: FLAGS.length, jet: JETS.length,
+    g: N?.g, dp: DRV.parked, dc: DRV.cones, dw: DRV.walls, sp: SAIL.parked, sb: SAIL.buoys, fp: FLY.parked, st: p.status, params: p.params };
+  const hidden = []; for (const ch of world.children) { let mine = false; ch.traverse(o => { if (o.userData?.p === p) mine = true; }); if (mine) { hidden.push(ch); ch.visible = false; } }   // the site hoarding and the cranes step aside
+  let out = null;
+  p.status = "done"; p.params = { ...(p.params || {}), build_start: new Date(Date.now() - 864e5 * 9).toISOString() };
+  try {
+    if (NAT_BUILDERS[k]) NAT_BUILDERS[k]();
+    else { const g = solid([...projectModel(k), ...projGate(k)], cx, cz, 0, null, Y0);
+      if (CITY_PROJ_OPEN.includes(k)) { const court = k === "football" || k === "basketball"; mountSign(g, sign(p.name || PROJECT_KINDS[k]?.[1] || "", 4.6, .9, { bg: court ? "#e05a4f" : "#2f5e3a", fg: "#ffffff" }), 0, court ? 4.15 : 4.6, 9.5); } }
+    const road = nearRoadPt(cx, cz), ang = road ? Math.atan2(road.x - cx, road.z - cz) : .6, sn = Math.sin(ang), cs = Math.cos(ang);
+    const aer = snapFrom(cx, cz, cx + sn * half * 2, cz + cs * half * 2, .5).toDataURL("image/jpeg", .76);
+    const eye = snapFrom(cx, cz, cx + sn * half * 1.25, cz + cs * half * 1.25, .15).toDataURL("image/jpeg", .76);   // and once low, from the gate, the way you will see it when you arrive
+    out = { a: aer, b: eye, at: Date.now(), v: SITE_VERSION };
+  } catch (e) { console.warn("preview", e); }
+  for (const o of world.children.slice(keep.n)) { world.remove(o); o.traverse(q => { if (q.isInstancedMesh) q.dispose(); if (q.geometry && !q.geometry.userData.shared) q.geometry.dispose(); if (q.userData.disposable && q.material) { q.material.map?.dispose(); q.material.dispose(); } }); }
+  S.picks.length = keep.picks; LABELS.length = keep.lab; MAP_LABELS.length = keep.map; FLAGS.length = keep.fl; JETS.length = keep.jet;
+  if (N) N.g = keep.g; DRV.parked = keep.dp; DRV.cones = keep.dc; DRV.walls = keep.dw; SAIL.parked = keep.sp; SAIL.buoys = keep.sb; FLY.parked = keep.fp;
+  for (const ch of hidden) ch.visible = true;
+  p.status = keep.st; p.params = keep.params;
+  return out;
+}
+const prevShots = (p, fresh) => { if (fresh) prevDrop(p); const c = !fresh && prevGet(p); if (c) return c; const v = previewShots(p); if (v) prevSet(p, v); return v; };
+// ---------- the planning tool: the admin picks where a whole compound stands ----------
+// the compound is shown as a see-through ghost at its real size; it is dragged over the ground, turned, and only then confirmed.
+// a place that could move an existing address is refused outright: nothing may come near a city, a town or a laid street.
+const PPL = { on: false, p: null, x: 0, z: 0, ry: 0, w: 0, d: 0, h: 0, g: null, ok: false, why: "", drag: null, moved: false };
+const pplName = p => NAT[p.kind]?.name || p.name || p.kind;
+// every corner and edge of the plot, in world coordinates
+const pplPts = (x, z, ry) => { const c = Math.cos(ry), s = Math.sin(ry), W = PPL.w / 2, D = PPL.d / 2, pts = [];
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) pts.push([x + i * W * c + j * D * s, z - i * W * s + j * D * c]); return pts; };
+// the built-up boxes: every city, every town, and the capital's planned quarters
+function pplBoxes() { const out = [];
+  for (const sl of S.slots) { if (!sl.city || !(sl.blocks?.size || sl.townBox)) continue; const B = cityBox(sl);
+    out.push({ x0: sl.x + BPX(B.mnX) - bwX(B.mnX) / 2, x1: sl.x + BPX(B.mxX) + bwX(B.mxX) / 2, z0: sl.z + BPZ(B.mnZ) - BZ / 2, z1: sl.z + BPZ(B.mxZ) + BZ / 2 }); }
+  const D = DIST.rect; if (D) out.push({ x0: D.ox0 - D.ex - 10, x1: D.ox1 + D.ex + 10, z0: D.oz0 - D.nz - 40, z1: D.oz1 + D.sz + 10 });
+  return out; }
+// how much open ground there is between the plot and the nearest built-up area (below zero: it sits on top of one)
+const pplClear = (x, z, ry) => { let m = 1e9;
+  for (const [px, pz] of pplPts(x, z, ry)) for (const B of PPL.boxes || []) { const dx = Math.max(B.x0 - px, px - B.x1), dz = Math.max(B.z0 - pz, pz - B.z1);
+    m = Math.min(m, dx > 0 || dz > 0 ? Math.hypot(Math.max(dx, 0), Math.max(dz, 0)) : Math.max(dx, dz)); }   // inside a built-up box: how deep in
+  return m; };
+function pplCheck(x, z, ry) {
+  const pts = pplPts(x, z, ry);
+  for (const [px, pz] of pts) {
+    if (!onGrass(px, pz, S.s, .02)) return { why: "חלק מהמתחם יוצא לים או לחוף 🌊" };
+    if (onPalm(px, pz)) return { why: "על אי הדקל בונים רק וילות 🌴" };
+    if (terrainH(px, pz) < -.05) return { why: "חלק מהמתחם בתוך נהר 💧" };
+  }
+  // the rule that guards the addresses: a compound may never come closer to a city or a town than it already is
+  if (pplClear(x, z, ry) < PPL.minClear) return { why: "קרוב לעיר או לשכונה יותר מהמקום הנוכחי — זה עלול להזיז כתובות 🔒" };
+  for (const [a, b, c2, d2, w] of [...highwaySegs(), ...extraRoads()]) { const dx = c2 - a, dz = d2 - b, L2 = dx * dx + dz * dz || 1;
+    for (const [px, pz] of pts) { const k = Math.max(0, Math.min(1, ((px - a) * dx + (pz - b) * dz) / L2));
+      if (Math.hypot(px - a - dx * k, pz - b - dz * k) < w / 2 + 8) return { why: "המתחם יושב על כביש קיים 🛣️" }; } }
+  for (const k in NAT) { const N = NAT[k]; if (k === PPL.p.kind || !N.R || N.x == null || !natP(k)) continue;
+    if (Math.hypot(N.R.x - x, N.R.z - z) < Math.max(N.R.w, N.R.d) / 2 + Math.max(PPL.w, PPL.d) / 2 + 40) return { why: `חופף ל${N.name} — צריך מרחק ביניהם` }; }
+  return { ok: true };
+}
+function pplMesh() {
+  PPL.g?.removeFromParent();
+  const g = new THREE.Group(), mk = o => new THREE.MeshBasicMaterial({ color: "#1dd16a", transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(PPL.w, PPL.h, PPL.d), mk(.22)); body.position.y = PPL.h / 2;
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(PPL.w, PPL.d).rotateX(-Math.PI / 2), mk(.4)); pad.position.y = .5;
+  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(PPL.w, PPL.h, PPL.d)), new THREE.LineBasicMaterial({ color: "#ffffff", transparent: true, opacity: .9 })); edge.position.y = PPL.h / 2;
+  const ar = new THREE.Mesh(new THREE.ConeGeometry(Math.min(16, PPL.w * .07), Math.min(40, PPL.d * .14), 4).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: .85 }));
+  ar.position.set(0, 3, PPL.d / 2 + Math.min(28, PPL.d * .1) + 6);   // which way the gate faces
+  g.add(body, pad, edge, ar); g.renderOrder = 6; PPL.g = g; PPL.mats = [body.material, pad.material]; world.add(g);
+}
+function pplPaint() { const col = PPL.ok ? 0x1dd16a : 0xff5a4d; for (const m of PPL.mats || []) m.color.setHex(col); }
+function pplPut(x, z, ry = PPL.ry) {
+  PPL.x = x; PPL.z = z; PPL.ry = ry; const c = pplCheck(x, z, ry); PPL.ok = !!c.ok; PPL.why = c.why || "";
+  if (PPL.g) { PPL.g.position.set(x, terrainH(x, z) + .1, z); PPL.g.rotation.y = ry; }
+  pplPaint(); pplBar();
+}
+const pplGround = e => { const v = new THREE.Vector3(); ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); unbendRay(ray);
+  return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -CURB), v) ? v : null; };
+function pplStart(p) {
+  if (!ADMIN || !NAT[p.kind]) return; close(); if (WALK.on) exitWalk();
+  const R = NAT[p.kind].R;
+  Object.assign(PPL, { on: true, p, w: R ? R.w : 90, d: R ? R.d : 70, h: 18, moved: false, drag: null, boxes: pplBoxes(), minClear: -1e9 });
+  const x0 = p.x ?? NAT[p.kind].x, z0 = p.z ?? NAT[p.kind].z, r0 = p.params?.pos?.ry ?? NAT[p.kind].ry ?? 0;
+  PPL.minClear = Math.min(pplClear(x0, z0, r0), 140);   // wherever it stands today is allowed; anything closer to a city is not
+  pplMesh(); pplPut(x0, z0, r0);
+  goTo(PPL.x, PPL.z, Math.max(.6, Math.min(3.2, 420 / Math.max(PPL.w, PPL.d))));
+  toast(`📍 גוררים את ${pplName(p)} למקום החדש · או מקישים על הקרקע`, 6000);
+}
+function pplEnd() { PPL.on = false; PPL.g?.removeFromParent(); PPL.g = null; PPL.drag = null; controls.enabled = true; $("pplBar")?.remove(); }
+function pplBar() {
+  if (!PPL.on) return; let el = $("pplBar");
+  if (!el) { el = document.createElement("div"); el.id = "pplBar"; document.body.appendChild(el);
+    el.style.cssText = "position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:60;background:#0f3a4df2;color:#fff;border-radius:16px;padding:9px 12px;font:800 13.5px Heebo,Arial;direction:rtl;display:flex;flex-wrap:wrap;gap:7px;align-items:center;box-shadow:0 8px 26px #0007"; }
+  const b = (id, t, bg = "#ffffff22") => `<button id="${id}" style="all:unset;cursor:pointer;background:${bg};border-radius:9px;padding:5px 10px">${t}</button>`;
+  el.innerHTML = `<span style="font-size:15px">📍 ${esc(pplName(PPL.p))}</span>
+    <span style="background:${PPL.ok ? "#2e9a52" : "#c8372d"};border-radius:9px;padding:4px 9px">${PPL.ok ? "✓ מיקום חוקי" : "✕ " + esc(PPL.why)}</span>
+    <span style="opacity:.75;font-weight:600">${Math.round(PPL.w)}×${Math.round(PPL.d)} מ׳ · ${Math.round(((PPL.ry * 180 / Math.PI) % 360 + 360) % 360)}°</span>
+    ${b("pplL", "↺ 15°")}${b("pplR", "↻ 15°")}${b("pplRoad", "🛣️ להצמיד לכביש")}${b("pplPrev", "👁️ הדמיה")}
+    <span style="margin-right:auto"></span>${b("pplOk", "✅ לאשר ולבנות כאן", PPL.ok ? "#2e9a52" : "#ffffff14")}${b("pplBack", "↩️ למקום המקורי")}${b("pplNo", "ביטול")}`;
+  $("pplL").onclick = () => pplPut(PPL.x, PPL.z, PPL.ry - Math.PI / 12);
+  $("pplR").onclick = () => pplPut(PPL.x, PPL.z, PPL.ry + Math.PI / 12);
+  $("pplRoad").onclick = () => { const r = nearRoadPt(PPL.x, PPL.z); if (!r) return toast("אין כביש בקרבת מקום"); pplPut(PPL.x, PPL.z, Math.atan2(r.x - PPL.x, r.z - PPL.z)); toast("🛣️ המתחם פונה אל הכביש", 2000); };
+  $("pplPrev").onclick = async () => { const p = PPL.p, keep = [p.x, p.z, p.params]; p.x = PPL.x; p.z = PPL.z;
+    toast("👁️ מכינים הדמיה של המקום החדש…", 2500); await new Promise(r => setTimeout(r, 40));
+    const N = NAT[p.kind], kx = [N.x, N.z, N.ry]; N.x = PPL.x; N.z = PPL.z; N.ry = PPL.ry;
+    const v = previewShots(p); [N.x, N.z, N.ry] = kx; [p.x, p.z, p.params] = keep;
+    if (!v) return toast("לא הצליח להכין הדמיה");
+    open(`👁️ ${pplName(p)} · הדמיה במקום החדש`, `<img src="${v.a}" style="width:100%;border-radius:12px;display:block"><p class="note" style="text-align:center">כך ייראה המתחם במקום הזה · הדמיה</p><img src="${v.b}" style="width:100%;border-radius:12px;display:block;margin-top:8px">`); };
+  $("pplNo").onclick = () => { pplEnd(); toast("בוטל"); };
+  $("pplBack").onclick = () => pplSave(null);
+  $("pplOk").onclick = () => { if (!PPL.ok) return toast(PPL.why, 4000); pplSave({ x: Math.round(PPL.x * 10) / 10, z: Math.round(PPL.z * 10) / 10, ry: Math.round(PPL.ry * 1e4) / 1e4 }); };
+}
+async function pplSave(pos) {
+  const p = PPL.p, el = $("pplOk"); if (el) el.textContent = "שומרים…";
+  let r; try { r = await rpc("admin_project_pos", { secret: pref("sababa_admin", ""), pid: p.id, px: pos ? pos.x : null, pz: pos ? pos.z : null, pry: pos ? pos.ry : null }); } catch { r = null; }
+  if (!r?.ok) { pplBar(); return toast(r?.error === "unauthorized" ? "קוד המנהל לא תקף" : "לא הצליח לשמור את המיקום", 5000); }
+  p.params = pos ? { ...(p.params || {}), pos } : (() => { const q = { ...(p.params || {}) }; delete q.pos; return q; })();
+  pplEnd(); toast(pos ? "✅ המתחם עובר למקום החדש · טוענים מחדש" : "↩️ המתחם חוזר למקומו המקורי · טוענים מחדש", 3000);
+  // the world is loaded again from scratch rather than rebuilt in place: that is the only way the whole map comes back exactly as it is meant to be
+  try { sessionStorage.setItem("sababa_goto", JSON.stringify(pos ? [pos.x, pos.z] : [p.x ?? 0, p.z ?? 0])); } catch {}
+  setTimeout(() => location.reload(), 1100);
+}
+// the positions the admin chose, read back before anything is placed
+try { const g = JSON.parse(sessionStorage.getItem("sababa_goto") || "null"); if (g) { sessionStorage.removeItem("sababa_goto"); setTimeout(() => goTo(g[0], g[1], 1.4), 1400); } } catch {}
+function pplApply() { for (const k in NAT) delete NAT[k].pos;
+  for (const p of S.projects) { const q = p.params?.pos; if (!q || !NAT[p.kind]) continue; const N = NAT[p.kind]; N.pos = q; N.x = q.x; N.z = q.z; if (q.ry != null) N.ry = q.ry; p.x = q.x; p.z = q.z; } }
 // the building file, drawn on a canvas the size of a story (1080 x 1920): the State's flag and the file number, the project, the picture, the five stages, the facts, where it is on the island, the seal
-function planDoc(p) {
+function planDoc(p, prev, view = "a") {
   const st = planStage(p), [kic, kname] = PROJECT_KINDS[p.kind] || ["🏗️", "פרויקט"], name = p.name || kname, cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1920; const x = cv.getContext("2d");
   const NAVY = "#0e3c4f", TEAL = "#1f6f8b", GOLD = "#ffb627", GREEN = "#2e9a52", PAPER = "#f4eedf", FONT = "Heebo, Arial, sans-serif";
   const rr = (X, Y, W, H, r) => { x.beginPath(); x.roundRect(X, Y, W, H, r); }, txt = (t, X, Y, size, col, w = 800, al = "right") => { x.font = `${w} ${size}px ${FONT}`; x.fillStyle = col; x.textAlign = al; x.direction = "rtl"; x.fillText(t, X, Y); };
@@ -7921,9 +8133,18 @@ function planDoc(p) {
   txt(name, 1020, 262, fit(name, 74, 620), NAVY, 900); txt(`${kname} · ${p.addr || cityName(p.city_id) || ""}`, 1020, 306, 28, TEAL, 600);
   const chip = st.done ? "🎉 נפתח · הבנייה הושלמה" : `🏗️ בבנייה · שלב ${st.k + 1} מתוך 5`; x.font = `900 26px ${FONT}`; const cw = x.measureText(chip).width + 48; x.fillStyle = st.done ? GREEN : GOLD; rr(60, 206, cw, 54, 27); x.fill(); txt(chip, 60 + cw / 2, 243, 26, st.done ? "#fff" : NAVY, 900, "center");
   // the picture
-  x.save(); rr(60, 340, 960, 640, 18); x.clip(); x.fillStyle = "#9bbf73"; x.fillRect(60, 340, 960, 640); try { if (p.x != null) x.drawImage(planSnap(p.x, p.z, p.kind === "mall" ? 1.8 : 4.4), 60, 340, 960, 640); } catch {}
+  const vis = prev && !st.done && (view === "b" ? prev.b : prev.a);   // while it is being built the big picture is how it will look, with today's site inset in the corner
+  x.save(); rr(60, 340, 960, 640, 18); x.clip(); x.fillStyle = "#9bbf73"; x.fillRect(60, 340, 960, 640);
+  try { if (vis) x.drawImage(vis, 60, 340, 960, 640); else if (p.x != null) x.drawImage(planSnap(p.x, p.z, p.kind === "mall" ? 1.8 : 4.4), 60, 340, 960, 640); } catch {}
   const gr = x.createLinearGradient(0, 860, 0, 980); gr.addColorStop(0, "#0e3c4f00"); gr.addColorStop(1, "#0e3c4fdd"); x.fillStyle = gr; x.fillRect(60, 860, 960, 120); x.restore();
-  x.strokeStyle = NAVY; x.lineWidth = 4; rr(60, 340, 960, 640, 18); x.stroke(); txt(st.done ? "כך זה נראה היום באתר" : `כך זה נראה עכשיו באתר · השלב הבא בעוד ${planLeft(st.next)}`, 996, 958, 27, "#fff", 700);
+  if (vis) {   // the inset: the same ground today
+    x.save(); rr(84, 670, 300, 200, 12); x.clip(); x.fillStyle = "#9bbf73"; x.fillRect(84, 670, 300, 200);
+    try { if (p.x != null) x.drawImage(planSnap(p.x, p.z, p.kind === "mall" ? 1.8 : 4.4), 84, 670, 300, 200); } catch {}
+    x.fillStyle = "#0e3c4fcc"; x.fillRect(84, 826, 300, 44); x.restore();
+    txt("היום באתר", 234, 856, 24, "#fff", 800, "center"); x.strokeStyle = "#fff"; x.lineWidth = 4; rr(84, 670, 300, 200, 12); x.stroke();
+    x.fillStyle = GOLD; rr(700, 372, 290, 54, 12); x.fill(); txt("הדמיה · לא תצלום", 845, 409, 26, NAVY, 900, "center");
+  }
+  x.strokeStyle = NAVY; x.lineWidth = 4; rr(60, 340, 960, 640, 18); x.stroke(); txt(vis ? `כך ייראה ${view === "b" ? "מהכניסה" : "מלמעלה"} כשייגמר · השלב הבא בעוד ${planLeft(st.next)}` : st.done ? "כך זה נראה היום באתר" : `כך זה נראה עכשיו באתר · השלב הבא בעוד ${planLeft(st.next)}`, 996, 958, 27, "#fff", 700);
   // the five stages
   txt("📐 שלבי הבנייה", 1020, 1036, 32, NAVY, 900); txt(`${st.pct}%`, 60, 1036, 34, GREEN, 900, "left");
   PLAN.stages.forEach(([ic, t], i) => { const X = 1020 - (i + 1) * 186 - i * 6 + 6, Y = 1056, done = i < st.k || st.done, now = i === st.k && !st.done;
@@ -8182,7 +8403,7 @@ function buildMemorial() {
   const p = natP("memorial"); if (!p) return; const M = NAT.memorial, data = { type: "project", p }, base = Y0;
   p.x = M.x; p.z = M.z; p.addr = "שדות מישור החוף, ליד כביש איי הדקל"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🕯️" : "🏗️"} ${p.name || M.name}`, M.x, 14, M.z);
-  if (p.status !== "done") { buildSite(p, p.name || M.name, M.x, M.z, 160, 100, base, M.ry, { craneH: 24, jib: 20, skeleton: false }); return; }
+  if (p.status !== "done") { buildSite(p, p.name || M.name, M.x, M.z, 220, 150, base, M.ry, { craneH: 24, jib: 20, skeleton: false }); return; }
   const Q = [], r = rng(11), { ZP } = MEM, tree = (x, z, s, k) => k === "c" ? Q.push(cyl(.12, .16, 1, 6, "#6b4a2f", x, .1, z), part(new THREE.ConeGeometry(.8 * s, 7 * s, 10), "#2f5a35", x, 4.4 * s, z))
     : k === "o" ? Q.push(cyl(.22 * s, .32 * s, 2 * s, 7, "#7a6a55", x, .1, z), part(new THREE.IcosahedronGeometry(2.1 * s, 1), "#8ea07a", x, 3.1 * s, z))
     : Q.push(cyl(.25 * s, .4 * s, 9 * s, 7, "#cdbfa6", x, .1, z), part(new THREE.IcosahedronGeometry(3.6 * s, 0).scale(1, 1.3, 1), "#7f9a7a", x, 10 * s, z));
@@ -8309,10 +8530,13 @@ function buildSports() {
   p.x = M.x; p.z = M.z; p.addr = "המישור שבין נווה זורם לחוף, ליד הכביש המערבי"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   const title = sportsName() || M.name;
   placeLabel(`${p.status === "done" ? "🏟️" : "🏗️"} ${title}`, M.x, 40, M.z);
-  if (p.status !== "done") { buildSite(p, title, M.x, M.z, 260, 180, base, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, title, M.x, M.z, 440, 320, base, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], r = rng(29), tree = (x, z, s = 1) => Q.push(cyl(.3 * s, .4 * s, 3 * s, 6, "#7a5a3a", x, .1, z), part(new THREE.IcosahedronGeometry(2.4 * s, 0), "#4f8a3a", x, 4.6 * s, z));
   // the ground: the site, the plaza, the approach road between the car parks, the car parks with their bays
-  Q.push(box(440, .1, 320, "#a7c784", 0, 0, 0), box(190, .14, 46, "#e4dcc6", 0, .05, 46), box(10, .12, 92, "#4a5057", 0, .05, 116));
+  const PAVED = [[-95, 95, 23, 69], [-5, 5, 70, 162], [75, 205, 82, 150], [-205, -75, 82, 150],   // the plaza, the approach road, the two car parks
+    [35, 155, 21.5, 26.5], [155.5, 160.5, -10, 16], [-155, -95, 21.5, 26.5], [-145.5, -140.5, -25, 25],   // the footpaths
+    [-186, -154, -77.5, -58.5], [-150, -118, -77.5, -58.5], [-186, -154, -51.5, -32.5], [-150, -118, -51.5, -32.5]];   // the four basketball courts
+  Q.push(...padCut(440, 320, PAVED, "#a7c784", 0, .1), box(190, .14, 46, "#e4dcc6", 0, .05, 46), box(10, .12, 92, "#4a5057", 0, .05, 116));
   for (const s of [-1, 1]) { Q.push(box(130, .1, 68, "#565c63", s * 140, .05, 116), box(130, .12, 6, "#4a5057", s * 140, .06, 116), box(6, .12, 68, "#4a5057", s * 72, .06, 116));
     for (let k = 0; k < 52; k++) for (const zz of [86, 99, 133, 146]) Q.push(box(.12, .02, 5, "#f1eee6", s * 140 - 64 + k * 2.5, .17, zz)); }
   for (let z = 72; z <= 160; z += 3) Q.push(box(.12, .02, 1.6, "#f1eee6", 0, .18, z));
@@ -8398,7 +8622,7 @@ function buildSports() {
 const sportsGo = () => { const p = natP("sports"); if (!p || p.status !== "done") return toast("קריית הספורט עוד לא נפתחה");
   const me = S.mine && keyOf(S.mine.u) ? S.mine : null, named = sportsName(), mine = me && S.nameProps.find(q => q.username === me.u), lg = GAMES.find(g => g.id === "league");
   const el = (S.ballot || []).find(e => e.kind === "name" && String(e.target) === String(p.id) && e.status === "open");
-  open(`🏟️ ${esc(named || NAT.sports.name)}`, `${addrHtml(p)}${lg ? `<div class="list" style="margin-bottom:8px">${gameBanner("sports:stadium")}</div>` : ""}<div class="hero"><p>${NAT.sports.about}</p>${named && p.params?.named_by ? `<p class="note">השם ניתן בקלפי, בהצעת ‎@${esc(nick(p.params.named_by))}</p>` : ""}</div>
+  open(`🏟️ ${named || NAT.sports.name}`, `${addrHtml(p)}${lg ? `<div class="list" style="margin-bottom:8px">${gameBanner("sports:stadium")}</div>` : ""}<div class="hero"><p>${NAT.sports.about}</p>${named && p.params?.named_by ? `<p class="note">השם ניתן בקלפי, בהצעת ‎@${esc(nick(p.params.named_by))}</p>` : ""}</div>
     <div class="list" style="margin-top:10px">${info("⚽", "האצטדיון", "15,000 מקומות · תאורה למשחקי ערב")}${info("🏐", "אולם הספורט", "82×56 מ׳ · גג קשת")}${info("🏀", "4 מגרשי כדורסל", "פתוחים לכולם")}${info("🅿️", "חניונים", "כ־1,100 חניות")}</div>
     ${named ? "" : el ? `<div class="hero" style="margin-top:10px"><p><b>🗳️ הקלפי על השם פתוחה!</b></p><div class="btns"><button class="btn" data-go="ballot">🗳️ להצביע</button></div></div>`
       : `<div class="sec">🗳️ איך יקראו לקריה?</div><p class="note">כל תושב מציע שם אחד (אפשר להחליף). המנהל מעלה את ההצעות לקלפי, והשם שזוכה ייכתב על השער ועל היציע.</p>
@@ -8461,7 +8685,7 @@ function buildKirya() {
   const p = natP("kirya"); if (!p) return; const M = NAT.kirya, data = { type: "project", p }, base = Y0, r = rng(71), { WX, WZ, GZ, TX, TZ, TH, HX, HZ } = KY;
   p.x = M.x; p.z = M.z; p.addr = "דרומית לבירה, ליד כביש הנמל"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🏛️" : "🏗️"} ${M.name}`, M.x, p.status === "done" ? 175 : 60, M.z);
-  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 240, 200, base, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 330, 270, base, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], STONE = "#d9d0bb", GL = "#4f6f88", WALLC = "#cfc8b6", OL = "#5d6340", tree = (x, z, s = 1) => Q.push(cyl(.3 * s, .4 * s, 3 * s, 6, "#7a5a3a", x, .1, z), part(new THREE.IcosahedronGeometry(2.4 * s, 0), "#4f8a3a", x, 4.4 * s, z));
   // the ground: the compound inside the wall, lawns, the inner roads
   Q.push(box(330, .1, 270, "#c9c4b4", 0, 0, 0), box(2 * WX - 2, .12, 2 * WZ - 2, "#dcd6c6", 0, .02, 0), box(10, .14, 60, "#4a5057", 0, .04, GZ - 30), box(220, .14, 9, "#4a5057", 0, .04, 70), box(9, .14, 150, "#4a5057", -WX + 20, .04, 0), box(9, .14, 150, "#4a5057", WX - 20, .04, 0));
@@ -8487,7 +8711,10 @@ function buildKirya() {
   { const g = new THREE.ExtrudeGeometry(tri, { depth: TH, bevelEnabled: false }); g.rotateX(-Math.PI / 2); Q.push(part(g, "#5c7c96", TX, 0, TZ)); }
   for (let k = 0; k < 3; k++) { const b = -Math.PI / 2 + k * Math.PI * 2 / 3 + Math.PI / 3, dx = Math.cos(b), dz = -Math.sin(b), tx = -dz, tz = dx, cx = TX + dx * 12.4, cz = TZ + dz * 12.4, th = Math.atan2(-tz, tx);
     for (let y = 0; y < TH; y += 12) for (const s2 of [-1, 1]) for (const off of [-12, 0, 12]) Q.push(box(.55, 16.9, .55, "#eef1f3", cx + tx * off, y - 2.45, cz + tz * off, { z: s2 * .78, y: th }));
-    for (let y = 0; y <= TH; y += 12) Q.push(box(30, .5, .55, "#eef1f3", cx, y, cz, { y: th })); }
+    for (let y = 0; y <= TH; y += 12) Q.push(box(30, .5, .55, "#eef1f3", cx, y, cz, { y: th }));
+    // (Nov 2026) lit offices behind the glass, floor by floor: at night the tower used to read as an empty steel scaffold over a dark shaft
+    for (let f = 0; f < Math.floor(TH / 4); f++) for (const off of [-10.5, -3.5, 3.5, 10.5]) { if (hash(`kir${k}${f}${off}`) % 10 < 3) continue;
+      Q.push(box(5.4, 2.1, .25, "*#ffe9b0", cx + tx * off, f * 4 + 1.1, cz + tz * off, { y: th })); } }
   { const bx = TX, bz = TZ, a = .5; Q.push(box(52, 13, 30, "#e9edf0", bx, TH, bz, { y: a }), box(52.4, 9, 30.4, "#3e5d74", bx, TH + 2, bz, { y: a }), box(54, 1, 32, "#c9ced3", bx, TH + 13, bz, { y: a }));
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) Q.push(cyl(.25, .45, 52, 6, "#d14b3b", bx + sx * 2.4, TH + 14, bz + sz * 2.4)); for (let y = 16; y < 64; y += 6) Q.push(box(6 - (y - 14) * .09, .3, 6 - (y - 14) * .09, "#d14b3b", bx, TH + y, bz));
     Q.push(cyl(1.4, 1.4, .5, 16, "#e0e0e0", bx + 3, TH + 40, bz + 3, { x: Math.PI / 2 }), cyl(1.1, 1.1, .5, 16, "#e0e0e0", bx - 3, TH + 48, bz - 2, { x: Math.PI / 2 }), box(.8, .8, .8, "*#ff3b30", bx, TH + 66, bz)); }
@@ -8554,6 +8781,14 @@ function recruitModel() { const Q = [], GN = "#5d6340"; Q.push(box(38, .12, 19, 
   for (const x of [-15, 15]) Q.push(cyl(.08, .1, 9, 8, "#e8e8e8", x, 0, 6), box(2.4, 1.6, .04, "#ffffff", x + 1.25, 7.2, 6)); Q.push(box(2.4, .45, .7, "#7a5232", -10, .25, 7.5), box(2.4, .45, .7, "#7a5232", 10, .25, 7.5)); return Q; }
 // the service: the panel (at the recruitment office and the Kirya)
 const armyMe = () => S.mine && keyOf(S.mine.u) ? S.mine : null;
+// (Nov 2026) a shift is served at the base, not from the sofa: every branch has its own base, and the soldier has to be there
+const ARMY_BASE = { land: "armour", air: "air", sea: "navy", sec: "sechq" };
+function armyBaseOf(branch) { const k = ARMY_BASE[branch]; const N = k && NAT[k]; if (!N) return null;
+  const p = natP(k), open = p?.status === "done", R = N.R || { w: 400, d: 400 };
+  return { k, name: N.name, ic: N.ic, x: p?.x ?? N.x, z: p?.z ?? N.z, r: Math.max(R.w, R.d) / 2 + 70, open }; }
+// where the citizen is: on foot their own position, otherwise what the camera is looking at
+function hereXZ() { if (WALK.on && WALK.x != null) return [WALK.x, WALK.z]; const t = controls?.target; return t ? [t.x, t.z] : [0, 0]; }
+const atBase = B => { if (!B) return false; const [x, z] = hereXZ(); return Math.hypot(x - B.x, z - B.z) < B.r; };
 function armyGo(from) {
   const me = armyMe(), s = me && S.soldiers.get(me.u), today = israelDate();
   const top = [...S.soldiers.values()].sort((a, b) => b.shifts - a.shifts).slice(0, 12);
@@ -8563,13 +8798,16 @@ function armyGo(from) {
       <div class="list" style="margin-top:10px">${Object.entries(BRANCH).map(([k, b]) => `<button class="li" data-enl="${k}"><span class="ic">${b.ic}</span><span class="tx"><b>${b.name}</b><small>${b.task}</small></span></button>`).join("")}</div>`
     : `<div class="hero"><p>כדי להתגייס, פותחים את האתר מהקישור האישי.</p></div>`;
   else { const k = rankOf(s.shifts, s.branch), list = s.branch === "sec" ? SEC_RANKS : ARMY_RANKS, nextAt = k < list.length - 1 ? rankAt(k + 1) : null, b = BRANCH[s.branch], done = s.last_shift === today, pay = 40 + 5 * k;
+    const B = armyBaseOf(s.branch), here = !!B && B.open && atBase(B);
     body = `<div class="hero"><p>${tab(s.branch, k)}<b>${list[k]}</b> · ${b.ic} ${b.name}</p><p class="note">${s.shifts} משמרות${nextAt ? ` · עוד ${nextAt - s.shifts} עד ${list[k + 1]}` : " · הדרגה הגבוהה ביותר. הבאה רק בהצבעה של השרים"}</p>
-      <div class="btns"><button class="btn" id="armShift" ${done ? "disabled" : ""}>${done ? "✅ עשית משמרת היום" : `🕘 למשמרת · +${pay} ${COIN}`}</button></div><p class="note">${b.task}</p>${kiryaAllowed(me.u) ? `<p class="note">🔑 מותר לך להיכנס לקריה</p>` : `<p class="note">🔒 לקריה נכנסים מדרגת ${s.branch === "sec" ? "סוכן" : "רס״ן"} ומעלה</p>`}</div>`; }
+      <div class="btns"><button class="btn" id="armShift" ${done ? "disabled" : ""} data-base="${B && !done && !here ? B.k : ""}">${done ? "✅ עשית משמרת היום" : here ? `🕘 למשמרת · +${pay} ${COIN}` : B ? `${B.ic} לנסוע ל${B.name}` : `🕘 למשמרת · +${pay} ${COIN}`}</button></div>${done || here || !B ? "" : `<p class="note">${B.open ? `את המשמרת עושים בבסיס עצמו. מכאן נוסעים ל${B.name}.` : `${B.name} עוד לא נפתח, אז אי אפשר לעשות משמרת.`}</p>`}<p class="note">${b.task}</p>${kiryaAllowed(me.u) ? `<p class="note">🔑 מותר לך להיכנס לקריה</p>` : `<p class="note">🔒 לקריה נכנסים מדרגת ${s.branch === "sec" ? "סוכן" : "רס״ן"} ומעלה</p>`}</div>`; }
   open(`🎖️ כל״ס · ${from || "השירות"}`, `<div style="text-align:center;margin-bottom:8px"><img alt="סמל כל״ס" src="${klsUrl()}" style="height:120px"></div>${body}
     ${me && Object.keys(drvCerts(me.u)).length ? `<div class="sec">🎖️ רישיונות נהיגה ושיט</div><div class="list">${DRV_ALL.filter(q => drvCerts(me.u)[q]).map(q => info(DRV.K[q].ic, `${DRV.K[q].br === "sea" ? "משיט" : "נהג"} מוסמך · ${DRV.K[q].name}`, `שלב ${DRV.K[q].lvl} · ${drvFmt(drvCerts(me.u)[q].ms)}${drvCerts(me.u)[q].peri ? " · ⭐ פריסקופ" : ""}`)).join("")}</div>` : ""}
     <div class="sec">⭐ המשרתים</div><div class="list">${top.map(q => li("id", BRANCH[q.branch]?.ic || "🎖️", `${rankName(q)} ${esc(nick(q.username))}`, `${BRANCH[q.branch]?.name} · ${q.shifts} משמרות`, q.username)).join("") || `<p class="note">עוד אין משרתים. אולי אתה הראשון?</p>`}</div>`, () => {
     $("dBody").querySelectorAll("[data-enl]").forEach(bt => bt.onclick = async () => { bt.disabled = true; try { const r = await rpc("army_enlist", { username: me.u, key: keyOf(me.u), branch: bt.dataset.enl }); if (!r.ok) { bt.disabled = false; return toast("לא הצליח"); } toast(`🎖️ התגייסת! ${BRANCH[bt.dataset.enl].ic} ${BRANCH[bt.dataset.enl].name}`, 3500); await loadSoldiers(); stack.pop(); armyGo(from); } catch { bt.disabled = false; toast("אין חיבור כרגע"); } });
-    const sb = $("armShift"); if (sb) sb.onclick = async () => { sb.disabled = true; sb.textContent = "במשמרת…"; try { const r = await rpc("army_shift", { username: me.u, key: keyOf(me.u) }); if (!r.ok) { sb.disabled = false; return toast(r.error === "already" ? "כבר עשית משמרת היום 🌙" : "לא הצליח"); }
+    const sb = $("armShift"); if (sb) sb.onclick = async () => {
+      const bk = sb.dataset.base; if (bk) { const B2 = armyBaseOf(s.branch); if (!B2.open) return toast(`${B2.name} עוד לא נפתח`); return goTo(B2.x, B2.z, 7, () => armyGo(B2.name)); }   // (Nov 2026) first you get to the base, then you serve
+      sb.disabled = true; sb.textContent = "במשמרת…"; try { const r = await rpc("army_shift", { username: me.u, key: keyOf(me.u) }); if (!r.ok) { sb.disabled = false; return toast(r.error === "already" ? "כבר עשית משמרת היום 🌙" : "לא הצליח"); }
         const k0 = rankOf(r.shifts - 1, s.branch), k1 = rankOf(r.shifts, s.branch); { const h = S.byUser.get(me.u); if (h) patchCitizen(h, { coins: r.coins }); } toast(k1 > k0 ? `⭐ עלית בדרגה: ${(s.branch === "sec" ? SEC_RANKS : ARMY_RANKS)[k1]}! +${r.paid} ${COIN}` : `✅ המשמרת הסתיימה · +${r.paid} ${COIN}`, 4000); await loadSoldiers(); stack.pop(); armyGo(from); } catch { sb.disabled = false; toast("אין חיבור כרגע"); } };
   }, sub()); }
 const kiryaGo = () => { const p = natP("kirya"); if (!p || p.status !== "done") return toast("הקריה עוד לא נפתחה");
@@ -8602,7 +8840,7 @@ function buildSecHQ() {
   const p = natP("sechq"); if (!p) return; const M = NAT.sechq, data = { type: "project", p }, base = Y0, r = rng(83), { SX, SZ, MX, MZ, TX, TZ, DX, DZ } = SQ;
   p.x = M.x; p.z = M.z; p.addr = "מזרח המרכז, ליד הדרך הכפרית"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🛡️" : "🏗️"} ${M.name}`, M.x, p.status === "done" ? 70 : 50, M.z);
-  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 160, 140, base, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 210, 250, base, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], DK = "#525a63", DG = "#1f2730", WALLC = "#c4beae", tree = (x, z, s = 1) => Q.push(cyl(.3 * s, .4 * s, 3 * s, 6, "#7a5a3a", x, .1, z), part(new THREE.IcosahedronGeometry(2.4 * s, 0), "#4f8a3a", x, 4.4 * s, z));
   // the ground: the gravel strip between the wall and the inner fence, the paving inside, the lawns, the roads
   Q.push(box(210, .1, 250, "#b9b19f", 0, 0, 0), box(2 * (SX - 8), .12, 2 * (SZ - 8), "#d9d3c3", 0, .02, 0), box(9, .14, 130, "#4a5057", 0, .04, 56), box(150, .14, 9, "#4a5057", -5, .04, -2), box(9, .14, 70, "#4a5057", 84, .04, -36));
@@ -8821,9 +9059,9 @@ const nW = (lx, lz) => { const M = NAT.navy, c = Math.cos(M.ry), s = Math.sin(M.
 const navyAllowed = u => { const s = u && S.soldiers.get(u); return !!s && s.branch === "sea"; };
 // where it stands: on the shore at its angle round the island (the island grows, the base keeps its place on the coast), the quay along the shore's tangent
 function navyPlace() {
-  const M = NAT.navy, t = M.t, P = shorePt(t, S.s, 1), A = shorePt(t - .004, S.s, 1), B = shorePt(t + .004, S.s, 1), tx = B.x - A.x, tz = B.z - A.z, L = Math.hypot(tx, tz) || 1;
+  const M = NAT.navy, t = M.t, P = M.pos || shorePt(t, S.s, 1), A = shorePt(t - .004, S.s, 1), B = shorePt(t + .004, S.s, 1), tx = B.x - A.x, tz = B.z - A.z, L = Math.hypot(tx, tz) || 1;
   let nx = -tz / L, nz = tx / L; if (nx * -P.x + nz * -P.z < 0) { nx = -nx; nz = -nz; }   // the normal that points inland
-  M.x = P.x; M.z = P.z; M.ry = Math.atan2(nx, nz);
+  M.x = P.x; M.z = P.z; M.ry = M.pos ? (M.pos.ry ?? M.ry) : Math.atan2(nx, nz);
   const cs = [[-NV.HW - 20, -420], [NV.HW + 20, -420], [NV.HW + 20, NV.LD + 50], [-NV.HW - 20, NV.LD + 50]].map(([a, b]) => nW(a, b)), xs = cs.map(q => q[0]), zs = cs.map(q => q[1]);
   M.R = { x: (Math.min(...xs) + Math.max(...xs)) / 2, z: (Math.min(...zs) + Math.max(...zs)) / 2, w: Math.max(...xs) - Math.min(...xs), d: Math.max(...zs) - Math.min(...zs) };
   [M.gx, M.gz] = nW(0, NV.GZ + 45);   // the roundabout where the road from the capital arrives
@@ -8856,7 +9094,7 @@ function buildNavy() {
   const p = natP("navy"); if (!p) return; const M = NAT.navy, data = { type: "project", p }, r = rng(97), { HW, LD, GZ, SL, HQX, HQZ } = NV;
   p.x = M.x; p.z = M.z; p.addr = "החוף הצפון־מערבי, מתחת להרי הצפון"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "⚓" : "🏗️"} ${M.name}`, ...nW(0, 120).flatMap((v, i) => i ? [v] : [v, 60]));
-  if (p.status !== "done") { const [sx, sz] = nW(0, 140); buildSite(p, M.name, sx, sz, 300, 200, Y0, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { const [sx, sz] = nW(0, 120); buildSite(p, M.name, sx, sz, 600, 300, Y0, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], T = [], ST = "#e3dcc8", RF = "#9b4a36", GLN = "#4f6f88", AS = "#4a5057", OL = "#5d6340", tree = (x, z, s = 1) => Q.push(cyl(.3 * s, .4 * s, 3 * s, 6, "#7a5a3a", x, .1, z), part(new THREE.IcosahedronGeometry(2.4 * s, 0), "#4f8a3a", x, 4.4 * s, z));
   // the land: the platform (the quay wall down into the water, the ground filled behind it), the apron along the quay, the inner roads
   Q.push(box(2 * HW, 9, LD, "#d8d1c2", 0, -9, LD / 2), box(2 * HW, .06, 34, "#b9b4a8", 0, .01, 17), box(2 * HW + .4, 1.2, .8, "#8f8a7e", 0, -1.2, .2));
@@ -8960,7 +9198,7 @@ function buildNorth() {
   const p = natP("north"); if (!p) return; const M = NAT.north, data = { type: "project", p }, r = rng(53), { HX, HZ, HQX, HQZ } = NB;
   p.x = M.x; p.z = M.z; p.addr = "עמק הצפון, למרגלות ההרים"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🪖" : "🏗️"} ${M.name}`, M.x, 50, M.z);
-  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 260, 200, Y0, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 460, 360, Y0, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], T = [], ST = "#e3dcc8", RF = "#9b4a36", GLN = "#4f6f88", AS = "#4a5057", OL = "#5d6340", tree = (x, z, s = 1) => Q.push(cyl(.3 * s, .4 * s, 3 * s, 6, "#7a5a3a", x, .1, z), part(new THREE.IcosahedronGeometry(2.4 * s, 0), "#4f8a3a", x, 4.4 * s, z));
   const veh = (kind, x, z, ry = 0) => navyPut(Q, T, kind, x, z, ry, 0);
   // the ground, graded level: the base's gravel, the roads (the main road from the gate, three cross roads)
@@ -9048,16 +9286,20 @@ Object.assign(NAT, { air: { ic: "✈️", name: "בסיס חיל האוויר", 
   about: "<b>בסיס חיל האוויר · כל״ס.</b> על חוף המדבר בדרום־מזרח: מסלול 06/24 באורך 3 ק״מ לאורך הים, 24 דת״קים עם מטוסי קרב, רחבה עם מטוסי קרב, מטוסי תובלה ומסוקים, מגדל פיקוח ומכ״ם. גדר תיל, 8 מגדלי שמירה ושער אחד. נכנסים רק משרתי אוויר." } });
 Object.assign(PROJECT_KINDS, { air: ["✈️", "בסיס חיל האוויר"] });
 const AB = { HX: 1700, HZ: 320, RZ: 150, TZ: 40, HQX: 0, HQZ: -250 };
+// בית הספר לטיסה (Nov 2026): the school building at the west end of the apron, the three training aircraft parked in front of it, and the training helipad
+const FLY = { SCHOOL: { x: -500, z: -120 }, APRON: { x: -500, z: -60 }, PAD: { x: -620, z: -60 },
+  PARK: { heli: [-620, -60, 0], transport: [-537, -74, Math.PI], jet: [-455, -74, Math.PI] } };
 const aW = (lx, lz) => { const M = NAT.air, c = Math.cos(M.ry), s = Math.sin(M.ry); return [M.x + lx * c + lz * s, M.z - lx * s + lz * c]; };
 // where it stands: on the coast at its angle round the island (the island grows, the base keeps to the shore), the runway along the shore's tangent,
 // set back from the beach just enough that the whole 3.4 km of it stands on land
 function airPlace() {
-  const M = NAT.air, t = .96, P = shorePt(t, S.s, 1), A = shorePt(t - .004, S.s, 1), B = shorePt(t + .004, S.s, 1), tx = B.x - A.x, tz = B.z - A.z, L = Math.hypot(tx, tz) || 1;
+  const M = NAT.air, t = .96, P = M.pos || shorePt(t, S.s, 1), A = shorePt(t - .004, S.s, 1), B = shorePt(t + .004, S.s, 1), tx = B.x - A.x, tz = B.z - A.z, L = Math.hypot(tx, tz) || 1;
   let nx = -tz / L, nz = tx / L; if (nx * -P.x + nz * -P.z < 0) { nx = -nx; nz = -nz; }   // inland
-  M.ry = Math.atan2(-nx, -nz); const c = Math.cos(M.ry), s = Math.sin(M.ry), land = (x, z) => { const q = polar(x, z, S.s); return q.d < shoreF(q.t) * .975; };
+  M.ry = M.pos ? (M.pos.ry ?? M.ry) : Math.atan2(-nx, -nz); const c = Math.cos(M.ry), s = Math.sin(M.ry), land = (x, z) => { const q = polar(x, z, S.s); return q.d < shoreF(q.t) * .975; };
   for (let d = AB.HZ + 30; d < 2000; d += 20) { const cx = P.x + nx * d, cz = P.z + nz * d; let ok = true;
     for (let k = -10; k <= 10 && ok; k++) { const lx = k * (AB.HX + 80) / 10; for (const lz of [AB.HZ + 10, 0, -AB.HZ - 60]) { if (!land(cx + lx * c + lz * s, cz - lx * s + lz * c)) { ok = false; break; } } }
     if (ok) { M.x = cx; M.z = cz; break; } }
+  if (M.pos) { M.x = M.pos.x; M.z = M.pos.z; }
   const cs = [[-AB.HX - 90, -AB.HZ - 60], [AB.HX + 90, -AB.HZ - 60], [AB.HX + 90, AB.HZ + 20], [-AB.HX - 90, AB.HZ + 20]].map(([a, b]) => aW(a, b)), xs = cs.map(q => q[0]), zs = cs.map(q => q[1]);
   M.R = { x: (Math.min(...xs) + Math.max(...xs)) / 2, z: (Math.min(...zs) + Math.max(...zs)) / 2, w: Math.max(...xs) - Math.min(...xs), d: Math.max(...zs) - Math.min(...zs) };
   HT_U.uAir.value.set(natP("air") ? M.x : 1e6, M.z, c, s);
@@ -9067,7 +9309,7 @@ function buildAir() {
   const p = natP("air"); if (!p) return; const M = NAT.air, data = { type: "project", p }, { HX, HZ, RZ, TZ, HQX, HQZ } = AB;
   p.x = M.x; p.z = M.z; p.addr = "חוף המדבר, בדרום־מזרח"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "✈️" : "🏗️"} ${M.name}`, ...aW(0, -100).flatMap((v, i) => i ? [v] : [v, 50]));
-  if (p.status !== "done") { const [sx, sz] = aW(0, -100); buildSite(p, M.name, sx, sz, 300, 200, Y0, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { const [sx, sz] = aW(390, -140); buildSite(p, M.name, sx, sz, 1180, 340, Y0, M.ry, { craneH: M.crane, jib: 46, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], T = [], ST = "#e3dcc8", RF = "#9b4a36", GLN = "#4f6f88", AS = "#4a5057", TW = "#4a4d51", OL = "#5d6340", veh = (kind, x, z, ry = 0) => navyPut(Q, T, kind, x, z, ry, 0);
   // the ground, graded: the base's hard sand, the runway with its shoulders, the centre line, the threshold bars, the touchdown marks, the edge and approach lights
   Q.push(box(2 * HX + 20, .04, 2 * HZ + 20, "#d9c9a0", 0, 0, 0), box(3000, .06, 60, "#8a8579", 0, .02, RZ), box(3000, .08, 45, "#3c3f43", 0, .04, RZ));
@@ -9077,13 +9319,22 @@ function buildAir() {
   for (let x = -1500; x <= 1500; x += 60) for (const t of [-1, 1]) Q.push(cyl(.15, .15, .45, 6, "*#fffbe0", x, 0, RZ + t * 24));
   // the parallel taxiway with its yellow centre line, the links to the runway every 500 m
   Q.push(box(3000, .07, 23, TW, 0, .03, TZ)); for (let x = -1500; x <= 1500; x += 500) Q.push(box(23, .07, RZ - TZ, TW, x, .03, (RZ + TZ) / 2)); for (let x = -1500; x < 1500; x += 30) Q.push(box(15, .02, .4, "#f2c94c", x, .11, TZ));
-  veh("jet", -1440, RZ, -Math.PI / 2); veh("jet", -1440 + 30, RZ - 8, -Math.PI / 2); veh("jet", 600, TZ, Math.PI / 2);
+  veh("jet", -1400, TZ, Math.PI / 2); veh("jet", -1340, TZ, Math.PI / 2); veh("jet", 600, TZ, Math.PI / 2);   // waiting their turn on the taxiway: the runway itself stays clear
   // the hardened shelters: four clusters of six, each on its own pad and lead-in, a fighter in each; the squadron buildings behind each cluster
   for (const s of [-1, 1]) for (const x0 of [700, 1150]) for (let k = 0; k < 6; k++) { const x = s * (x0 + (k % 3) * 120), z = -60 - Math.floor(k / 3) * 110; Q.push(box(30, .06, 60, "#8f8e88", x, .02, z + 10), box(10, .06, 70, TW, x, .02, z + 10 - 30 + 60)); veh("has", x, z, Math.PI); }
   for (const s of [-1, 1]) { for (let k = 0; k < 3; k++) { const x = s * (1150 + k * 120); Q.push(box(40, 8, 20, "#d9cfb6", x, 0, -280), box(41, .5, 21, "#7a7f6a", x, 8, -280)); for (let j = 0; j < 9; j++) for (const t of [-1, 1]) Q.push(box(2.4, 1.6, .1, GLN, x - 16 + j * 4, 2.6, -280 + t * 10.05)); } Q.push(box(300, .07, 10, AS, s * 1270, .03, -250)); }
   // the main apron: twelve fighters in a row, the three transports, the four helicopter pads with their helicopters
-  Q.push(box(700, .07, 120, "#5a5d61", 0, .03, -40)); for (let k = 0; k < 12; k++) veh("jet", -330 + k * 34, -20, Math.PI); for (let k = 0; k < 3; k++) veh("transport", -200 + k * 80, -75, Math.PI);
+  Q.push(box(700, .07, 132, "#5a5d61", 0, .03, -34)); for (let k = 0; k < 12; k++) veh("jet", -330 + k * 34, -20, Math.PI); for (let k = 0; k < 3; k++) veh("transport", -200 + k * 80, -75, Math.PI);
   for (let k = 0; k < 4; k++) { const x = 420 + k * 40; Q.push(box(26, .1, 26, "#5f646a", x, .04, -60), part(new THREE.RingGeometry(8, 9, 40), "#f2f2f2", x, .16, -60, { x: -Math.PI / 2 })); veh("heli", x, -60, .5); }
+  // בית הספר לטיסה: a low building with its door to the apron, its own stand for the three training aircraft, a training helipad and a windsock
+  { const { x, z } = FLY.SCHOOL; Q.push(box(40, 6, 16, "#e3dcc8", x, 0, z), box(41, .5, 17, "#2a4a6a", x, 6, z), box(2.4, 3, .12, "#6b4a2f", x + 8, 0, z + 8.05));
+    for (let j = 0; j < 7; j++) if (j !== 5) Q.push(box(3.2, 1.6, .1, GLN, x - 16 + j * 5.4, 2.2, z + 8.05));
+    Q.push(box(150, .07, 56, "#5a5d61", FLY.APRON.x, .03, FLY.APRON.z - 14), box(54, .07, 54, "#5a5d61", FLY.PAD.x, .03, FLY.PAD.z),
+    box(84, .07, 50, "#5a5d61", -385, .03, -72), box(26, .07, 42, "#5a5d61", -584, .03, -66));   // the taxi lanes that join the school's stand to the main apron and to the pad   // its own stand, joined to the main apron
+    const P = FLY.PAD; Q.push(box(30, .1, 30, "#5f646a", P.x, .04, P.z), part(new THREE.RingGeometry(9, 10.2, 40), "#f2f2f2", P.x, .16, P.z, { x: -Math.PI / 2 }));
+    for (let k = 0; k < 8; k++) Q.push(cyl(.14, .14, .5, 6, "*#fff3b0", P.x + Math.cos(k / 8 * 6.283) * 14, 0, P.z + Math.sin(k / 8 * 6.283) * 14));
+    Q.push(cyl(.16, .16, 9, 6, "#d8d4c8", x + 24, 0, z - 4), part(new THREE.ConeGeometry(1.5, 6, 10, 1, true), "#e2552c", x + 27.4, 9, z - 4, { z: Math.PI / 2 }));   // the windsock
+  }
   // the control tower: a shaft, the glass cab, the gallery, the antennas
   Q.push(box(10, 30, 10, "#d6d0c2", 0, 0, -130), cyl(8, 6.5, 6, 8, "%#4f7d9a", 0, 30, -130, { y: Math.PI / 8 }), box(15, .6, 15, "#e8e4da", 0, 36, -130, { y: Math.PI / 8 }), cyl(.15, .15, 8, 6, "#c33", 0, 36.6, -130), part(new THREE.SphereGeometry(.25, 8, 6), "*#ff3b30", 0, 44.8, -130)); for (let y = 3; y < 28; y += 4) Q.push(box(1.2, 1.4, .1, "#33505f", 0, y, -124.95));
   // the squadron hangars, the fire station, the maintenance hall, the fuel farm, the weapons bunkers
@@ -9104,7 +9355,8 @@ function buildAir() {
   Q.push(box(36, 8, 18, "#f1ede4", 260, 0, -260), box(37, .5, 19, "#b33a3a", 260, 8, -260), box(5, 5, .1, "#ffffff", 260, 1.5, -269.1), box(1.2, 3.6, .12, "#c62828", 260, 2.2, -269.2), box(3.6, 1.2, .12, "#c62828", 260, 3.4, -269.2));
   Q.push(box(90, .06, 40, AS, 380, .04, -260)); for (let k = 0; k < 14; k++) for (const s of [-1, 1]) if ((k * 3 + s) % 4) Q.push(box(1.9, 1.3, 4.3, ["#c33", "#ddd", "#333", "#2a5caa", "#888"][(k + s + 5) % 5], 346 + k * 5.2, .15, -260 + s * 9));
   Q.push(box(100, .06, 60, "#6aa84f", 520, .05, -260), part(new THREE.RingGeometry(24, 30, 48, 1), "#b5533c", 520, .12, -260, { x: -Math.PI / 2 }));
-  Q.push(box(2 * HX - 40, .07, 10, AS, 0, .03, -205), box(10, .07, 110, AS, 0, .03, -265));
+  // (Nov 2026) the way in from the gate bends round the headquarters instead of running straight through the building
+  Q.push(box(2 * HX - 40, .07, 10, AS, 0, .03, -205), box(10, .07, 32, AS, 0, .03, -304), box(56, .07, 10, AS, 23, .03, -293), box(10, .07, 93, AS, 45, .03, -251.5));
   // the wire: 3 m of mesh with coiled razor wire on top, all round, one gap at the gate; eight towers
   const fen = (x0, z0, x1, z1) => { const L = Math.hypot(x1 - x0, z1 - z0), a = Math.atan2(x1 - x0, z1 - z0); Q.push(box(.05, 3, L, "%#c8d0d6", (x0 + x1) / 2, 0, (z0 + z1) / 2, { y: a }));
     for (let s = 0; s <= L; s += 4) Q.push(box(.12, 3.3, .12, "#5f666d", x0 + (x1 - x0) * s / L, 0, z0 + (z1 - z0) * s / L));
@@ -9129,6 +9381,9 @@ function buildAir() {
       solid(R3, 0, 0, 0, null, 0); } }
   // the signs: the arch's name, the warning plate, the plates on the wire; the emblem on the HQ
   mountSign(g, sign("בסיס חיל האוויר · כל״ס", 16, 1.8, { bg: "#2a2e36", fg: "#ffffff" }), 0, 8.3, -HZ - .72, Math.PI);
+  mountSign(g, sign("✈️ בית הספר לטיסה · חיל האוויר", 15, 1.5, { bg: "#2a4a6a", fg: "#ffffff" }), FLY.SCHOOL.x, 7.4, FLY.SCHOOL.z + 8.6, 0);
+  // the three training aircraft stand on their own, so the one being flown can leave the stand
+  FLY.parked = {}; for (const kd of FLY_ORDER) { const P = FLY.PARK[kd], v = flyMesh(kd); v.g.position.set(P[0], DRV.K[kd].heli ? 1.2 : DRV.K[kd].L * .06, P[1]); v.g.rotation.y = P[2] + Math.PI; g.add(v.g); FLY.parked[kd] = v.g; }
   mountSign(g, sign("⛔ שטח צבאי סגור · הכניסה בהיתר בלבד", 7, 1.4, { bg: "#c62828", fg: "#ffffff" }), 14, 2.2, G0 - 30, Math.PI);
   { const e = klsMesh(3); e.position.set(HQX, 9.6, HQZ - 10.2); e.rotation.y = Math.PI; g.add(e); }
   const pl = sign("שטח צבאי סגור", 1.6, .42, { bg: "#c62828", fg: "#ffffff" });
@@ -9158,7 +9413,7 @@ function buildArmour() {
   const p = natP("armour"); if (!p) return; const M = NAT.armour, data = { type: "project", p }, { HX, HZ, HQX, HQZ, TZ } = AR;
   p.x = M.x; p.z = M.z; p.addr = "המדבר הדרומי, ליד הכביש לנמל"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🛡️" : "🏗️"} ${M.name}`, M.x, 50, M.z);
-  if (p.status !== "done") { buildSite(p, M.name, M.x, M.z, 260, 200, Y0, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, M.name, ...dW(130, 10), 300, 480, Y0, M.ry, { craneH: M.crane, jib: 40, skeleton: planStage(p).k > 0 }); return; }
   const Q = [], T = [], ST = "#e3dcc8", RF = "#9b4a36", GLN = "#4f6f88", AS = "#4a5057", OL = "#5d6340", veh = (kind, x, z, ry = 0, y = 0) => navyPut(Q, T, kind, x, z, ry, y);
   // the ground, graded: the base's hard sand, the roads (east-west through the middle, two north-south, the two edges)
   Q.push(box(2 * HX + 20, .02, 2 * HZ + 20, "#cdbd96", 0, 0, 0), box(2 * HX - 4, .02, 2 * HZ - 4, "#d2c3a0", 0, .01, 0));
@@ -9429,11 +9684,15 @@ async function drvLoad() {
 }
 // ---------- the school: the ladder, your licences, the records ----------
 function drvSchool(fresh, br) {
-  if (br) DRV.schoolBr = br; br = DRV.schoolBr || "land"; const sea = br === "sea", LIST = sea ? SEA_ORDER : DRV_ORDER;
+  if (br) DRV.schoolBr = br; br = DRV.schoolBr || "land"; const sea = br === "sea", air = br === "air", LIST = sea ? SEA_ORDER : air ? FLY_ORDER : DRV_ORDER;
   const me = WALK.h || S.mine, C = me ? drvCerts(me.u) : {};
   const lad = [1, 2, 3, 4, 5].map(lv => { const ks = LIST.filter(q => DRV.K[q].lvl === lv);
-    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); return `<div class="li"><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${({ yard: "מגרש המכשולים", heavy: "מסלול הכבדים", harbour: "מסלול הנמל", sea: "מסלול הים" })[k.course]} · זמן יעד ${mss(k.target)}${c ? ` · ✅ ${sea ? "משיט" : "נהג"} מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span></div>`; }).join(""); }).join("");
+    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); return `<div class="li"><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${({ yard: "מגרש המכשולים", heavy: "מסלול הכבדים", harbour: "מסלול הנמל", sea: "מסלול הים", circuit: "הקפת שדה", pattern: "הקפת שדה", nav: "מסלול ניווט" })[k.course]} · זמן יעד ${mss(k.target)}${c ? ` · ✅ ${sea ? "משיט" : air ? "טייס" : "נהג"} מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span></div>`; }).join(""); }).join("");
   const B = DRV.board || {}, rec = LIST.map(kd => { const L = (B[kd] || []).slice(0, 10); return `<div class="sec">${DRV.K[kd].ic} ${DRV.K[kd].name}</div>${L.length ? `<div class="list">${L.map((r, i) => info(i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}.`, `<span dir="ltr">@${esc(nick(r.u))}</span> · ${drvFmt(r.ms)}${r.peri ? " ⭐" : ""}`, r.pen ? `${r.pen} קנסות` : "בלי קנסות")).join("")}</div>` : `<p class="note">עוד אין שיא</p>`}`; }).join("");
+  if (air) return open("✈️ בית הספר לטיסה · חיל האוויר", `<div class="hero"><p><b>סולם רישיונות הטיסה.</b> כל תעודה פותחת את כלי הטיס הבא. עולים על הכלי בחניית הלימוד, מסיעים לראש המסלול, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי. כל טיסה נגמרת בנחיתה ועצירה על המסלול.</p>
+    <p class="note">⏱️ נחיתה קשה: 10 שניות · דילוג על שער: פסילה · נחיתה מחוץ למסלול או בלי גלגלים: פסילה · "טייס מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ לטיסה בלי אף קנס</p></div>
+    <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
+    <div class="sec">🏆 טבלאות השיאים</div>${DRV.sql === false ? `<p class="note">טבלאות השיאים ייפתחו אחרי הרצת upgrade-66.sql. עד אז התעודות נשמרות במכשיר הזה.</p>` : ""}${rec}`, () => { const b = $("drvCert"); if (b) b.onclick = () => drvCertShow(me); });
   open(sea ? "⚓ בית הספר לשיט · חיל הים" : "🎖️ בית הספר לנהיגה · שריון", sea ? `<div class="hero"><p><b>סולם רישיונות השיט.</b> כל תעודה פותחת את הכלי הבא. עולים מהמזח שליד בית הספר, שטים לשער הזינוק, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי. כל הפלגה נגמרת בעגינה ליד רציף האימון.</p>
     <p class="note">⏱️ מצוף: 5 שניות · מגע בדופן: 10 שניות · דילוג על שער: פסילה · "משיט מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ לצוללת שעברה את כל אזור הצלילה בעומק</p></div>
     <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
@@ -9448,10 +9707,11 @@ function drvCertImg(u) {
   const C = drvCerts(u), cv = document.createElement("canvas"); cv.width = 900; cv.height = 640; const x = cv.getContext("2d");
   x.fillStyle = "#f4ecd8"; x.fillRect(0, 0, 900, 640); x.strokeStyle = "#5d6340"; x.lineWidth = 14; x.strokeRect(14, 14, 872, 612); x.strokeStyle = "#b8963f"; x.lineWidth = 3; x.strokeRect(34, 34, 832, 572);
   const k = document.createElement("canvas"); k.width = 256; k.height = 294; klsDraw(k.getContext("2d"), 256, 294); x.drawImage(k, 380, 50, 140, 161);
-  const hasL = DRV_ORDER.some(q => C[q]), hasS = SEA_ORDER.some(q => C[q]);
-  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#2b2a24"; x.font = "900 50px 'Frank Ruhl Libre', Heebo, serif"; x.fillText(hasL && hasS ? "תעודת נהג ומשיט מוסמך" : hasS ? "תעודת משיט מוסמך" : "תעודת נהג מוסמך", 450, 268); x.font = "500 25px Heebo, Arial"; x.fillText(hasL && hasS ? "כל״ס · בית הספר לנהיגה ובית הספר לשיט" : hasS ? "כל״ס · בסיס חיל הים · בית הספר לשיט" : "כל״ס · בסיס השריון · בית הספר לנהיגה", 450, 306);
+  const hasL = DRV_ORDER.some(q => C[q]), hasS = SEA_ORDER.some(q => C[q]), hasA = FLY_ORDER.some(q => C[q]);
+  const tt = [hasL && "נהג", hasS && "משיט", hasA && "טייס"].filter(Boolean);
+  x.direction = "rtl"; x.textAlign = "center"; x.fillStyle = "#2b2a24"; x.font = "900 50px 'Frank Ruhl Libre', Heebo, serif"; x.fillText(`תעודת ${tt.join(", ") || "נהג"} מוסמך`, 450, 268); x.font = "500 25px Heebo, Arial"; x.fillText(tt.length > 1 ? "כל״ס · בתי הספר לנהיגה, לשיט ולטיסה" : hasA ? "כל״ס · בסיס חיל האוויר · בית הספר לטיסה" : hasS ? "כל״ס · בסיס חיל הים · בית הספר לשיט" : "כל״ס · בסיס השריון · בית הספר לנהיגה", 450, 306);
   x.font = "800 40px Heebo, Arial"; x.fillText(`@${nick(u)}`, 450, 366);
-  const n = DRV_ALL.filter(q => C[q]).length; let y = n > 5 ? 404 : 420; x.font = `600 ${n > 5 ? 22 : 27}px Heebo, Arial`; for (const kd of DRV_ALL) if (C[kd]) { const q = DRV.K[kd]; x.fillText(`${q.ic} שלב ${q.lvl} · ${q.name} · ${drvFmt(C[kd].ms)}${C[kd].peri ? (q.br === "sea" ? " · ⭐ צלילה" : " · ⭐ פריסקופ") : ""}`, 450, y); y += n > 5 ? 29 : 38; }
+  const n = DRV_ALL.filter(q => C[q]).length; let y = n > 5 ? 404 : 420; x.font = `600 ${n > 5 ? 22 : 27}px Heebo, Arial`; for (const kd of DRV_ALL) if (C[kd]) { const q = DRV.K[kd]; x.fillText(`${q.ic} שלב ${q.lvl} · ${q.name} · ${drvFmt(C[kd].ms)}${C[kd].peri ? (q.br === "sea" ? " · ⭐ צלילה" : q.br === "air" ? " · ⭐ בלי קנסות" : " · ⭐ פריסקופ") : ""}`, 450, y); y += n > 5 ? 29 : 38; }
   x.font = "400 22px Heebo, Arial"; x.fillStyle = "#5d5a4c"; x.fillText(israelDate().split("-").reverse().join("."), 450, 600); return cv.toDataURL("image/png");
 }
 function drvCertShow(h) { if (!h) return; open("📜 התעודה", `<div style="text-align:center"><img alt="תעודת נהג מוסמך" src="${drvCertImg(h.u)}" style="width:100%;max-width:520px;border-radius:10px;box-shadow:0 4px 18px #0003"></div><p class="note" style="text-align:center">לחיצה ארוכה על התעודה כדי לשמור אותה</p>`, null, true); }
@@ -9462,6 +9722,7 @@ function drvNearParked() { if (!natOpen("armour") || !DRV.g || WALK.mode !== "fo
   let best = null, bd = 5.5; for (const kd of DRV_ORDER) { if (WALK.mil?.kind === kd) continue; const k = DRV.K[kd], dz = DRV.POOLZ + (kd === "trans" ? 2 : 0); for (const off of kd === "trans" ? [-4, 4, 12] : [0]) { const d = Math.hypot(lx - k.x, lz - dz - off); if (d < bd) { bd = d; best = kd; } } } return best; }
 function drvEnter(kd) {
   if (DRV.K[kd]?.br === "sea") return seaEnter(kd);
+  if (DRV.K[kd]?.br === "air") return flyEnter(kd);
   const h = WALK.h, k = DRV.K[kd]; if (!h) return;
   if (!(northAllowed(h.u) || ADMIN)) return toast("🔒 רק משרתי יבשה נוהגים ברכבי האימון");
   if (!drvUnlocked(h.u, kd)) { const lv = k.lvl - 1, need = DRV_ORDER.filter(q => DRV.K[q].lvl === lv).map(q => DRV.K[q].name).join(" / "); return toast(`🔒 ה${k.name} נפתח אחרי תעודת נהג מוסמך על ${need}`, 3500); }
@@ -9475,13 +9736,17 @@ function drvEnter(kd) {
   toast(`${k.ic} ${k.name} · נוסעים ל${k.course === "yard" ? "קו הזינוק של מגרש המכשולים (רמזור בפינה הדרומית־מזרחית)" : "שער הזינוק של מסלול הכבדים, על לולאת החול"}`, 4200);
 }
 function drvExit() {
-  const m = WALK.mil; if (!m) return; if (DRV.run) drvAbort(m.sea ? "⚓ חזרת למזח · ההפלגה בוטלה" : "🚶 ירדת מהרכב · הנסיעה בוטלה");
+  const m = WALK.mil; if (!m) return;
+  if (m.air && (!m.gnd || m.spd > 2)) return toast("✈️ קודם נוחתים ועוצרים", 2200);
+  if (DRV.run) drvAbort(m.sea ? "⚓ חזרת למזח · ההפלגה בוטלה" : m.air ? "✈️ ירדת מכלי הטיס · הטיסה בוטלה" : "🚶 ירדת מהרכב · הנסיעה בוטלה");
+  if (m.air) { drvPark(); WALK.mode = "foot"; const [x, z] = aW(FLY.SCHOOL.x + 8, FLY.SCHOOL.z + 12); WALK.x = x; WALK.z = z; WALK.head = NAT.air.ry; WALK.fig.visible = true; WALK.pitch = .3; DRV.view = "chase"; walkCam.up.set(0, 1, 0); if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); } toast("🚶 חזרת לבית הספר לטיסה", 2000); return walkButtons(); }
   if (m.sea) { drvPark(); WALK.mode = "foot"; const [x, z] = nW(SAIL.PX, 5); WALK.x = x; WALK.z = z; WALK.head = NAT.navy.ry; WALK.fig.visible = true; WALK.pitch = .3; DRV.view = "chase"; if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); } toast("⚓ סירת המזח החזירה אותך למזח האימון", 2200); walkButtons(); return; }   // (a launch brings you back; the craft to its mooring)
   WALK.mode = "foot"; WALK.x = m.x + Math.cos(m.head) * (m.k.W / 2 + 1.2); WALK.z = m.z - Math.sin(m.head) * (m.k.W / 2 + 1.2); WALK.head = m.head; WALK.fig.visible = true; WALK.pitch = .3; DRV.view = "chase"; drvPeri(false);
   if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); } walkButtons();
 }
 // put the vehicle back in the pool (another one taken, the walk over)
-function drvPark() { const m = WALK.mil; if (!m) return; m.v.g.removeFromParent(); if (m.v.trl) m.v.trl.removeFromParent(); m.wkMesh?.removeFromParent(); seaOverlay(null); if (m.sea && WALK.on) { scene.fog.near = 90; scene.fog.far = 520; } const P = (m.sea ? SAIL.parked : DRV.parked)[m.kind]; if (P) { P.g.visible = true; if (P.trl) P.trl.visible = true; } WALK.mil = null; if (WALK.mode === "mil") WALK.mode = "foot"; drvPeri(false); }
+function drvPark() { const m = WALK.mil; if (!m) return; m.v.g.removeFromParent(); if (m.v.trl) m.v.trl.removeFromParent(); m.wkMesh?.removeFromParent(); seaOverlay(null); flyOverlay(null);
+  if (m.air) { walkCam.up.set(0, 1, 0); for (const r of FLY.gates) r.removeFromParent(); FLY.gates = []; const PK = FLY.parked[m.kind]; if (PK) PK.visible = true; if (WALK.on) { scene.fog.near = 90; scene.fog.far = 520; } WALK.mil = null; WALK.mode = "foot"; return; } if (m.sea && WALK.on) { scene.fog.near = 90; scene.fog.far = 520; } const P = (m.sea ? SAIL.parked : DRV.parked)[m.kind]; if (P) { P.g.visible = true; if (P.trl) P.trl.visible = true; } WALK.mil = null; if (WALK.mode === "mil") WALK.mode = "foot"; drvPeri(false); }
 const drvHitch = m => [m.x - Math.sin(m.head) * m.k.trailer.hb, m.z - Math.cos(m.head) * m.k.trailer.hb];
 // ---------- driving ----------
 const drvGround = (x, z) => { const [lx, lz] = dL(x, z); return drvH(lx, lz); };
@@ -9570,6 +9835,9 @@ function drvFxStep(dt) { const F = DRV.fx; if (!F?.p.parent) return; const P = F
 function drvAtStart(m) { const s = m.k.course === "yard" ? DRV.YS : DRV.HS, [x, z] = dW(s.x, s.z); return Math.hypot(m.x - x, m.z - z) < (m.k.course === "yard" ? 8 : 10); }
 function drvStartMenu() {
   const m = WALK.mil; if (!m) return; WALK.joy = { x: 0, y: 0 }; WALK.keys = {};
+  if (m.air) return open(`${m.k.ic} ${m.k.name} · ראש המסלול`, `<div class="hero"><p>${m.k.heli ? "הקפת שדה במסוק: מתרוממים מהמסלול, עולים לגובה, מקיפים את הבסיס מעל הים דרך שערי האוויר, וחוזרים לנחות על מנחת המסוקים." : m.k.course !== "nav" ? "הקפת שדה: מצערת מלאה, ובמהירות הסיבוב מושכים את המוט אחורה. עולים, פונים ימינה מעל הים, צלע רוח גבית, פנייה לבסיס, גלישה ונחיתה על המסלול." : "מסלול ניווט: ממריאים, עוברים בשערי האוויר מעל אתרי האי, וחוזרים להקפה ולנחיתה על המסלול."}</p>
+    <p class="note">זמן יעד ${mss(m.k.target)} · דילוג על שער: פסילה · נחיתה קשה: 10 שניות · נחיתה מחוץ למסלול${m.k.heli ? " או מחוץ למנחת" : " או בלי גלגלים"}: פסילה${m.k.heli ? "" : " · 🛞 אוספים גלגלים אחרי ההמראה ומורידים לפני הנחיתה"}</p></div>
+    <div class="btns"><button class="btn ghost" id="drvP">🎓 סיבוב אימון (בלי שעון)</button><button class="btn" id="drvR">⏱️ ניסיון אמיתי</button></div>`, () => { $("drvP").onclick = () => { close(); drvBegin(false); }; $("drvR").onclick = () => { close(); drvBegin(true); }; });
   if (m.sea) return open(`${m.k.ic} ${m.k.name} · שער הזינוק`, `<div class="hero"><p>${m.k.course === "harbour" ? "מסלול הנמל: סלאלום בין 9 המצופים הכתומים (פעם מימין, פעם משמאל), סיבוב סביב המצוף הצהוב הגדול במערב, וחזרה מזרחה בתעלה הצרה שבין המצופים הירוקים לאדומים." : "מסלול הים: יוצאים בין המגדלורים ועוברים בששת השערים הצהובים שעם הדגלים, לפי הסדר, וחוזרים פנימה." + (m.k.dive ? " בין שער 3 לשער 5 נמצא <b>אזור הצלילה</b>: צוללים (🫧) לפני שנכנסים ונשארים בעומק פריסקופ עד שיוצאים." : "")} בסוף <b>עוגנים</b> ליד רציף האימון שעל שובר הגלים המזרחי: מקבילים לרציף, עד 3 מ׳ ממנו, בין הסימונים הצהובים, כמעט בלי תנועה.</p>
     <p class="note">אין בלמים: עוצרים בהילוך אחורי${m.k.thr ? " · דוחפי צד: מסתובבים גם בלי לנוע" : ""} · זמן יעד ${mss(m.k.target)} · מצוף: 5 שניות · מגע בדופן: 10 שניות${m.k.dive ? " · לא צללת לאורך כל האזור: 20 שניות · כל האזור בעומק = ⭐" : ""} · דילוג על שער: פסילה</p></div>
     <div class="btns"><button class="btn ghost" id="drvP">🎓 סיבוב אימון (בלי שעון)</button><button class="btn" id="drvR">⏱️ ניסיון אמיתי</button></div>`, () => { $("drvP").onclick = () => { close(); drvBegin(false); }; $("drvR").onclick = () => { close(); drvBegin(true); }; });
@@ -9578,11 +9846,11 @@ function drvStartMenu() {
     <div class="btns"><button class="btn ghost" id="drvP">🎓 סיבוב אימון (בלי שעון)</button><button class="btn" id="drvR">⏱️ ניסיון אמיתי</button></div>`, () => { $("drvP").onclick = () => { close(); drvBegin(false); }; $("drvR").onclick = () => { close(); drvBegin(true); }; });
 }
 function drvBegin(real) {
-  const m = WALK.mil; for (const c of (m.sea ? SAIL.buoys : DRV.cones)) if (c.hit) { c.hit = false; c.m.rotation.set(0, 0, 0); c.m.position.set(c.lx, c.y, c.lz); }
-  DRV.run = { real, kind: m.kind, course: m.k.course, P: (m.sea ? seaPath(m.k.course).map(p => nW(p.x, p.z)) : drvPath(m.k.course).map(p => dW(p.x, p.z))).map(([x, z]) => ({ x, z })), next: 0, t: 0, cd: 3, pen: 0, extra: 0, peri: DRV.view === "peri", star: false, stopped: false, stopDone: false, wallT: 0, gate: false };
+  const m = WALK.mil; for (const c of (m.sea ? SAIL.buoys : m.air ? [] : DRV.cones)) if (c.hit) { c.hit = false; c.m.rotation.set(0, 0, 0); c.m.position.set(c.lx, c.y, c.lz); }
+  DRV.run = { real, kind: m.kind, course: m.k.course, P: m.air ? flyPath(m.k.course) : (m.sea ? seaPath(m.k.course).map(p => nW(p.x, p.z)) : drvPath(m.k.course).map(p => dW(p.x, p.z))).map(([x, z]) => ({ x, z })), next: 0, t: 0, cd: 3, pen: 0, extra: 0, peri: DRV.view === "peri", star: false, stopped: false, stopDone: false, wallT: 0, gate: false };
   let el = $("drvHud"); if (!el) { el = document.createElement("div"); el.id = "drvHud"; el.className = "glass"; el.style.cssText = "position:fixed;top:74px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:14px;font:700 18px Heebo,Arial;direction:rtl;z-index:40;text-align:center;pointer-events:none;white-space:nowrap"; $("walkUI").appendChild(el); }
   if (!DRV.mark) { const g = new THREE.Group(), mm = new THREE.MeshBasicMaterial({ color: "#ffb627", transparent: true, opacity: .85, depthTest: false }); const a = new THREE.Mesh(new THREE.ConeGeometry(.9, 1.6, 4).rotateX(Math.PI), mm); a.position.y = 4.6; g.add(a); const r = new THREE.Mesh(new THREE.TorusGeometry(3.2, .12, 6, 32).rotateX(Math.PI / 2), mm); r.position.y = .25; g.add(r); g.renderOrder = 5; DRV.mark = g; }
-  if (!m.sea) DRV.mark.scale.setScalar(1); world.add(DRV.mark); toast(real ? "🚦 3… 2… 1…" : "🎓 סיבוב אימון · בלי שעון", 2400);
+  if (!m.sea && !m.air) DRV.mark.scale.setScalar(1); world.add(DRV.mark); toast(real ? "🚦 3… 2… 1…" : "🎓 סיבוב אימון · בלי שעון", 2400);
 }
 function drvPenalty(s, why) { const R = DRV.run; if (!R || R.cd > 0) return; (R.log ||= []).push([why, Math.round(WALK.x), Math.round(WALK.z)]); if (s === 10) { if (performance.now() - R.wallT < 1500) return; R.wallT = performance.now(); } R.pen++; R.extra += s; toast(`${why} · +${s} שניות`, 1800); }
 function drvRunStep(m, dt) {
@@ -9613,7 +9881,7 @@ function drvRunStep(m, dt) {
 function drvEnd() { DRV.run = null; $("drvHud")?.remove(); DRV.mark?.removeFromParent(); }
 function drvAbort(why) { drvEnd(); toast(why, 3500); }
 async function drvFinish() {
-  const R = DRV.run, m = WALK.mil, k = m.k, ms = Math.round((R.t + R.extra) * 1000), real = R.real, peri = m.sea ? !!R.star : R.peri && k.tracked, ok = real && ms <= k.target * 1000 && R.pen < 3; drvEnd(); m.v0 = 0;
+  const R = DRV.run, m = WALK.mil, k = m.k, ms = Math.round((R.t + R.extra) * 1000), real = R.real, peri = m.air ? !R.pen : m.sea ? !!R.star : R.peri && k.tracked, ok = real && ms <= k.target * 1000 && R.pen < 3; drvEnd(); m.v0 = 0;
   const h = WALK.h; if (!real) return open(`🎓 ${k.name} · סיבוב האימון הסתיים`, `<div class="hero"><p>${R.pen ? `${R.pen} קנסות בדרך (+${R.extra} שניות).` : "בלי קנסות. מצוין!"} עכשיו אפשר לנסות באמת: חוזרים לקו הזינוק.</p></div>`);
   let best = null, saved = false;
   if (ok && h) { const L = drvLocal(h.u); L.certs ||= {}; if (!L.certs[m.kind] || L.certs[m.kind].ms > ms) L.certs[m.kind] = { ms, peri }; drvLocalSave(h.u, L); }
@@ -9621,13 +9889,15 @@ async function drvFinish() {
   if (h && key) try { const r = await rpc("drive_finish", { username: h.u, key, vehicle: m.kind, ms, pen: R.pen, peri }); if (r?.ok) { saved = true; best = r.best; } else if (r?.error === "unauthorized") dropKey(h.u); } catch { }
   await drvLoad();
   const next = DRV_ALL.filter(q => DRV.K[q].br === k.br && DRV.K[q].lvl === k.lvl + 1);
-  open(ok ? (m.sea ? "⚓ משיט מוסמך!" : "🎖️ נהג מוסמך!") : `${k.ic} ${k.name} · הסיום`, `<div class="hero"><p style="font-size:1.3em"><b>${drvFmt(ms)}</b>${R.extra ? ` <small>(כולל ${R.extra} שניות קנס)</small>` : ""}</p>
-    <p>${ok ? `עברת את המבחן על ה${k.name}${peri ? (m.sea ? " · ⭐ כל אזור הצלילה בעומק" : " · ⭐ כל הדרך בפריסקופ") : ""}. ${next.length ? `נפתח לך: ${next.map(q => DRV.K[q].ic + " " + DRV.K[q].name).join(", ")}` : "זה השלב האחרון בסולם. כל הכבוד!"}` : R.pen >= 3 ? `${R.pen} קנסות: לתעודה צריך פחות מ־3. עוד ניסיון?` : `זמן היעד הוא ${mss(k.target)}. עוד קצת ותגיע.`}</p>
+  open(ok ? (m.air ? "🎖️ טייס מוסמך!" : m.sea ? "⚓ משיט מוסמך!" : "🎖️ נהג מוסמך!") : `${k.ic} ${k.name} · הסיום`, `<div class="hero"><p style="font-size:1.3em"><b>${drvFmt(ms)}</b>${R.extra ? ` <small>(כולל ${R.extra} שניות קנס)</small>` : ""}</p>
+    <p>${ok ? `עברת את המבחן על ה${k.name}${peri ? (m.air ? " · ⭐ בלי אף קנס" : m.sea ? " · ⭐ כל אזור הצלילה בעומק" : " · ⭐ כל הדרך בפריסקופ") : ""}. ${next.length ? `נפתח לך: ${next.map(q => DRV.K[q].ic + " " + DRV.K[q].name).join(", ")}` : "זה השלב האחרון בסולם. כל הכבוד!"}` : R.pen >= 3 ? `${R.pen} קנסות: לתעודה צריך פחות מ־3. עוד ניסיון?` : `זמן היעד הוא ${mss(k.target)}. עוד קצת ותגיע.`}</p>
     ${best && best < ms ? `<p class="note">השיא שלך: ${drvFmt(best)}</p>` : ""}${!saved && DRV.sql === false ? `<p class="note">טבלת השיאים תיפתח אחרי הרצת upgrade-62.sql${ok ? " · התעודה נשמרה במכשיר הזה" : ""}</p>` : ""}</div>
-    <div class="btns">${ok ? `<button class="btn" id="drvC">📜 התעודה</button>` : ""}<button class="btn ghost" id="drvS">🏆 טבלאות השיאים</button></div>`, () => { const c = $("drvC"); if (c) c.onclick = () => drvCertShow(h); $("drvS").onclick = () => drvSchool(false, k.br === "sea" ? "sea" : "land"); });
+    <div class="btns">${ok ? `<button class="btn" id="drvC">📜 התעודה</button>` : ""}<button class="btn ghost" id="drvS">🏆 טבלאות השיאים</button></div>`, () => { const c = $("drvC"); if (c) c.onclick = () => drvCertShow(h); $("drvS").onclick = () => drvSchool(false, k.br || "land"); });
 }
 // ---------- the view from inside: the seat (with the wheel and the side mirrors), the hatch, the periscope ----------
-function drvCycleView() { const m = WALK.mil; if (!m) return; if (m.sea) { if (DRV.view === "peri") return toast("🔭 מתחת למים רואים רק בפריסקופ · לעלות כדי לצאת", 1800); DRV.view = DRV.view === "chase" ? "seat" : "chase"; seaOverlay(m); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; return walkButtons(); }
+function drvCycleView() { const m = WALK.mil; if (!m) return;
+  if (m.air) { DRV.view = DRV.view === "chase" ? "cockpit" : "chase"; flyOverlay(m); if (DRV.view === "chase") { WALK.cy = m.head + Math.PI; walkCam.up.set(0, 1, 0); } return walkButtons(); }
+  if (m.sea) { if (DRV.view === "peri") return toast("🔭 מתחת למים רואים רק בפריסקופ · לעלות כדי לצאת", 1800); DRV.view = DRV.view === "chase" ? "seat" : "chase"; seaOverlay(m); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; return walkButtons(); }
   const L = m.k.tracked ? ["chase", "seat", "peri"] : ["chase", "seat"]; DRV.view = L[(L.indexOf(DRV.view) + 1) % L.length]; drvPeri(DRV.view === "peri"); if (DRV.view === "chase") WALK.cy = m.head + Math.PI; walkButtons(); }
 function drvPeri(on) {
   let el = $("drvPeri"); if (!on) { el?.remove(); return; } if (el) return;
@@ -9872,6 +10142,205 @@ function seaOverlayTick(m) {
   x.fillStyle = "#7ff09f"; x.beginPath(); x.moveTo(c, c - 8); x.lineTo(c - 5, c + 6); x.lineTo(c + 5, c + 6); x.fill(); const sw = (performance.now() / 600) % (Math.PI * 2); x.strokeStyle = "#7ff09f"; x.beginPath(); x.moveTo(c, c); x.lineTo(c + Math.cos(sw) * 105, c + Math.sin(sw) * 105); x.stroke();
 }
 
+// ============ בית הספר לטיסה · בסיס חיל האוויר ============
+// As approved (Nov 2026): the same ladder as the driving yard and the sailing school. Three aircraft, a licence for each; the circuit course
+// (take off, turn, downwind, glide, land) and the navigation course over the island; every flight ends with a landing on the runway.
+const aL = (x, z) => { const M = NAT.air, c = Math.cos(M.ry), s = Math.sin(M.ry), dx = x - M.x, dz = z - M.z; return [dx * c - dz * s, dx * s + dz * c]; };
+Object.assign(DRV.K, {
+  heli: { br: "air", ic: "🚁", name: "מסוק אימון", lvl: 1, course: "pattern", target: 200, L: 14, W: 3, top: 60, acc: 9, turn: .75, vr: 0, vland: 10, climb: 7, heli: true, eye: [2.0, 5.0], view: "cockpit", park: "heli" },
+  transport: { br: "air", ic: "✈️", name: "מטוס תובלה", lvl: 2, course: "circuit", target: 280, L: 30, W: 32, top: 115, acc: 3.6, turn: .6, bank: .88, tf: 1, vr: 44, vmin: 36, vland: 52, climb: 8, eye: [3.7, 12.5], view: "cockpit", park: "transport" },
+  jet: { br: "air", ic: "🛩️", name: "מטוס קרב", lvl: 3, course: "nav", target: 360, L: 16, W: 11, top: 175, acc: 12, turn: 1.1, bank: 1.08, tf: 1.7, vr: 62, vmin: 52, vland: 76, climb: 22, eye: [2.0, 7.0], view: "cockpit", park: "jet" }
+});
+const FLY_ORDER = ["heli", "transport", "jet"]; DRV_ALL.push(...FLY_ORDER);
+Object.assign(FLY, {
+  RWY: { z: AB.RZ, x0: -1450, x1: 1450, hw: 29 },   // the runway and its paved strip, in the base's own coordinates
+  HOLD: { x: -1330, z: AB.RZ },                      // where a flight starts: lined up at the west end
+  parked: {}, gates: [], g: null
+});
+// the circuit, flown to the right so it stays out over the sea: upwind, crosswind, downwind, base, final. Heights in metres above the ground.
+const FLY_CIRCUIT = [[700, 150, 80, 200], [1850, 700, 180, 250], [1500, 1550, 300, 250], [0, 1700, 300, 300], [-1500, 1550, 300, 250], [-2450, 800, 180, 250], [-2650, 200, 90, 200]];
+// the helicopter flies the same pattern, lower and tighter, and comes home to its own pad
+const FLY_PATTERN = [[450, 140, 60, 170], [1150, 520, 120, 190], [800, 1050, 150, 190], [-500, 1100, 150, 200], [-1350, 700, 120, 190], [-1150, 40, 70, 180]];
+function flyPath(course) {
+  const P = (course === "pattern" ? FLY_PATTERN : FLY_CIRCUIT).map(([x, z, y, r]) => { const [wx, wz] = aW(x, z); return { x: wx, z: wz, y, r }; });
+  if (course !== "nav") return P;
+  // the navigation course: out over the island's own landmarks and back to the circuit for the landing
+  const legs = [["memorial", 460], ["armour", 460], ["kirya", 380]];   // a wide triangle over the island, and home to the circuit
+  const N = [];
+  for (const [k, y] of legs) { const p = natP(k), M = NAT[k]; if (!M) continue; N.push({ x: p?.x ?? M.x, z: p?.z ?? M.z, y, r: 320 }); }
+  return P.slice(0, 2).concat(N, P.slice(4));
+}
+function flyMesh(kind) {
+  const sh = navyShip(kind), g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const pf = prefab(sh.parts.map(p => { const q = p.clone(); q.userData.kind = p.userData.kind; return q; }));
+  for (const k of BUCKETS) if (pf[k]) { const m = new THREE.Mesh(pf[k], BMAT[k]); m.castShadow = true; body.add(m); }
+  for (const t of sh.tex) { const m = new THREE.Mesh(t.geo, t.mat); m.matrixAutoUpdate = false; m.matrix.copy(t.mx); body.add(m); }
+  return { g, body };
+}
+// the rings of the navigation course, hung in the air over each landmark (only the aircraft on that course sees them)
+function flyGates(course) {
+  for (const r of FLY.gates) r.removeFromParent(); FLY.gates = [];
+  if (course !== "nav") return;
+  const mat = new THREE.MeshBasicMaterial({ color: "#ffb627", transparent: true, opacity: .55, side: THREE.DoubleSide });
+  for (const p of flyPath("nav")) { if (p.r < 320) continue; const t = new THREE.Mesh(new THREE.TorusGeometry(p.r * .55, 6, 8, 36), mat); t.position.set(p.x, terrainH(p.x, p.z) + p.y, p.z); t.rotation.x = Math.PI / 2; world.add(t); FLY.gates.push(t); }
+}
+function flyNearBoard() { if (!natOpen("air") || WALK.mode !== "foot") return false; const [lx, lz] = aL(WALK.x, WALK.z); return Math.abs(lx - FLY.SCHOOL.x) < 24 && lz > FLY.SCHOOL.z + 6 && lz < FLY.SCHOOL.z + 22; }
+function flyBoardMenu() {
+  const h = WALK.h; if (!h) return; const C = drvCerts(h.u);
+  open("✈️ בית הספר לטיסה · לעלות על כלי טיס", `<div class="hero"><p>סולם רישיונות הטיסה: כל תעודה פותחת את הכלי הבא. המסוק ומטוס התובלה טסים הקפת שדה, מטוס הקרב טס ניווט מעל האי. כל טיסה נגמרת בנחיתה על המסלול.</p></div>
+    <div class="list">${FLY_ORDER.map(kd => { const k = DRV.K[kd], op = drvUnlocked(h.u, kd), c = C[kd]; return `<button class="li" data-k="${kd}" ${op ? "" : "disabled style=\"opacity:.55\""}><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${k.lvl} · ${k.name}</b><small>${k.course === "nav" ? "מסלול ניווט" : "הקפת שדה"} · יעד ${mss(k.target)}${c ? ` · ✅ ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : op ? "" : " · 🔒"}</small></span><span class="go">›</span></button>`; }).join("")}</div>`,
+    () => document.querySelectorAll("#dBody [data-k]").forEach(b => b.onclick = () => { close(); drvEnter(b.dataset.k); }));
+}
+function flyEnter(kd) {
+  const h = WALK.h, k = DRV.K[kd]; if (!h) return;
+  if (!(airAllowed(h.u) || ADMIN)) return toast("🔒 רק משרתי אוויר טסים בכלי האימון");
+  if (!drvUnlocked(h.u, kd)) { const need = FLY_ORDER.filter(q => DRV.K[q].lvl === k.lvl - 1).map(q => DRV.K[q].name).join(" / "); return toast(`🔒 ה${k.name} נפתח אחרי תעודת טייס מוסמך על ${need}`, 3500); }
+  if (WALK.mil) drvPark();
+  const P = FLY.parked[kd]; if (P) P.visible = false; flyGates(k.course);
+  const st = k.heli ? FLY.PAD : FLY.HOLD, v = flyMesh(kd), [x, z] = aW(st.x, st.z), head = NAT.air.ry + Math.PI / 2; world.add(v.g);
+  const m = { air: true, kind: kd, k, v, x, z, head, y: terrainH(x, z) + .2, spd: 0, vs: 0, thr: 0, pitch: 0, roll: 0, gear: true, gnd: true, t: 0, rotor: 0 };
+  WALK.mil = m; WALK.mode = "mil"; WALK.fig.visible = false; DRV.view = "chase"; WALK.cy = head + Math.PI; WALK.pitch = .22; flyPlace(m, 0); walkButtons();
+  scene.fog.near = 900; scene.fog.far = 9000;   // (from up there you see the whole island)
+  toast(`${k.ic} ${k.name} · ${k.heli ? "המנוף מרים ומוריד, המוט מסובב · קדימה עם המצערת" : "מצערת מלאה, ובמהירות הסיבוב מושכים את המוט אחורה"}`, 5000);
+}
+// ---------- flying ----------
+function flyStep(dt) {
+  const m = WALK.mil, k = m.k, K = WALK.keys; m.t += dt;
+  let py = 0, px = 0;
+  if (K.ArrowUp || K.KeyW) py += 1; if (K.ArrowDown || K.KeyS) py -= 1; if (K.ArrowLeft || K.KeyA) px -= 1; if (K.ArrowRight || K.KeyD) px += 1;
+  if (Math.hypot(WALK.joy.x, WALK.joy.y) > .12) { py = WALK.joy.y; px = WALK.joy.x; }
+  if (K.KeyQ) m.thr = Math.min(1, m.thr + dt * .7); if (K.KeyE) m.thr = Math.max(0, m.thr - dt * .7);
+  if (DRV.run?.cd > 0) { m.thr = Math.min(m.thr, .15); py = 0; }
+  const gY = terrainH(m.x, m.z), agl = m.y - gY;
+  if (k.heli) {
+    // the helicopter: the collective lifts and lowers, the stick turns, the throttle carries it forward
+    m.roll += (-px * .3 - m.roll) * Math.min(1, dt * 3); m.pitch += (-Math.min(1, m.thr) * .2 - m.pitch) * Math.min(1, dt * 2);
+    m.head += px * k.turn * dt;
+    m.spd += (k.acc * m.thr - m.spd * m.spd * k.acc / (k.top * k.top) - (m.thr < .05 ? m.spd * .5 : 0)) * dt; m.spd = Math.max(0, Math.min(k.top, m.spd));
+    m.vs += ((py * k.climb) - m.vs) * Math.min(1, dt * 1.8);
+    if (!py && agl < 3 && !m.gnd) m.vs += (-1.1 - m.vs) * Math.min(1, dt * 1.5);   // close to the ground, with the collective at rest, she settles
+  } else {
+    m.pitch += (py * .33 - m.pitch) * Math.min(1, dt * 1.7);
+    m.roll += (m.gnd ? -m.roll : px * (k.bank || .85) - m.roll) * Math.min(1, dt * 2.2);
+    const drag = m.spd * m.spd * k.acc / (k.top * k.top) * (m.gear && !m.gnd ? 1.25 : 1) + (m.gnd ? m.spd * .06 + (m.thr < .1 ? 2.2 : 0) : 0);   // (rolling friction, and the brakes when the throttle is closed)
+    m.spd += (k.acc * m.thr - drag - (m.gnd ? 0 : 9.8 * Math.sin(m.pitch))) * dt; m.spd = Math.max(0, Math.min(k.top, m.spd));
+    if (m.gnd) { m.head += px * .55 * Math.min(1, m.spd / 18) * dt; m.vs = 0;
+      if (m.spd > k.vr && m.pitch > .08) m.gnd = false;   // rotate: she lifts off
+    } else {
+      m.head += Math.tan(m.roll) * 9.8 * (k.tf || 1) / Math.max(28, m.spd) * dt;   // a coordinated turn: the bank turns her
+      const lift = Math.min(1.15, (m.spd / Math.max(1, k.vmin)) ** 2);
+      m.vs += ((m.spd * Math.sin(m.pitch)) * lift - 9.8 * (1 - lift) * .6 - m.vs) * Math.min(1, dt * 2);
+      m.vs = Math.max(-k.climb * 2.2, Math.min(k.climb * 1.6, m.vs));
+      if (m.spd < k.vmin * .8 && WALK.frame % 40 === 0) toast("⚠️ מהירות נמוכה · להוריד אף או להוסיף מצערת", 1600);
+    }
+  }
+  const sn = Math.sin(m.head), cs = Math.cos(m.head);
+  m.x += sn * m.spd * dt; m.z += cs * m.spd * dt;
+  const ny = m.y + m.vs * dt, g2 = terrainH(m.x, m.z);
+  if (ny <= g2 + .02) { if (!m.gnd) flyTouch(m, g2); m.y = g2 + .02; m.vs = 0; m.gnd = true; }   // the wheels (or the skids) are down
+  else { m.y = ny; if (ny > g2 + .35) m.gnd = false; }
+  if (k.heli) m.rotor += dt * (6 + m.thr * 26); else m.rotor += dt * m.spd * .3;
+  flyPlace(m, dt);
+  if (DRV.run) flyRunStep(m, dt);
+  // the camera
+  WALK.x = m.x; WALK.z = m.z;
+  if (DRV.view === "cockpit") {
+    const e = FLY.EYE || k.eye, ex = m.x + sn * e[1], ez = m.z + cs * e[1];
+    walkCam.near = .1; walkCam.position.set(ex, m.y + e[0], ez); walkCam.up.set(Math.sin(m.roll) * Math.cos(m.head), Math.cos(m.roll), -Math.sin(m.roll) * Math.sin(m.head));
+    walkCam.lookAt(ex + sn * 60, m.y + e[0] + Math.tan(m.pitch) * 60, ez + cs * 60); walkCam.updateProjectionMatrix(); WALK.cy = m.head + Math.PI;
+  } else {
+    if (walkCam.up.y !== 1) walkCam.up.set(0, 1, 0);
+    if (walkCam.near !== .3) { walkCam.near = .3; walkCam.updateProjectionMatrix(); }
+    if (performance.now() - WALK.lastDrag > 900) WALK.cy += angDiff(m.head + Math.PI, WALK.cy) * Math.min(1, dt * 1.6);
+    const d = k.L * 1.4 + 18 + m.spd * .18, cy = WALK.cy, ex = m.x + Math.sin(cy) * d, ez = m.z + Math.cos(cy) * d;
+    walkCam.position.set(ex, m.y + 6 + k.L * .2, ez); walkCam.lookAt(m.x, m.y + 1.5, m.z);
+  }
+  if (WALK.frame % 6 === 0) { const sp = $("wSpd"); if (sp) { sp.textContent = `${k.ic} ${Math.round(m.spd * 3.6)} קמ״ש · ${Math.round(Math.max(0, m.y - gY) * 3.28)} רגל`; sp.classList.remove("low"); } flyOverlayTick(m); }
+}
+// the ground: the wheels on the runway, or anywhere else — which ends the flight
+function flyTouch(m, gY) {
+  const k = m.k, [lx, lz] = aL(m.x, m.z), onRwy = lx > FLY.RWY.x0 - 40 && lx < FLY.RWY.x1 + 40 && Math.abs(lz - FLY.RWY.z) < FLY.RWY.hw;
+  const pad = k.heli && Math.hypot(lx - FLY.PAD.x, lz - FLY.PAD.z) < 22;
+  const hard = m.vs < -5.5;
+  FLY.last = { lx: Math.round(lx), lz: Math.round(lz), onRwy, pad, spd: Math.round(m.spd), vs: +m.vs.toFixed(1), gear: m.gear, hard, t: +(DRV.run?.t || 0).toFixed(1) };
+  m.pitch *= .3; m.roll *= .2;
+  if (DRV.run && !onRwy && !pad && (!k.heli || m.spd > 12)) return drvAbort(DRV.run.next < DRV.run.P.length ? "💥 התרסקת · הטיסה נפסלה" : "💥 נחתת מחוץ למסלול · הטיסה נפסלה");
+  if (!k.heli && !m.gear && DRV.run) return drvAbort("💥 נחתת בלי גלגלים · הטיסה נפסלה");
+  if (hard && DRV.run) drvPenalty(10, "💥 נחיתה קשה");
+  else if (onRwy || pad) toast("🛬 נחיתה יפה", 1600);
+}
+function flyPlace(m, dt) {
+  const k = m.k, bob = m.gnd ? 0 : Math.sin(m.t * 1.7) * .12;
+  m.v.g.position.set(m.x, m.y + (k.heli ? 1.2 : k.L * .06) + bob, m.z);
+  m.v.g.rotation.order = "YXZ"; m.v.g.rotation.set(m.pitch, m.head + Math.PI, -m.roll);
+}
+function flyAtStart(m) { const [lx, lz] = aL(m.x, m.z); return m.gnd && (m.k.heli ? Math.hypot(lx - FLY.PAD.x, lz - FLY.PAD.z) < 18 : Math.abs(lz - FLY.RWY.z) < FLY.RWY.hw && lx < FLY.RWY.x0 + 260); }
+function flyGear() { const m = WALK.mil; if (!m || m.k.heli) return; if (m.gnd) return toast("🛞 הגלגלים נאספים רק באוויר", 1600); m.gear = !m.gear; toast(m.gear ? "🛞 גלגלים למטה" : "🛞 גלגלים למעלה", 1500); walkButtons(); }
+// ---------- the run: the gates in the air, and the landing ----------
+function flyRunStep(m, dt) {
+  const R = DRV.run, k = m.k; if (R.cd > 0) { R.cd -= dt; if (R.cd <= 0) toast(R.real ? "🟢 מורשה להמריא!" : "🟢 יוצאים לדרך", 1400); } else R.t += dt;
+  const P = R.P, gY = terrainH(m.x, m.z);
+  if (R.next < P.length) { const p = P[R.next], d = Math.hypot(m.x - p.x, m.z - p.z), dy = Math.abs((m.y - terrainH(p.x, p.z)) - p.y);
+    if (d < p.r && dy < p.r * .8) R.next++;
+    else for (let j = R.next + 2; j < Math.min(P.length, R.next + 5); j++) if (Math.hypot(m.x - P[j].x, m.z - P[j].z) < P[j].r * .8) return drvAbort("❌ דילגת על שער · הטיסה נפסלה");
+  }
+  // the landing: on the runway, wheels down, straight, and stopped
+  if (R.next >= P.length && m.gnd && m.spd < 2.2) {
+    const [lx, lz] = aL(m.x, m.z), onRwy = lx > FLY.RWY.x0 - 40 && lx < FLY.RWY.x1 + 40 && Math.abs(lz - FLY.RWY.z) < FLY.RWY.hw;
+    const pad = k.heli && Math.hypot(lx - FLY.PAD.x, lz - FLY.PAD.z) < 22;
+    if (onRwy || pad) return drvFinish();
+  }
+  const nx = R.next < P.length ? P[R.next] : (() => { const [x, z] = aW(k.heli ? FLY.PAD.x : 0, k.heli ? FLY.PAD.z : FLY.RWY.z); return { x, z, y: 0 }; })();
+  if (DRV.mark) { DRV.mark.position.set(nx.x, terrainH(nx.x, nx.z) + (nx.y || 0), nx.z); DRV.mark.scale.setScalar(R.next < P.length ? 6 : 2); DRV.mark.children[0].position.y = 4.6 + Math.sin(performance.now() / 250) * .3; }
+  const el = $("drvHud"); if (el && WALK.frame % 5 === 0) el.innerHTML = R.cd > 0 ? `🚦 ${Math.ceil(R.cd)}` : `${R.real ? `⏱ ${drvFmt(R.t * 1000)}` : "🎓 אימון"}${R.pen ? ` · ⚠️ ${R.pen} קנסות (+${R.extra}ש׳)` : ""} · ${R.next >= P.length ? (k.heli ? "🛬 לנחות על המנחת" : "🛬 לנחות על המסלול ולעצור") : `שער ${R.next + 1}/${P.length}`}`;
+}
+// ---------- the view from the cockpit: the canopy frame and the head-up display ----------
+function flyOverlay(m) {
+  $("flyOv")?.remove(); const hd0 = $("drvHud"); if (hd0) hd0.style.visibility = "";
+  if (!m || DRV.view !== "cockpit") return;
+  const el = document.createElement("div"); el.id = "flyOv"; el.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:5";
+  const W = innerWidth, H = innerHeight, s = Math.min(W, H), hud = Math.round(s * .034);
+  // three round instruments on the glare shield: airspeed, attitude, altimeter
+  const gy = H * .895, gr = Math.min(s * .062, H * .075), gx = [W / 2 - gr * 2.6, W / 2, W / 2 + gr * 2.6];
+  const dial = (cx, id, lab) => `<g><circle cx="${cx}" cy="${gy}" r="${gr}" fill="#11161b" stroke="#5c646c" stroke-width="${gr * .09}"/>
+    <circle cx="${cx}" cy="${gy}" r="${gr * .86}" fill="none" stroke="#39414a" stroke-width="1"/>
+    ${Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * Math.PI * 2 - Math.PI / 2, r0 = gr * .66, r1 = gr * .82; return `<line x1="${cx + Math.cos(a) * r0}" y1="${gy + Math.sin(a) * r0}" x2="${cx + Math.cos(a) * r1}" y2="${gy + Math.sin(a) * r1}" stroke="#8d969f" stroke-width="${gr * .05}"/>`; }).join("")}
+    <g id="${id}"></g><circle cx="${cx}" cy="${gy}" r="${gr * .08}" fill="#c9d2da"/>
+    <text x="${cx}" y="${gy + gr * 1.3}" text-anchor="middle" font-family="Heebo,Arial" font-size="${Math.round(gr * .34)}" fill="#8d969f">${lab}</text></g>`;
+  el.innerHTML = `<svg width="100%" height="100%" style="position:absolute;inset:0">
+    <path d="M0,0 H${W} V${H * .07} C${W * .78},${H * .035} ${W * .22},${H * .035} 0,${H * .07} Z" fill="#2b3138"/>
+    <path d="M0,${H} H${W} V${H * .79} C${W * .8},${H * .87} ${W * .2},${H * .87} 0,${H * .79} Z" fill="#2b3138"/>
+    <rect x="0" y="0" width="${s * .035}" height="${H}" fill="#2b3138"/><rect x="${W - s * .035}" y="0" width="${s * .035}" height="${H}" fill="#2b3138"/>
+    <rect x="${W / 2 - s * .008}" y="0" width="${s * .016}" height="${H * .06}" fill="#2b3138"/>
+    ${dial(gx[0], "flyG1", "מהירות")}${dial(gx[1], "flyG2", "אופק")}${dial(gx[2], "flyG3", "גובה")}
+    <g id="flyHorizon" stroke="#7dffa8" stroke-width="2" fill="none" opacity=".9">
+      <circle cx="${W / 2}" cy="${H / 2}" r="7"/><line x1="${W / 2 - 52}" y1="${H / 2}" x2="${W / 2 - 14}" y2="${H / 2}"/><line x1="${W / 2 + 14}" y1="${H / 2}" x2="${W / 2 + 52}" y2="${H / 2}"/>
+      <line x1="${W / 2 - 150}" y1="${H / 2}" x2="${W / 2 - 80}" y2="${H / 2}" stroke-width="1.4"/><line x1="${W / 2 + 80}" y1="${H / 2}" x2="${W / 2 + 150}" y2="${H / 2}" stroke-width="1.4"/>
+    </g></svg>
+    <div id="flyIns" style="position:absolute;left:${W * .06}px;top:${H * .3}px;font:800 ${hud}px Heebo,Arial;color:#7dffa8;direction:rtl;line-height:1.5;text-shadow:0 0 6px rgba(0,0,0,.6)"></div>
+    <div id="flyIns2" style="position:absolute;right:${W * .06}px;top:${H * .3}px;font:800 ${hud}px Heebo,Arial;color:#7dffa8;direction:rtl;line-height:1.5;text-align:left;text-shadow:0 0 6px rgba(0,0,0,.6)"></div>
+    <div id="flyHdg" style="position:absolute;left:0;right:0;top:${H * .155}px;text-align:center;font:800 ${Math.round(hud * 1.05)}px Heebo,Arial;color:#7dffa8;text-shadow:0 0 6px rgba(0,0,0,.6)"></div>`;
+  el.dataset.g = JSON.stringify({ gy, gr, gx }); document.body.appendChild(el);
+  const hd = $("drvHud"); if (hd) hd.style.visibility = "hidden";   // (the head-up display already shows the gate and the clock)
+  flyOverlayTick(m);
+}
+function flyOverlayTick(m) {
+  const a = $("flyIns"); if (!a) return; const gY = terrainH(m.x, m.z), hd = Math.round(((((m.head) * 180 / Math.PI) % 360) + 360) % 360);
+  a.innerHTML = `מהירות<br><span style="font-size:1.5em">${Math.round(m.spd * 3.6)}</span><br>קמ״ש<br><span style="font-size:.8em">מצערת ${Math.round(m.thr * 100)}%</span>`;
+  $("flyIns2").innerHTML = `גובה<br><span style="font-size:1.5em">${fmtN(Math.round(Math.max(0, m.y - gY) * 3.28))}</span><br>רגל<br><span style="font-size:.8em">${m.vs >= 0 ? "נסיקה" : "גלישה"} ${fmtN(Math.round(Math.abs(m.vs) * 196.9))}</span>`;
+  const R = DRV.run; $("flyHdg").innerHTML = `🧭 ${String(hd).padStart(3, "0")}°${R && R.cd <= 0 ? ` · ${R.next >= R.P.length ? "נחיתה" : `שער ${R.next + 1}/${R.P.length}`}${R.real ? ` · ${drvFmt(R.t * 1000)}` : ""}` : ""}`;
+  const h = $("flyHorizon"); if (h) h.setAttribute("transform", `rotate(${(m.roll * 180 / Math.PI).toFixed(1)} ${innerWidth / 2} ${innerHeight / 2}) translate(0 ${(-m.pitch * 420).toFixed(0)})`);
+  const G = JSON.parse($("flyOv").dataset.g || "{}"); if (!G.gr) return;
+  const nd = (i, frac, col = "#e8eef4") => { const a = (frac % 1) * Math.PI * 2 - Math.PI / 2, g = $("flyG" + i); if (g) g.innerHTML = `<line x1="${G.gx[i - 1]}" y1="${G.gy}" x2="${G.gx[i - 1] + Math.cos(a) * G.gr * .72}" y2="${G.gy + Math.sin(a) * G.gr * .72}" stroke="${col}" stroke-width="${G.gr * .1}" stroke-linecap="round"/>`; };
+  nd(1, Math.min(.98, (m.spd * 3.6) / (m.k.top * 3.6 * 1.05)), "#ffd36b");
+  nd(3, ((Math.max(0, m.y - gY) * 3.28) % 2000) / 2000, "#8fd3ff");
+  const g2 = $("flyG2"); if (g2) { const r = -m.roll * 180 / Math.PI, p = Math.max(-1, Math.min(1, m.pitch * 2.2)) * G.gr * .5;
+    g2.innerHTML = `<g transform="rotate(${r.toFixed(1)} ${G.gx[1]} ${G.gy})"><clipPath id="flyC2"><circle cx="${G.gx[1]}" cy="${G.gy}" r="${G.gr * .78}"/></clipPath>
+      <g clip-path="url(#flyC2)"><rect x="${G.gx[1] - G.gr}" y="${G.gy - G.gr * 2 + p}" width="${G.gr * 2}" height="${G.gr * 2}" fill="#2f6ea8"/><rect x="${G.gx[1] - G.gr}" y="${G.gy + p}" width="${G.gr * 2}" height="${G.gr * 2}" fill="#7a5a33"/>
+      <line x1="${G.gx[1] - G.gr * .8}" y1="${G.gy + p}" x2="${G.gx[1] + G.gr * .8}" y2="${G.gy + p}" stroke="#ffffff" stroke-width="${G.gr * .06}"/></g></g>
+      <line x1="${G.gx[1] - G.gr * .45}" y1="${G.gy}" x2="${G.gx[1] + G.gr * .45}" y2="${G.gy}" stroke="#ffd36b" stroke-width="${G.gr * .08}"/>`; }
+}
+
 // ============ ימית סבבה ============
 // the water park on the coastal plain south of the capital, west of the coastal highway (the sea beyond its north side in the plan, which is the island's south shore).
 // As approved (Nov 2026): the giant wave lagoon with its beach, the activity pool, the FlowRider, the kids' kingdom, the food court and cabanas,
@@ -10070,7 +10539,7 @@ function buildYamit() {
   const p = natP("yamit"); if (!p) return; const M = NAT.yamit, data = { type: "project", p }, base = Y0, r = rng(53), title = M.name;
   p.x = M.x; p.z = M.z; p.addr = "מישור החוף הדרומי, מערבית לכביש החוף"; p.city_id = p.city_id || S.slots[0]?.city?.id;
   placeLabel(`${p.status === "done" ? "🎢" : "🏗️"} ${title}`, M.x, 50, M.z);
-  if (p.status !== "done") { buildSite(p, title, ...ymW(YM.HX, YM.HZ), 260, 240, base, M.ry, { craneH: M.crane + 20, jib: 40, skeleton: planStage(p).k > 0 }); return; }
+  if (p.status !== "done") { buildSite(p, title, ...ymW(YM.HX, YM.HZ), 430, 330, base, M.ry, { craneH: M.crane + 20, jib: 40, skeleton: planStage(p).k > 0 }); return; }
   const Q = []; ymHill(Q); ymPark(Q, r);
   const g = solid(Q, M.x, M.z, M.ry, data, base); M.g = g;
   // the logo on its pylon by the gates, the names over the entrance and the buildings
@@ -10219,7 +10688,9 @@ const yamitGo = () => { const p = natP("yamit"); if (!p || p.status !== "done") 
 function buildSite(p, name, cx, cz, W, D, y0, ry = 0, opts) {
   const g = solid(siteParts(W, D, opts), cx, cz, ry, { type: "project", p }, y0);
   siteFence(g, W, D, name);
-  const crew = [[-W * .18, -D * .1 + 5.6], [W * .28 - 2, D * .22 + 2], [-W / 2 + 6, D / 2 - 4.5]];
+  const n = Math.max(3, Math.min(26, Math.round(Math.sqrt(W * D) / 9))), rc = rng(Math.round(W * D) + 7);
+  const crew = Array.from({ length: n }, (_, i) => [(rc() - .5) * (W - 14), (rc() - .5) * (D - 14)]);
+  crew[0] = [-W * .18, -D * .1 + 5.6]; crew[1] = [W * .28 - 2, D * .22 + 2]; crew[2] = [-W / 2 + 6, D / 2 - 4.5];
   instanced(P.walker, crew, ([x, z], o) => { const c = Math.cos(ry), s = Math.sin(ry); o.position.set(cx + x * c + z * s, y0 + .12, cz - x * s + z * c); o.rotation.y = ry + x; o.scale.setScalar(1.15); return "#f2b630"; });
   return g;
 }
@@ -10396,6 +10867,14 @@ function buildEmptyLot(slot, key, cx, cz, addr, W = 42) {
   if (cfg.name) placeLabel(`📍 ${cfg.name}`, cx, 8, cz);
   BLK_META.set(key, { title: cfg.name || "מגרש ציבורי", kind: "lot", cx, cz, data }); buildItems(cfg.items, cx, cz, Y0, data);
 }
+const CITY_PROJ_OPEN = ["park", "playground", "dogpark", "football", "basketball"];
+// the gate of a public lot: a court's mesh fence, or a park's two pillars with an iron arch
+const projGate = kind => { const open = CITY_PROJ_OPEN.includes(kind), court = kind === "football" || kind === "basketball"; return !open ? [] : court
+        // a court: a mesh fence along the front with a gate in a steel frame, the name over the gate, a bench beside it
+        ? [...[-18.6, -12, -6, 6, 12, 18.6].map(xx => box(.1, 3.2, .1, "#3a3f46", xx, 0, 9.3)), box(16.4, 3, .03, "%#c8d0d6", -10.6, .1, 9.3), box(16.4, 3, .03, "%#c8d0d6", 10.6, .1, 9.3), box(37.4, .08, .08, "#3a3f46", 0, 3.1, 9.3), box(.16, 3.6, .16, "#3a3f46", -2.4, 0, 9.3), box(.16, 3.6, .16, "#3a3f46", 2.4, 0, 9.3), box(5, .16, .16, "#3a3f46", 0, 3.5, 9.3), box(2.2, 2.6, .04, "%#5a6268", -1.15, .1, 9.4)]
+        // a park: two stone pillars with lamps and an iron arch between them, the path running in
+        : [box(1, 3.2, 1, "#cfc6b4", -3.2, 0, 9.4), box(1, 3.2, 1, "#cfc6b4", 3.2, 0, 9.4), box(1.2, .25, 1.2, "#b8ae98", -3.2, 3.2, 9.4), box(1.2, .25, 1.2, "#b8ae98", 3.2, 3.2, 9.4), sph(.28, "*#fff1c2", -3.2, 3.75, 9.4), sph(.28, "*#fff1c2", 3.2, 3.75, 9.4),
+          part(new THREE.TorusGeometry(3.2, .09, 8, 32, Math.PI), "#2b3036", 0, 3.3, 9.4), box(5.4, .05, 3, "#d9cba8", 0, .12, 8.6)]; };
 function buildPublic() {
   const trees = [];
   S.slots.filter(s => s.city).forEach(slot => {
@@ -10413,13 +10892,7 @@ function buildPublic() {
         const parts = projectModel(p.kind), up = st.k === 2 ? planCut(parts, .62) : parts; solid([...up, ...planScaffold(parts, st.k === 2 ? undefined : undefined)], cx, cz, 0, { type: "project", p }, Y0);
         buildSite(p, name, cx, cz, 40, 20, Y0, 0, { ...crane, skeleton: false }); return; }
       if (p.kind === "monument") return buildMonument(p, cx, cz);
-      const open = ["park", "playground", "dogpark", "football", "basketball"].includes(p.kind);
-      const court = p.kind === "football" || p.kind === "basketball", gate = !open ? [] : court
-        // a court: a mesh fence along the front with a gate in a steel frame, the name over the gate, a bench beside it
-        ? [...[-18.6, -12, -6, 6, 12, 18.6].map(xx => box(.1, 3.2, .1, "#3a3f46", xx, 0, 9.3)), box(16.4, 3, .03, "%#c8d0d6", -10.6, .1, 9.3), box(16.4, 3, .03, "%#c8d0d6", 10.6, .1, 9.3), box(37.4, .08, .08, "#3a3f46", 0, 3.1, 9.3), box(.16, 3.6, .16, "#3a3f46", -2.4, 0, 9.3), box(.16, 3.6, .16, "#3a3f46", 2.4, 0, 9.3), box(5, .16, .16, "#3a3f46", 0, 3.5, 9.3), box(2.2, 2.6, .04, "%#5a6268", -1.15, .1, 9.4)]
-        // a park: two stone pillars with lamps and an iron arch between them, the path running in
-        : [box(1, 3.2, 1, "#cfc6b4", -3.2, 0, 9.4), box(1, 3.2, 1, "#cfc6b4", 3.2, 0, 9.4), box(1.2, .25, 1.2, "#b8ae98", -3.2, 3.2, 9.4), box(1.2, .25, 1.2, "#b8ae98", 3.2, 3.2, 9.4), sph(.28, "*#fff1c2", -3.2, 3.75, 9.4), sph(.28, "*#fff1c2", 3.2, 3.75, 9.4),
-          part(new THREE.TorusGeometry(3.2, .09, 8, 32, Math.PI), "#2b3036", 0, 3.3, 9.4), box(5.4, .05, 3, "#d9cba8", 0, .12, 8.6)];
+      const open = CITY_PROJ_OPEN.includes(p.kind), court = p.kind === "football" || p.kind === "basketball", gate = projGate(p.kind);
       const g = solid([...projectModel(p.kind), ...gate], cx, cz, 0, { type: "project", p }, Y0);
       if (open) {
         mountSign(g, sign(name, 4.6, .9, { bg: court ? "#e05a4f" : "#2f5e3a", fg: "#ffffff" }), 0, court ? 4.15 : 4.6, 9.5);
@@ -10433,7 +10906,7 @@ function buildPublic() {
   PLAN.sig = planSig();
   buildYallkea();
   S.projects.filter(isMallSite).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildMall(p, k) : (() => { const sp = S.mallSpots?.[k]; if (!sp) return; p.x = sp.x; p.z = sp.z;
-    buildSite(p, p.name || "קניון", sp.x, sp.z, 120, 80, .25, sp.ry, { craneH: 40, jib: 30 }); })());
+    buildSite(p, p.name || "קניון", sp.x, sp.z, MALL_W + 14, MALL_D + 14, .25, sp.ry, { craneH: 40, jib: 30 }); })());
   S.projects.filter(p => p.params?.island).sort((a, b) => a.id - b.id).forEach((p, k) => p.status === "done" ? buildIsletMonument(p, k) : (() => { const sp = isletSpot(k); p.x = sp.x; p.z = sp.z;
     solid([cyl(48, 56, 3.2, 40, "#e6cf98", 0, -3.2, 0), cyl(40, 44, .6, 40, "#8bb36a", 0, 0, 0), cyl(26, 28, 9, 11, "#b9b19f", 0, 0, 0)], sp.x, sp.z, sp.face, { type: "project", p });
     buildSite(p, p.name || "פסל", sp.x, sp.z, 46, 46, 9, sp.face, { craneH: 60, jib: 40 }); })());
@@ -10536,11 +11009,12 @@ var LAND_LIVE = false;   // (read by onGrass, which runs before this part of the
 const LAND = { on: false, rivers: [], br: [], roads: [], discs: [], xing: [], foot: [], lifts: [], over: null, grid: null };
 HT_U.uBr = { value: Array.from({ length: 24 }, () => new THREE.Vector4(0, 0, 1, 0)) };
 HT_U.uBr2 = { value: Array.from({ length: 24 }, () => new THREE.Vector4(0, 0, 0, 0)) }; HT_U.uBr3 = { value: Array.from({ length: 24 }, () => new THREE.Vector4(0, 0, 0, 0)) };
-const LAND_N = 1024; HT_U.uLand = { value: null }; HT_U.uLandB = { value: new THREE.Vector4(0, 0, 0, 0) };
+const LAND_N = 1024;   // (Nov 2026: a denser grid smooths the ramps but moves the bridges a few centimetres, which moves streets and so addresses — and an address never changes)
+ HT_U.uLand = { value: null }; HT_U.uLandB = { value: new THREE.Vector4(0, 0, 0, 0) };
 // the land: a coastal plain that rises gently inland, and one mountain ridge in the north with a pass where the palm road crosses it
-function landLift(x, z, t, d) {
-  const dn = d / (GRASS * shoreF(t)), up = 3.5 + 5 * smooth01(.35, .75, dn);
-  const win = smooth01(-2.7, -2.3, t) * (1 - smooth01(-.8, -.55, t)), rad = 1 - smooth01(0, .17, Math.abs(dn - .74)); if (win <= 0 || rad <= 0) return up;
+function landLift(x, z, t, d, dS = d) {
+  const sh = GRASS * shoreF(t), dn = d / sh, up = 3.5 + 5 * smooth01(.35, .75, dn);
+  const win = smooth01(-2.7, -2.3, t) * (1 - smooth01(-.8, -.55, t)), rad = 1 - smooth01(0, .17, Math.abs(dS / sh - .74)); if (win <= 0 || rad <= 0) return up;
   const sad = 1 - .82 * Math.exp(-(((t + 1.24) / .11) ** 2));
   const n1 = Math.sin(.0105 * x + .7) * Math.cos(.0127 * z - .4), n2 = Math.sin(.0213 * x - .0187 * z + 1.3), n3 = Math.sin(.043 * x + .037 * z + 2.1), n4 = Math.sin(.081 * x - .069 * z + .5);
   const rr = 1 - Math.abs(.62 * n1 + .38 * n2), det = .5 + .5 * (.6 * n3 + .4 * n4), pv = .35 + .65 * (.5 + .5 * Math.sin(t * 5.3 + .9)) * (.6 + .4 * Math.sin(t * 11.7 + 2.2));
@@ -10548,9 +11022,9 @@ function landLift(x, z, t, d) {
 }
 const landLiftGLSL = `uniform int uK; uniform vec4 uBr[24]; uniform vec4 uBr2[24]; uniform vec4 uBr3[24]; uniform sampler2D uLand; uniform vec4 uLandB;
 float landD(vec2 p) { if (uLandB.z <= 0.) return 0.; vec2 uv = ((p - uLandB.xy) / uLandB.zw + .5) / ${LAND_N}.; if (uv.x < 0. || uv.y < 0. || uv.x > 1. || uv.y > 1.) return 0.; return texture2D(uLand, uv).r; }
-float landLift(vec2 p, float t, float d) {
-  float dn = d / (${GRASS} * wshore(t)), up = 3.5 + 5. * wsm0(.35, .75, dn);
-  float win = wsm0(-2.7, -2.3, t) * (1. - wsm0(-.8, -.55, t)), rad = 1. - wsm0(0., .17, abs(dn - .74)); if (win <= 0. || rad <= 0.) return up;
+float landLift(vec2 p, float t, float d, float dS) {
+  float sh = ${GRASS} * wshore(t), dn = d / sh, up = 3.5 + 5. * wsm0(.35, .75, dn);
+  float win = wsm0(-2.7, -2.3, t) * (1. - wsm0(-.8, -.55, t)), rad = 1. - wsm0(0., .17, abs(dS / sh - .74)); if (win <= 0. || rad <= 0.) return up;
   float sq = (t + 1.24) / .11, sad = 1. - .82 * exp(-sq * sq);
   float n1 = sin(.0105 * p.x + .7) * cos(.0127 * p.y - .4), n2 = sin(.0213 * p.x - .0187 * p.y + 1.3), n3 = sin(.043 * p.x + .037 * p.y + 2.1), n4 = sin(.081 * p.x - .069 * p.y + .5);
   float rr = 1. - abs(.62 * n1 + .38 * n2), det = .5 + .5 * (.6 * n3 + .4 * n4), pv = .35 + .65 * (.5 + .5 * sin(t * 5.3 + .9)) * (.6 + .4 * sin(t * 11.7 + 2.2));
@@ -10629,10 +11103,10 @@ function landFill(x, z, h) { const h0 = h;
 // for the colors of the land: how far from the water's edge, and how much of the height here is mountain
 function landGap(x, z) { let g = 1e9; for (const R of LAND.rivers) { if (x < R.bb[0] || x > R.bb[2] || z < R.bb[1] || z > R.bb[3]) continue; const q = landNear(R, x, z); if (q) g = Math.min(g, q.d - q.hw); } return g; }
 const landGl = (x, z) => terrainH(x, z);   // the shader stands things on the same ground now
-function landMtnPart(x, z) { const s = S.s, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), dn = d / (GRASS * shoreF(t)); return regN(qz) * 60 + landLift(x, z, t, d) - 3.5 - 5 * smooth01(.35, .75, dn); }
+function landMtnPart(x, z) { const s = S.s, sL = S.sL || s, qx = x / (RX0 * s), qz = z / (RZ0 * s), t = Math.atan2(qz, qx), d = Math.hypot(qx, qz), qzL = z / (RZ0 * sL), dL = Math.hypot(x / (RX0 * sL), qzL), dn = dL / (GRASS * shoreF(t)); return regN(qzL) * 60 + landLift(x, z, t, dL, d) - 3.5 - 5 * smooth01(.35, .75, dn); }   // mirrors terrainBase0: the land in its own frame, the ridge with the coast
 const LANDK = { sand: new THREE.Color("#d8c08e"), sand2: new THREE.Color("#c9a874"), rust: new THREE.Color("#a8714f"), field: new THREE.Color("#b7b062"), forest: new THREE.Color("#4f7038"), alp: new THREE.Color("#7d8a55"), rock: new THREE.Color("#8b8579"), snow: new THREE.Color("#f3f4f1"), gravel: new THREE.Color("#b9ab88"), mud: new THREE.Color("#7a6a4c"), reed: new THREE.Color("#6d9a4a") };
 function landColor(c, gap, x, z, h, slope) {
-  { const qz = z / (RZ0 * S.s), So = regS(qz); if (So > 0) { const d = LANDK.sand.clone().lerp(LANDK.sand2, .5 + .5 * Math.sin(x * .013 + z * .009)).lerp(LANDK.rust, smooth01(60, 150, h) * .85).lerp(LANDK.rust, smooth01(.35, .8, slope) * .6); c.lerp(d, So); if (So > .6) { if (gap < 9 && gap >= 0) c.lerp(LANDK.reed, .5); return; } }
+  { const qz = z / (RZ0 * (S.sL || S.s)), So = regS(qz); if (So > 0) { const d = LANDK.sand.clone().lerp(LANDK.sand2, .5 + .5 * Math.sin(x * .013 + z * .009)).lerp(LANDK.rust, smooth01(60, 150, h) * .85).lerp(LANDK.rust, smooth01(.35, .8, slope) * .6); c.lerp(d, So); if (So > .6) { if (gap < 9 && gap >= 0) c.lerp(LANDK.reed, .5); return; } }
     else if (regN(qz) <= 0 && h < 40 && !inCityBox(x, z, 20)) { const u = x * .93 + z * .36, v = -x * .36 + z * .93, fi = Math.floor(u / 170), fj = Math.floor((v + fi * 47) / (120 + (fi % 3) * 30)), hsh = Math.abs(Math.sin(fi * 127.1 + fj * 311.7) * 43758.5) % 1; const fk = smooth01(.25, 6, h); if (hsh < .22) c.lerp(LANDK.field, .32 * fk); else if (hsh < .34) c.lerp(LANDK.forest, .16 * fk); else if (hsh < .42) c.lerp(LANDK.sand2, .14 * fk); } }   // the centre's patchwork: fields of slightly different crops, in long strips (fading out at the foot of a hill, where the flat land, which has none, begins: no hard edge)
   const m = h > 20 ? landMtnPart(x, z) : 0;
   if (m > 8) { const k = smooth01(8, 40, m); const mc = LANDK.forest.clone().lerp(LANDK.alp, smooth01(110, 170, h)).lerp(LANDK.rock, smooth01(150, 215, h)).lerp(LANDK.rock, smooth01(.5, .95, slope)).lerp(LANDK.snow, smooth01(230, 262, h) * (1 - smooth01(.9, 1.3, slope) * .6)); c.lerp(mc, k); }
@@ -10687,7 +11161,7 @@ function landPrep() {
   const key = [S.s.toFixed(4), highwaySegs().map(g => g.slice(0, 5).map(v => Math.round(v)).join(",")).join(";"), Math.round(S.ykSpot?.x || 0), coastTerms().length].join("|");
   if (LAND.grid && LAND.key === key) return; LAND.key = key; LAND_LIVE = false;
   LAND.on = false; LAND.grid = null; LAND.low = []; HT_U.uLandB.value.set(0, 0, 0, 0); LAND.rivers = []; LAND.br = []; LAND.roads = []; LAND.discs = []; LAND.xing = []; LAND.foot = [];
-  const s = S.s, PT = (t, k) => shorePt(t, s, k), H0 = (x, z) => terrainBase0(x, z);
+  const s = S.sL || S.s, PT = (t, k) => shorePt(t, s, k), H0 = (x, z) => terrainBase0(x, z);   // the rivers are cut in the land's own frame, so their bed and their banks never move when the coast moves
   const defs = [
     { id: "w", ctl: [PT(-1.65, .64), { x: -110, z: -820 }, { x: -250, z: -640 }, { x: -470, z: -570 }, { x: -636, z: -531 }, { x: -650, z: -370 }, { x: -600, z: -190 }, { x: -530, z: -30 }, { x: -483, z: 90 }, { x: -510, z: 250 }, { x: -580, z: 430 }, { x: -650, z: 640 }, { x: -700, z: 880 }, { x: -722, z: 1120 }, PT(2.0, 1.12)] },
     { id: "e", ctl: [PT(-1.1, .63), { x: 430, z: -640 }, { x: 400, z: -520 }, { x: 389, z: -404 }, { x: 470, z: -390 }, { x: 600, z: -395 }, { x: 760, z: -385 }, { x: 900, z: -370 }, { x: 1010, z: -345 }, { x: 1070, z: -250 }, { x: 1095, z: -110 }, { x: 1097, z: 31 }, { x: 1240, z: 115 }, { x: 1500, z: 170 }, { x: 1760, z: 195 }, PT(.12, 1.12)] }];
@@ -10753,8 +11227,12 @@ function landPrep() {
     const rC = ramp(landBez(Fp(F, -9.8), Fp(Fm, -11.5), Fp(J + 48, -52), Fp(J + Ro, -52), 40), grade(F), yR);
     const rD = ramp(landBez(Fp(J - Ro, -52), Fp(J - 48, -52), Fp(140, -11.5), Fp(70, -9.8), 40), yR, grade(70));
     // a taper: the ramp lane opens out of the highway's edge (or closes into it) over 60 m, as on a real highway
-    const taper = (al0, al1, sd) => Array.from({ length: 13 }, (_, i) => { const t = i / 12, al = al0 + (al1 - al0) * t, w = 3.6 * t, p = Fp(al, sd * (6 + w)); return { ...p, y: grade(al) + .3, w: Math.max(.05, w) }; });
+    // (Nov 2026) the extra lane grows out of the edge of the carriageway itself: it used to be centred further out, which left a thin strip of
+    // grass between it and the highway and let its tip stick out past the edge — from above it read as a splinter of asphalt lying in the verge
+    const taper = (al0, al1, sd) => Array.from({ length: 13 }, (_, i) => { const t = i / 12, al = al0 + (al1 - al0) * t, w = 3.6 * t * t * (3 - 2 * t), p = Fp(al, sd * (5.9 + w / 2)); return { ...p, y: grade(al) + .3, w: Math.max(.05, w), sd }; });
     rA.unshift(...taper(10, 66, 1)); rB.push(...taper(F + 60, F + 4, 1).reverse()); rC.unshift(...taper(F + 60, F + 4, -1)); rD.push(...taper(10, 66, -1).reverse());
+    // while a ramp runs alongside the carriageway it has no verge on that side either: the verge used to lie on the highway's own lanes
+    for (const [r, sd] of [[rA, 1], [rB, 1], [rC, -1], [rD, -1]]) for (const q of r) { if (q.sd != null) continue; const of = (q.x - Y.hx) * Y.nx + (q.z - Y.hz) * Y.nz; if (Math.abs(of) < 15) q.sd = sd; }
     for (const r of [rA, rB, rC, rD]) landChunk2(landRoad(r, 3.6, { kind: "ramp" })); Y.rmp = { A: rA, B: rB, C: rC, D: rD };
     const ov = Array.from({ length: 21 }, (_, i) => ({ ...Fp(J, -52 + Ro + (104 - 2 * Ro) * i / 20), y: yR + .3 })); const RO = landRoad(ov, 5.5, { kind: "over" }); RO.skip = [[(104 - 2 * Ro) / 2 - 15, (104 - 2 * Ro) / 2 + 15]]; landChunk2(RO);
     const e0 = Y.W(-58, 46), yTop = HT_U.uMound.value.z, fr = landBez(e0, { x: e0.x + Y.ux * 70, z: e0.z + Y.uz * 70 }, Fp(J, 52 + Ro + 46), Fp(J, 52 + Ro), 50);
@@ -10773,7 +11251,7 @@ function landPrep() {
 function landChunk2(R) { /* roads keep one bounding box: they are short */ }
 // bake the changes (valleys, embankments) into the shared map, only around the rivers and the new roads; everywhere else it stays 0
 function landGridBuild() {
-  const s = S.s, X = RX0 * s * 1.25, Z = RZ0 * s * 1.25, n = LAND_N, cx = X * 2 / (n - 1), cz = Z * 2 / (n - 1), x0 = -X, z0 = -Z, d = new Float32Array(n * n), done = new Uint8Array(n * n);
+  const s = S.sL || S.s, X = RX0 * s * 1.25, Z = RZ0 * s * 1.25, n = LAND_N, cx = X * 2 / (n - 1), cz = Z * 2 / (n - 1), x0 = -X, z0 = -Z, d = new Float32Array(n * n), done = new Uint8Array(n * n);
   const boxes = [...LAND.rivers.map(R => R.bb), ...LAND.roads.filter(r => r.fill).map(r => r.bb), ...LAND.discs.map(D => [D.x - D.r - 70, D.z - D.r - 70, D.x + D.r + 70, D.z + D.r + 70]),
     ...LAND.br.map(B => { const e = B.hs + B.ramp + 10, w = B.w / 2 + 70; return [B.x - Math.abs(B.ux) * e - w, B.z - Math.abs(B.uz) * e - w, B.x + Math.abs(B.ux) * e + w, B.z + Math.abs(B.uz) * e + w]; })];
   let Cg = null; try { Cg = canalGeo(); } catch { }   // the canal to the oasis town: its ground is graded level, and there the JS keeps no changes, so neither may the map (a cell's width to spare)
@@ -10802,13 +11280,19 @@ function landFrame(pts, i) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min
 // a road: asphalt, edge lines, a dashed middle line (two-way roads), and concrete barriers where it stands high above the land
 function landDrawRoad(R, { dash = true, barrier = "auto", col = "#4a5057" } = {}) {
   const P = R.pts, hw = R.hw, asp = landC(col), wht = landC("#f1eee6");
-  const W = i => P[i].w ?? hw;
-  landRibbon(P, i => -W(i) - .6, i => W(i) + .6, () => landC("#9a968c"), LANDM.lam, i => P[i].y - .08);   // the shoulder
+  const W = i => P[i].w ?? hw, tap = i => P[i].w != null;   // a taper point: the lane that opens out of the carriageway's edge and narrows to nothing
+  // (Nov 2026) a taper gets no verge, no edge line and no dashes of its own. They were drawn around a strip only centimetres wide, so a long
+  // thin wedge of verge, with a white line through it, lay in the grass beside the highway and ended in a point
+  const sh = i => tap(i) ? .6 * Math.min(1, W(i) / 3.6) : .6;   // the verge grows with the lane, so there is no step where the taper meets the ramp
+  const shL = i => P[i].sd === 1 ? 0 : sh(i), shR = i => P[i].sd === -1 ? 0 : sh(i);   // and on the side facing the carriageway there is no verge at all
+  landRibbon(P, i => -W(i) - shL(i), i => W(i) + shR(i), () => landC("#9a968c"), LANDM.lam, i => P[i].y - .08);   // the shoulder
   landRibbon(P, i => -W(i), i => W(i), () => asp, LANDM.lam, i => P[i].y);
-  for (const sd of [-1, 1]) landRibbon(P, i => sd * Math.max(0, W(i) - .55), i => sd * Math.max(0, W(i) - .35), () => wht, LANDM.lam, i => P[i].y + .03);
+  for (const sd of [-1, 1]) landRibbon(P, i => sd * Math.max(W(i) * .2, W(i) - .55), i => sd * Math.max(W(i) * .45, W(i) - .35), () => wht, LANDM.lam, i => P[i].y + .03);   // the edge line keeps to the edge even where the lane narrows away
   const Q = [];
-  if (dash) for (let i = 0; i < P.length - 1; i++) { if (Math.floor(P[i].s / 6) % 2) continue; const f = landFrame(P, i); Q.push(box(.18, .03, Math.min(4.5, P[i + 1].s - P[i].s + .3), "#f1eee6", (P[i].x + P[i + 1].x) / 2, (P[i].y + P[i + 1].y) / 2 + .02, (P[i].z + P[i + 1].z) / 2, { y: f.ry })); }
+  if (dash) for (let i = 0; i < P.length - 1; i++) { if (Math.floor(P[i].s / 6) % 2 || tap(i) || tap(i + 1)) continue; const f = landFrame(P, i); Q.push(box(.18, .03, Math.min(4.5, P[i + 1].s - P[i].s + .3), "#f1eee6", (P[i].x + P[i + 1].x) / 2, (P[i].y + P[i + 1].y) / 2 + .02, (P[i].z + P[i + 1].z) / 2, { y: f.ry })); }
   for (let i = 0; i < P.length - 1; i++) { const p = P[i], q = P[i + 1], f = landFrame(P, i), mid = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2, y: (p.y + q.y) / 2 }, ground = terrainH(mid.x, mid.z), high = mid.y - ground > 1.6 || (R.skip && R.skip.some(([a, b]) => p.s > a - 4 && p.s < b + 4));
+    // (Nov 2026) a taper (a lane opening out of the highway's edge) has no barriers: they stood across the highway's lanes where the taper narrows to a point
+    if (p.w != null || q.w != null) continue;
     if (barrier === "always" || (barrier === "auto" && high)) for (const sd of [-1, 1]) { const L = Math.hypot(q.x - p.x, q.z - p.z) + .2, pitch = Math.atan2(q.y - p.y, L); Q.push(box(.5, .95, L, "#d9d5cc", mid.x + f.nx * sd * (hw + .35), mid.y - .05, mid.z + f.nz * sd * (hw + .35), { x: -pitch, y: f.ry })); } }
   if (Q.length) landBake(solid(Q, 0, 0, 0, null, 0));
 }
@@ -11000,10 +11484,12 @@ function landBuild() {
     const py = Wt(-66, 52); landBake(solid([box(3.6, 16, 1.6, "#2d6b45", 0, 0, 0), box(4.2, 4.4, 1.9, "#f08a24", 0, 11, 0), box(4.6, .6, 2.1, "#1f4d33", 0, 16, 0)], py.x, py.z, Y.ry + Math.PI, null, top + .2));
     const pyS = sign("סבבהום", 3.8, 1.6, { bg: "#f08a24", fg: "#ffffff", font: "900" }); pyS.position.set(py.x - Math.sin(Y.ry) * .97, top + 13.5, py.z - Math.cos(Y.ry) * .97); pyS.rotation.y = Y.ry + Math.PI; world.add(pyS); landBake(pyS);
     const bs = Wt(-70, 30); landBake(solid([box(6, .2, 2.4, "#c9c5bb", 0, 0, 0), box(5.6, 2.6, .1, "%#bfe3f2", 0, .2, -1), box(5.8, .15, 2.2, "#2f7fa8", 0, 2.8, -.1), box(.15, 2.6, .15, "#5b6670", -2.8, .2, -1), box(.15, 2.6, .15, "#5b6670", 2.8, .2, -1)], bs.x, bs.z, Y.ry + Math.PI / 2, null, top + .2));
+    // (Nov 2026) the service road round the back isn't one of the land's roads (it rides the hill), so the trees keep off it themselves: they stood on its lanes
+    const offSvc = (x, z, m) => { for (let i = 1; i < sv.length; i++) { const A = sv[i - 1], B = sv[i], dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((x - A.x) * dx + (z - A.z) * dz) / (dx * dx + dz * dz || 1))); if (Math.hypot(x - A.x - dx * t, z - A.z - dz * t) < 3.5 + m) return false; } return true; };
     // trees along the boulevard and around the edge of the hilltop, olive groves on the slopes
-    const fr = LAND.roads.find(r => r.kind === "front"); if (fr) fr.pts.forEach((p, i) => { if (i % 3) return; const f = landFrame(fr.pts, i); for (const sd of [-1, 1]) { const x = p.x + f.nx * sd * 8.5, z = p.z + f.nz * sd * 8.5; tr.push([x, z, terrainH(x, z) - landGl(x, z)]); } });
-    for (let k = 0; k < 40; k++) { const a = k / 40 * Math.PI * 2, x = LAND_YK.x + Math.cos(a) * 112, z = LAND_YK.z + Math.sin(a) * 112; if (!landBlock(x, z) && !onHighway(x, z)) tr.push([x, z, 0]); }
-    for (let k = 0; k < 260; k++) { const a = rng2() * Math.PI * 2, r = 125 + rng2() * 95, x = LAND_YK.x + Math.cos(a) * r, z = LAND_YK.z + Math.sin(a) * r; if (!landBlock(x, z) && !onHighway(x, z) && Math.floor(r / 9) % 2 === 0) ol.push([x, z]); }
+    const fr = LAND.roads.find(r => r.kind === "front"); if (fr) fr.pts.forEach((p, i) => { if (i % 3) return; const f = landFrame(fr.pts, i); for (const sd of [-1, 1]) { const x = p.x + f.nx * sd * 8.5, z = p.z + f.nz * sd * 8.5; if (offSvc(x, z, 3)) tr.push([x, z, terrainH(x, z) - landGl(x, z)]); } });
+    for (let k = 0; k < 40; k++) { const a = k / 40 * Math.PI * 2, x = LAND_YK.x + Math.cos(a) * 112, z = LAND_YK.z + Math.sin(a) * 112; if (!landBlock(x, z) && !onHighway(x, z) && offSvc(x, z, 4)) tr.push([x, z, 0]); }
+    for (let k = 0; k < 260; k++) { const a = rng2() * Math.PI * 2, r = 125 + rng2() * 95, x = LAND_YK.x + Math.cos(a) * r, z = LAND_YK.z + Math.sin(a) * r; if (!landBlock(x, z) && !onHighway(x, z) && offSvc(x, z, 4) && Math.floor(r / 9) % 2 === 0) ol.push([x, z]); }
     instanced(PRE.tree, tr, ([x, z, dy], o) => { o.position.set(x, dy, z); o.scale.setScalar(.85); });
     instanced(PRE.olive, ol, ([x, z], o) => { o.position.set(x, .1, z); o.scale.setScalar(.8); });
   }
@@ -11353,10 +11839,16 @@ function wpLook(id) {
     if ($("lkAuto")) $("lkAuto").onclick = async e => { e.target.disabled = true; const val = { ...cfg }; delete val.x; delete val.z; delete val.ry; delete val.lot; if (await adminEdit("settings", `wp_${w.id}`, { value: val })) { toast("↩️ חזר למקום האוטומטי"); close(); } else e.target.disabled = false; };
   });
 }
-renderer.domElement.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; fly = null; });
+renderer.domElement.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; fly = null;
+  if (PPL.on && PPL.g) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); unbendRay(ray);
+    if (ray.intersectObject(PPL.g, true).length) { PPL.drag = e.pointerId; controls.enabled = false; e.stopPropagation(); } }   // a finger on the ghost drags it; anywhere else still turns the camera
+}, true);
+renderer.domElement.addEventListener("pointermove", e => { if (PPL.drag !== e.pointerId) return; const v = pplGround(e); if (v) pplPut(v.x, v.z); e.stopPropagation(); }, true);
+for (const ev of ["pointerup", "pointercancel"]) renderer.domElement.addEventListener(ev, e => { if (PPL.drag === e.pointerId) { PPL.drag = null; controls.enabled = true; PPL.moved = true; } }, true);
 renderer.domElement.addEventListener("pointerup", e => {
   if (INT.on || REEL.on || WALK.on || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7 || performance.now() - down.t > 600) return;
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); unbendRay(ray);
+  if (PPL.on) { const v = pplGround(e); if (v) pplPut(v.x, v.z); return; }
   if (PLACE.id != null) return placeTap(e);
   const hit = ray.intersectObjects(S.picks, false)[0];
   if (!hit) { if (S.sel) { S.sel = null; mark(S.mine); }
@@ -11479,7 +11971,8 @@ function walkDoors() {
   if (natOpen("memorial")) { add(...memW(MEM.ROCK[0], MEM.ROCK[1] + 6), 5, "memorial", "🕯️ גן יזכור"); add(...memW(MEM.STAGE[0], MEM.STAGE[1] + 11), 6, "memorial", "🕯️ להדליק נר"); add(...memW(MEM.FL[0] - 12, MEM.ZP), 5, "memorial", "🕯️ להדליק נר"); }
   for (const st of S.stations || []) { const c = Math.cos(st.ry), s2 = Math.sin(st.ry); add(st.x - 10 * c - 12 * s2, st.z + 10 * s2 - 12 * c, 5, "station:" + st.sl.city.id, "🚌 להיכנס לתחנה המרכזית"); }
   if (natOpen("armour")) { add(...rW(DRV.SCHOOL.x + 6, DRV.SCHOOL.z - 7.6), 3.4, "drvschool", "🎖️ להיכנס: בית הספר לנהיגה"); add(...rW(AR.HX + 12, 0), 6, "armour", "🚧 שער בסיס השריון"); if (WALK.h && northAllowed(WALK.h.u)) add(...rW(AR.HQX + 17, AR.HQZ), 5, "place:armour", "🚶 להיכנס לחדר המבצעים"); }
-  if (natOpen("air")) { add(...aW(0, -AB.HZ - 12), 6, "air", "🚧 שער בסיס חיל האוויר"); if (WALK.h && airAllowed(WALK.h.u)) add(...aW(AB.HQX, AB.HQZ - 17), 5, "place:air", "🚶 להיכנס לחדר התדריכים"); }
+  if (natOpen("air")) { add(...aW(0, -AB.HZ - 12), 6, "air", "🚧 שער בסיס חיל האוויר"); if (WALK.h && airAllowed(WALK.h.u)) add(...aW(AB.HQX, AB.HQZ - 17), 5, "place:air", "🚶 להיכנס לחדר התדריכים");
+    add(...aW(FLY.SCHOOL.x + 8, FLY.SCHOOL.z + 9.4), 3.6, "flyschool", "✈️ להיכנס: בית הספר לטיסה"); if (flyNearBoard()) add(WALK.x, WALK.z, 30, "flymenu", "✈️ לעלות על כלי טיס"); }
   if (natOpen("north")) { add(...bW(0, NB.HZ + 12), 6, "north", "🚧 שער בסיס הצפון"); if (WALK.h && northAllowed(WALK.h.u)) add(...bW(NB.HQX, NB.HQZ + 17), 5, "place:north", "🚶 להיכנס לחדר המבצעים"); }
   if (natOpen("navy")) { add(...nW(0, NV.GZ + 12), 6, "navy", "🚧 שער בסיס חיל הים"); if (WALK.h && navyAllowed(WALK.h.u)) { add(...nW(NV.HQX, NV.HQZ + 17), 5, "place:navy", "🚶 להיכנס לחדר המבצעים הימי"); add(...nW(SAIL.SCHOOL.x - 6, SAIL.SCHOOL.z - 9.6), 3.4, "seaschool", "⚓ להיכנס: בית הספר לשיט"); } }
   if (natOpen("sechq")) { add(...sW(0, SQ.SZ + 12), 6, "sechq", "🚧 שער מטה שירות הביטחון"); if (WALK.h && secAllowed(WALK.h.u)) add(...sW(SQ.MX, SQ.MZ + 25), 5, "place:sechq", "🚶 להיכנס לחדר הבקרה"); }
@@ -11512,7 +12005,7 @@ function walkBlockers() {
   if (natOpen("armour")) { const ry = NAT.armour.ry, { HX, HZ, HQX, HQZ } = AR; rect(...rW(-(HX + 9) / 2, -HZ), HX - 9, 1, ry); rect(...rW((HX + 9) / 2, -HZ), HX - 9, 1, ry); rect(...rW(DRV.SCHOOL.x, DRV.SCHOOL.z), 40, 12, ry); for (const b of DRV.walls) rect(...rW((b[0] + b[2]) / 2, (b[1] + b[3]) / 2), b[2] - b[0], b[3] - b[1], ry); rect(...rW(0, HZ), 2 * HX, 1, ry); rect(...rW(-HX, 0), 1, 2 * HZ, ry); rect(...rW(HX, -(HZ + 9) / 2), 1, HZ - 9, ry); rect(...rW(HX, (HZ + 9) / 2), 1, HZ - 9, ry);
     if (!(WALK.h && northAllowed(WALK.h.u))) rect(...rW(HX, 0), 2, 18, ry);   // the closed barrier: only the land forces walk in
     rect(...rW(HQX, HQZ), 20, 48, ry); }
-  if (natOpen("air")) { const ry = NAT.air.ry, { HX, HZ, HQX, HQZ } = AB; rect(...aW(0, HZ), 2 * HX, 1, ry); rect(...aW(-HX, 0), 1, 2 * HZ, ry); rect(...aW(HX, 0), 1, 2 * HZ, ry); rect(...aW(-(HX + 9) / 2, -HZ), HX - 9, 1, ry); rect(...aW((HX + 9) / 2, -HZ), HX - 9, 1, ry);
+  if (natOpen("air")) { const ry = NAT.air.ry, { HX, HZ, HQX, HQZ } = AB; rect(...aW(FLY.SCHOOL.x, FLY.SCHOOL.z), 40, 16, ry); rect(...aW(0, HZ), 2 * HX, 1, ry); rect(...aW(-HX, 0), 1, 2 * HZ, ry); rect(...aW(HX, 0), 1, 2 * HZ, ry); rect(...aW(-(HX + 9) / 2, -HZ), HX - 9, 1, ry); rect(...aW((HX + 9) / 2, -HZ), HX - 9, 1, ry);
     if (!(WALK.h && airAllowed(WALK.h.u))) rect(...aW(0, -HZ), 18, 2, ry);   // the closed barrier: only the air force walks in
     rect(...aW(HQX, HQZ), 48, 20, ry); rect(...aW(0, -130), 10, 10, ry); }
   if (natOpen("north")) { const ry = NAT.north.ry, { HX, HZ, HQX, HQZ } = NB; rect(...bW(0, -HZ), 2 * HX, 1, ry); rect(...bW(-HX, 0), 1, 2 * HZ, ry); rect(...bW(HX, 0), 1, 2 * HZ, ry); rect(...bW(-(HX + 9) / 2, HZ), HX - 9, 1, ry); rect(...bW((HX + 9) / 2, HZ), HX - 9, 1, ry);
@@ -11588,10 +12081,10 @@ function walkStart(u) {
   $("walkUI").innerHTML = `<div class="ihead glass"><span class="ic">🚶</span><span class="tx"><b id="wSt">טיול בעיר</b><small>‎@${esc(nick(h.u))}</small></span><button id="wX" aria-label="סיום">✕</button></div>
     <div class="wjoy" id="wJoy"><i id="wKnob"></i></div><canvas class="wmap" id="wMap" width="248" height="248"></canvas><button class="whome glass" id="wHome">🏠 הביתה</button><button class="wmapbtn glass" id="wMapBtn">🗺️ מפה</button><div class="wnav glass" id="wNav" hidden><i id="wNavA">⬆️</i><span id="wNavT"></span><button id="wNavX" aria-label="ביטול">✕</button></div><button class="btn wact" id="wAct" hidden></button><button class="btn wact wdoor" id="wDoor" hidden></button><div class="wspd glass" id="wSpd" hidden></div><button class="wcam glass" id="wCam" hidden>🎥 מהמושב</button>
     <div class="whint glass" id="wHint">${touch ? "גררו את העיגול כדי ללכת · גררו את המסך כדי להסתובב" : "חיצים או WASD כדי ללכת · גררו את המסך כדי להסתובב"}</div>`;
-  $("wAct").onclick = () => WALK.mode === "mil" ? drvExit() : WALK.mode === "car" ? exitCar() : WALK.milNear === "seamenu" ? seaBoardMenu() : WALK.milNear ? drvEnter(WALK.milNear) : enterCar();
+  $("wAct").onclick = () => WALK.mode === "mil" ? drvExit() : WALK.mode === "car" ? exitCar() : WALK.milNear === "seamenu" ? seaBoardMenu() : WALK.milNear === "flymenu" ? flyBoardMenu() : WALK.milNear ? drvEnter(WALK.milNear) : enterCar();
   $("wCam").onclick = () => { if (WALK.mode === "mil") return drvCycleView(); if (WALK.rail?.on) WALK.cabin = !WALK.cabin; else WALK.cockpit = !WALK.cockpit; walkButtons(); };
   $("wMapBtn").onclick = () => cmapOpen(); $("wNavX").onclick = () => { WALK.target = null; $("wNav").hidden = true; };
-  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (d.id === "drvschool") return drvSchool(false, "land"); if (d.id === "seaschool") return drvSchool(false, "sea"); if (d.id === "seadive") return seaDive(); if (d.id === "drvstart") return drvStartMenu(); if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (d.id === "fuel") return WALK.fueling || fuelBuy(); if (d.id === "auto") return WALK.auto ? autoStop("🛑 עצרת. ההגה אצלך") : S.mine?.auto ? cmapOpen() : autoShop(); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
+  $("wDoor").onclick = () => { if (IN.on) { if (IN.exit) indoorUse(IN.exit); return; } walkButtons(); const d = WALK.door; if (d) { WALK.joy = { x: 0, y: 0 }; WALK.keys = {}; if (d.id === "drvschool") return drvSchool(false, "land"); if (d.id === "seaschool") return drvSchool(false, "sea"); if (d.id === "flyschool") return drvSchool(false, "air"); if (d.id === "seadive") return seaDive(); if (d.id === "flymenu") return flyBoardMenu(); if (d.id === "flygear") return flyGear(); if (d.id === "drvstart") return drvStartMenu(); if (String(d.id).startsWith("stop:")) return busPick(+String(d.id).slice(5)); if (d.id === "fuel") return WALK.fueling || fuelBuy(); if (d.id === "auto") return WALK.auto ? autoStop("🛑 עצרת. ההגה אצלך") : S.mine?.auto ? cmapOpen() : autoShop(); if (String(d.id).startsWith("rail:")) return railEnter(+String(d.id).slice(5)); if (String(d.id).startsWith("railride:")) return railBoard(+String(d.id).slice(9)); if (String(d.id).startsWith("raildown:")) return railDown(+String(d.id).slice(9)); indoorStart(d.id, d); } };
   $("wX").onclick = exitWalk; $("wHome").onclick = () => { if (WALK.mode === "car") exitCar(); const [hx, hz] = frontOf(WALK.h, 6.6, 0); WALK.x = hx; WALK.z = hz; WALK.head = WALK.h.lot.face; WALK.cy = WALK.head + Math.PI; };
   setTimeout(() => { const e = $("wHint"); if (e) e.style.opacity = 0; }, 5000);
   // the joystick
@@ -11638,7 +12131,7 @@ function walkStep(dt) {
   if (WALK.rail) railWait();
   if (WALK.bus) return busStep(dt);
   if (WALK.wait) waitStep();
-  if (WALK.mode === "mil") return WALK.mil?.sea ? seaStep(dt) : drvStep(dt);
+  if (WALK.mode === "mil") return WALK.mil?.air ? flyStep(dt) : WALK.mil?.sea ? seaStep(dt) : drvStep(dt);
   if (WALK.mode === "car") return driveStep(dt);
   const k = WALK.keys; let fx = WALK.joy.x, fy = WALK.joy.y;
   if (k.ArrowUp || k.KeyW) fy += 1; if (k.ArrowDown || k.KeyS) fy -= 1; if (k.ArrowLeft || k.KeyA) fx -= 1; if (k.ArrowRight || k.KeyD) fx += 1;
@@ -11901,7 +12394,7 @@ function walkButtons() {
   // the nearest door you're standing at
   let best = null, bd = Infinity;
   if (WALK.mode === "mil") return drvButtons(b, dr);
-  WALK.milNear = WALK.mode === "foot" ? drvNearParked() || (seaNearBoard() ? "seamenu" : null) : null;
+  WALK.milNear = WALK.mode === "foot" ? drvNearParked() || (seaNearBoard() ? "seamenu" : flyNearBoard() ? "flymenu" : null) : null;
   if (WALK.plat) { const i = WALK.plat.i, w = railWaitSec(i); best = w === 0 ? { id: "railride:" + i, label: "🚡 לעלות לרכבל" } : { id: "raildown:" + i, label: `⬇️ לרדת לרחוב${w != null ? " · הרכבל בעוד " + mss(w) : ""}` }; }
   else if (WALK.rail?.on) best = null;
   else if (WALK.mode === "car" && WALK.car && Math.abs(WALK.car.v) < 1.5 && (WALK.fuel ?? 1) < .97 && atPump(WALK.car.x, WALK.car.z)) best = { id: "fuel", label: WALK.fueling ? "⛽ מתדלקים…" : `⛽ תדלוק · ${Math.max(1, Math.ceil((1 - WALK.fuel) * FUEL.PRICE))} ${COIN}${S.mine && WALK.h === S.mine ? "" : " (חינם לאורחים)"}` };   // stopped under a canopy
@@ -11913,14 +12406,16 @@ function walkButtons() {
   if (WALK.mode === "car") { b.hidden = false; b.textContent = CARS[WALK.h.cm].bike ? "🚶 לרדת מהקטנוע" : "🚶 לצאת מהרכב"; $("wSpd").hidden = false; return; }
   $("wSpd").hidden = true;
   if (WALK.milNear === "seamenu") { b.hidden = false; b.textContent = "⚓ לעלות לכלי שיט"; return; }
+  if (WALK.milNear === "flymenu") { b.hidden = false; b.textContent = "✈️ לעלות על כלי טיס"; return; }
   if (WALK.milNear) { const k = DRV.K[WALK.milNear]; b.hidden = false; b.textContent = `${k.ic} לנהוג ב${k.name}${drvUnlocked(WALK.h.u, WALK.milNear) ? "" : " 🔒"}`; return; }
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
 }
 function drvButtons(b, dr) {
-  const m = WALK.mil; let best = !DRV.run && Math.abs(m.v0) < 1 && (m.sea ? seaAtStart(m) : drvAtStart(m)) ? { id: "drvstart", label: m.sea ? "🏁 שער הזינוק · להתחיל" : "🏁 קו הזינוק · להתחיל" } : null;
+  const m = WALK.mil; let best = !DRV.run && (m.air ? flyAtStart(m) && m.spd < 1 : Math.abs(m.v0) < 1 && (m.sea ? seaAtStart(m) : drvAtStart(m))) ? { id: "drvstart", label: m.air ? "🏁 בראש המסלול · להמריא" : m.sea ? "🏁 שער הזינוק · להתחיל" : "🏁 קו הזינוק · להתחיל" } : null;
+  if (!best && m.air && !m.k.heli) best = { id: "flygear", label: m.gear ? "🛞 לאסוף גלגלים" : "🛞 להוריד גלגלים" };
   if (!best && m.sea && m.k.dive) best = { id: "seadive", label: m.want > 0 ? "⬆️ לעלות לפני המים" : "🫧 לצלול" }; WALK.door = best; dr.hidden = !best; if (best) dr.textContent = best.label;
   const cb = $("wCam"); if (cb) { cb.hidden = false; cb.textContent = m.sea ? (DRV.view === "peri" ? "🔭 בפריסקופ" : DRV.view === "chase" ? (m.k.view === "console" ? "🎥 מהעמדה" : m.k.view === "tower" ? "🎥 מהמגדל" : "🎥 מהגשר") : "🎥 מבט מאחור") : DRV.view === "chase" ? (m.k.tracked ? "🎥 מהצוהר" : "🎥 מהמושב") : DRV.view === "seat" && m.k.tracked ? "🔭 פריסקופ" : "🎥 מבט מאחור"; }
-  b.hidden = false; b.textContent = m.sea ? "⚓ לחזור למזח" : `🚶 לרדת מה${m.k.name}`; $("wSpd").hidden = false;
+  b.hidden = false; b.textContent = m.sea ? "⚓ לחזור למזח" : m.air ? "🚶 לרדת מכלי הטיס" : `🚶 לרדת מה${m.k.name}`; $("wSpd").hidden = false;
 }
 /* ---------- a living city: real citizens of the state walk the sidewalks around their homes and workplaces, each as their own figure ---------- */
 const NPC = new Map();   // username -> { h, fig, cx, cz, p, v, dir, ph }
@@ -12676,7 +13171,7 @@ async function hotelBook(no) {
   if (!me || !key) return toast("כדי להזמין חדר צריך להתחבר כתושב");
   if (hotelMine()) return toast(`כבר יש לך חדר הלילה: ${hotelMine()}`);
   if ((me.coins || 0) < r.p) return toast(ERR.funds);
-  open(`🛎️ חדר ${r.no} · ${esc(r.name)}`, `<div class="hero"><p>להזמין את <b>חדר ${r.no}</b> (${esc(r.name)}, קומה ${r.f}) ללילה הזה?</p><p>המחיר: <b>${r.p} ${COIN}</b></p></div><div class="btns"><button class="btn" id="hOk">✅ להזמין</button><button class="btn ghost" id="hNo">לא עכשיו</button></div>`, () => {
+  open(`🛎️ חדר ${r.no} · ${r.name}`, `<div class="hero"><p>להזמין את <b>חדר ${r.no}</b> (${esc(r.name)}, קומה ${r.f}) ללילה הזה?</p><p>המחיר: <b>${r.p} ${COIN}</b></p></div><div class="btns"><button class="btn" id="hOk">✅ להזמין</button><button class="btn ghost" id="hNo">לא עכשיו</button></div>`, () => {
     $("hNo").onclick = () => close();
     $("hOk").onclick = async () => { $("hOk").disabled = true;
       try { const q = await rpc("book_room", { username: me.u, key, room: r.no });
@@ -12711,7 +13206,7 @@ function towerGo(f, by) {
 }
 function towerLift() {
   const T = IN.tower; if (!T) return;
-  open(`🛗 ${esc(IN.name)}`, `<div class="list">${Array.from({ length: T.F }, (_, i) => T.F - 1 - i).map(f => `<div class="li"><span class="ic">${f === IN.floor ? "📍" : f === 0 ? "🏢" : "🔘"}</span><span class="tx"><b>${T.labels ? esc(T.labels[f]) : `קומה ${f}`}</b><small>${T.labels ? (T.subs ? esc(T.subs[f]) : f ? `${WISH_FL[f].h} מ׳ מעל הכיכר` : "קומת הכניסה") : esc(floorName(IN.w, f, T.F))}</small></span>${f === IN.floor ? `<small>את/ה כאן</small>` : `<button class="mini" data-fl="${f}">לעלות</button>`}</div>`).join("")}</div>`,
+  open(`🛗 ${IN.name}`, `<div class="list">${Array.from({ length: T.F }, (_, i) => T.F - 1 - i).map(f => `<div class="li"><span class="ic">${f === IN.floor ? "📍" : f === 0 ? "🏢" : "🔘"}</span><span class="tx"><b>${T.labels ? esc(T.labels[f]) : `קומה ${f}`}</b><small>${T.labels ? (T.subs ? esc(T.subs[f]) : f ? `${WISH_FL[f].h} מ׳ מעל הכיכר` : "קומת הכניסה") : esc(floorName(IN.w, f, T.F))}</small></span>${f === IN.floor ? `<small>את/ה כאן</small>` : `<button class="mini" data-fl="${f}">לעלות</button>`}</div>`).join("")}</div>`,
     () => $("dBody").querySelectorAll("[data-fl]").forEach(b => b.onclick = () => { close(); towerGo(+b.dataset.fl, "lift"); }), true);
 }
 // the Knesset: you come in through its lobby (security, flags, the tapestry wall, the guests' book), then through the big doors into the plenum
@@ -13028,14 +13523,21 @@ const GO = {
     open("📐 לוח התכניות", `<div class="hero"><p><b>מנהלת הבינוי הלאומית.</b> לכל פרויקט במדינה יש תיק בנייה. הבנייה מתקדמת בשלב כל ${PLAN.H} שעות: יסודות, שלד, גגות וחזיתות, גמר ופתיחה. אפשר לראות את זה קורה באי, ולשתף את התיק בסטורי.</p></div>
       ${list.length ? `<div class="list" style="margin-top:10px">${list.map(row).join("")}</div>` : `<p class="note">עוד אין תיקי בנייה</p>`}`, null, sub());
   },
-  plan: async id => { const p = S.projects.find(q => q.id === +id); if (!p) return;
-    open(`📐 תיק בנייה ${planNo(p)}`, `<div class="hero" style="text-align:center"><p>מכינים את התיק…</p></div>`, null, true);
-    await new Promise(r => setTimeout(r, 60)); let url = ""; try { url = planDoc(p).toDataURL("image/jpeg", .9); } catch { return toast("לא הצליח להכין את התיק"); }
+  plan: async (id, view = "a", fresh = false) => { const p = S.projects.find(q => q.id === +id); if (!p) return;
+    const st0 = planStage(p), mk = !st0.done && (NAT_BUILDERS[p.kind] || PROJECT_KINDS[p.kind]);
+    open(`📐 תיק בנייה ${planNo(p)}`, `<div class="hero" style="text-align:center"><p>${mk && (fresh || !prevGet(p)) ? "מכינים את התיק ומייצרים הדמיה של המתחם הגמור…" : "מכינים את התיק…"}</p></div>`, null, true);
+    await new Promise(r => setTimeout(r, 60));
+    let pv = null;
+    if (mk) { const raw = prevShots(p, fresh); if (raw) { const [a, b] = await Promise.all([imgOf(raw.a), imgOf(raw.b)]); if (a && b) pv = { a, b }; } }
+    let url = ""; try { url = planDoc(p, pv, view).toDataURL("image/jpeg", .9); } catch { return toast("לא הצליח להכין את התיק"); }
     const st = planStage(p);
     stack.pop(); open(`📐 תיק בנייה ${planNo(p)}`, `<img src="${url}" alt="תיק בנייה" style="width:100%;border-radius:12px;display:block;box-shadow:0 2px 10px #0003">
       <div class="btns" style="margin-top:10px"><a class="btn" href="${url}" download="sababa-plan-${planNo(p)}.jpg">⬇️ לשמור תמונה</a><button class="btn ghost" id="plShare">📤 לשתף</button>${p.x != null ? `<button class="btn ghost" data-go="project" data-arg="${p.id}">📍 לאתר הבנייה</button>` : ""}</div>
+      ${pv ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" id="plView">${view === "b" ? "🛩️ מבט מלמעלה" : "🚶 מבט מהכניסה"}</button><button class="btn ghost" id="plFresh">🔄 לרענן הדמיה</button></div><p class="note" style="text-align:center">התמונה הגדולה היא הדמיה של המתחם בסיום הבנייה · בפינה: השטח היום</p>` : ""}
       ${ADMIN && !st.done && planStart(p) == null ? `<div class="btns" style="margin-top:8px"><button class="btn ghost" id="plStart">⏱️ להתחיל את השלבים עכשיו (שלב כל ${PLAN.H} שעות)</button></div>` : ""}`, () => {
       const sh = $("plShare"); if (sh) sh.onclick = async () => { try { const f = new File([await (await fetch(url)).blob()], `sababa-plan-${planNo(p)}.jpg`, { type: "image/jpeg" }); if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], title: `תיק בנייה ${planNo(p)}` }); else toast("שומרים את התמונה ומעלים לסטורי"); } catch {} };
+      const vw = $("plView"); if (vw) vw.onclick = () => { stack.pop(); GO.plan(p.id, view === "b" ? "a" : "b"); };
+      const fr = $("plFresh"); if (fr) fr.onclick = () => { stack.pop(); GO.plan(p.id, view, true); };
       const bs = $("plStart"); if (bs) bs.onclick = async () => { bs.disabled = true; if (await adminEdit("projects", p.id, { params: { ...(p.params || {}), build_start: new Date().toISOString() } })) { toast("🏗️ הבנייה התחילה: יסודות", 3500); GO.plan(p.id); } else bs.disabled = false; };
     }, true); },
   project: id => { const p = S.projects.find(q => q.id === +id); if (!p) return; if (p.x != null) goTo(p.x, p.z, p.params?.island ? 1.3 : 4, () => showProject(p)); else showProject(p); }
@@ -13058,12 +13560,13 @@ function showSquare(q) {
 }
 function showProject(p) {
   const [ic, kindName] = PROJECT_KINDS[p.kind] || ["🏗️", ""], who = p.requested_by && S.byUser.get(p.requested_by);
-  open(`${ic} ${p.name || kindName}`, `${addrHtml(p)}${p.status === "done" ? gameBox(p.kind === "monument" ? "monument" : "proj:" + p.kind) : ""}<div class="hero"><p>${p.status === "done" && NAT[p.kind]?.about ? NAT[p.kind].about : p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
+  const pv = p.status !== "done" && !planStage(p).done ? prevGet(p) : null;   // the picture of the finished place, if the building file has already made one
+  open(`${ic} ${p.name || kindName}`, `${addrHtml(p)}${pv ? `<img src="${pv.a}" alt="הדמיה של המתחם בסיום הבנייה" style="width:100%;border-radius:12px;display:block;box-shadow:0 2px 10px #0003"><p class="note" style="text-align:center;margin:4px 0 0">כך ייראה המתחם בסיום הבנייה · הדמיה</p>` : ""}${p.status === "done" ? gameBox(p.kind === "monument" ? "monument" : "proj:" + p.kind) : ""}<div class="hero"><p>${p.status === "done" && NAT[p.kind]?.about ? NAT[p.kind].about : p.status === "done" ? `<b>נחנך!</b> ${esc(kindName)} ב${esc(cityName(p.city_id))}, שנבנה בעקבות בקשה של התושבים.` : `<b>בבנייה.</b> העגורנים כבר כאן. ${esc(kindName)} ב${esc(cityName(p.city_id))} ייחנך בקרוב.`}</p></div>
     <div class="list" style="margin-top:10px">${NAT[p.kind] ? info("🏛️", "בניין לאומי", "של רפובליקת סבבה") : p.requested_by ? (who ? person(who, "הציע/ה את הרעיון בתגובות") : info("💡", `‎@${esc(nick(p.requested_by))}`, "הציע/ה את הרעיון בתגובות")) : info("🗳️", "רעיון של הקהילה")}
       ${info("📅", p.status === "done" ? "נחנך" : "התחילו לבנות", fmtDate(p.created_at))}</div>
     ${p.kind === "mall" ? `<div class="sec">🛍️ החנויות בקניון</div><div class="list">${mallStores(p).map(s2 => info(MALL_CATS[s2.cat]?.[0] || "🛍️", esc(s2.name), MALL_CATS[s2.cat]?.[1] || "")).join("")}</div>
       ${isMallSite(p) ? `<p class="note">הקניון עומד ליד נתיבי סבבה, עם חניון ענק וחניון קומות.</p>` : ""}${ADMIN ? `<div class="btns" style="margin:8px 0"><button class="btn ghost" data-go="mallShops" data-arg="${p.id}">🏬 לערוך חנויות</button><button class="btn ghost" data-go="placeReel" data-arg="mallp:${p.id}">🎬 ריל של הקניון</button></div>` : ""}` : ""}
-    <div class="btns">${natBtns(p)}<button class="btn ghost" data-go="plan" data-arg="${p.id}">📐 תיק בנייה ${planNo(p)}</button>${p.kind !== "monument" && !NAT[p.kind] && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}${ADMIN && p.blkKey ? `<button class="btn ghost" data-go="blk" data-arg="${p.blkKey}">🧩 פריטים במגרש</button>` : ""}</div>`);
+    <div class="btns">${natBtns(p)}<button class="btn ghost" data-go="plan" data-arg="${p.id}">📐 תיק בנייה ${planNo(p)}</button>${ADMIN && NAT[p.kind] ? `<button class="btn ghost" id="pplGo">📍 למקם מחדש</button>` : ""}${p.kind !== "monument" && !NAT[p.kind] && p.status === "done" ? `<button class="btn" data-go="enter" data-arg="proj:${p.id}">🚪 ${INDOOR.includes(p.kind) ? "להיכנס פנימה" : "לטייל בפנים"}</button>` : ""}<button class="btn ghost" data-go="ideas">כל הפרויקטים</button>${editBtn("proj:" + p.id)}${ADMIN && p.blkKey ? `<button class="btn ghost" data-go="blk" data-arg="${p.blkKey}">🧩 פריטים במגרש</button>` : ""}</div>`, () => { const g = $("pplGo"); if (g) g.onclick = () => pplStart(p); });
 }
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => GO[b.dataset.tab]());
 $("brand").onclick = () => GO.state(); $("clock").onclick = () => GO.time();
@@ -13104,13 +13607,14 @@ function mailLetters(h) {
   if (h.coins != null) add("pay:" + today, "אוצר המדינה", `המשכורת היומית מחכה: +${fmtN(salaryOf(h))} ${COIN}`, h.wp ? `${esc(h.wp.name)} · דרג ${h.level}` : "דמי אבטלה עד שתמצא/י עבודה", { label: "לאסוף בבית", go: "mine" }, "act", collectedToday(h));
   // the shift in the service, or the call-up
   const sv = S.soldiers?.get(h.u), army = natOpen("kirya") || S.projects.some(p => p.kind === "recruit");
-  if (sv) add("shift:" + today, "מטה כל״ס", "המשמרת שלך מוכנה", `${BRANCH[sv.branch]?.ic || "🎖️"} ${rankName(sv)} · ${sv.shifts} משמרות`, { label: "להתחיל משמרת", go: "army" }, "act", sv.last_shift === today);
+  if (sv) { const B = armyBaseOf(sv.branch); add("shift:" + today, "מטה כל״ס", "המשמרת שלך מוכנה", `${BRANCH[sv.branch]?.ic || "🎖️"} ${rankName(sv)} · ${sv.shifts} משמרות${B ? ` · מתייצבים ב${B.name}` : ""}`, { label: B ? `לנסוע ל${B.name}` : "להתחיל משמרת", go: "army" }, "act", sv.last_shift === today); }
   else if (army) add("callup", "מטה כל״ס", "אפשר להתגייס לכל״ס", "יבשה, אוויר, ים או שירות הביטחון · משמרת אחת ביום ועולים בדרגות", { label: "ללשכת הגיוס", go: "army" }, "info");
   // the next test at the driving yard or the sailing school
-  if (sv && (sv.branch === "land" || sv.branch === "sea")) { const br = sv.branch, base = br === "land" ? natOpen("armour") : natOpen("navy"), C = drvCerts(h.u);
+  const SCHOOL_OF = { land: ["בית הספר לנהיגה", "לבסיס השריון", "נהג", "armour"], sea: ["בית הספר לשיט", "לבסיס חיל הים", "משיט", "navy"], air: ["בית הספר לטיסה", "לבסיס חיל האוויר", "טייס", "air"] };
+  if (sv && SCHOOL_OF[sv.branch]) { const br = sv.branch, [sName, sGo, sTitle, sBase] = SCHOOL_OF[br], base = natOpen(sBase), C = drvCerts(h.u);
     const next = base && DRV_ALL.filter(k => DRV.K[k].br === br && !C[k] && drvUnlocked(h.u, k)).sort((a, b) => DRV.K[a].lvl - DRV.K[b].lvl)[0];
-    if (next) add("drv:" + next, br === "sea" ? "בית הספר לשיט" : "בית הספר לנהיגה", `אפשר לגשת למבחן: ${DRV.K[next].ic} ${DRV.K[next].name}`, `זמן היעד ${drvFmt(DRV.K[next].target * 1000).slice(0, -2)} · פחות מ־3 עונשים`, { label: br === "sea" ? "לבסיס חיל הים" : "לבסיס השריון", go: "school", arg: br }, "act");
-    for (const k of DRV_ALL) if (DRV.K[k].br === br && C[k]) add("drv:" + k, br === "sea" ? "בית הספר לשיט" : "בית הספר לנהיגה", `עברת את המבחן: ${DRV.K[k].ic} ${DRV.K[k].name}`, `${br === "sea" ? "משיט" : "נהג"} מוסמך · ${drvFmt(C[k].ms)}`, null, "act", true); }
+    if (next) add("drv:" + next, sName, `אפשר לגשת למבחן: ${DRV.K[next].ic} ${DRV.K[next].name}`, `זמן היעד ${drvFmt(DRV.K[next].target * 1000).slice(0, -2)} · פחות מ־3 עונשים`, { label: sGo, go: "school", arg: br }, "act");
+    for (const k of DRV_ALL) if (DRV.K[k].br === br && C[k]) add("drv:" + k, sName, `עברת את המבחן: ${DRV.K[k].ic} ${DRV.K[k].name}`, `${sTitle} מוסמך · ${drvFmt(C[k].ms)}`, null, "act", true); }
   // the ballot
   for (const e of S.ballot || []) { const voted = e.options?.some(o => S.myVotes.includes(o.id));
     if (e.status === "open" || voted) add("vote:" + e.id, "ועדת הבחירות", `${e.status === "open" ? "נפתחה הצבעה" : "ההצבעה נסגרה"}: ${esc(e.title)}`, e.status === "open" ? `${fmtN(e.options?.length || 0)} אפשרויות · ${timeLeft(e.ends_at)}` : "הקול שלך נספר", { label: "להצביע", go: "ballot" }, "act", voted || e.status !== "open"); }
@@ -13140,7 +13644,7 @@ function mailState(seen = false) {
   return { list, wait: list.filter(l => l.pending).length, h };
 }
 GO.army = () => armyGo();
-GO.school = br => { if (br === "sea") { const [x, z] = nW(SAIL.SCHOOL.x, SAIL.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "sea")); } else { const [x, z] = dW(DRV.SCHOOL.x, DRV.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "land")); } };
+GO.school = br => { if (br === "air") { const [x, z] = aW(FLY.SCHOOL.x, FLY.SCHOOL.z); return goTo(x, z, 9, () => drvSchool(false, "air")); } if (br === "sea") { const [x, z] = nW(SAIL.SCHOOL.x, SAIL.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "sea")); } else { const [x, z] = dW(DRV.SCHOOL.x, DRV.SCHOOL.z); goTo(x, z, 9, () => drvSchool(false, "land")); } };
 GO.mail = (tab = "wait") => {
   const st = mailState(false), h = st.h;
   if (!h) return open("✉️ תיבת הדואר", `${ofBand("תיבת הדואר", "דואר<br>אישי")}<div class="env"><div class="st r">ממתין<br>★</div><div class="h">הודעה מס' 1 · משרד הפנים</div><b>כדי לקבל דואר, פותחים את האתר מהקישור האישי</b><small>את הקישור שולחים לך באינסטגרם אחרי ההתאזרחות. אין לך? שלחו ״אזרחות״ בהודעה ל־‎@${INSTAGRAM}.</small><span class="act" data-go="how">איך מתאזרחים?</span></div>`, null, false, "official");
@@ -13209,6 +13713,9 @@ const paperDay = () => { const t = israelDate(); return israelHour() >= 6 ? t : 
 const PAPER_FIRST = dayAdd(INDEPENDENCE_DAY, 1);
 // the version of the site this browser runs: the first time anyone sees it is when it reached the island (the paper tells it the next morning)
 setTimeout(() => rpc("release_seen", { ver: SITE_VERSION }).catch(() => {}), 9000);
+// (Nov 2026) the daily draw runs by itself: the first visitor of the day sets it off (the database draws once a day and ignores the rest)
+setTimeout(() => { const d = israelDate(); if (pref("sababa_draw_tick", "") === d) return; setPref("sababa_draw_tick", d);
+  rpc("draw_tick", {}).then(r => { if (r?.ran) { api("draws?select=id,draw_date,prize,details,citizens(ig_username)&order=id.desc&limit=60").then(x => { S.draws = x; sealBadges(); }).catch(() => {}); } }).catch(() => {}); }, 12000);
 async function paperData(D) {
   if (PAPER.cache.has(D)) return PAPER.cache.get(D);
   const C = dayAdd(D, -1), at = d => d && ilOf(d) === C;
@@ -13739,7 +14246,7 @@ async function purchase(u, item, color) {
 // the admin's shop list for a mall: the first two are the big anchor stores at the ends, the next six get shop windows along the front, all of them appear inside
 GO.mallShops = id => {
   const p = S.projects.find(q => q.id === +id); if (!p || !ADMIN) return; const L = JSON.parse(JSON.stringify(mallStores(p)));
-  const draw = () => open(`🏬 החנויות של ${esc(p.name || "הקניון")}`, `<div class="hero"><p>שתי החנויות הראשונות הן חנויות העוגן הגדולות בשני הקצוות. שש הבאות מקבלות חלון ראווה בחזית. כולן מופיעות בכרטיס של הקניון ובפנים.</p></div>
+  const draw = () => open(`🏬 החנויות של ${p.name || "הקניון"}`, `<div class="hero"><p>שתי החנויות הראשונות הן חנויות העוגן הגדולות בשני הקצוות. שש הבאות מקבלות חלון ראווה בחזית. כולן מופיעות בכרטיס של הקניון ובפנים.</p></div>
     <div class="list" style="margin-top:10px">${L.map((s2, i) => `<div class="li"><span class="ic">${MALL_CATS[s2.cat]?.[0] || "🛍️"}</span><span class="tx"><b>${esc(s2.name)}</b><small>${i < 2 ? "עוגן" : i < 8 ? "חזית" : "בפנים"} · ${MALL_CATS[s2.cat]?.[1] || ""}</small></span>
       ${i ? `<button class="mini" data-up="${i}">⬆️</button>` : ""}<button class="mini" data-rm="${i}">🗑</button></div>`).join("")}</div>
     <div class="adm" style="background:var(--tint);border-radius:18px;padding:4px 12px 12px;margin-top:10px">
@@ -13837,7 +14344,7 @@ GO.wishHall = () => {
 GO.memorial = memorialGo;
 GO.sports = sportsGo;
 GO.pierTicket = k => pierTicket(k ?? 0); GO.yamit = yamitGo; GO.yamitRide = yamitRide; GO.kirya = kiryaGo; GO.sechq = secGo; GO.navy = navyGo; GO.north = northGo; GO.air = airGo; GO.armour = armourGo; GO.station = id => { const st = (S.stations || []).find(q => q.sl.city.id === id); if (!st) return; const name = st.sl.city.name;
-  open(`🚌 התחנה המרכזית ${esc(name)}`, `<div style="text-align:center;margin:6px 0"><img alt="סבבוס" src="${SB_LOGO}" style="height:96px;border-radius:18px"></div><div class="hero"><p><b>סבבוס</b> · חברת האוטובוסים של המדינה. בתחנה המרכזית עוצרים הקווים העירוניים והקו הבין עירוני, ונסיעה בחינם לכל תושב.</p></div>
+  open(`🚌 התחנה המרכזית ${name}`, `<div style="text-align:center;margin:6px 0"><img alt="סבבוס" src="${SB_LOGO}" style="height:96px;border-radius:18px"></div><div class="hero"><p><b>סבבוס</b> · חברת האוטובוסים של המדינה. בתחנה המרכזית עוצרים הקווים העירוניים והקו הבין עירוני, ונסיעה בחינם לכל תושב.</p></div>
     <div class="list" style="margin-top:10px">${info("🚌", "קו 1 · עירוני", "אוטובוס אקורדיון · לאורך הרחוב הראשי")}${info("🚌", "קו 2 · עירוני", "אוטובוס אקורדיון · ברחוב המקביל")}${info("🚍", `קו ${SB.LINE} · בין עירוני`, "בין הערים, הנמל, הקניון ואי הדקל")}</div>
     <div class="btns" style="margin-top:10px"><button class="btn" data-go="enter" data-arg="station:${id}">🚶 להיכנס לאולם הנוסעים</button></div>`); }; GO.army = a => armyGo(a);
 GO.wishIn = () => { if (!natOpen("wishtower")) return toast("מגדל ההגשמה עוד לא נפתח"); enterWork("place:wish"); };
@@ -15358,6 +15865,13 @@ const NEWS = {
   grow: { v: "2026-11-06", ic: "🏝️", t: "האי גדל עם כל פרויקט לאומי", sub: "כל פרויקט גדול מוסיף לאי את כל השטח שהוא תופס · החוף מתרחב מסביב", ok: () => NAT_GROW.some(k => natP(k)), shot: () => ({ a: { x: 0, z: 0, zoom: .5, az: -.4, el: .55 }, b: { x: 0, z: 0, zoom: .62, az: .3, el: .5 } }) },
   seal: { v: "2026-11-10", ic: "🏛️", t: "החותם: לשכת התושב, הדואר והמחסן", sub: "כפתור אחד של המדינה במקום הסרגל · מכתבים רשמיים עם חותמות לכל מה שמחכה לך · כל מה שיש לך במקום אחד", ok: () => true, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[0], 3, .3, .45) }) },
   paper: { v: "2026-11-10", ic: "📰", t: "סבבה היום: עיתון חדש כל בוקר", sub: "ב־06:00 יוצא גיליון עם כל מה שקרה אתמול: שדרוגים, השרים החדשים, זוכי ההגרלה, המשחקים, הנרות והאזרחים החדשים · לשתף כסטורי", ok: () => true, shot: () => ({ a: at(S.slots[0], 1.8, .4, .55), b: at(S.slots[0], 2.6, -.2, .5) }) },
+  placetool: { v: "2026-11-15", ic: "📍", t: "כלי המיקום: איפה יעמוד כל מתחם", sub: "המנהל יכול עכשיו להזיז כל מתחם לאומי ולסובב אותו: המתחם מופיע כרוח שקופה בגודל האמיתי, נגררת על הקרקע, ירוקה כשהמיקום חוקי ואדומה כשלא · כביש הגישה נמתח מחדש לבד · וכל מיקום שעלול להזיז כתובת קיימת פשוט נחסם", ok: () => ADMIN, shot: () => ({ a: at(NAT.sports, 1.6, -.6, .42), b: at(NAT.sports, 1.1, .9, .35) }) },
+  island100: { v: "2026-11-15", ic: "🏝️", t: "האי ירד ל־100 קמ״ר", sub: "עד היום האי השתרע על 291 קמ״ר והיה כמעט כולו שדה ריק · עכשיו הוא 100 קמ״ר, והנסיעה מהבירה לבסיס חיל האוויר התקצרה מ־9.8 ל־5.2 ק״מ · הבירה, העיירות, כל הכבישים וכל הכתובות נשארו בדיוק במקומם — רק הים והשדה הריק סביבם נגזמו · ומעכשיו זה גם הגבול: האי לא יעבור 100 קמ״ר לעולם", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: .055, az: 0, el: 1.3 }, b: at(NAT.air, .6, -.6, .45) }) },
+  prevshot: { v: "2026-11-15", ic: "🏙️", t: "בתיק הבנייה רואים איך זה ייראה בסוף", sub: "בכל תיק בנייה של מיזם שעוד נבנה מופיעה עכשיו הדמיה של המתחם הגמור — מבט אוויר ומבט מהכניסה — ובפינה תצלום של השטח היום · ההדמיה נוצרת פעם אחת ואחר כך נפתחת מיד, ויש כפתור לרענן אותה", ok: () => S.projects.some(q => !planStage(q).done), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
+  fixes3: { v: "2026-11-15", ic: "🅿️", t: "קריית הספורט: חניונים, רחבה ומגרשים", sub: "שני החניונים של האצטדיון קיבלו אספלט וסימון מקומות — עד היום המכוניות חנו על הדשא · חזרו גם הרחבה שלפני השערים, השבילים וארבעת מגרשי הכדורסל", ok: () => natOpen("sports"), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
+  fixes2: { v: "2026-11-13", ic: "🧰", t: "תיקונים בכבישים, באתרי הבנייה ובקריה", sub: "רחוב שנגמר מקבל כיכר סיבוב · הכניסה לעיר מגיעה עד הרחוב הראשון · עצים ירדו מכביש הגישה לסבבהום · אתר בנייה בגודל של מה שייבנה בו · אורות במגדל הקריה בלילה", ok: () => true, shot: () => { const Y = LAND.yk, p = Y?.Fp ? Y.Fp(200, 0) : { x: S.slots[0].x, z: S.slots[0].z }; return { a: { x: p.x, z: p.z, zoom: 3.6, az: .5, el: .6 }, b: at(NAT.kirya, 6, -.6, .35) }; } },
+  flyschool: { v: "2026-11-15", ic: "✈️", t: "בית הספר לטיסה · חיל האוויר", sub: "שלושה כלי טיס בסולם רישיונות: מסוק אימון, מטוס תובלה ומטוס קרב · הקפת שדה ומסלול ניווט מעל האי, מבט מתא הטייס עם מכשירים, תעודת טייס מוסמך וטבלת שיאים · משרתי חיל האוויר עולים על הכלי בחניית הלימוד שליד בית הספר", ok: () => natOpen("air"), shot: () => { const [sx, sz] = aW(FLY.SCHOOL.x, FLY.SCHOOL.z); return { a: at(NAT.air, 2.4, .5, .42), b: { x: sx, z: sz, zoom: 6, az: -.6, el: .36 } }; } },
+  shiftbase: { v: "2026-11-13", ic: "🪖", t: "משמרת עושים בבסיס", sub: "כל זרוע והבסיס שלה: יבשה בבסיס השריון, אוויר בבסיס חיל האוויר, ים בבסיס חיל הים ושירות הביטחון במטה · מהפאנל אפשר לנסוע לשם בלחיצה", ok: () => natOpen("kirya") || S.projects.some(p => p.kind === "recruit"), shot: () => ({ a: at(NAT.armour, 2.2, .4, .5), b: at(NAT.navy, 2, -.4, .45) }) },
   roadfix: { v: "2026-11-10", ic: "🛣️", t: "תיקוני כבישים", sub: "הכביש הראשי עוקף עכשיו את קריית הספורט בכיכר · במחלף סבבהום הרמפות יוצאות מהכביש המהיר ועולות לכיכרות בשיפוע אחיד, בלי שברי כביש", ok: () => !!LAND.yk?.Fp, shot: () => { const Y = LAND.yk, p = Y.Fp(200, 0); return { a: { x: p.x, z: p.z, zoom: 3.2, az: .6, el: .55 }, b: { x: p.x, z: p.z, zoom: 5, az: -.5, el: .4 } }; } },
   sail: { v: "2026-11-10", ic: "⚓", t: "בית הספר לשיט בבסיס חיל הים", sub: "סירת גומי, סירת סיור, ספינת טילים, צוללת ומשחתת · מסלול הנמל ומסלול הים, עגינה ליד רציף האימון, תעודת משיט מוסמך · מהגשר, מהעמדה או בפריסקופ", ok: () => natOpen("navy"), shot: () => { const [x, z] = nW(200, -260); return { a: { x, z: z, zoom: 1.6, az: -.6, el: .45 }, b: { x, z, zoom: 3, az: .5, el: .3 } }; } },
   drvyard: { v: "2026-11-10", ic: "🎖️", t: "מגרש הנהיגה בבסיס השריון", sub: "ג׳יפ, משאית, אמבולנס, מכלית, נגמ״ש, טנק ומוביל טנקים · מגרש מכשולים ומסלול כבדים, שעון, תעודת נהג מוסמך וטבלת שיאים · נהיגה מהמושב, מהצוהר או בפריסקופ", ok: () => natOpen("armour"), shot: () => { const [x, z] = rW(0, DRV.YZ); return { a: { x, z: z + 150, zoom: 2.2, az: -.5, el: .4 }, b: { x, z, zoom: 4, az: .4, el: .32 } }; } },
@@ -16581,7 +17095,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { avatarThumb, avatarOf, FLAG_URI, paperData, paperCanvas, paperStory, paperPhoto, paperDay, mailState, SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { inBuilt, inCityBox, inDist, DIST, PPL, pplStart, pplPut, pplCheck, pplEnd, prevShots, previewShots, snapFrom, nearRoadPt, prevGet, planDoc2: planDoc, FLY, flyOverlay, flyBoardMenu, drvSchool, drvCertImg, flyStep, flyGear, flyPath, flyAtStart, drvBegin, drvEnter, aW, aL, walkStart, terrainH, WALK, DRV, avatarThumb, avatarOf, FLAG_URI, extraRoads, hwPlan, TOWNS, planStreetAt, PLANS, distLaid, buildWorld, planDoc, planSnap, planStage, projectModel, paperData, paperCanvas, paperStory, paperPhoto, paperDay, mailState, SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
