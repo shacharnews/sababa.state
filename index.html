@@ -3016,7 +3016,9 @@ const AREA_MAX = 100, S_MAX = Math.sqrt(AREA_MAX * 1e6 / (Math.PI * RX0 * RZ0 * 
 const shoreF = t => 1 + .07 * Math.sin(3 * t + .6) + .05 * Math.sin(5 * t + 2.1) + .03 * Math.sin(8 * t + .3);
 const growth = n => Math.min(MAX_S, .55 + .45 * Math.sqrt(Math.max(0, n) / 1000));
 const polar = (x, z, s) => ({ t: Math.atan2(z / (RZ0 * s), x / (RX0 * s)), d: Math.hypot(x / (RX0 * s), z / (RZ0 * s)) });
-const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < GRASS * shoreF(p.t) - m && !(LAND_LIVE && landWet(x, z)); };
+// the sea test. the city layout (every call with MAX_S) must answer the same before and after the valleys are carved into the land,
+// otherwise a rebuild inside the session would hand the houses different lots and move addresses: there it ignores the rivers
+const onGrass = (x, z, s, m = .03) => { const p = polar(x, z, s); return p.d < GRASS * shoreF(p.t) - m && !(s !== MAX_S && LAND_LIVE && landWet(x, z)); };
 const shorePt = (t, s, k = 1) => ({ x: Math.cos(t) * RX0 * s * shoreF(t) * k, z: Math.sin(t) * RZ0 * s * shoreF(t) * k });
 const MILESTONES = [0, 100, 500];   // three cities on the island (Nov 2026): the capital, נווה זורם and the southern city; after that they all keep growing
 // city sites are spread far enough apart that each city has room for everyone who arrives until the next city opens
@@ -3355,7 +3357,7 @@ function cityLots(slot, si, need) {
       const cx = slot.x + BPX(bx), cz = slot.z + BPZ(bz);
       for (const L of blockLots(kind, bwX(bx) - 6)) {
         const x = cx + L.dx, z = cz + L.dz, d = Math.hypot(x - slot.x, z - slot.z);
-        if ((d > R && !L.est) || !onGrass(x, z, MAX_S, .04) || !inTerritory(x, z, slot) || natSiteAt(x, z, 10)) continue;
+        if ((d > R && !L.est) || !onGrass(x, z, MAX_S, .04) || !inTerritory(x, z, slot) || natSiteAt0(x, z, 10)) continue;
         (L.est ? est : lots).push({ x, z, bx, bz, d, j: L.j, i: L.i, dx: L.dx, face: L.j === 0 ? Math.PI : 0, w: L.w, ld: L.d, ...(L.est ? { est: true } : {}) });
       }
     }
@@ -5038,7 +5040,7 @@ function distRect(cap) {
 }
 // what the district may not be built on: water, the rivers and their banks, the national sites, the malls, סבבהום, the other cities and the ground they grow into, the highways and their roundabouts
 function distBlocked(x, z, m = 0, own = null, noRiver = false) {
-  if (!onGrass(x, z, MAX_S, .03) || natSiteAt(x, z, 4 + m)) return true;
+  if (!onGrass(x, z, MAX_S, .03) || natSiteAt0(x, z, 4 + m)) return true;
   if (SLOTS.some((q, k) => k && q.at !== own?.at && Math.hypot(x - q.x, z - q.z) < CITY_REACH + m)) return true;
   if (own && !inTerritory(x, z, own)) return true;   // a town: its own ground
   if (!noRiver && LAND.on && LAND.rivers?.some(R => { if (x < R.bb[0] - 60 || x > R.bb[2] + 60 || z < R.bb[1] - 60 || z > R.bb[3] + 60) return false; const q = landNear(R, x, z); return q && q.d < q.hw + q.vw + 8 + m; })) return true;
@@ -5260,7 +5262,7 @@ function townPlan(sl) {
   const brEnds = bridges.flatMap(B => [B.a, B.b]);
   for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (q.lane && q.pts.some(p => brEnds.some(e => Math.hypot(e.x - p.x, e.z - p.z) < 45))) streets.splice(i, 1); }
   // a national site next door (its fence): no street goes in. A lane that would is left out; a ring is cut at the fence and taken back to its last junction, so no street ends in nothing
-  const site = (x, z) => natSiteAt(x, z, 10);
+  const site = (x, z) => natSiteAt0(x, z, 10);
   for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (q.lane && q.pts.some(p => site(p.x, p.z))) streets.splice(i, 1); }
   const lanesNow = streets.filter(q => q.lane);   // a ring is taken back to a lane coming out to it from the ring inside (that lane is built whenever the ring is)
   for (let i = streets.length - 1; i >= 0; i--) { const q = streets[i]; if (!q.arc || q.bridge) continue; { const n = q.pts.length, e = (A, B) => { const L = Math.hypot(B.x - A.x, B.z - A.z) || 1; return site(B.x + (B.x - A.x) / L * 16, B.z + (B.z - A.z) / L * 16); }; if (!q.pts.some(p => site(p.x, p.z)) && !(n > 1 && (e(q.pts[1], q.pts[0]) || e(q.pts[n - 2], q.pts[n - 1])))) continue; }
@@ -5309,14 +5311,20 @@ function townPlan(sl) {
 }
 // the names: the old grid's streets in the order they appeared (from the heart out) go onto the rings, an ordinary street to as many stretches of one ring as its
 // numbers need, a boulevard at least half a ring; the stretches left over get names of their own. Along each street its own numbers in order, odd outside, even inside
+// which name belongs to which stretch of a town is settled once per visit and then kept. a street that has been named cannot change its name
+// (and with it every house number on it) just because the world was laid out a second time.
+const TOWN_NAME_LOCK = new Map();
 function townNames(sl, plan, oldNames, need) {
   const arcs = []; for (let k = 1; k <= TOWN_K; k++) for (let q = 0; q < 8; q++) arcs.push(`${k}:${q}`); const used = new Set(), name = new Map(); name.set("0", "דרך השוק");
+  const lock = TOWN_NAME_LOCK.get(sl.at);
+  if (lock) for (const [a, nm] of lock) { name.set(a, nm); used.add(a); }
   const cnt = new Map(); for (const l of plan.lots) { const c = cnt.get(l.arc) || cnt.set(l.arc, { o: 0, e: 0 }).get(l.arc); c[l.side > 0 ? "o" : "e"]++; }
-  for (const { nm, blv } of oldNames) { const m = need.get(nm) || {}, needO = m.O || 0, needE = m.E || 0; let pick = null;
+  if (!lock) for (const { nm, blv } of oldNames) { const m = need.get(nm) || {}, needO = m.O || 0, needE = m.E || 0; let pick = null;
     for (let k = 1; k <= TOWN_K && !pick; k++) for (let n = blv ? 4 : 1; n <= 8 && !pick; n++) for (let q = 0; q + n <= 8 && !pick; q++) { const run = [...Array(n).keys()].map(u => `${k}:${q + u}`); if (run.some(a => used.has(a))) continue;
       const o = run.reduce((t, a) => t + (cnt.get(a)?.o || 0), 0), e = run.reduce((t, a) => t + (cnt.get(a)?.e || 0), 0); if (o >= needO && e >= needE) pick = run; }
     if (!pick) continue; for (const a of pick) { used.add(a); name.set(a, nm); } }
-  const taken = new Set(oldNames.map(o => o.nm)); let f = 0; for (const a of arcs) if (!name.has(a)) { let nm; do { const k = f++ + 7, round = Math.floor(k / STREETS.length); nm = STREETS[k % STREETS.length] + (round ? " " + (HEB[round] || round + 1) : ""); } while (taken.has(nm)); taken.add(nm); name.set(a, nm); }
+  const taken = new Set(lock ? [...oldNames.map(o => o.nm), ...name.values()] : oldNames.map(o => o.nm)); let f = 0; for (const a of arcs) if (!name.has(a)) { let nm; do { const k = f++ + 7, round = Math.floor(k / STREETS.length); nm = STREETS[k % STREETS.length] + (round ? " " + (HEB[round] || round + 1) : ""); } while (taken.has(nm)); taken.add(nm); name.set(a, nm); }
+  if (!lock) TOWN_NAME_LOCK.set(sl.at, [...name]);
   for (const q of plan.streets) if (q.arc) q.name = name.get(q.arc); else if (q.lane) q.name = "סמטה";
   const byName = new Map(); for (const l of plan.lots) { l.street = name.get(l.arc); (byName.get(l.street) || byName.set(l.street, []).get(l.street)).push(l); }
   for (const [, L] of byName) { L.sort((a, b) => a.arc.localeCompare(b.arc) || a.seq - b.seq); const G = sl.townNums?.get(L[0].street) || { o: [], e: [] }; let io = 0, ie = 0;
@@ -8200,6 +8208,11 @@ const natAdded = () => { try { return NAT_GROW.reduce((a, k) => a + (NAT[k]?.R &
 const natGrow = s => Math.sqrt(s * s + natAdded() / (Math.PI * RX0 * RZ0 * GRASS * GRASS));
 // the two plots are kept for these buildings from now on: no house, tree or street is ever put there
 const natSiteAt = (x, z, m = 0) => Object.keys(NAT).some(k => { const N = NAT[k]?.R; if (!N) return false; return Math.abs(x - N.x) < N.w / 2 + m && Math.abs(z - N.z) < N.d / 2 + m; });
+// the same question, but asked of the compounds as they stood when the city was first measured out. the lots of a city, a quarter and a town are
+// laid against this frozen picture and against nothing else, so that laying the world out a second time cannot move a single house number.
+let NAT_R0 = null;
+const natSiteAt0 = (x, z, m = 0) => { NAT_R0 ||= Object.keys(NAT).map(k => NAT[k]?.R && { ...NAT[k].R }).filter(Boolean);
+  return NAT_R0.some(N => Math.abs(x - N.x) < N.w / 2 + m && Math.abs(z - N.z) < N.d / 2 + m); };
 // the lot actually paved: the plaza and the car park, in world coordinates
 const natLot = k => { const N = NAT[k], [a, b, c, d] = N.pl, P2 = N.park; return [N.x + Math.min(a, P2.x - 9), N.z + Math.min(c, P2.z - P2.L / 2), N.x + Math.max(b, P2.x + 9), N.z + Math.max(d, P2.z + P2.L / 2)]; };
 // a surface car park: one double-loaded bay (5 m stalls, 2.5 m wide, a 6 m two-way aisle), kerbs, lamps, a P sign at the entrance off the access road; ~60% of the stalls taken
@@ -9383,7 +9396,8 @@ function buildAir() {
   mountSign(g, sign("בסיס חיל האוויר · כל״ס", 16, 1.8, { bg: "#2a2e36", fg: "#ffffff" }), 0, 8.3, -HZ - .72, Math.PI);
   mountSign(g, sign("✈️ בית הספר לטיסה · חיל האוויר", 15, 1.5, { bg: "#2a4a6a", fg: "#ffffff" }), FLY.SCHOOL.x, 7.4, FLY.SCHOOL.z + 8.6, 0);
   // the three training aircraft stand on their own, so the one being flown can leave the stand
-  FLY.parked = {}; for (const kd of FLY_ORDER) { const P = FLY.PARK[kd], v = flyMesh(kd); v.g.position.set(P[0], DRV.K[kd].heli ? 1.2 : DRV.K[kd].L * .06, P[1]); v.g.rotation.y = P[2] + Math.PI; g.add(v.g); FLY.parked[kd] = v.g; }
+  FLY.parked = {}; for (const kd of FLY_ORDER) { const P = FLY.PARK[kd], v = flyMesh(kd); v.g.position.set(P[0], DRV.K[kd].heli ? 1.2 : DRV.K[kd].L * .06, P[1]); v.g.rotation.y = P[2] + Math.PI; g.add(v.g); FLY.parked[kd] = v.g;
+    v.g.traverse(o => { if (o.isMesh && !o.isInstancedMesh) { o.userData = { type: "place", id: "flyschool" }; S.picks.push(o); } }); }   // a tap on a trainer opens the school's card
   mountSign(g, sign("⛔ שטח צבאי סגור · הכניסה בהיתר בלבד", 7, 1.4, { bg: "#c62828", fg: "#ffffff" }), 14, 2.2, G0 - 30, Math.PI);
   { const e = klsMesh(3); e.position.set(HQX, 9.6, HQZ - 10.2); e.rotation.y = Math.PI; g.add(e); }
   const pl = sign("שטח צבאי סגור", 1.6, .42, { bg: "#c62828", fg: "#ffffff" });
@@ -9687,12 +9701,15 @@ function drvSchool(fresh, br) {
   if (br) DRV.schoolBr = br; br = DRV.schoolBr || "land"; const sea = br === "sea", air = br === "air", LIST = sea ? SEA_ORDER : air ? FLY_ORDER : DRV_ORDER;
   const me = WALK.h || S.mine, C = me ? drvCerts(me.u) : {};
   const lad = [1, 2, 3, 4, 5].map(lv => { const ks = LIST.filter(q => DRV.K[q].lvl === lv);
-    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); return `<div class="li"><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${({ yard: "מגרש המכשולים", heavy: "מסלול הכבדים", harbour: "מסלול הנמל", sea: "מסלול הים", circuit: "הקפת שדה", pattern: "הקפת שדה", nav: "מסלול ניווט" })[k.course]} · זמן יעד ${mss(k.target)}${c ? ` · ✅ ${sea ? "משיט" : air ? "טייס" : "נהג"} מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span></div>`; }).join(""); }).join("");
+    return ks.map(kd => { const k = DRV.K[kd], c = C[kd], open = me && drvUnlocked(me.u, kd); const go = air && me && (airAllowed(me.u) || ADMIN) && (open || c);
+      return `<${go ? `button class="li" data-fly="${kd}"` : `div class="li"`}><span class="ic">${k.ic}</span><span class="tx"><b>שלב ${lv} · ${k.name}</b><small>${({ yard: "מגרש המכשולים", heavy: "מסלול הכבדים", harbour: "מסלול הנמל", sea: "מסלול הים", circuit: "הקפת שדה", pattern: "הקפת שדה", nav: "מסלול ניווט" })[k.course]} · זמן יעד ${mss(k.target)}${c ? ` · ✅ ${sea ? "משיט" : air ? "טייס" : "נהג"} מוסמך ${drvFmt(c.ms)}${c.peri ? " ⭐" : ""}` : open ? " · 🔓 פתוח" : " · 🔒 קודם תעודה בשלב הקודם"}</small></span>${go ? `<span class="ic">🚶</span>` : ""}</${go ? "button" : "div"}>`; }).join(""); }).join("");
   const B = DRV.board || {}, rec = LIST.map(kd => { const L = (B[kd] || []).slice(0, 10); return `<div class="sec">${DRV.K[kd].ic} ${DRV.K[kd].name}</div>${L.length ? `<div class="list">${L.map((r, i) => info(i < 3 ? ["🥇", "🥈", "🥉"][i] : `${i + 1}.`, `<span dir="ltr">@${esc(nick(r.u))}</span> · ${drvFmt(r.ms)}${r.peri ? " ⭐" : ""}`, r.pen ? `${r.pen} קנסות` : "בלי קנסות")).join("")}</div>` : `<p class="note">עוד אין שיא</p>`}`; }).join("");
   if (air) return open("✈️ בית הספר לטיסה · חיל האוויר", `<div class="hero"><p><b>סולם רישיונות הטיסה.</b> כל תעודה פותחת את כלי הטיס הבא. עולים על הכלי בחניית הלימוד, מסיעים לראש המסלול, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי. כל טיסה נגמרת בנחיתה ועצירה על המסלול.</p>
     <p class="note">⏱️ נחיתה קשה: 10 שניות · דילוג על שער: פסילה · נחיתה מחוץ למסלול או בלי גלגלים: פסילה · "טייס מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ לטיסה בלי אף קנס</p></div>
-    <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
-    <div class="sec">🏆 טבלאות השיאים</div>${DRV.sql === false ? `<p class="note">טבלאות השיאים ייפתחו אחרי הרצת upgrade-66.sql. עד אז התעודות נשמרות במכשיר הזה.</p>` : ""}${rec}`, () => { const b = $("drvCert"); if (b) b.onclick = () => drvCertShow(me); });
+    <div class="list" style="margin-top:8px">${lad}</div>
+    <div class="btns">${me && (airAllowed(me.u) || ADMIN) ? `<button class="btn" id="flyGo">🚁 לחניית הלימוד</button>` : ""}${me && Object.keys(C).length ? `<button class="btn ghost" id="drvCert">📜 התעודה שלי</button>` : ""}</div>
+    ${me && (airAllowed(me.u) || ADMIN) ? `<p class="note">הכפתור מעמיד אתכם ברגל בחניית הלימוד · ניגשים לכלי, והכפתור הכחול שלמטה מעלה אתכם עליו</p>` : `<p class="note">🔒 בכלי האימון טסים רק משרתי חיל האוויר · מתגייסים בלשכת הגיוס שבעיר ובוחרים חיל אוויר</p>`}
+    <div class="sec">🏆 טבלאות השיאים</div>${DRV.sql === false ? `<p class="note">טבלאות השיאים ייפתחו אחרי הרצת upgrade-66.sql. עד אז התעודות נשמרות במכשיר הזה.</p>` : ""}${rec}`, () => { const b = $("drvCert"); if (b) b.onclick = () => drvCertShow(me); const f = $("flyGo"); if (f) f.onclick = () => flySchoolWalk(); $("dBody").querySelectorAll("[data-fly]").forEach(q => q.onclick = () => flySchoolWalk(q.dataset.fly)); });
   open(sea ? "⚓ בית הספר לשיט · חיל הים" : "🎖️ בית הספר לנהיגה · שריון", sea ? `<div class="hero"><p><b>סולם רישיונות השיט.</b> כל תעודה פותחת את הכלי הבא. עולים מהמזח שליד בית הספר, שטים לשער הזינוק, ושם בוחרים: סיבוב אימון בלי שעון, או ניסיון אמיתי. כל הפלגה נגמרת בעגינה ליד רציף האימון.</p>
     <p class="note">⏱️ מצוף: 5 שניות · מגע בדופן: 10 שניות · דילוג על שער: פסילה · "משיט מוסמך": מתחת לזמן היעד ועם פחות מ־3 קנסות · ⭐ לצוללת שעברה את כל אזור הצלילה בעומק</p></div>
     <div class="list" style="margin-top:8px">${lad}</div>${me && Object.keys(C).length ? `<div class="btns"><button class="btn" id="drvCert">📜 התעודה שלי</button></div>` : ""}
@@ -10183,6 +10200,29 @@ function flyGates(course) {
   if (course !== "nav") return;
   const mat = new THREE.MeshBasicMaterial({ color: "#ffb627", transparent: true, opacity: .55, side: THREE.DoubleSide });
   for (const p of flyPath("nav")) { if (p.r < 320) continue; const t = new THREE.Mesh(new THREE.TorusGeometry(p.r * .55, 6, 8, 36), mat); t.position.set(p.x, terrainH(p.x, p.z) + p.y, p.z); t.rotation.x = Math.PI / 2; world.add(t); FLY.gates.push(t); }
+}
+// standing beside one of the three trainers on the school's stand: that is where people walk to, so that is where they board
+function flyNearParked() {
+  if (!natOpen("air") || WALK.mode !== "foot") return null;
+  const [lx, lz] = aL(WALK.x, WALK.z); let best = null, bd = Infinity;
+  for (const kd of FLY_ORDER) { const P = FLY.PARK[kd], k = DRV.K[kd], r = Math.max(k.L, k.W) * .6 + 16, d = Math.hypot(lx - P[0], lz - P[1]);
+    if (d < r && d < bd) { bd = d; best = kd; } }
+  return best;
+}
+// from the school's card straight out to the stand: the base is 5 km from the capital
+function flySchoolWalk(kd) {
+  const h = WALK.h || S.mine; if (!h) return toast("כדי לטוס צריך להיכנס מהקישור האישי");
+  if (!(airAllowed(h.u) || ADMIN)) return toast("🔒 רק משרתי אוויר נכנסים לבית הספר לטיסה");
+  if (!natOpen("air")) return toast("בסיס חיל האוויר עוד נבנה");
+  close();
+  if (WALK.mode === "mil" || WALK.mode === "car") drvExit();
+  if (!WALK.on) { walkStart(h.u); if (!WALK.on) return; }
+  const P = FLY.PARK[kd], k = DRV.K[kd];   // beside the aircraft itself when one was chosen, otherwise in front of the school
+  const lx = P ? P[0] : FLY.SCHOOL.x + 6, lz = (P ? P[1] : FLY.SCHOOL.z) + (P ? Math.max(k.L, k.W) * .5 + 12 : 34);
+  const [x, z] = aW(lx, lz), [fx, fz] = aW(P ? P[0] : lx, P ? P[1] : lz + 10), head = Math.atan2(fx - x, fz - z);   // facing the aircraft (or the stand), clear of the school wall
+  Object.assign(WALK, { x, z, head, cy: head + Math.PI, pitch: .02, target: null, joy: { x: 0, y: 0 }, keys: {} });   // a level look: the aircraft is right in front of you
+  WALK.boxes = walkBlockers(); WALK.doors = walkDoors(); walkButtons();
+  toast(P ? `${k.ic} ${k.name} לפניכם · הכפתור הכחול שלמטה מעלה אתכם עליו` : "✈️ הגעתם לחניית הלימוד · לכו אל הכלי, והכפתור הכחול יעלה אתכם עליו", 5500);
 }
 function flyNearBoard() { if (!natOpen("air") || WALK.mode !== "foot") return false; const [lx, lz] = aL(WALK.x, WALK.z); return Math.abs(lx - FLY.SCHOOL.x) < 24 && lz > FLY.SCHOOL.z + 6 && lz < FLY.SCHOOL.z + 22; }
 function flyBoardMenu() {
@@ -11860,6 +11900,7 @@ renderer.domElement.addEventListener("pointerup", e => {
   else if (d.type === "gov") openGov(d.id);
   else if (d.type === "place" && d.id === "palm") showPalm();
   else if (d.type === "place" && d.id === "palmhotel") showPalm(true);
+  else if (d.type === "place" && d.id === "flyschool") drvSchool(false, "air");
   else if (d.type === "place" && d.id === "lanes") showLanes();
   else if (d.type === "place" && d.id === "yallkea") showYallkea();
   else if (d.type === "place" && String(d.id).startsWith("station:")) GO.station(+String(d.id).slice(8));
@@ -11972,7 +12013,7 @@ function walkDoors() {
   for (const st of S.stations || []) { const c = Math.cos(st.ry), s2 = Math.sin(st.ry); add(st.x - 10 * c - 12 * s2, st.z + 10 * s2 - 12 * c, 5, "station:" + st.sl.city.id, "🚌 להיכנס לתחנה המרכזית"); }
   if (natOpen("armour")) { add(...rW(DRV.SCHOOL.x + 6, DRV.SCHOOL.z - 7.6), 3.4, "drvschool", "🎖️ להיכנס: בית הספר לנהיגה"); add(...rW(AR.HX + 12, 0), 6, "armour", "🚧 שער בסיס השריון"); if (WALK.h && northAllowed(WALK.h.u)) add(...rW(AR.HQX + 17, AR.HQZ), 5, "place:armour", "🚶 להיכנס לחדר המבצעים"); }
   if (natOpen("air")) { add(...aW(0, -AB.HZ - 12), 6, "air", "🚧 שער בסיס חיל האוויר"); if (WALK.h && airAllowed(WALK.h.u)) add(...aW(AB.HQX, AB.HQZ - 17), 5, "place:air", "🚶 להיכנס לחדר התדריכים");
-    add(...aW(FLY.SCHOOL.x + 8, FLY.SCHOOL.z + 9.4), 3.6, "flyschool", "✈️ להיכנס: בית הספר לטיסה"); if (flyNearBoard()) add(WALK.x, WALK.z, 30, "flymenu", "✈️ לעלות על כלי טיס"); }
+    add(...aW(FLY.SCHOOL.x + 8, FLY.SCHOOL.z + 9.4), 3.6, "flyschool", "✈️ להיכנס: בית הספר לטיסה"); }
   if (natOpen("north")) { add(...bW(0, NB.HZ + 12), 6, "north", "🚧 שער בסיס הצפון"); if (WALK.h && northAllowed(WALK.h.u)) add(...bW(NB.HQX, NB.HQZ + 17), 5, "place:north", "🚶 להיכנס לחדר המבצעים"); }
   if (natOpen("navy")) { add(...nW(0, NV.GZ + 12), 6, "navy", "🚧 שער בסיס חיל הים"); if (WALK.h && navyAllowed(WALK.h.u)) { add(...nW(NV.HQX, NV.HQZ + 17), 5, "place:navy", "🚶 להיכנס לחדר המבצעים הימי"); add(...nW(SAIL.SCHOOL.x - 6, SAIL.SCHOOL.z - 9.6), 3.4, "seaschool", "⚓ להיכנס: בית הספר לשיט"); } }
   if (natOpen("sechq")) { add(...sW(0, SQ.SZ + 12), 6, "sechq", "🚧 שער מטה שירות הביטחון"); if (WALK.h && secAllowed(WALK.h.u)) add(...sW(SQ.MX, SQ.MZ + 25), 5, "place:sechq", "🚶 להיכנס לחדר הבקרה"); }
@@ -12394,7 +12435,7 @@ function walkButtons() {
   // the nearest door you're standing at
   let best = null, bd = Infinity;
   if (WALK.mode === "mil") return drvButtons(b, dr);
-  WALK.milNear = WALK.mode === "foot" ? drvNearParked() || (seaNearBoard() ? "seamenu" : flyNearBoard() ? "flymenu" : null) : null;
+  WALK.milNear = WALK.mode === "foot" ? drvNearParked() || flyNearParked() || (seaNearBoard() ? "seamenu" : flyNearBoard() ? "flymenu" : null) : null;
   if (WALK.plat) { const i = WALK.plat.i, w = railWaitSec(i); best = w === 0 ? { id: "railride:" + i, label: "🚡 לעלות לרכבל" } : { id: "raildown:" + i, label: `⬇️ לרדת לרחוב${w != null ? " · הרכבל בעוד " + mss(w) : ""}` }; }
   else if (WALK.rail?.on) best = null;
   else if (WALK.mode === "car" && WALK.car && Math.abs(WALK.car.v) < 1.5 && (WALK.fuel ?? 1) < .97 && atPump(WALK.car.x, WALK.car.z)) best = { id: "fuel", label: WALK.fueling ? "⛽ מתדלקים…" : `⛽ תדלוק · ${Math.max(1, Math.ceil((1 - WALK.fuel) * FUEL.PRICE))} ${COIN}${S.mine && WALK.h === S.mine ? "" : " (חינם לאורחים)"}` };   // stopped under a canopy
@@ -12407,7 +12448,7 @@ function walkButtons() {
   $("wSpd").hidden = true;
   if (WALK.milNear === "seamenu") { b.hidden = false; b.textContent = "⚓ לעלות לכלי שיט"; return; }
   if (WALK.milNear === "flymenu") { b.hidden = false; b.textContent = "✈️ לעלות על כלי טיס"; return; }
-  if (WALK.milNear) { const k = DRV.K[WALK.milNear]; b.hidden = false; b.textContent = `${k.ic} לנהוג ב${k.name}${drvUnlocked(WALK.h.u, WALK.milNear) ? "" : " 🔒"}`; return; }
+  if (WALK.milNear) { const k = DRV.K[WALK.milNear]; b.hidden = false; b.textContent = `${k.ic} ${k.br === "air" ? "לטוס ב" : k.br === "sea" ? "להפליג ב" : "לנהוג ב"}${k.name}${drvUnlocked(WALK.h.u, WALK.milNear) ? "" : " 🔒"}`; return; }
   const c = carHere(); b.hidden = Math.hypot(c.x - WALK.x, c.z - WALK.z) > 6.5; b.textContent = `🚗 לנהוג ב${CARS[WALK.h.cm].name}`;
 }
 function drvButtons(b, dr) {
@@ -15868,6 +15909,8 @@ const NEWS = {
   placetool: { v: "2026-11-15", ic: "📍", t: "כלי המיקום: איפה יעמוד כל מתחם", sub: "המנהל יכול עכשיו להזיז כל מתחם לאומי ולסובב אותו: המתחם מופיע כרוח שקופה בגודל האמיתי, נגררת על הקרקע, ירוקה כשהמיקום חוקי ואדומה כשלא · כביש הגישה נמתח מחדש לבד · וכל מיקום שעלול להזיז כתובת קיימת פשוט נחסם", ok: () => ADMIN, shot: () => ({ a: at(NAT.sports, 1.6, -.6, .42), b: at(NAT.sports, 1.1, .9, .35) }) },
   island100: { v: "2026-11-15", ic: "🏝️", t: "האי ירד ל־100 קמ״ר", sub: "עד היום האי השתרע על 291 קמ״ר והיה כמעט כולו שדה ריק · עכשיו הוא 100 קמ״ר, והנסיעה מהבירה לבסיס חיל האוויר התקצרה מ־9.8 ל־5.2 ק״מ · הבירה, העיירות, כל הכבישים וכל הכתובות נשארו בדיוק במקומם — רק הים והשדה הריק סביבם נגזמו · ומעכשיו זה גם הגבול: האי לא יעבור 100 קמ״ר לעולם", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: .055, az: 0, el: 1.3 }, b: at(NAT.air, .6, -.6, .45) }) },
   prevshot: { v: "2026-11-15", ic: "🏙️", t: "בתיק הבנייה רואים איך זה ייראה בסוף", sub: "בכל תיק בנייה של מיזם שעוד נבנה מופיעה עכשיו הדמיה של המתחם הגמור — מבט אוויר ומבט מהכניסה — ובפינה תצלום של השטח היום · ההדמיה נוצרת פעם אחת ואחר כך נפתחת מיד, ויש כפתור לרענן אותה", ok: () => S.projects.some(q => !planStage(q).done), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
+  addrlock: { v: "2026-11-15", ic: "📬", t: "הכתובות נעולות — גם כשהמדינה נבנית מחדש", sub: "מצאנו באג ותיק: כשהאתר היה בונה את המדינה מחדש באמצע ביקור (למשל אחרי שהמנהל מזיז מתחם), שיוך הבתים למגרשים היה מתערבב ורוב התושבים היו רואים מספר בית אחר עד הרענון הבא · עכשיו פריסת הרחובות והמגרשים מחושבת תמיד על אותה מפה בדיוק, והכתובת שלך נשארת שלך בכל מצב", ok: () => true, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[1], 1.6, .4, .45) }) },
+  flyfix: { v: "2026-11-15", ic: "🚁", t: "אפשר סוף סוף לעלות על כלי האימון", sub: "בבית הספר לטיסה כל שלב שפתוח לכם הוא עכשיו כפתור: לוחצים, ואתם עומדים ברגל ליד הכלי עצמו · מספיק להתקרב למסוק או למטוס והכפתור הכחול מעלה אתכם עליו · וגם נגיעה בכלי על המפה פותחת את בית הספר", ok: () => natOpen("air"), shot: () => ({ a: at(NAT.air, 1.1, -.5, .4), b: at(NAT.air, 1.9, .6, .35) }) },
   fixes3: { v: "2026-11-15", ic: "🅿️", t: "קריית הספורט: חניונים, רחבה ומגרשים", sub: "שני החניונים של האצטדיון קיבלו אספלט וסימון מקומות — עד היום המכוניות חנו על הדשא · חזרו גם הרחבה שלפני השערים, השבילים וארבעת מגרשי הכדורסל", ok: () => natOpen("sports"), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
   fixes2: { v: "2026-11-13", ic: "🧰", t: "תיקונים בכבישים, באתרי הבנייה ובקריה", sub: "רחוב שנגמר מקבל כיכר סיבוב · הכניסה לעיר מגיעה עד הרחוב הראשון · עצים ירדו מכביש הגישה לסבבהום · אתר בנייה בגודל של מה שייבנה בו · אורות במגדל הקריה בלילה", ok: () => true, shot: () => { const Y = LAND.yk, p = Y?.Fp ? Y.Fp(200, 0) : { x: S.slots[0].x, z: S.slots[0].z }; return { a: { x: p.x, z: p.z, zoom: 3.6, az: .5, el: .6 }, b: at(NAT.kirya, 6, -.6, .35) }; } },
   flyschool: { v: "2026-11-15", ic: "✈️", t: "בית הספר לטיסה · חיל האוויר", sub: "שלושה כלי טיס בסולם רישיונות: מסוק אימון, מטוס תובלה ומטוס קרב · הקפת שדה ומסלול ניווט מעל האי, מבט מתא הטייס עם מכשירים, תעודת טייס מוסמך וטבלת שיאים · משרתי חיל האוויר עולים על הכלי בחניית הלימוד שליד בית הספר", ok: () => natOpen("air"), shot: () => { const [sx, sz] = aW(FLY.SCHOOL.x, FLY.SCHOOL.z); return { a: at(NAT.air, 2.4, .5, .42), b: { x: sx, z: sz, zoom: 6, az: -.6, el: .36 } }; } },
@@ -17095,7 +17138,7 @@ async function boot() {
   initAdmin(qs);
   if (qs.has("tiktok")) setTimeout(() => joinTikTok(), 2600);   // the link in the TikTok bio: sababastate.com/?tiktok
   else if (ttSaved()) { ttWatch(); setTimeout(() => ttCheck(true), 4000); }   // waiting for approval: keep checking quietly
-  if (qs.has("debug")) Object.assign(window, { GO, DBG: { inBuilt, inCityBox, inDist, DIST, PPL, pplStart, pplPut, pplCheck, pplEnd, prevShots, previewShots, snapFrom, nearRoadPt, prevGet, planDoc2: planDoc, FLY, flyOverlay, flyBoardMenu, drvSchool, drvCertImg, flyStep, flyGear, flyPath, flyAtStart, drvBegin, drvEnter, aW, aL, walkStart, terrainH, WALK, DRV, avatarThumb, avatarOf, FLAG_URI, extraRoads, hwPlan, TOWNS, planStreetAt, PLANS, distLaid, buildWorld, planDoc, planSnap, planStage, projectModel, paperData, paperCanvas, paperStory, paperPhoto, paperDay, mailState, SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
+  if (qs.has("debug")) Object.assign(window, { GO, DBG: { landWet, LAND, walkCam, landSurf, scene, exitWalk, flySchoolWalk, flyNearParked, drvSchool, walkButtons, layout, distAssign, townAssign, cityLots, freedBlocks, reservedBlocks, extraBlocks, inBuilt, inCityBox, inDist, DIST, PPL, pplStart, pplPut, pplCheck, pplEnd, prevShots, previewShots, snapFrom, nearRoadPt, prevGet, planDoc2: planDoc, FLY, flyOverlay, flyBoardMenu, drvSchool, drvCertImg, flyStep, flyGear, flyPath, flyAtStart, drvBegin, drvEnter, aW, aL, walkStart, terrainH, WALK, DRV, avatarThumb, avatarOf, FLAG_URI, extraRoads, hwPlan, TOWNS, planStreetAt, PLANS, distLaid, buildWorld, planDoc, planSnap, planStage, projectModel, paperData, paperCanvas, paperStory, paperPhoto, paperDay, mailState, SAIL, seaEnter, seaStep, seaDive, nL, nW, seaPath, DRV, drvStep, drvPark, drvEnter, drvExit, drvBegin, drvH, dW, dL, drvSchool, drvCycleView, drvPath, drvCerts, drvFinish, drvStartMenu, PALM, HOTEL, hotelRooms, hotelApply, towerGo, IN, towerScene, interiorTarget, CANAL, canalGeo, FUEL, fuelSites, fuelW, fuelL, atPump, fuelBuy, fuelAt, walkButtons, DIST, TOWNS, distPlan, pierAt, pierTicket, roadNear, ROADQ, streetHere, GPS, gpsScreen, COCKPIT, townHoles, distBlocked, natSiteAt, inTerritory, landOnLift, terrainH, onGrass, HT_U, LAND, landNear, landSurf, TRF: () => traffic, LINE, YM, ymW, yamitRide, towerGo, interiorTarget, PIERS, pierAt, LAND, isletSpot, shorePt, polar, terrainH, inCityBox, onGrass, walkDoors, GOV, BALLOT, YK, THREE, renderer, NAT, natP, natOpen, landSurf: (x, z) => landSurf(x, z), SPY, P, world, COAST, capGrid, keepRight, legPath, laneOff, roundAbout, reelProbe, coastTerms, gateRings, turnRings, ringTurn, highwaySegs, cityBox, BPX, BPZ, bwX, LINE, linePos, linePh, get traffic() { return traffic; }, indoorStart, indoorUse, get IN() { return IN; }, S, goTo, setZoom, controls, camera, scene, photoCamera, walkStart, enterCar, homeMap, close, DOGS, NPC, HUNT, huntPlaces, get WALK() { return WALK; }, rinfo: () => ({ ...renderer.info.render, ...renderer.info.memory, dpr: renderer.getPixelRatio(), shadow: sun.castShadow, objs: (() => { let n = 0, inst = 0, tri = 0; world.traverse(o => { if (o.isMesh) { n++; if (o.isInstancedMesh) inst += o.count; } }); return [n, inst]; })(), labels: document.querySelectorAll("#labels > *").length, qual: QUAL.tier }), onHighway, blvX, blvZ, tsets: () => trafficSets, placeCar, BLK_META, ROUNDS, CENTRAL, BPX, BPZ, bwX, enterWork, exitWork, lotHouses: () => [castleHouse(), glassHouse(), chaletHouse(), santoriniHouse()], line: LINE, waits: lineWaits, time: h => { timeMode = { live: false, h }; applyTime(); }, routeBetween, cityLots, palm: () => PALM, driveStep, autoRoute, autoStart, autoGraph, walkOk: (x, z) => [onGrass(x, z, S.s, .005), onPalm(x, z), onHighway(x, z)], railGo, railEnter, railBoard, palmPhase, railCard, get simT() { return simT; }, set simT(v) { simT = v; }, inw: () => IN, camera, controls, S, Ray: THREE.Raycaster, fig: () => MINE_FIG, walk: WALK, int: INT, FURN, FUNIQ, CARS, furnShot: (parts, view = [3.2, 2.4, 3.6], size = 720, tgt = [0, .5, 0]) => { const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(size, size); r.setClearColor("#f6f3ec");
       const sc = new THREE.Scene(), pf = prefab(parts, false); for (const k of BUCKETS) if (pf[k]) sc.add(new THREE.Mesh(pf[k], BMAT[k]));
       sc.add(new THREE.HemisphereLight("#ffffff", "#c9c2b4", 1.6)); const dl = new THREE.DirectionalLight("#ffffff", 1.6); dl.position.set(4, 8, 6); sc.add(dl);
       const cm = new THREE.PerspectiveCamera(32, 1, .1, 100);
