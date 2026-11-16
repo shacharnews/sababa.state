@@ -375,14 +375,45 @@ body.inside #intUI{display:block}
 .ihead button{width:36px;height:36px;border-radius:50%;background:var(--tint);font-size:16px}
 .ifoot{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:10px;right:10px;max-width:640px;margin:0 auto;border-radius:22px;padding:12px 14px;text-align:center}
 .ifoot p{margin:0 0 10px;font-size:14.5px;color:var(--fg2)}.ifoot p b{color:var(--fg)}.ifoot .btn{width:100%}.ifoot .note{margin:8px 0 0}
-/* ---------- loader ---------- */
-#loader{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:linear-gradient(180deg,#1b2a4a 0%,#e58a5c 62%,#f4c27d 100%);transition:opacity .8s}
+/* ---------- loader: אישור כניסה לרפובליקה (a stamped form) ----------
+   every moving part here is a CSS animation on transform/opacity only, so it keeps moving on the browser's
+   compositor thread even while the main thread is busy building the world and nothing in JS can run. */
+#loader{position:fixed;inset:0;z-index:20;background:#0f3a4d;transition:opacity .8s;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));box-sizing:border-box}
 #loader.gone{opacity:0;pointer-events:none}
-#loader .in{text-align:center;color:#fff}
-#loader svg{width:120px;height:auto;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);animation:float 3s ease-in-out infinite}
-#loader h1{font-size:30px;font-weight:300;letter-spacing:-.5px;margin:22px 0 4px}
-#loader h1 b{font-weight:800}
-#loader p{margin:0;opacity:.8;font-size:14px}
+.ldSheet{height:100%;max-width:520px;margin:0 auto;background:#fbf3e4;border:2px solid #0f3a4d;box-shadow:0 0 0 3px rgba(255,255,255,.14),0 18px 40px rgba(0,0,0,.35);border-radius:5px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.ldHead{background:#0f3a4d;color:#fff;display:flex;align-items:center;gap:10px;padding:10px 13px}
+.ldHead svg{width:38px;height:auto;border-radius:3px;display:block}
+.ldHead b{font-size:16px;font-weight:800;letter-spacing:-.2px}
+.ldHead small{display:block;font-size:10.5px;color:#ffb627;letter-spacing:.2px}
+.ldHead .no{margin-inline-start:auto;background:#fff;color:#0f3a4d;border-radius:3px;font-size:10px;font-weight:800;padding:3px 7px;white-space:nowrap}
+.ldBody{flex:1;padding:16px 18px 10px;display:flex;flex-direction:column;min-height:0}
+.ldTtl{text-align:center;font-size:19px;font-weight:800;color:#0f3a4d;letter-spacing:-.3px}
+.ldSub{text-align:center;font-size:11.5px;color:#7a7158;margin-top:3px}
+.ldRows{margin-top:14px}
+.ldRow{display:flex;align-items:center;gap:8px;border-bottom:1px dashed #cbbfa2;padding:9px 2px;font-size:13.5px;color:#2b2b24}
+.ldRow .dots{margin-inline-start:auto;color:#a99f86;font-size:12px;letter-spacing:2px;transition:opacity .25s}
+.ldRow .stamp{margin-inline-start:auto;font-size:11px;font-weight:800;color:#c0392b;border:2px solid #c0392b;border-radius:4px;padding:1px 7px;opacity:0;transform:rotate(-9deg) scale(1.6);transition:opacity .22s,transform .22s cubic-bezier(.2,1.6,.4,1)}
+.ldRow.ok .stamp{opacity:.92;transform:rotate(-9deg) scale(1)}
+.ldRow.ok .dots{opacity:0}
+.ldRow.now{color:#0f3a4d;font-weight:700}
+.ldSeal{flex:1;display:grid;place-items:center;min-height:96px;position:relative}
+.ldWm{position:absolute;width:86%;max-width:300px;opacity:.07;fill:#0f3a4d;pointer-events:none}
+.ldSlot{position:absolute;width:104px;height:104px;border-radius:50%;border:2px dashed #c3b696;transition:opacity .3s}
+#loader.sealed .ldSlot{opacity:0}
+.ldSeal i{width:104px;height:104px;border-radius:50%;border:3px solid #1f6f8b;color:#1f6f8b;display:grid;place-items:center;text-align:center;font-style:normal;font-size:11px;font-weight:800;line-height:1.35;transform:rotate(-12deg) scale(1.5);opacity:0;transition:opacity .3s,transform .35s cubic-bezier(.2,1.5,.4,1)}
+#loader.sealed .ldSeal i{opacity:.8;transform:rotate(-12deg) scale(1)}
+.ldFact{min-height:52px;display:grid;align-items:center;border-top:1px solid #e0d6bd;padding-top:9px}
+.ldFact div{grid-area:1/1;font-size:12.5px;line-height:1.5;color:#5d5542;text-align:center;opacity:0;transform:translateY(6px);animation:ldFact 45.5s linear infinite}
+.ldFact b{color:#0f3a4d}
+@keyframes ldFact{0%{opacity:0;transform:translateY(6px)}1.2%{opacity:1;transform:none}6.2%{opacity:1;transform:none}7.7%{opacity:0;transform:translateY(-6px)}100%{opacity:0;transform:translateY(-6px)}}
+.ldBar{height:8px;margin:10px 14px 0;border-radius:4px;background:#e6dcc3;overflow:hidden}
+.ldBar i{display:block;height:100%;background:#1f6f8b;border-radius:4px;transform-origin:right;transform:scaleX(.04);animation:ldBar 26s cubic-bezier(.08,.72,.2,1) forwards}
+#loader.sealed .ldBar i{animation:none;transform:scaleX(1);transition:transform .45s ease-out}
+@keyframes ldBar{to{transform:scaleX(.93)}}
+.ldMsg{text-align:center;font-size:11.5px;color:#7a7158;padding:7px 0 11px}
+.ldSlow{position:absolute;inset:auto 0 46px 0;background:#0f3a4d;color:#fff;font-size:12px;text-align:center;padding:9px 12px;opacity:0;transform:translateY(100%);animation:ldSlow .4s ease-out 25s forwards}
+.ldSlow button{margin-inline-start:8px;background:#ffb627;color:#0f3a4d;border:0;border-radius:6px;font:inherit;font-weight:800;padding:4px 10px}
+@keyframes ldSlow{to{opacity:1;transform:none}}
 @keyframes float{50%{transform:translateY(-8px)}}
 .note.addr{margin:0 0 10px;font-size:14px;font-weight:600;opacity:.85}
 .idc{position:relative}.idc-av{position:absolute;left:14px;bottom:10px;height:48%;max-height:150px;border-radius:12px;background:rgba(255,255,255,.18)}
@@ -400,7 +431,24 @@ body.inside #intUI{display:block}
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 
-<div id="loader"><div class="in"><div id="loadFlag"></div><h1>רפובליקת <b>סבבה</b></h1><p id="loadMsg">השמש עולה על האי…</p></div></div>
+<div id="loader"><div class="ldSheet">
+  <div class="ldHead"><div id="loadFlag"></div><div><b>רפובליקת סבבה</b><small>לשכת הכניסה · מחלקת קליטה</small></div><span class="no">טופס 01</span></div>
+  <div class="ldBody">
+    <div class="ldTtl">אישור כניסה לרפובליקה</div>
+    <div class="ldSub" id="ldSub">מכינים את האי לביקור שלכם</div>
+    <div class="ldRows">
+      <div class="ldRow" id="ldR0">מרשם התושבים<span class="dots">···</span><span class="stamp">אושר</span></div>
+      <div class="ldRow" id="ldR1">מיזמים ובנייה<span class="dots">···</span><span class="stamp">אושר</span></div>
+      <div class="ldRow" id="ldR2">בניית האי והערים<span class="dots">···</span><span class="stamp">אושר</span></div>
+      <div class="ldRow" id="ldR3">הכנת התצוגה<span class="dots">···</span><span class="stamp">אושר</span></div>
+    </div>
+    <div class="ldSeal"><svg class="ldWm" viewBox="0 0 300 250" aria-hidden="true"><path d="M280.0,134.6 L281.3,141.1 L281.3,147.6 L279.8,154.1 L277.0,160.2 L273.1,166.0 L268.3,171.3 L263.0,176.2 L257.6,180.8 L252.5,185.2 L247.8,189.7 L243.7,194.3 L240.1,199.1 L236.8,204.2 L233.6,209.6 L230.1,214.9 L226.2,220.1 L221.6,224.8 L216.3,228.9 L210.2,232.1 L203.6,234.4 L196.5,235.9 L189.2,236.6 L182.0,236.8 L174.9,236.6 L168.0,236.5 L161.4,236.5 L155.0,236.7 L148.7,237.3 L142.4,238.0 L136.1,238.8 L129.6,239.5 L123.1,239.9 L116.5,240.0 L109.9,239.6 L103.3,238.9 L96.8,237.9 L90.2,236.6 L83.5,235.4 L76.6,234.2 L69.5,233.1 L62.0,232.0 L54.2,230.8 L46.3,229.2 L38.5,227.1 L31.1,224.2 L24.4,220.4 L18.8,215.7 L14.4,210.0 L11.6,203.6 L10.1,196.7 L10.0,189.4 L10.8,182.2 L12.3,175.2 L13.9,168.5 L15.3,162.2 L16.3,156.4 L16.5,150.8 L16.1,145.4 L15.2,140.0 L14.0,134.6 L12.8,129.1 L11.9,123.5 L11.6,117.8 L12.0,112.1 L13.2,106.5 L15.1,101.1 L17.5,95.8 L20.2,90.6 L23.2,85.5 L26.1,80.4 L29.0,75.3 L32.0,70.1 L35.0,64.8 L38.3,59.5 L42.0,54.4 L46.3,49.5 L51.2,45.1 L56.7,41.3 L62.7,38.2 L69.1,35.5 L75.7,33.4 L82.3,31.5 L88.9,29.7 L95.4,27.7 L101.8,25.4 L108.2,22.8 L114.8,19.9 L121.6,16.9 L128.7,14.0 L136.1,11.7 L143.7,10.3 L151.4,10.0 L159.0,11.0 L166.2,13.4 L173.0,17.0 L179.0,21.7 L184.4,27.1 L189.2,32.8 L193.4,38.5 L197.4,43.9 L201.4,48.8 L205.4,53.1 L209.7,57.0 L214.3,60.4 L219.2,63.7 L224.2,66.9 L229.3,70.2 L234.2,73.8 L238.8,77.7 L243.1,81.8 L247.2,86.3 L251.1,90.9 L254.8,95.7 L258.6,100.6 L262.6,105.7 L266.6,110.9 L270.5,116.4 L274.3,122.2 L277.5,128.3 L280.0,134.6 Z"/></svg><span class="ldSlot"></span><i>לשכת<br>הכניסה<br>★</i></div>
+    <div class="ldFact" id="ldFact"></div>
+  </div>
+  <div class="ldBar"><i></i></div>
+  <div class="ldMsg" id="loadMsg">השמש עולה על האי…</div>
+  <div class="ldSlow">הטעינה לוקחת יותר מהרגיל<button onclick="location.reload()">לרענן</button></div>
+</div></div>
 <div id="gl" aria-label="מפת רפובליקת סבבה. גררו כדי לזוז, צבטו כדי להגדיל, שתי אצבעות כדי לסובב"></div>
 <div id="labels"></div>
 
@@ -487,6 +535,36 @@ const FLAG = (() => {
 })();
 const FLAG_URI = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(FLAG);
 $("loadFlag").innerHTML = FLAG; $("hudFlag").innerHTML = FLAG; $("favicon").href = FLAG_URI;
+
+/* ---------- the loading form: the stages it stamps, and the "did you know" line ---------- */
+// approved by the admin, Nov 2026. every line is true of the site itself.
+const LD_FACTS = [
+  "הכניסה לבניין <b>הקריה</b> פתוחה רק מדרגת רס״ן ומעלה — או לאנשי שירות הביטחון",
+  "לכל חיל יש <b>בית ספר משלו</b>: נהיגה בשריון, שיט בחיל הים, טיסה בחיל האוויר",
+  "<b>יום העצמאות</b> של הרפובליקה: 11 באוקטובר 2026",
+  "<b>נווה המעיין</b> היא עיר גן מדברית, עם תעלת מים ובריכת מעיין",
+  "<b>מגדל ההגשמה</b> מתנשא 210 מ׳ בכניסה לבירה",
+  "לאי הדקל אפשר להגיע <b>ברכבל</b>, בין תחנת החוף לתחנת מלון הדקל",
+  "ב<b>גן יזכור</b> אפשר להדליק נר, ורואים כמה תושבים כבר הדליקו",
+  "לרכב הפרטי שלכם <b>נגמר הדלק</b> — ובשביל זה יש תחנות",
+  "העיתון <b>סבבה היום</b> יוצא כל בוקר ב־06:00 ומספר מה קרה אתמול",
+  "ב<b>לשכת התושב</b> מחכים לכם הדואר הרשמי, המחסן וכל מה שפתוח עבורכם",
+  "אפשר <b>לערוך את הבית</b>: קומות, חדרים, חצר — וכל רהיט בתלת־ממד בגודל ובכיוון האמיתיים",
+  "לכל מיזם יש <b>תיק בנייה</b>, והבנייה עולה שלב כל שש שעות",
+  "יש <b>הישגים</b> שמחכים לכם — למשל ״לקוח קבוע במאפייה״, אחרי עשר קניות"
+];
+// one line at a time, fading in and out purely in CSS: the ticker keeps running while the world is being built.
+// each load starts at a different line, so the same fact isn't always first.
+(() => { const box = $("ldFact"); if (!box) return; const n = LD_FACTS.length, step = 45.5 / n, k0 = Math.floor(Math.random() * n);
+  box.innerHTML = LD_FACTS.map((t, i) => { const k = (i - k0 + n) % n; return `<div style="animation-delay:${(k * step - .4).toFixed(2)}s">${t}</div>`; }).join(""); })();
+// a stage of the form: stamp the ones that are done, mark the one running, and let the browser paint before the work blocks it
+const LD_ROWS = ["ldR0", "ldR1", "ldR2", "ldR3"];
+const paint = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+async function ldStage(i, msg) {
+  for (let k = 0; k < LD_ROWS.length; k++) { const e = $(LD_ROWS[k]); if (!e) continue; e.classList.toggle("ok", k < i); e.classList.toggle("now", k === i); }
+  const m = $("loadMsg"); if (m && msg) m.textContent = msg;
+  await paint();
+}
 
 /* ============================ DOMAIN ============================ */
 // short street names: ordinary streets, boulevards (one name all along), pedestrian lanes, squares and parks
@@ -15909,6 +15987,7 @@ const NEWS = {
   placetool: { v: "2026-11-15", ic: "📍", t: "כלי המיקום: איפה יעמוד כל מתחם", sub: "המנהל יכול עכשיו להזיז כל מתחם לאומי ולסובב אותו: המתחם מופיע כרוח שקופה בגודל האמיתי, נגררת על הקרקע, ירוקה כשהמיקום חוקי ואדומה כשלא · כביש הגישה נמתח מחדש לבד · וכל מיקום שעלול להזיז כתובת קיימת פשוט נחסם", ok: () => ADMIN, shot: () => ({ a: at(NAT.sports, 1.6, -.6, .42), b: at(NAT.sports, 1.1, .9, .35) }) },
   island100: { v: "2026-11-15", ic: "🏝️", t: "האי ירד ל־100 קמ״ר", sub: "עד היום האי השתרע על 291 קמ״ר והיה כמעט כולו שדה ריק · עכשיו הוא 100 קמ״ר, והנסיעה מהבירה לבסיס חיל האוויר התקצרה מ־9.8 ל־5.2 ק״מ · הבירה, העיירות, כל הכבישים וכל הכתובות נשארו בדיוק במקומם — רק הים והשדה הריק סביבם נגזמו · ומעכשיו זה גם הגבול: האי לא יעבור 100 קמ״ר לעולם", ok: () => true, shot: () => ({ a: { x: 0, z: 0, zoom: .055, az: 0, el: 1.3 }, b: at(NAT.air, .6, -.6, .45) }) },
   prevshot: { v: "2026-11-15", ic: "🏙️", t: "בתיק הבנייה רואים איך זה ייראה בסוף", sub: "בכל תיק בנייה של מיזם שעוד נבנה מופיעה עכשיו הדמיה של המתחם הגמור — מבט אוויר ומבט מהכניסה — ובפינה תצלום של השטח היום · ההדמיה נוצרת פעם אחת ואחר כך נפתחת מיד, ויש כפתור לרענן אותה", ok: () => S.projects.some(q => !planStage(q).done), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
+  loadform: { v: "2026-11-16", ic: "🪪", t: "דף הטעינה: אישור כניסה לרפובליקה", sub: "במקום מסך שנראה תקוע — טופס רשמי שמוחתם לנגד עיניכם: כל שלב שמסתיים מקבל חותמת ״אושר״ אדומה, בסוף נוחתת החותמת העגולה של לשכת הכניסה, ולמטה מתחלפות ידיעות ״הידעת״ על המדינה · הכול ממשיך לזוז גם ברגעים הכבדים של הטעינה", ok: () => true, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[0], 1.5, .5, .4) }) },
   addrlock: { v: "2026-11-15", ic: "📬", t: "הכתובות נעולות — גם כשהמדינה נבנית מחדש", sub: "מצאנו באג ותיק: כשהאתר היה בונה את המדינה מחדש באמצע ביקור (למשל אחרי שהמנהל מזיז מתחם), שיוך הבתים למגרשים היה מתערבב ורוב התושבים היו רואים מספר בית אחר עד הרענון הבא · עכשיו פריסת הרחובות והמגרשים מחושבת תמיד על אותה מפה בדיוק, והכתובת שלך נשארת שלך בכל מצב", ok: () => true, shot: () => ({ a: at(S.slots[0], 2.2, -.3, .5), b: at(S.slots[1], 1.6, .4, .45) }) },
   flyfix: { v: "2026-11-15", ic: "🚁", t: "אפשר סוף סוף לעלות על כלי האימון", sub: "בבית הספר לטיסה כל שלב שפתוח לכם הוא עכשיו כפתור: לוחצים, ואתם עומדים ברגל ליד הכלי עצמו · מספיק להתקרב למסוק או למטוס והכפתור הכחול מעלה אתכם עליו · וגם נגיעה בכלי על המפה פותחת את בית הספר", ok: () => natOpen("air"), shot: () => ({ a: at(NAT.air, 1.1, -.5, .4), b: at(NAT.air, 1.9, .6, .35) }) },
   fixes3: { v: "2026-11-15", ic: "🅿️", t: "קריית הספורט: חניונים, רחבה ומגרשים", sub: "שני החניונים של האצטדיון קיבלו אספלט וסימון מקומות — עד היום המכוניות חנו על הדשא · חזרו גם הרחבה שלפני השערים, השבילים וארבעת מגרשי הכדורסל", ok: () => natOpen("sports"), shot: () => ({ a: at(NAT.sports, 1.5, 0, 1.2), b: at(NAT.sports, 2.4, -.6, .42) }) },
@@ -17115,21 +17194,28 @@ async function refresh() {
 async function boot() {
   const day = Math.max(1, Math.floor((Date.now() - new Date(INDEPENDENCE_DAY + "T00:00:00").getTime()) / 864e5) + 1);
   $("hudDay").textContent = "יום " + fmtN(day);
+  $("ldSub").textContent = `יום ${fmtN(day)} לעצמאות · 100 קמ״ר`;
   applyTime();
+  await ldStage(0, "פותחים את מרשם התושבים…");
   try { await loadData(); } catch (e) { console.error(e); toast("לא הצלחנו לטעון את המדינה. נסו לרענן."); S.raw = []; S.slots = SLOTS.map(s => ({ ...s, city: null })); }
-  $("loadMsg").textContent = "מחלקים מפתחות לבתים…"; await new Promise(r => setTimeout(r, 30));
+  $("ldSub").textContent = `יום ${fmtN(day)} לעצמאות · 100 קמ״ר · ${fmtN(S.total || 0)} תושבים`;
+  await ldStage(1, "בודקים את תיקי הבנייה…");
   await loadExtras(); await loadProjects();
   try { await Promise.all([document.fonts.load("800 64px Heebo"), document.fonts.load("700 64px Heebo")]); } catch {}
+  await ldStage(2, "מחלקים מפתחות לבתים…");
   const T0 = performance.now(); buildWorld(); applyTime(); window.BOOT_T = { world: Math.round(performance.now() - T0) };
   // the shaders are prepared in the background (the browser's own threads) before the first picture, so the page never freezes on them
-  $("loadMsg").textContent = "מכינים את התצוגה…"; warpPatch(scene); WARPF.dirty = true;
+  await ldStage(3, "מכינים את התצוגה…"); warpPatch(scene); WARPF.dirty = true;
   try { if (renderer.compileAsync) await Promise.race([renderer.compileAsync(scene, camera), new Promise(r => setTimeout(r, 25000))]); } catch (e) { console.warn(e); }
   window.BOOT_T.shaders = Math.round(performance.now() - T0) - window.BOOT_T.world;
   const cap = S.slots[0];
   // straight over the capital (no long flight in from the whole island: on a phone that flight stuttered and could stop half way)
   controls.target.set(cap.x, 0, cap.z); camera.position.copy(VIEW_DIR).multiplyScalar(2000).add(controls.target); setZoom(1.6);
   requestAnimationFrame(loop);
-  setTimeout(() => { $("loader").classList.add("gone"); flyTo(cap.x, cap.z, 2.2, 900); }, 300);
+  // the form is signed: the last row is stamped, the round seal lands and the bar runs to the end, and only then the page lifts
+  await ldStage(4, "אישור כניסה חתום · ברוכים הבאים");
+  $("loader").classList.add("sealed");
+  setTimeout(() => { $("loader").classList.add("gone"); flyTo(cap.x, cap.z, 2.2, 900); }, 620);
   const qs = new URLSearchParams(location.search), pre = qs.get("u"), k = qs.get("k");
   // the personal link from Instagram: remember the key on this phone and take it out of the address bar, so it isn't shared by mistake
   if (pre && k) { saveKey(clean(pre), k); history.replaceState(null, "", `?u=${encodeURIComponent(clean(pre))}`); }
